@@ -15,6 +15,15 @@ confidence-threshold = 0.9
 [bans]
 multiple-versions = "allow"
 wildcards = "warn"
+# NFR-004: no network. Deny every HTTP / RPC client crate so a future
+# transitive dep can't sneak the process out of the sandbox.
+deny = [
+    { name = "reqwest" },
+    { name = "hyper" },
+    { name = "tonic" },
+    { name = "surf" },
+    { name = "ureq" },
+]
 
 [advisories]
 version = 2
