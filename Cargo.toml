@@ -1,0 +1,21 @@
+[package]
+name = "quire-cli"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "Static binary CLI wrapping quire-rs (render, parse, extract, validate)."
+authors = ["Agent IX <kreneskyp@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/agent-ix/quire-cli"
+
+[lib]
+name = "quire_cli"
+path = "src/lib.rs"
+
+[dependencies]
+
+[dev-dependencies]
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
