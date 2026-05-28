@@ -1,0 +1,110 @@
+# Test Matrix
+
+## Overview
+
+This matrix maps every Acceptance Criterion in `quire-cli/spec/` to one or more Test Cases (IT-XXX integration tests, BENCH-XXX benchmark gates, AUDIT-XXX static-analysis gates).
+
+The CLI is a thin process boundary over `quire-rs`; the upstream engine is independently covered by `quire-rs/spec/tests.md`. This matrix tests **only** the CLI's process-level behavior: argv parsing, path-safety, stdin/stdout/stderr contract, exit codes, JSON output encoding, latency budget, and static-binary properties.
+
+## Matrix Rules
+
+1. **Coverage Rule** — every AC has at least one IT / BENCH / AUDIT trace.
+2. **Path-safety boundary rule** — every user-supplied path argument is exercised with `..`, with a symlink escape, and with a valid in-tree path.
+3. **Exit-code rule** — every exit code in FR-007 has at least one IT producing it.
+4. **Subcommand permutation rule** — for each subcommand (`render`, `parse`, `extract`, `validate`), the success path, the unknown-archetype path, and the schema-violation path each have a dedicated IT.
+5. **Determinism rule** — primary outputs (`render`, `parse`, `extract`) have a deterministic snapshot IT (byte-identical reruns).
+6. **No-network rule** — IT-008 verifies zero `socket()` calls under strace across all subcommands.
+
+---
+
+## Stakeholder Coverage
+
+| StR | Trace to US/FR | Verifying IT/BENCH/AUDIT | Status |
+|-----|---------------|--------------------------|--------|
+| StR-001 Static binary hot path | US-001, US-002, US-003, US-004, FR-001..008 | IT-001, IT-002, IT-003, IT-004, AUDIT-001 (ldd), AUDIT-003 (no-network) | 🚧 DRAFT |
+| StR-002 Sub-50 ms budget | US-001, NFR-001 | BENCH-001 (hyperfine p95) | 🚧 DRAFT |
+| StR-003 Sandbox inheritance | FR-005 | IT-005 (..), IT-006 (symlink escape), IT-007 (data path safety) | 🚧 DRAFT |
+| StR-004 Thin boundary | FR-001..004, NFR-005 | AUDIT-002 (src grep for parse/render logic) | 🚧 DRAFT |
+
+## User Story Coverage
+
+| US | AC | IT | Status |
+|----|----|----|--------|
+| US-001 Agent renders FR | AC-1..4 | IT-001, IT-009 (byte-parity vs minijinja-cli), IT-010 (schema viol exits 1), BENCH-001 | 🚧 |
+| US-002 Human parses doc | AC-1..4 | IT-002, IT-011 (stdin), IT-012 (malformed frontmatter), IT-013 (empty doc) | 🚧 |
+| US-003 CI validates | AC-1..3 | IT-003, IT-014 (parametric across 8 ISO archetypes) | 🚧 |
+| US-004 Extract for graph ingest | AC-1..4 | IT-004, IT-015 (edge dedup), IT-016 (sugar field harvest) | 🚧 |
+
+## Functional Requirement Coverage
+
+| FR | AC | IT | Status |
+|----|----|----|--------|
+| FR-001 render subcommand | AC-1..6 | IT-001, IT-009, IT-010, IT-017 (--out flag), IT-018 (8-archetype parity sweep) | 🚧 |
+| FR-002 parse subcommand | AC-1..5 | IT-002, IT-011, IT-012, IT-013, IT-019 (byte-offset round-trip) | 🚧 |
+| FR-003 extract subcommand | AC-1..4 | IT-004, IT-015, IT-016, IT-020 (determinism rerun) | 🚧 |
+| FR-004 validate subcommand | AC-1..4 | IT-003, IT-014, IT-021 (no stdout on validate) | 🚧 |
+| FR-005 path-safety | AC-1..5 | IT-005, IT-006, IT-007, IT-022 (--out reject), IT-023 (stdin bypasses) | 🚧 |
+| FR-006 IO contract | AC-1..4 | IT-024 (no interleaving), IT-025 (--diagnostics-format=json), IT-011 (stdin) | 🚧 |
+| FR-007 Exit codes | AC-1..6 | IT-026 (each exit code: 0, 1, 2), IT-027 (no panic on covered inputs) | 🚧 |
+| FR-008 JSON encoding | AC-1..5 | IT-028 (compact default), IT-029 (--pretty), IT-019 (round-trip), IT-030 (stable field order) | 🚧 |
+
+## Non-Functional Requirement Coverage
+
+| NFR | Verification | Trace | Status |
+|-----|--------------|-------|--------|
+| NFR-001 p95 ≤ 50 ms | benchmark | BENCH-001 (hyperfine harness in `make bench`) | 🚧 |
+| NFR-002 Static binary | static audit | AUDIT-001 (`ldd` IT verifies no project .so) | 🚧 |
+| NFR-003 Zero unsafe | static audit | AUDIT-004 (`scripts/check_unsafe_comments.sh` CI gate) | 🚧 |
+| NFR-004 No network | static + runtime | AUDIT-003 (`cargo deny bans`), IT-008 (strace zero socket()) | 🚧 |
+| NFR-005 Diagnostic format | unit + IT | IT-031 (each error class parses as Diagnostic JSON) | 🚧 |
+| NFR-006 CLI stability | snapshot | IT-032 (`quire --help` snapshot pinned) | 🚧 |
+
+---
+
+## Test Case Summary
+
+| ID | Title | Type | Priority | Traces To |
+|----|-------|------|----------|-----------|
+| IT-001 | `quire render FR` happy path produces rendered markdown | Integration | P0 | FR-001-AC-1, US-001-AC-1 |
+| IT-002 | `quire parse` emits valid QuireDocument JSON | Integration | P0 | FR-002-AC-1, US-002-AC-1 |
+| IT-003 | `quire validate` returns 0/1 by schema conformance | Integration | P0 | FR-004-AC-1..2, US-003-AC-1..2 |
+| IT-004 | `quire extract` emits {extraction, edges} envelope | Integration | P0 | FR-003-AC-1, US-004-AC-1 |
+| IT-005 | `--module ../escape` exits 1 with PathSafetyViolation | Integration | P0 | FR-005-AC-1, StR-003-AC-1 |
+| IT-006 | Symlink under module to /etc/passwd refused at load | Integration | P0 | FR-005-AC-4, StR-003-AC-4 |
+| IT-007 | `--data ../../etc/passwd` exits 1 | Integration | P0 | FR-005-AC-2, StR-003-AC-2 |
+| IT-008 | No network sockets opened (strace) | Integration | P0 | NFR-004-AC-2, StR-001-AC-4 |
+| IT-009 | Render byte-parity vs minijinja-cli (FR archetype) | Integration | P0 | FR-001-AC-1, US-001-AC-2 |
+| IT-010 | Schema violation exits 1 before stdout write | Integration | P0 | FR-001-AC-4, US-001-AC-3 |
+| IT-011 | `parse -` reads stdin | Integration | P1 | FR-002-AC-2, US-002-AC-4 |
+| IT-012 | Malformed frontmatter still parses, stderr warns | Integration | P1 | FR-002-AC-3, US-002-AC-3 |
+| IT-013 | Empty document → valid empty QuireDocument JSON | Integration | P1 | FR-002-AC-4 |
+| IT-014 | Parametric validate across 8 ISO archetypes (valid + invalid each) | Integration | P0 | FR-004-AC-4, US-003-AC-2 |
+| IT-015 | Edge dedup by (source, type, target) | Integration | P1 | FR-003-AC-2, US-004-AC-2 |
+| IT-016 | Frontmatter sugar field `dependencies:` harvested | Integration | P1 | FR-003-AC-3, US-004-AC-3 |
+| IT-017 | `--out` flag writes file, empty stdout | Integration | P1 | FR-001-AC-5 |
+| IT-018 | 8-archetype render parity sweep (FR, NFR, StR, US, IT, TC, AC, CON) | Integration | P0 | FR-001-AC-6, StR-002 |
+| IT-019 | parse JSON round-trips through QuireDocument deserialize | Integration | P0 | FR-002-AC-5, FR-008-AC-1 |
+| IT-020 | extract rerun produces byte-identical stdout | Integration | P1 | FR-003-AC-4 |
+| IT-021 | validate writes nothing to stdout on success | Integration | P1 | FR-004-AC-1, FR-006 |
+| IT-022 | `--out ../escape` rejected | Integration | P0 | FR-005-AC-3 |
+| IT-023 | `--data -` bypasses path-safety | Integration | P1 | FR-005-AC-5 |
+| IT-024 | No stdout/stderr interleaving (chunked write test) | Integration | P1 | FR-006-AC-1..2 |
+| IT-025 | `--diagnostics-format=json` produces parseable Diagnostic | Integration | P1 | FR-006-AC-3, NFR-005-AC-2 |
+| IT-026 | Each documented exit code is produced by at least one input | Integration | P0 | FR-007-AC-1..5 |
+| IT-027 | No panic on randomly malformed inputs (smoke fuzz) | Integration | P1 | FR-007-AC-6 |
+| IT-028 | Default JSON output is compact (one line) | Integration | P1 | FR-008-AC-1 |
+| IT-029 | `--pretty` produces multi-line indented JSON | Integration | P2 | FR-008-AC-3 |
+| IT-030 | JSON field order matches Rust struct order | Integration | P2 | FR-008-AC-4 |
+| IT-031 | Each error class's stderr deserializes as Diagnostic when JSON format active | Integration | P1 | NFR-005-AC-1..2 |
+| IT-032 | `quire --help` snapshot pinned | Integration | P2 | NFR-006-AC-2 |
+| BENCH-001 | hyperfine p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2, StR-002 |
+| AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
+| AUDIT-002 | `src/` grep finds no markdown parsing, no template rendering, no JSON Schema validation | Static | P1 | StR-004-AC-2 |
+| AUDIT-003 | `cargo deny check bans` rejects HTTP client crates | Static | P0 | NFR-004-AC-1 |
+| AUDIT-004 | `scripts/check_unsafe_comments.sh` zero unsafe in src/ + tests/ | Static | P0 | NFR-003-AC-1 |
+
+---
+
+## Verification Status
+
+DRAFT — all entries are 🚧 pending the implementation tasks generated by `/spec-to-plan`. Status will advance to ✅ as each IT lands and passes in CI.
