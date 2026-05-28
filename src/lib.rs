@@ -1,16 +1,8 @@
-//! Static binary CLI wrapping quire-rs (render, parse, extract, validate).
+//! Shared library surface for the `quire` binary.
+//!
+//! This crate is primarily a binary (`src/main.rs`); the library exists
+//! so integration tests can import the path-safety guards and I/O
+//! helpers without going through the process boundary.
 
-/// Placeholder entry point.
-pub fn hello() -> &'static str {
-    "hello from quire_cli"
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn hello_returns_greeting() {
-        assert!(hello().contains("quire_cli"));
-    }
-}
+pub mod io;
+pub mod safety;
