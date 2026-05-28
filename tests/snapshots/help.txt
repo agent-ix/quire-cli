@@ -1,0 +1,16 @@
+Thin CLI over quire-rs (render, parse, extract, validate)
+
+Usage: quire [OPTIONS] <COMMAND>
+
+Commands:
+  render    Render an archetype to markdown
+  parse     Parse a markdown document to JSON
+  extract   Extract structured records + edges from a document
+  validate  Validate a JSON context against an archetype's schema
+  help      Print this message or the help of the given subcommand(s)
+
+Options:
+      --diagnostics-format <FORMAT>  Diagnostic stream format on stderr [default: human]
+      --pretty                       Emit JSON output with pretty-printing where applicable
+  -h, --help                         Print help
+  -V, --version                      Print version

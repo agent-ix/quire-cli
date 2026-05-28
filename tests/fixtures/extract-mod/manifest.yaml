@@ -1,0 +1,32 @@
+manifest_version: 1.0.0
+name: extract-mod
+version: 0.1.0
+description: Fixture module with an object_type carrying a body_extraction DSL for extract ITs.
+grammars:
+- name: extract-mod-core
+  version: 0.1.0
+  description: ""
+  doc_kinds:
+  - spec
+doc_kinds:
+- spec
+artifact_types: []
+object_types:
+- name: ExtractSample
+  grammar_ref: extract-mod-core
+  template_ref: templates/sample.md.j2
+  frontmatter_schema_ref: schemas/sample-frontmatter.schema.json
+  required_sections:
+  - name: Purpose
+    level: 2
+  body_extraction:
+    yield_pattern:
+      match:
+        id:
+          from: frontmatter_field
+          path: [id]
+          required: true
+        purpose:
+          from: section_body
+          after_heading: Purpose
+lint_rules: []
