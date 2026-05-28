@@ -14,6 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout quire-rs (sibling path dep)
+        uses: actions/checkout@v4
+        with:
+          repository: agent-ix/quire-rs
+          path: ../quire-rs
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -23,22 +29,30 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Format
-        run: cargo fmt --all -- --check
+        run: make fmt-check
 
       - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
+        run: make lint
 
       - name: Test
-        run: cargo test
+        run: make test
 
       - name: Unsafe audit
-        run: bash scripts/check_unsafe_comments.sh
+        run: make audit-unsafe
+
+      - name: Thin-boundary audit
+        run: make audit-thin-boundary
 
   licenses:
-    name: License Check
+    name: License + bans Check
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout quire-rs (sibling path dep)
+        uses: actions/checkout@v4
+        with:
+          repository: agent-ix/quire-rs
+          path: ../quire-rs
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo artifacts
@@ -48,4 +62,27 @@ jobs:
         with:
           tool: cargo-deny
       - name: cargo deny check licenses
-        run: cargo deny check licenses
+        run: make deny
+      - name: cargo deny check bans
+        run: make deny-bans
+
+  bench:
+    name: Latency budget (NFR-001)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout quire-rs (sibling path dep)
+        uses: actions/checkout@v4
+        with:
+          repository: agent-ix/quire-rs
+          path: ../quire-rs
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+      - name: Install hyperfine
+        uses: taiki-e/install-action@v2
+        with:
+          tool: hyperfine
+      - name: Run bench (p95 ≤ 50 ms gate)
+        run: make bench

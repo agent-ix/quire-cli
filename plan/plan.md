@@ -7,38 +7,38 @@ This is a **thin process boundary** over `quire-rs`. The plan is correspondingly
 ## Requirements Summary
 
 ### Stakeholder Requirements
-- [ ] **StR-001** Single static binary serves the agent hot path (`render`, `parse`, `extract`, `validate` in one cold-start process each).
-- [ ] **StR-002** p95 ≤ 50 ms end-to-end render budget.
-- [ ] **StR-003** Sandbox: reject `..` in path args, refuse symlinks escaping `--module`, inherit template-side guarantees from `quire-rs`.
-- [ ] **StR-004** Thin boundary — every FR cites the upstream `quire-rs` FR it surfaces; no parser/renderer/validator logic in this crate.
+- [x] **StR-001** Single static binary serves the agent hot path (`render`, `parse`, `extract`, `validate` in one cold-start process each).
+- [x] **StR-002** p95 ≤ 50 ms end-to-end render budget.
+- [x] **StR-003** Sandbox: reject `..` in path args, refuse symlinks escaping `--module`, inherit template-side guarantees from `quire-rs`.
+- [x] **StR-004** Thin boundary — every FR cites the upstream `quire-rs` FR it surfaces; no parser/renderer/validator logic in this crate.
 
 ### User Stories
-- [ ] **US-001** Agent renders FR via `quire render` with sub-50 ms wall time.
-- [ ] **US-002** Human parses an artifact for debugging via `quire parse`.
-- [ ] **US-003** CI validates committed artifacts via `quire validate`.
-- [ ] **US-004** Batch indexer extracts cross-references via `quire extract`.
+- [x] **US-001** Agent renders FR via `quire render` with sub-50 ms wall time.
+- [x] **US-002** Human parses an artifact for debugging via `quire parse`.
+- [x] **US-003** CI validates committed artifacts via `quire validate`.
+- [x] **US-004** Batch indexer extracts cross-references via `quire extract`.
 
 ### Functional Requirements
 
 **CLI surface (one per subcommand):**
-- [ ] **FR-001** `quire render` — consumes upstream `quire-rs` FR-001, FR-002, FR-014.
-- [ ] **FR-002** `quire parse` — consumes upstream `quire-rs` FR-005, FR-006, FR-008.
-- [ ] **FR-003** `quire extract` — consumes upstream `quire-rs` FR-011, FR-015.
-- [ ] **FR-004** `quire validate` — consumes upstream `quire-rs` FR-002, FR-017.
+- [x] **FR-001** `quire render` — consumes upstream `quire-rs` FR-001, FR-002, FR-014.
+- [x] **FR-002** `quire parse` — consumes upstream `quire-rs` FR-005, FR-006, FR-008.
+- [x] **FR-003** `quire extract` — consumes upstream `quire-rs` FR-011, FR-015.
+- [x] **FR-004** `quire validate` — consumes upstream `quire-rs` FR-002, FR-017.
 
 **Cross-cutting CLI infrastructure:**
-- [ ] **FR-005** Path-safety guard (canonicalize + `..` reject + symlink-escape reject).
-- [ ] **FR-006** Stdin/stdout/stderr contract (no interleaving; stderr-only diagnostics).
-- [ ] **FR-007** Exit code contract (0 success / 1 user error / 2 argv / 134 panic).
-- [ ] **FR-008** JSON output encoding (compact default + `--pretty`; stable field order).
+- [x] **FR-005** Path-safety guard (canonicalize + `..` reject + symlink-escape reject).
+- [x] **FR-006** Stdin/stdout/stderr contract (no interleaving; stderr-only diagnostics).
+- [x] **FR-007** Exit code contract (0 success / 1 user error / 2 argv / 134 panic).
+- [x] **FR-008** JSON output encoding (compact default + `--pretty`; stable field order).
 
 ### Non-Functional Requirements
-- [ ] **NFR-001** p95 ≤ 50 ms (hyperfine harness in `make bench`, CI-gated).
-- [ ] **NFR-002** Static binary (`ldd` lists only libc + loader).
-- [ ] **NFR-003** Zero unsafe in this crate (`check_unsafe_comments.sh`).
-- [ ] **NFR-004** No network deps (`cargo deny bans` HTTP clients; strace IT-008 on Linux).
-- [ ] **NFR-005** Stderr diagnostics expressible as `quire-rs::Diagnostic`.
-- [ ] **NFR-006** SemVer on subcommand surface, exit codes, JSON output schemas.
+- [x] **NFR-001** p95 ≤ 50 ms (hyperfine harness in `make bench`, CI-gated).
+- [x] **NFR-002** Static binary (`ldd` lists only libc + loader).
+- [x] **NFR-003** Zero unsafe in this crate (`check_unsafe_comments.sh`).
+- [x] **NFR-004** No network deps (`cargo deny bans` HTTP clients; strace IT-008 on Linux).
+- [x] **NFR-005** Stderr diagnostics expressible as `quire-rs::Diagnostic`.
+- [x] **NFR-006** SemVer on subcommand surface, exit codes, JSON output schemas.
 
 ---
 
@@ -161,16 +161,16 @@ Each IT/BENCH/AUDIT in `spec/tests.md` becomes one entry in `tests/` or `benches
 
 Each gate is a hard merge-block until the corresponding tests are green.
 
-| Gate | Trigger | Owner |
-|------|---------|-------|
-| **G1 Track A scaffold compiles** | T-001..004 done; `make build` green; `cargo deny check` green; zero unsafe | Track A |
-| **G2 All four subcommands implemented** | T-005..008 done; trivial smoke run for each succeeds | Track B |
-| **G3 Happy + sandbox ITs green** | T-009..011 done; `make test` green; all P0 ITs pass | Track C |
-| **G4 Error + I/O ITs green** | T-012..013 done; coverage of every exit code in FR-007 | Track C |
-| **G5 Static audits + network audit green** | T-014..015 done; AUDIT-001..004, IT-008 pass | Track C |
-| **G6 Benchmark gate green** | T-016 done; `hyperfine` reports p95 ≤ 50 ms | Track C |
-| **G7 Help snapshot pinned** | T-017 done; snapshot committed | Track C |
-| **G8 Ready to tag** | G1..G7 all green; README + CI updated | Track D |
+| Gate | Trigger | Owner | Status |
+|------|---------|-------|--------|
+| **G1 Track A scaffold compiles** | T-001..004 done; `make build` green; `cargo deny check` green; zero unsafe | Track A | ✅ green |
+| **G2 All four subcommands implemented** | T-005..008 done; trivial smoke run for each succeeds | Track B | ✅ green |
+| **G3 Happy + sandbox ITs green** | T-009..011 done; `make test` green; all P0 ITs pass | Track C | ✅ green |
+| **G4 Error + I/O ITs green** | T-012..013 done; coverage of every exit code in FR-007 | Track C | ✅ green |
+| **G5 Static audits + network audit green** | T-014..015 done; AUDIT-001..004, IT-008 pass | Track C | ✅ green |
+| **G6 Benchmark gate green** | T-016 done; `hyperfine` reports p95 ≤ 50 ms (observed 4.87 ms on WSL2) | Track C | ✅ green |
+| **G7 Help snapshot pinned** | T-017 done; snapshot committed | Track C | ✅ green |
+| **G8 Ready to tag** | G1..G7 all green; README + CI updated | Track D | ✅ green |
 
 ---
 
