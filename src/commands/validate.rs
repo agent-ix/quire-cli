@@ -3,8 +3,6 @@
 //! Surfaces `quire_rs::validate` (upstream FR-002 / FR-017).
 //! Exit 0 on success, exit 1 on validation failure. NEVER writes stdout.
 
-use std::path::Path;
-
 use anyhow::{anyhow, Context};
 use clap::Parser;
 
@@ -34,9 +32,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
     let data = io::read_data(&args.data).context("reading --data")?;
 
-    let search_root = safety::search_root_for_module(&module);
-    let module_ref: &Path = search_root.as_path();
-    let registry = Registry::load_from(&[module_ref]).context("loading module registry")?;
+    let registry = Registry::load_module(&module).context("loading module registry")?;
     emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
 
     let archetype = registry

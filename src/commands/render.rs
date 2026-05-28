@@ -2,7 +2,7 @@
 //!
 //! Surfaces `quire_rs::render_by_name` (FR-001 / upstream FR-001+002+014).
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Parser;
@@ -46,9 +46,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     };
 
     let data = io::read_data(&args.data).with_context(|| "reading --data")?;
-    let search_root = safety::search_root_for_module(&module);
-    let module_ref: &Path = search_root.as_path();
-    let registry = Registry::load_from(&[module_ref]).context("loading module registry")?;
+    let registry = Registry::load_module(&module).context("loading module registry")?;
     emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
 
     let rendered =

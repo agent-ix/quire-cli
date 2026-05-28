@@ -110,8 +110,12 @@ where
     I: IntoIterator<Item = &'a quire_rs::Diagnostic>,
 {
     for d in iter {
-        let kind = format!("{:?}", d.kind());
-        emit_diagnostic(format, &kind, &d.to_string());
+        let json = d.to_json();
+        let kind = json
+            .get("kind")
+            .and_then(|k| k.as_str())
+            .unwrap_or("Diagnostic");
+        emit_diagnostic(format, kind, &d.to_string());
     }
 }
 

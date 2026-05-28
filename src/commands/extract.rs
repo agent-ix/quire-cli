@@ -4,14 +4,13 @@
 //! (upstream FR-011 / FR-015).
 //!
 //! Selection: the archetype is read from the document's frontmatter
-//! `artifact_type` field. The DSL is read out of the module's
-//! `manifest.yaml` via `quire_rs::loader::manifest::load_manifest`,
-//! because `quire_rs::CompiledArchetype` does not retain the parsed
-//! DSL after load (it is structurally validated and dropped). Re-
-//! parsing the manifest is a fixed-cost startup tax acceptable for
-//! the agent extract path (see F-5 / R-4 in plan).
+//! `artifact_type` field (or `object_type`), or overridden via
+//! `--archetype`. The DSL is read from
+//! `CompiledArchetype::body_extraction()` — no manifest re-read.
 //!
 //! Per F-5 (plan.md), this command does NOT auto-validate the document.
+
+use std::path::PathBuf;
 
 use anyhow::{anyhow, Context};
 use clap::Parser;
@@ -19,8 +18,7 @@ use serde::Serialize;
 
 use quire_cli::io::{self, emit_quire_diagnostics};
 use quire_cli::safety;
-use quire_rs::loader::manifest::load_manifest;
-use quire_rs::{harvest_edges, IdentityResolver};
+use quire_rs::{harvest_edges, LoadedDocument, Registry};
 
 use super::Ctx;
 
@@ -52,9 +50,8 @@ struct ExtractionShape<'a> {
 
 #[derive(Serialize)]
 struct EdgeShape {
-    r#type: String,
     target: String,
-    metadata: serde_json::Map<String, serde_json::Value>,
+    r#type: String,
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
@@ -62,11 +59,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         .with_context(|| format!("validating --module '{}'", args.module))?;
 
     let text = io::read_text(&args.doc).with_context(|| format!("reading '{}'", args.doc))?;
-    let doc = quire_rs::parse_document(&text);
+    let parsed = quire_rs::parse_document(&text);
 
     let archetype_name = match args.archetype.as_deref() {
         Some(name) => name.to_string(),
-        None => doc
+        None => parsed
             .frontmatter
             .as_ref()
             .and_then(|fm| {
@@ -83,60 +80,50 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             .to_string(),
     };
 
-    let manifest = load_manifest(&module).map_err(|e| anyhow!("loading manifest.yaml: {e}"))?;
-    let object_type = manifest
-        .object_types
-        .iter()
-        .find(|ot| ot.name == archetype_name)
-        .ok_or_else(|| {
-            anyhow!(
-                "archetype '{}' is not an object_type in module '{}' \
-                 (extract requires an object_type with body_extraction)",
-                archetype_name,
-                module.display()
-            )
-        })?;
-    let dsl = object_type.body_extraction.as_ref().ok_or_else(|| {
+    let registry = Registry::load_module(&module).context("loading module registry")?;
+    emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
+
+    let compiled = registry.archetype(&archetype_name).ok_or_else(|| {
         anyhow!(
-            "object_type '{}' has no 'body_extraction' DSL — nothing to extract",
+            "archetype '{}' not registered in module '{}'",
+            archetype_name,
+            module.display()
+        )
+    })?;
+    let dsl = compiled.body_extraction().ok_or_else(|| {
+        anyhow!(
+            "archetype '{}' has no 'body_extraction' DSL — nothing to extract",
             archetype_name
         )
     })?;
 
-    let extraction = quire_rs::extract(&doc, dsl).context("evaluating extraction DSL")?;
+    let extraction = quire_rs::extract(&parsed, dsl).context("evaluating extraction DSL")?;
     emit_quire_diagnostics(ctx.diagnostics, extraction.diagnostics.iter());
 
-    // Use the document's `id` from frontmatter as the source ref if
-    // present; otherwise the archetype name. Bare-target resolution is
-    // identity for the CLI (no project-aware org/repo mapping here).
-    let source_ref = doc
+    // Wrap the parsed doc in a `LoadedDocument` so `harvest_edges` can
+    // walk frontmatter relationships + body `ix://` links.
+    let doc_id = parsed
         .frontmatter
         .as_ref()
         .and_then(|fm| fm.get("id").and_then(|v| v.as_str()))
         .unwrap_or(&archetype_name)
         .to_string();
-
-    let resolver = IdentityResolver;
-    let harvest = harvest_edges(&doc, &source_ref, Some(&extraction), &resolver);
-    emit_quire_diagnostics(ctx.diagnostics, harvest.diagnostics.iter());
+    let loaded = LoadedDocument {
+        path: PathBuf::from(&args.doc),
+        id: doc_id,
+        uuid: None,
+        doc: parsed,
+    };
+    let edges: Vec<EdgeShape> = harvest_edges(&loaded)
+        .into_iter()
+        .map(|(target, r#type)| EdgeShape { target, r#type })
+        .collect();
 
     let envelope = ExtractEnvelope {
         extraction: ExtractionShape {
             records: &extraction.records,
         },
-        edges: harvest
-            .edges
-            .iter()
-            .map(|e| EdgeShape {
-                r#type: e.r#type.clone(),
-                target: e.target.clone(),
-                metadata: e
-                    .metadata
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.clone()))
-                    .collect(),
-            })
-            .collect(),
+        edges,
     };
 
     let payload = io::encode_json(&envelope, ctx.pretty).context("encoding extract envelope")?;
