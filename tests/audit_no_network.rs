@@ -1,4 +1,4 @@
-//! IT-008 / NFR-004-AC-2: under `strace -fe network`, none of the four
+//! IT-008 / NFR-004-AC-2: under `strace -fe network`, none of the five
 //! subcommands opens an AF_INET / AF_INET6 socket on a happy-path run.
 //!
 //! `strace` is Linux-only. We additionally skip if strace isn't on PATH
@@ -130,4 +130,16 @@ fn extract_does_not_open_inet_socket() {
         module.to_str().unwrap(),
     ]);
     assert_no_inet_socket(&trace, "extract");
+}
+
+#[test]
+fn lookup_does_not_open_inet_socket() {
+    if !strace_available() {
+        eprintln!("skipping: strace not on PATH");
+        return;
+    }
+    let doc =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/extract-mod/sample.md");
+    let trace = run_under_strace(&["lookup", doc.to_str().unwrap(), "--heading", "Purpose"]);
+    assert_no_inet_socket(&trace, "lookup");
 }

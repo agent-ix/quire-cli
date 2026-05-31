@@ -1,7 +1,8 @@
-//! Subcommand implementations. Each module owns one of the four
+//! Subcommand implementations. Each module owns one of the five
 //! `quire <verb>` subcommands and stays a thin wrapper over `quire-rs`.
 
 pub mod extract;
+pub mod lookup;
 pub mod parse;
 pub mod render;
 pub mod validate;

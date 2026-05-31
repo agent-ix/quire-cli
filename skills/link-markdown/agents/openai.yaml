@@ -1,0 +1,7 @@
+interface:
+  display_name: "Link Markdown"
+  short_description: "Inspect artifact relationships"
+  default_prompt: "Use $link-markdown to inspect relationships and ix links in these Markdown artifacts."
+
+policy:
+  allow_implicit_invocation: true

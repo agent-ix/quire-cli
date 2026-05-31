@@ -1,0 +1,7 @@
+interface:
+  display_name: "Write Markdown"
+  short_description: "Generate Markdown artifacts"
+  default_prompt: "Use $write-markdown to render a Markdown artifact from structured data with quire."
+
+policy:
+  allow_implicit_invocation: true

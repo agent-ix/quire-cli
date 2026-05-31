@@ -1,0 +1,7 @@
+interface:
+  display_name: "Explore Markdown"
+  short_description: "Inspect Markdown structure with quire"
+  default_prompt: "Use $explore-markdown to outline this Markdown document and fetch the relevant section."
+
+policy:
+  allow_implicit_invocation: true

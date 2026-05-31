@@ -1,0 +1,7 @@
+interface:
+  display_name: "Validate Markdown"
+  short_description: "Validate quire artifacts"
+  default_prompt: "Use $validate-markdown to check this Markdown artifact or context with quire."
+
+policy:
+  allow_implicit_invocation: true

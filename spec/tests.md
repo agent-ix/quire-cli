@@ -11,8 +11,8 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 1. **Coverage Rule** — every AC has at least one IT / BENCH / AUDIT trace.
 2. **Path-safety boundary rule** — every user-supplied path argument is exercised with `..`, with a symlink escape, and with a valid in-tree path.
 3. **Exit-code rule** — every exit code in FR-007 has at least one IT producing it.
-4. **Subcommand permutation rule** — for each subcommand (`render`, `parse`, `extract`, `validate`), the success path, the unknown-archetype path, and the schema-violation path each have a dedicated IT.
-5. **Determinism rule** — primary outputs (`render`, `parse`, `extract`) have a deterministic snapshot IT (byte-identical reruns).
+4. **Subcommand permutation rule** — for each subcommand (`render`, `parse`, `extract`, `lookup`, `validate`), the success path, the unknown-archetype path, and the schema-violation path each have a dedicated IT where applicable.
+5. **Determinism rule** — primary JSON outputs (`render`, `parse`, `extract`, `lookup`) have deterministic field order through Rust struct serialization.
 6. **No-network rule** — IT-008 verifies zero `socket()` calls under strace across all subcommands.
 
 ---
@@ -21,10 +21,10 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 | StR | Trace to US/FR | Verifying IT/BENCH/AUDIT | Status |
 |-----|---------------|--------------------------|--------|
-| StR-001 Static binary hot path | US-001, US-002, US-003, US-004, FR-001..008 | IT-001, IT-002, IT-003, IT-004, AUDIT-001 (ldd), AUDIT-003 (no-network) | ✅ |
+| StR-001 Static binary hot path | US-001, US-002, US-003, US-004, US-005, FR-001..011 | IT-001, IT-002, IT-003, IT-004, IT-033, AUDIT-001 (ldd), AUDIT-003 (no-network) | ✅ |
 | StR-002 Sub-50 ms budget | US-001, NFR-001 | BENCH-001 (hyperfine p95) | ✅ |
 | StR-003 Sandbox inheritance | FR-005 | IT-005 (..), IT-006 (symlink escape), IT-007 (data path safety) | ✅ |
-| StR-004 Thin boundary | FR-001..004, NFR-005 | AUDIT-002 (src grep for parse/render logic) | ✅ |
+| StR-004 Thin boundary | FR-001..004, FR-011, NFR-005 | AUDIT-002 (src grep for parse/render logic), IT-033..038 | ✅ |
 
 ## User Story Coverage
 
@@ -34,6 +34,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | US-002 Human parses doc | AC-1..4 | IT-002, IT-011 (stdin), IT-012 (malformed frontmatter), IT-013 (empty doc) | ✅ |
 | US-003 CI validates | AC-1..3 | IT-003, IT-014 (parametric across 8 ISO archetypes) | ✅ |
 | US-004 Extract for graph ingest | AC-1..4 | IT-004, IT-015 (edge dedup), IT-016 (sugar field harvest) | ✅ |
+| US-005 Machine addresses section | AC-1..5 | IT-033, IT-034, IT-035, IT-036, IT-038 | ✅ |
 
 ## Functional Requirement Coverage
 
@@ -47,6 +48,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-006 IO contract | AC-1..4 | IT-024 (no interleaving), IT-025 (--diagnostics-format=json), IT-011 (stdin) | ✅ |
 | FR-007 Exit codes | AC-1..6 | IT-026 (each exit code: 0, 1, 2), IT-027 (no panic on covered inputs) | ✅ |
 | FR-008 JSON encoding | AC-1..5 | IT-028 (compact default), IT-029 (--pretty), IT-019 (round-trip), IT-030 (stable field order) | ✅ |
+| FR-011 lookup subcommand | AC-1..6 | IT-033, IT-034, IT-035, IT-036, IT-037, IT-038, IT-039 | ✅ |
 
 ## Non-Functional Requirement Coverage
 
@@ -97,6 +99,13 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-030 | JSON field order matches Rust struct order | Integration | P2 | FR-008-AC-4 |
 | IT-031 | Each error class's stderr deserializes as Diagnostic when JSON format active | Integration | P1 | NFR-005-AC-1..2 |
 | IT-032 | `quire --help` snapshot pinned | Integration | P2 | NFR-006-AC-2 |
+| IT-033 | `lookup --heading --level 1` returns the H1 section JSON | Integration | P0 | FR-011-AC-1, US-005-AC-2 |
+| IT-034 | `lookup --heading Behavior` uses upstream-style heading normalization | Integration | P0 | US-005-AC-1 |
+| IT-035 | `lookup --block-id blk-behavior` returns stable block section JSON | Integration | P0 | FR-011-AC-2, US-005-AC-3 |
+| IT-036 | `lookup --id detail-L6` returns parser-derived id section JSON | Integration | P1 | FR-011-AC-3, US-005-AC-4 |
+| IT-037 | `lookup --content` emits raw section content only | Integration | P1 | FR-011-AC-4 |
+| IT-038 | Missing lookup selector exits 1 with empty stdout | Integration | P1 | FR-011-AC-5, US-005-AC-5 |
+| IT-039 | Multiple lookup selectors are rejected by clap as argv error | Integration | P1 | FR-011-AC-5..6 |
 | BENCH-001 | hyperfine p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2, StR-002 |
 | AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
 | AUDIT-002 | `src/` grep finds no markdown parsing, no template rendering, no JSON Schema validation | Static | P1 | StR-004-AC-2 |
