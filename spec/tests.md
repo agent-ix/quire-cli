@@ -11,7 +11,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 1. **Coverage Rule** — every AC has at least one IT / BENCH / AUDIT trace.
 2. **Path-safety boundary rule** — every user-supplied path argument is exercised with `..`, with a symlink escape, and with a valid in-tree path.
 3. **Exit-code rule** — every exit code in FR-007 has at least one IT producing it.
-4. **Subcommand permutation rule** — for each subcommand (`render`, `parse`, `extract`, `lookup`, `validate`), the success path, the unknown-archetype path, and the schema-violation path each have a dedicated IT where applicable.
+4. **Subcommand permutation rule** — for each subcommand (`render`, `parse`, `extract`, `lookup`, `edit`, `validate`), the success path, the unknown-archetype path, and the schema-violation path each have a dedicated IT where applicable.
 5. **Determinism rule** — primary JSON outputs (`render`, `parse`, `extract`, `lookup`) have deterministic field order through Rust struct serialization.
 6. **No-network rule** — IT-008 verifies zero `socket()` calls under strace across all subcommands.
 
@@ -49,6 +49,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-007 Exit codes | AC-1..6 | IT-026 (each exit code: 0, 1, 2), IT-027 (no panic on covered inputs) | ✅ |
 | FR-008 JSON encoding | AC-1..5 | IT-028 (compact default), IT-029 (--pretty), IT-019 (round-trip), IT-030 (stable field order) | ✅ |
 | FR-011 lookup subcommand | AC-1..6 | IT-033, IT-034, IT-035, IT-036, IT-037, IT-038, IT-039 | ✅ |
+| FR-012 edit subcommand | AC-1..6 | IT-040, IT-041, IT-042, IT-043, IT-044, IT-045, IT-046 | ✅ |
 
 ## Non-Functional Requirement Coverage
 
@@ -106,6 +107,13 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-037 | `lookup --content` emits raw section content only | Integration | P1 | FR-011-AC-4 |
 | IT-038 | Missing lookup selector exits 1 with empty stdout | Integration | P1 | FR-011-AC-5, US-005-AC-5 |
 | IT-039 | Multiple lookup selectors are rejected by clap as argv error | Integration | P1 | FR-011-AC-5..6 |
+| IT-040 | `edit --heading` replaces section body, rest byte-identical | Integration | P0 | FR-012-AC-1 |
+| IT-041 | `edit --out <input>` edits the document in place | Integration | P1 | FR-012-AC-3 |
+| IT-042 | `edit --block-id` replaces the full stable block | Integration | P0 | FR-012-AC-2 |
+| IT-043 | `edit` reads replacement content from a file | Integration | P1 | FR-012-AC-1 |
+| IT-044 | `edit` missing section exits 1 without writing the input | Integration | P1 | FR-012-AC-4 |
+| IT-045 | `edit` with both/neither selector is rejected | Integration | P1 | FR-012-AC-5 |
+| IT-046 | `edit` with `-` for both doc and content is a user error | Integration | P1 | FR-012-AC-6 |
 | BENCH-001 | hyperfine p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2, StR-002 |
 | AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
 | AUDIT-002 | `src/` grep finds no markdown parsing, no template rendering, no JSON Schema validation | Static | P1 | StR-004-AC-2 |

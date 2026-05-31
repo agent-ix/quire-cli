@@ -2,8 +2,8 @@
 
 `quire-cli` is a static command-line wrapper around
 [`quire-rs`](https://github.com/agent-ix/quire-rs). It gives agents and
-humans one fast binary for rendering, parsing, extracting, looking up, and
-validating Markdown artifacts.
+humans one fast binary for rendering, parsing, extracting, looking up, editing,
+and validating Markdown artifacts.
 
 The crate is intentionally a thin process boundary: Markdown parsing,
 template rendering, extraction, and schema validation live in `quire-rs`.
@@ -14,6 +14,7 @@ template rendering, extraction, and schema validation live in `quire-rs`.
 quire render <ARCHETYPE> --module <PATH> --data <FILE|->
 quire parse <DOC|->
 quire lookup <DOC|-> (--heading <TEXT> [--level <1..6>] | --id <ID> | --block-id <BLOCK_ID>) [--content]
+quire edit <DOC|-> (--heading <TEXT> | --block-id <BLOCK_ID>) --content <FILE|-> [--out <PATH>]
 quire extract <DOC|-> --module <PATH> [--archetype <NAME>]
 quire validate <ARCHETYPE> --module <PATH> --data <FILE|->
 ```
@@ -127,6 +128,24 @@ Then use:
 ```bash
 quire lookup doc.md --block-id blk-behavior
 ```
+
+### Edit One Section
+
+Replace a single section's body (or a full block) without rewriting the rest of
+the document — frontmatter and every untouched section stay byte-identical:
+
+```bash
+# Replace the Acceptance Criteria body in place (new content from stdin)
+quire lookup FR-001.md --heading "Acceptance Criteria" --content   # read current
+quire edit FR-001.md --heading "Acceptance Criteria" --content new-ac.md --out FR-001.md
+
+# Replace a full stable block (heading line + body) from stdin
+quire edit FR-001.md --block-id blk-behavior --content - < new-block.md
+```
+
+`--heading` content is the section BODY (everything after the heading line);
+`--block-id` content is the FULL block (heading line, with its `{#blk-id}`
+attribute, plus the body). Omit `--out` to write the updated document to stdout.
 
 ### Extract Records And Links
 
