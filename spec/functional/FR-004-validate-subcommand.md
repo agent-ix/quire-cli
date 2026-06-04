@@ -21,12 +21,17 @@ relationships:
 > context/data validation (quire-rs FR-002) is preserved behind `--json`. The CLI
 > remains a thin wrapper (StR-004) — no validation logic lives here.
 
+> **CR note (`--module` is REQUIRED):** Both modes always need a module
+> registry to resolve the archetype, so `--module` is mandatory (not
+> bracketed/optional) in the implementation. The synopsis below is corrected
+> accordingly.
+
 ## Behavior
 
 The CLI SHALL expose a `validate` subcommand with two modes:
 
 ```
-quire validate <DOC.md|-> [--module <PATH>] [--archetype <NAME>]      # default: markdown
+quire validate <DOC.md|-> --module <PATH> [--archetype <NAME>]        # default: markdown
 quire validate <ARCHETYPE> --module <PATH> --json <FILE|->            # context/data
 ```
 

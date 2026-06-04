@@ -75,16 +75,23 @@ pub fn validate_module_path(raw: &str) -> Result<PathBuf, PathError> {
     Ok(canonical)
 }
 
-/// Validate a `--data <file>` argument. `"-"` (stdin) bypasses this
-/// guard and is the caller's responsibility.
-pub fn validate_data_path(raw: &str) -> Result<PathBuf, PathError> {
-    reject_dotdot("--data", raw)?;
+/// Validate an input-file path argument under the given `argument` label
+/// (e.g. `--data`, `--json`, or `document` for a positional). `"-"`
+/// (stdin) bypasses this guard and is the caller's responsibility.
+pub fn validate_input_path(argument: &str, raw: &str) -> Result<PathBuf, PathError> {
+    reject_dotdot(argument, raw)?;
     let p = Path::new(raw);
-    let canonical = p.canonicalize().map_err(|e| map_io("--data", raw, e))?;
+    let canonical = p.canonicalize().map_err(|e| map_io(argument, raw, e))?;
     if !canonical.is_file() {
         return Err(PathError::NotAFile(raw.to_string()));
     }
     Ok(canonical)
+}
+
+/// Validate a `--data <file>` argument. `"-"` (stdin) bypasses this
+/// guard and is the caller's responsibility.
+pub fn validate_data_path(raw: &str) -> Result<PathBuf, PathError> {
+    validate_input_path("--data", raw)
 }
 
 /// Validate a `--out <path>` argument. The file may not exist yet; we

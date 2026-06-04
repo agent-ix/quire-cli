@@ -115,7 +115,11 @@ fn it_048_broken_markdown_exits_1_with_line_numbered_diagnostic() {
         .assert()
         .failure()
         .code(1)
-        .stderr(predicate::str::contains("line").and(predicate::str::contains("FR")));
+        .stderr(
+            predicate::str::is_match(r"line \d+")
+                .unwrap()
+                .and(predicate::str::contains("FR")),
+        );
 }
 
 // IT-049 (FR-004-AC-3): `--archetype` overrides frontmatter resolution.

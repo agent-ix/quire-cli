@@ -56,7 +56,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 /// archetype via `quire_rs::validate_document` (FR-032).
 fn run_markdown(ctx: &Ctx, args: &Args, registry: &Registry) -> anyhow::Result<()> {
     if args.target != "-" {
-        safety::validate_data_path(&args.target)
+        safety::validate_input_path("document", &args.target)
             .with_context(|| format!("validating document '{}'", args.target))?;
     }
     let text = io::read_text(&args.target).with_context(|| format!("reading '{}'", args.target))?;
@@ -77,7 +77,8 @@ fn run_markdown(ctx: &Ctx, args: &Args, registry: &Registry) -> anyhow::Result<(
 /// schema via `quire_rs::validate` (FR-002).
 fn run_context(ctx: &Ctx, args: &Args, registry: &Registry, json: &str) -> anyhow::Result<()> {
     if json != "-" {
-        safety::validate_data_path(json).with_context(|| format!("validating --json '{json}'"))?;
+        safety::validate_input_path("--json", json)
+            .with_context(|| format!("validating --json '{json}'"))?;
     }
     let data = io::read_data(json).context("reading --json")?;
 
