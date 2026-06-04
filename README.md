@@ -16,7 +16,8 @@ quire parse <DOC|->
 quire lookup <DOC|-> (--heading <TEXT> [--level <1..6>] | --id <ID> | --block-id <BLOCK_ID>) [--content]
 quire edit <DOC|-> (--heading <TEXT> | --block-id <BLOCK_ID>) --content <FILE|-> [--out <PATH>]
 quire extract <DOC|-> --module <PATH> [--archetype <NAME>]
-quire validate <ARCHETYPE> --module <PATH> --data <FILE|->
+quire validate <DOC|-> --module <PATH> [--archetype <NAME>]          # markdown (default)
+quire validate <ARCHETYPE> --module <PATH> --json <FILE|->          # JSON context
 ```
 
 Global flags:
@@ -74,7 +75,8 @@ Write to a file:
 quire render FR --module ./iso --data FR.json --out spec/functional/FR-123.md
 ```
 
-Use `validate` on context JSON before rendering when you want a schema-only
+Use `validate` (markdown default) to structurally check an authored document,
+or `validate ... --json` on context JSON before rendering for a schema-only
 check without producing Markdown.
 
 ### Parse And Outline Markdown
@@ -170,18 +172,32 @@ quire extract EX-001.md --module ./extract-mod | jq '.edges'
 `extract` does not auto-validate. Run `validate` separately for context
 JSON schema checks.
 
-### Validate Context JSON
+### Validate A Markdown Document (default)
 
-Validate input data against an archetype schema:
+Structurally validate an authored document against its archetype. The archetype
+is resolved from the frontmatter `artifact_type` unless `--archetype` overrides
+it. quire-rs runs the archetype's `body_extraction` asserts (required-section
+presence, non-placeholder content, table columns/rows, list items, id patterns)
+plus frontmatter-schema and per-level heading uniqueness:
 
 ```bash
-quire validate FR --module ./iso --data ./FR-001.json
+quire validate ./spec/functional/FR-001.md --module ./iso
+quire validate ./FR-001.md --module ./iso --archetype FR
+cat FR-001.md | quire validate - --module ./iso --archetype FR
 ```
 
-Read JSON from stdin:
+On success `validate` exits 0 with no output. On failure it exits 1 and writes
+the line-numbered quire-rs diagnostics (naming the archetype, section/assert, and
+reason: `missing`/`empty`/`placeholder`/`assert`/`frontmatter`/`duplicate-heading`)
+to stderr — verbatim, the CLI adds no validation logic of its own.
+
+### Validate Context JSON (`--json`)
+
+Validate input data against an archetype schema before rendering:
 
 ```bash
-cat FR-001.json | quire validate FR --module ./iso --data -
+quire validate FR --module ./iso --json ./FR-001.json
+cat FR-001.json | quire validate FR --module ./iso --json -
 ```
 
 `validate` writes nothing to stdout. A nonzero exit means stderr carries the

@@ -108,7 +108,7 @@ fn validate_does_not_open_inet_socket() {
         "FR",
         "--module",
         module.to_str().unwrap(),
-        "--data",
+        "--json",
         data.to_str().unwrap(),
     ]);
     assert_no_inet_socket(&trace, "validate");

@@ -22,6 +22,18 @@ relationships:
 > distinct required-sections feature. Prior `--document` flag folded into FR-004's
 > default positional document argument.
 
+> **CR-003 note (line number for a fully-absent section):** AC-2 reads "…
+> is missing (reason `missing`), **with a line number**." quire-rs
+> `validate_document` (FR-032) attributes a 1-based line only when the
+> offending element is present in the document; a *fully-absent* required
+> section has no document line to point at, so its `missing` diagnostic
+> carries `line: None`. The CLI surfaces this verbatim (StR-004 — it cannot
+> invent a line). The line-number clause is therefore exercised by the
+> `placeholder`/`empty`/`assert` cases where the element is present
+> (IT-051, IT-053). Flagging for upstream: if a line is required for absent
+> sections, FR-032 must attribute the expected-insertion line — not a CLI
+> concern. No silent spec edit made.
+
 ## Behavior
 
 The default markdown `validate` (FR-004) SHALL reject documents whose archetype

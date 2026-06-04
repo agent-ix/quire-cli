@@ -1,0 +1,41 @@
+manifest_version: 1.0.0
+name: validate-mod
+version: 0.1.0
+description: >-
+  Fixture module exercising markdown `validate` (FR-004/FR-010): an FR
+  artifact_type with a body_extraction DSL whose asserts cover a required
+  section body (Specification) and an Acceptance Criteria table
+  (columns + min_rows).
+grammars:
+- name: validate-mod-core
+  version: 0.1.0
+  description: ""
+  doc_kinds:
+  - spec
+doc_kinds:
+- spec
+artifact_types:
+- name: FR
+  grammar_ref: validate-mod-core
+  template_ref: templates/fr.md.j2
+  frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
+  body_extraction:
+    yield_pattern:
+      match:
+        description:
+          from: section_body
+          after_heading: Description
+          required: true
+        specification:
+          from: section_body
+          after_heading: Specification
+          required: true
+        acceptance:
+          from: table_row
+          under_section: Acceptance Criteria
+          required: true
+          assert:
+            columns: [ID, Criteria]
+            min_rows: 1
+object_types: []
+lint_rules: []

@@ -16,9 +16,6 @@ object_types:
   grammar_ref: extract-mod-core
   template_ref: templates/sample.md.j2
   frontmatter_schema_ref: schemas/sample-frontmatter.schema.json
-  required_sections:
-  - name: Purpose
-    level: 2
   body_extraction:
     yield_pattern:
       match:

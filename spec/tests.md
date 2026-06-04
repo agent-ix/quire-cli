@@ -43,8 +43,8 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-001 render subcommand | AC-1..6 | IT-001, IT-009, IT-010, IT-017 (--out flag), IT-018 (8-archetype parity sweep) | ✅ |
 | FR-002 parse subcommand | AC-1..5 | IT-002, IT-011, IT-012, IT-013, IT-019 (byte-offset round-trip) | ✅ |
 | FR-003 extract subcommand | AC-1..4 | IT-004, IT-015, IT-016, IT-020 (determinism rerun) | ✅ |
-| FR-004 validate subcommand (markdown default + `--json` context) | AC-1..6 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-003 (--json context), IT-050 (unknown+--json), IT-021 (no stdout), AUDIT-002 (thin boundary) | 🚧 |
-| FR-010 required-section validation (recast onto FR-032) | AC-1..5 | IT-051 (placeholder), IT-052 (missing), IT-053 (assert), IT-047 (valid exit 0), IT-054 (empty stdout + diagnostics) | 🚧 |
+| FR-004 validate subcommand (markdown default + `--json` context) | AC-1..6 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-003 (--json context), IT-050 (unknown+--json), IT-021 (no stdout), AUDIT-002 (thin boundary) | ✅ |
+| FR-010 required-section validation (recast onto FR-032) | AC-1..5 | IT-051 (placeholder), IT-052 (missing), IT-053 (assert), IT-047 (valid exit 0), IT-054 (empty stdout + diagnostics) | ✅ |
 | FR-005 path-safety | AC-1..5 | IT-005, IT-006, IT-007, IT-022 (--out reject), IT-023 (stdin bypasses) | ✅ |
 | FR-006 IO contract | AC-1..4 | IT-024 (no interleaving), IT-025 (--diagnostics-format=json), IT-011 (stdin) | ✅ |
 | FR-007 Exit codes | AC-1..6 | IT-026 (each exit code: 0, 1, 2), IT-027 (no panic on covered inputs) | ✅ |
@@ -115,14 +115,14 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-044 | `edit` missing section exits 1 without writing the input | Integration | P1 | FR-012-AC-4 |
 | IT-045 | `edit` with both/neither selector is rejected | Integration | P1 | FR-012-AC-5 |
 | IT-046 | `edit` with `-` for both doc and content is a user error | Integration | P1 | FR-012-AC-6 |
-| IT-047 | `quire validate valid-fr.md --module $ISO` exits 0 with no output (markdown default, structure present) | Integration | P0 | FR-004-AC-1, FR-010-AC-4, US-003-AC-1 | 🚧 |
-| IT-048 | `quire validate broken-fr.md --module $ISO` exits 1; stderr carries a line-numbered diagnostic naming the failing section/assert | Integration | P0 | FR-004-AC-2 | 🚧 |
-| IT-049 | `quire validate fr.md --module $ISO --archetype FR` overrides frontmatter-derived archetype resolution | Integration | P1 | FR-004-AC-3 | 🚧 |
-| IT-050 | `quire validate NONEXISTENT --module $ISO --json x.json` exits 1 with `UnknownArchetype` on stderr | Integration | P1 | FR-004-AC-5 | 🚧 |
-| IT-051 | `quire validate rendered-fr.md --module $ISO` exits 1 when `## Specification` is only `TODO`, reason `placeholder` | Integration | P0 | FR-010-AC-1 | 🚧 |
-| IT-052 | Validate exits 1 when an FR required section is missing (reason `missing`) with a line number | Integration | P0 | FR-010-AC-2 | 🚧 |
-| IT-053 | Validate exits 1 when the Acceptance Criteria table has wrong columns or zero data rows (reason `assert`) | Integration | P0 | FR-010-AC-3 | 🚧 |
-| IT-054 | Structural validation failure produces empty stdout + non-empty stderr carrying quire-rs diagnostics unchanged | Integration | P0 | FR-010-AC-5 | 🚧 |
+| IT-047 | `quire validate valid-fr.md --module $ISO` exits 0 with no output (markdown default, structure present) | Integration | P0 | FR-004-AC-1, FR-010-AC-4, US-003-AC-1 | ✅ |
+| IT-048 | `quire validate broken-fr.md --module $ISO` exits 1; stderr carries a line-numbered diagnostic naming the failing section/assert | Integration | P0 | FR-004-AC-2 | ✅ |
+| IT-049 | `quire validate fr.md --module $ISO --archetype FR` overrides frontmatter-derived archetype resolution | Integration | P1 | FR-004-AC-3 | ✅ |
+| IT-050 | `quire validate NONEXISTENT --module $ISO --json x.json` exits 1 with `UnknownArchetype` on stderr | Integration | P1 | FR-004-AC-5 | ✅ |
+| IT-051 | `quire validate rendered-fr.md --module $ISO` exits 1 when `## Specification` is only `TODO`, reason `placeholder` | Integration | P0 | FR-010-AC-1 | ✅ |
+| IT-052 | Validate exits 1 when an FR required section is missing (reason `missing`), naming the section (line absent for a fully-missing section — FR-010 CR-003) | Integration | P0 | FR-010-AC-2 | ✅ |
+| IT-053 | Validate exits 1 when the Acceptance Criteria table has wrong columns or zero data rows (reason `assert`) | Integration | P0 | FR-010-AC-3 | ✅ |
+| IT-054 | Structural validation failure produces empty stdout + non-empty stderr carrying quire-rs diagnostics unchanged | Integration | P0 | FR-010-AC-5 | ✅ |
 | BENCH-001 | hyperfine p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2, StR-002 |
 | AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
 | AUDIT-002 | `src/` grep finds no markdown parsing, no template rendering, no JSON Schema validation (validation delegated to quire-rs) | Static | P1 | StR-004-AC-2, FR-004-AC-6 |
@@ -138,12 +138,18 @@ and passes `make test` + `make bench` on a Linux dev box (WSL2). `make ci` runs
 the full gauntlet locally; CI lanes (rust / licenses / bench) mirror the same
 gates. Observed `BENCH-001` p95 is 4.87 ms, well under the 50 ms NFR-001 budget.
 
-🚧 PENDING — the markdown-validation slice (ADR 0004): FR-004 recast to a
+GREEN — the markdown-validation slice (ADR 0004): FR-004 recast to a
 markdown-default `validate` with `--json` context mode (AC-1..6) and the recast
 FR-010 (AC-1..5, structural validation delegated to quire-rs `validate_document`,
-FR-032). New traces IT-047..054 are not yet implemented; IT-003/IT-014 were
-re-pointed to the new FR-004 AC meanings (IT-003 → context mode, IT-014 →
-markdown sweep).
+FR-032). Traces IT-047..054 are implemented in `tests/cli_validate.rs` and pass
+`make ci`; IT-003/IT-014 were re-pointed to the new FR-004 AC meanings (IT-003 →
+context mode via `--json`, IT-014 → rendered-then-validated markdown sweep). The
+ISO + extract-mod fixtures were migrated off the retired `required_sections`
+manifest field (quire-rs FR-031 CR — unified archetype); a new `validate-mod`
+fixture carries a `body_extraction` DSL with section + table asserts to exercise
+FR-010. FR-010-AC-2's "with a line number" clause is met for present-but-invalid
+elements (IT-051/IT-053); a *fully-absent* section carries no line — see FR-010
+CR-003.
 
 Known pre-existing matrix gap (out of scope here): FR-009 `schema` subcommand
 (AC-1..5) and its ACs are absent from this matrix.

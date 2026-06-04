@@ -59,7 +59,7 @@ fn it_026_exit_code_0_on_success() {
         .arg("FR")
         .arg("--module")
         .arg(iso_module())
-        .arg("--data")
+        .arg("--json")
         .arg(ctx_path("FR"))
         .assert()
         .success()
@@ -73,7 +73,7 @@ fn it_026_exit_code_1_on_validation_failure() {
         .arg("FR")
         .arg("--module")
         .arg(iso_module())
-        .arg("--data")
+        .arg("--json")
         .arg(ctx_path("FR-invalid"))
         .assert()
         .failure()
@@ -112,10 +112,10 @@ fn it_013_unknown_archetype_exits_1() {
         .arg("DEFINITELY_NOT_AN_ARCHETYPE")
         .arg("--module")
         .arg(iso_module())
-        .arg("--data")
+        .arg("--json")
         .arg(ctx_path("FR"))
         .assert()
         .failure()
         .code(1)
-        .stderr(predicate::str::contains("unknown archetype"));
+        .stderr(predicate::str::contains("UnknownArchetype"));
 }

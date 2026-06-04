@@ -1,0 +1,20 @@
+---
+id: {{ id }}
+title: "{{ title }}"
+artifact_type: {{ artifact_type }}
+---
+# [{{ id }}] {{ title }}
+
+## Description
+
+{{ description | default("Describe what the system SHALL do, normatively.") }}
+
+## Specification
+
+{{ specification | default("- TODO") }}
+
+## Acceptance Criteria
+
+| ID | Criteria |
+|----|----------|
+| {{ id }}-AC-1 | TODO |

@@ -42,7 +42,7 @@ enum Command {
     Lookup(commands::lookup::Args),
     /// Edit one section/block of a document in place via byte-exact writeback.
     Edit(commands::edit::Args),
-    /// Validate a JSON context against an archetype's schema.
+    /// Validate a markdown document (default) or a JSON context (`--json`).
     Validate(commands::validate::Args),
 }
 

@@ -31,4 +31,15 @@ pub fn ctx_path(name: &str) -> PathBuf {
     fixture_root().join(format!("contexts/{name}.json"))
 }
 
+/// Module exercising markdown `validate` (FR-004/FR-010): an `FR`
+/// artifact_type with a `body_extraction` DSL carrying asserts.
+pub fn validate_module() -> PathBuf {
+    fixture_root().join("validate-mod")
+}
+
+/// A document fixture under `validate-mod/docs/`.
+pub fn validate_doc(name: &str) -> PathBuf {
+    fixture_root().join(format!("validate-mod/docs/{name}"))
+}
+
 pub const ISO_ARCHETYPES: &[&str] = &["FR", "NFR", "StR", "US", "IT", "TC", "AC", "CON"];
