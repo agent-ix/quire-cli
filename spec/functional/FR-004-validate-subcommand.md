@@ -10,42 +10,40 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-032"
     type: "consumes"
     cardinality: "1:1"
-  - target: "ix://agent-ix/quire-rs/spec/functional/FR-002"
-    type: "consumes"
-    cardinality: "1:1"
 ---
 
-> **CR note (flipped default, ADR 0004 in quire-rs):** The default `validate`
-> input is now a **markdown document**, not a context JSON object. Markdown
-> validation dispatches to quire-rs `validate_document` (FR-032); the prior
-> context/data validation (quire-rs FR-002) is preserved behind `--json`. The CLI
-> remains a thin wrapper (StR-004) — no validation logic lives here.
+> **CR note (markdown-only — render removal, 2026-06-04):** `validate` is now
+> **markdown-only**. The `--json` context/data mode (which dispatched to quire-rs
+> `validate(&compiled_archetype, &data)` / FR-002 over a context JSON object) is
+> **removed** — no backward-compatibility layer, mirroring the quire-rs render
+> retirement (commit 500a3d3). The engine `validate` fn still exists in quire-rs to
+> back `validate_document`, but it is no longer reachable from the CLI. The
+> consumed-FR-002 relationship is dropped from this FR's frontmatter for that reason.
+> The CLI remains a thin wrapper (StR-004) — no validation logic lives here.
 
-> **CR note (`--module` is REQUIRED):** Both modes always need a module
-> registry to resolve the archetype, so `--module` is mandatory (not
-> bracketed/optional) in the implementation. The synopsis below is corrected
-> accordingly.
+> **CR note (`--module` is REQUIRED):** Markdown validation always needs a module
+> registry to resolve the archetype and its `body_extraction` asserts, so `--module`
+> is mandatory (not bracketed/optional) in the implementation.
 
 ## Behavior
 
-The CLI SHALL expose a `validate` subcommand with two modes:
+The CLI SHALL expose a single-mode (markdown-only) `validate` subcommand:
 
 ```
-quire validate <DOC.md|-> --module <PATH> [--archetype <NAME>]        # default: markdown
-quire validate <ARCHETYPE> --module <PATH> --json <FILE|->            # context/data
+quire validate <DOC.md|-> --module <PATH> [--archetype <NAME>]
 ```
 
-**Default (markdown) mode** — when the positional argument is a document path or
-`-`:
-1. Path-safety on the document path and `--module`.
-2. Read the markdown; resolve the archetype from frontmatter `artifact_type` unless `--archetype` overrides.
+When the positional argument is a document path or `-`:
+1. Path-safety (FR-005) on the document path and `--module`. A positional `-` is path-safety-exempt (stdin); the document text is read to EOF.
+2. Resolve the archetype: read frontmatter `artifact_type` (a string) unless `--archetype <NAME>` overrides it.
 3. Dispatch to quire-rs `validate_document(archetype, doc_text)` (FR-032): structural validation over `body_extraction` asserts + frontmatter-schema + per-level heading uniqueness.
 4. On success: exit 0, no stdout. On failure: write the line-numbered structured diagnostics to stderr, exit 1.
 
-**Context mode** — when `--json` is given with a positional `ARCHETYPE`: dispatch
-to quire-rs `validate(&compiled_archetype, &data)` (FR-002) over a context JSON
-object (the legacy behavior). Success → exit 0; schema violation → structured
-list on stderr, exit 1.
+**Archetype-resolution failure paths** (all exit 1, structured diagnostic on
+stderr, no stdout):
+- No frontmatter block at all → error that the document has no frontmatter from which to resolve the archetype (and `--archetype` was not supplied).
+- Frontmatter present but no string `artifact_type` key (absent, or non-string) and no `--archetype` → error directing the author to add `artifact_type` or pass `--archetype`.
+- The resolved (or `--archetype`-overridden) name is unknown to the loaded module → quire-rs `UnknownArchetype`.
 
 `validate` SHALL NOT render or write any artifact body. It is a fast CI / authoring gate.
 
@@ -54,6 +52,9 @@ list on stderr, exit 1.
 - **FR-004-AC-1**: `quire validate valid-fr.md --module $ISO` exits 0 with no output (frontmatter valid, all required structure present).
 - **FR-004-AC-2**: `quire validate broken-fr.md --module $ISO` exits 1; stderr contains a line-numbered diagnostic naming the failing section/assert.
 - **FR-004-AC-3**: `quire validate fr.md --module $ISO --archetype FR` overrides frontmatter-derived archetype resolution.
-- **FR-004-AC-4**: `quire validate FR --module $ISO --json valid.json` exits 0; `--json invalid.json` (missing required `id`) exits 1 with a `/id` `required` violation on stderr (context mode preserved).
-- **FR-004-AC-5**: `quire validate NONEXISTENT --module $ISO --json x.json` exits 1 with `UnknownArchetype` on stderr.
-- **FR-004-AC-6**: All validation logic is delegated to quire-rs; an audit confirms the CLI crate contains no structural-validation logic of its own (StR-004 thin boundary).
+- **FR-004-AC-4**: A document with **no frontmatter** and no `--archetype` exits 1; stderr names the missing frontmatter / `artifact_type` and points at `--archetype` as the remedy. No stdout.
+- **FR-004-AC-5**: A document whose frontmatter is present but has **no string `artifact_type`** (key absent, or a non-string value) and no `--archetype` exits 1; the diagnostic names `--archetype` (or `artifact_type`) as the way to resolve the archetype. No stdout.
+- **FR-004-AC-6**: When the resolved or `--archetype`-overridden name is unknown to the loaded module, `validate` exits 1 with quire-rs `UnknownArchetype` on stderr; empty stdout.
+- **FR-004-AC-7**: A path-safety violation on the document or `--module` exits 1 with a `PathSafetyViolation` (FR-005) whose diagnostic names the offending argument label (the positional `document`, or `--module`).
+- **FR-004-AC-8**: `quire validate - --module $ISO` reads the document from stdin and is **not** subject to path-safety on the document argument (stdin is path-safety-exempt, FR-005-AC-5); the markdown is still validated structurally.
+- **FR-004-AC-9**: All validation logic is delegated to quire-rs; an audit confirms the CLI crate contains no structural-validation logic of its own (StR-004 thin boundary).

@@ -4,15 +4,24 @@
 
 This matrix maps every Acceptance Criterion in `quire-cli/spec/` to one or more Test Cases (IT-XXX integration tests, BENCH-XXX benchmark gates, AUDIT-XXX static-analysis gates).
 
-The CLI is a thin process boundary over `quire-rs`; the upstream engine is independently covered by `quire-rs/spec/tests.md`. This matrix tests **only** the CLI's process-level behavior: argv parsing, path-safety, stdin/stdout/stderr contract, exit codes, JSON output encoding, latency budget, and static-binary properties.
+The CLI is a thin process boundary over `quire-rs`; the upstream engine is independently covered by `quire-rs/spec/tests.md`. This matrix tests **only** the CLI's process-level behavior: argv parsing, path-safety, stdin/stdout/stderr contract, exit codes, JSON output encoding, and static-binary properties.
+
+> **Render removal (2026-06-04):** The `render` subcommand, the `validate --json`
+> context mode, and the render benchmark are **removed** (see `spec.md` §2bis,
+> mirroring quire-rs commit 500a3d3). Render/parity traces (IT-001, IT-009, IT-010,
+> IT-017, IT-018, BENCH-001) and the `--json` context traces (IT-003, IT-050 as
+> written) are **retired** — rows marked ⊘ RETIRED below, ids retained, dropped from
+> the coverage tally. IT-014 is re-pointed to a direct-markdown sweep (no
+> render-then-validate). The retired FR-001/US-001/NFR-001/StR-002 ACs no longer
+> require a live trace.
 
 ## Matrix Rules
 
 1. **Coverage Rule** — every AC has at least one IT / BENCH / AUDIT trace.
 2. **Path-safety boundary rule** — every user-supplied path argument is exercised with `..`, with a symlink escape, and with a valid in-tree path.
 3. **Exit-code rule** — every exit code in FR-007 has at least one IT producing it.
-4. **Subcommand permutation rule** — for each subcommand (`render`, `parse`, `extract`, `lookup`, `edit`, `validate`), the success path, the unknown-archetype path, and the schema-violation path each have a dedicated IT where applicable.
-5. **Determinism rule** — primary JSON outputs (`render`, `parse`, `extract`, `lookup`) have deterministic field order through Rust struct serialization.
+4. **Subcommand permutation rule** — for each subcommand (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`), the success path, the unknown-archetype path, and the validation-failure path each have a dedicated IT where applicable. (`render` removed — §2bis.)
+5. **Determinism rule** — primary JSON outputs (`parse`, `extract`, `lookup`, `schema`) have deterministic field order through Rust struct serialization.
 6. **No-network rule** — IT-008 verifies zero `socket()` calls under strace across all subcommands.
 
 ---
@@ -21,16 +30,16 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 | StR | Trace to US/FR | Verifying IT/BENCH/AUDIT | Status |
 |-----|---------------|--------------------------|--------|
-| StR-001 Static binary hot path | US-001, US-002, US-003, US-004, US-005, FR-001..011 | IT-001, IT-002, IT-003, IT-004, IT-033, AUDIT-001 (ldd), AUDIT-003 (no-network) | ✅ |
-| StR-002 Sub-50 ms budget | US-001, NFR-001 | BENCH-001 (hyperfine p95) | ✅ |
-| StR-003 Sandbox inheritance | FR-005 | IT-005 (..), IT-006 (symlink escape), IT-007 (data path safety) | ✅ |
-| StR-004 Thin boundary | FR-001..004, FR-011, NFR-005 | AUDIT-002 (src grep for parse/render logic), IT-033..038 | ✅ |
+| StR-001 Static binary hot path (revised — surviving subcommands) | US-002, US-003, US-004, US-005, FR-002..012 | IT-002, IT-004, IT-047, IT-033, AUDIT-001 (ldd), AUDIT-003 (no-network) | ✅ |
+| StR-002 Sub-50 ms render budget | ⊘ RETIRED (§2bis) | — (render bench removed) | ⊘ |
+| StR-003 Sandbox inheritance (revised — path-safety) | FR-005 | IT-005 (..), IT-006 (symlink escape), IT-055 (doc path safety) | ✅ |
+| StR-004 Thin boundary | FR-002..004, FR-009, FR-011, NFR-005 | AUDIT-002 (src grep for parse logic), IT-033..038 | ✅ |
 
 ## User Story Coverage
 
 | US | AC | IT | Status |
 |----|----|----|--------|
-| US-001 Agent renders FR | AC-1..4 | IT-001, IT-009 (byte-parity vs minijinja-cli), IT-010 (schema viol exits 1), BENCH-001 | ✅ |
+| US-001 Agent renders FR | ⊘ RETIRED (§2bis) | IT-001, IT-009, IT-010, BENCH-001 (all retired) | ⊘ |
 | US-002 Human parses doc | AC-1..4 | IT-002, IT-011 (stdin), IT-012 (malformed frontmatter), IT-013 (empty doc) | ✅ |
 | US-003 CI validates | AC-1..3 | IT-003, IT-014 (parametric across 8 ISO archetypes) | ✅ |
 | US-004 Extract for graph ingest | AC-1..4 | IT-004, IT-015 (edge dedup), IT-016 (sugar field harvest) | ✅ |
@@ -40,15 +49,16 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 | FR | AC | IT | Status |
 |----|----|----|--------|
-| FR-001 render subcommand | AC-1..6 | IT-001, IT-009, IT-010, IT-017 (--out flag), IT-018 (8-archetype parity sweep) | ✅ |
+| FR-001 render subcommand | ⊘ RETIRED (§2bis) | IT-001, IT-009, IT-010, IT-017, IT-018 (all retired) | ⊘ |
 | FR-002 parse subcommand | AC-1..5 | IT-002, IT-011, IT-012, IT-013, IT-019 (byte-offset round-trip) | ✅ |
 | FR-003 extract subcommand | AC-1..4 | IT-004, IT-015, IT-016, IT-020 (determinism rerun) | ✅ |
-| FR-004 validate subcommand (markdown default + `--json` context) | AC-1..6 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-003 (--json context), IT-050 (unknown+--json), IT-021 (no stdout), AUDIT-002 (thin boundary) | ✅ |
+| FR-004 validate subcommand (markdown-only; `--json` removed) | AC-1..9 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `artifact_type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), AUDIT-002 (thin boundary) | ✅ |
 | FR-010 required-section validation (recast onto FR-032) | AC-1..5 | IT-051 (placeholder), IT-052 (missing), IT-053 (assert), IT-047 (valid exit 0), IT-054 (empty stdout + diagnostics) | ✅ |
 | FR-005 path-safety | AC-1..5 | IT-005, IT-006, IT-007, IT-022 (--out reject), IT-023 (stdin bypasses) | ✅ |
 | FR-006 IO contract | AC-1..4 | IT-024 (no interleaving), IT-025 (--diagnostics-format=json), IT-011 (stdin) | ✅ |
 | FR-007 Exit codes | AC-1..6 | IT-026 (each exit code: 0, 1, 2), IT-027 (no panic on covered inputs) | ✅ |
 | FR-008 JSON encoding | AC-1..5 | IT-028 (compact default), IT-029 (--pretty), IT-019 (round-trip), IT-030 (stable field order) | ✅ |
+| FR-009 schema subcommand (asserts-based contract) | AC-1..5 | IT-060 (FR schema + asserts), IT-061 (per-section asserts, no template vars), IT-062 (unknown archetype), IT-063 (deterministic stdout), IT-058 (path-safety) | ✅ |
 | FR-011 lookup subcommand | AC-1..6 | IT-033, IT-034, IT-035, IT-036, IT-037, IT-038, IT-039 | ✅ |
 | FR-012 edit subcommand | AC-1..6 | IT-040, IT-041, IT-042, IT-043, IT-044, IT-045, IT-046 | ✅ |
 
@@ -56,7 +66,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 | NFR | Verification | Trace | Status |
 |-----|--------------|-------|--------|
-| NFR-001 p95 ≤ 50 ms | benchmark | BENCH-001 (hyperfine harness in `make bench`) | ✅ |
+| NFR-001 render p95 ≤ 50 ms | ⊘ RETIRED (§2bis) | BENCH-001 (render bench removed) | ⊘ |
 | NFR-002 Static binary | static audit | AUDIT-001 (`ldd` IT verifies no project .so) | ✅ |
 | NFR-003 Zero unsafe | static audit | AUDIT-004 (`scripts/check_unsafe_comments.sh` CI gate) | ✅ |
 | NFR-004 No network | static + runtime | AUDIT-003 (`cargo deny bans`), IT-008 (strace zero socket()) | ✅ |
@@ -69,29 +79,29 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 | ID | Title | Type | Priority | Traces To |
 |----|-------|------|----------|-----------|
-| IT-001 | `quire render FR` happy path produces rendered markdown | Integration | P0 | FR-001-AC-1, US-001-AC-1 |
+| IT-001 | ⊘ RETIRED (§2bis) — `quire render FR` happy path produces rendered markdown | Integration | P0 | FR-001-AC-1 (retired), US-001-AC-1 (retired) |
 | IT-002 | `quire parse` emits valid QuireDocument JSON | Integration | P0 | FR-002-AC-1, US-002-AC-1 |
-| IT-003 | `quire validate FR --module $ISO --json <obj>` returns 0/1 by schema conformance (context mode) | Integration | P0 | FR-004-AC-4, US-003-AC-1..2 |
+| IT-003 | ⊘ RETIRED (§2bis) — `quire validate FR --module $ISO --json <obj>` (context mode removed) | Integration | P0 | FR-004-AC-4 (was context mode; removed) |
 | IT-004 | `quire extract` emits {extraction, edges} envelope | Integration | P0 | FR-003-AC-1, US-004-AC-1 |
 | IT-005 | `--module ../escape` exits 1 with PathSafetyViolation | Integration | P0 | FR-005-AC-1, StR-003-AC-1 |
 | IT-006 | Symlink under module to /etc/passwd refused at load | Integration | P0 | FR-005-AC-4, StR-003-AC-4 |
-| IT-007 | `--data ../../etc/passwd` exits 1 | Integration | P0 | FR-005-AC-2, StR-003-AC-2 |
+| IT-007 | ⊘ RETIRED (§2bis) — `--data ../../etc/passwd` exits 1 (replaced by IT-055 on the positional doc path) | Integration | P0 | FR-005-AC-3 (retired) |
 | IT-008 | No network sockets opened (strace) | Integration | P0 | NFR-004-AC-2, StR-001-AC-4 |
-| IT-009 | Render byte-parity vs minijinja-cli (FR archetype) | Integration | P0 | FR-001-AC-1, US-001-AC-2 |
-| IT-010 | Schema violation exits 1 before stdout write | Integration | P0 | FR-001-AC-4, US-001-AC-3 |
+| IT-009 | ⊘ RETIRED (§2bis) — Render byte-parity vs minijinja-cli (FR archetype) | Integration | P0 | FR-001-AC-1 (retired), US-001-AC-2 (retired) |
+| IT-010 | ⊘ RETIRED (§2bis) — Schema violation exits 1 before stdout write (render) | Integration | P0 | FR-001-AC-4 (retired), US-001-AC-3 (retired) |
 | IT-011 | `parse -` reads stdin | Integration | P1 | FR-002-AC-2, US-002-AC-4 |
 | IT-012 | Malformed frontmatter still parses, stderr warns | Integration | P1 | FR-002-AC-3, US-002-AC-3 |
 | IT-013 | Empty document → valid empty QuireDocument JSON | Integration | P1 | FR-002-AC-4 |
-| IT-014 | Parametric markdown validate across 8 ISO archetypes (valid + invalid each) | Integration | P0 | FR-004-AC-1..2, US-003-AC-2 |
+| IT-014 | Parametric **direct-markdown** validate sweep across 8 ISO archetypes (valid + invalid each; no render-then-validate) | Integration | P0 | FR-004-AC-1..2, US-003-AC-2 |
 | IT-015 | Edge dedup by (source, type, target) | Integration | P1 | FR-003-AC-2, US-004-AC-2 |
 | IT-016 | Frontmatter sugar field `dependencies:` harvested | Integration | P1 | FR-003-AC-3, US-004-AC-3 |
-| IT-017 | `--out` flag writes file, empty stdout | Integration | P1 | FR-001-AC-5 |
-| IT-018 | 8-archetype render parity sweep (FR, NFR, StR, US, IT, TC, AC, CON) | Integration | P0 | FR-001-AC-6, StR-002 |
+| IT-017 | ⊘ RETIRED (§2bis) — render `--out` flag writes file, empty stdout (the `--out` write-target path-safety survives on `edit`, IT-041) | Integration | P1 | FR-001-AC-5 (retired) |
+| IT-018 | ⊘ RETIRED (§2bis) — 8-archetype render parity sweep | Integration | P0 | FR-001-AC-6 (retired), StR-002 (retired) |
 | IT-019 | parse JSON round-trips through QuireDocument deserialize | Integration | P0 | FR-002-AC-5, FR-008-AC-1 |
 | IT-020 | extract rerun produces byte-identical stdout | Integration | P1 | FR-003-AC-4 |
 | IT-021 | validate writes nothing to stdout on success | Integration | P1 | FR-004-AC-1, FR-006 |
-| IT-022 | `--out ../escape` rejected | Integration | P0 | FR-005-AC-3 |
-| IT-023 | `--data -` bypasses path-safety | Integration | P1 | FR-005-AC-5 |
+| IT-022 | `edit --out ../escape` rejected (write-target path-safety survives) | Integration | P0 | FR-005-AC-3 note, FR-012 |
+| IT-023 | positional `-` (stdin) bypasses path-safety | Integration | P1 | FR-005-AC-5 |
 | IT-024 | No stdout/stderr interleaving (chunked write test) | Integration | P1 | FR-006-AC-1..2 |
 | IT-025 | `--diagnostics-format=json` produces parseable Diagnostic | Integration | P1 | FR-006-AC-3, NFR-005-AC-2 |
 | IT-026 | Each documented exit code is produced by at least one input | Integration | P0 | FR-007-AC-1..5 |
@@ -118,14 +128,23 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-047 | `quire validate valid-fr.md --module $ISO` exits 0 with no output (markdown default, structure present) | Integration | P0 | FR-004-AC-1, FR-010-AC-4, US-003-AC-1 | ✅ |
 | IT-048 | `quire validate broken-fr.md --module $ISO` exits 1; stderr carries a line-numbered diagnostic naming the failing section/assert | Integration | P0 | FR-004-AC-2 | ✅ |
 | IT-049 | `quire validate fr.md --module $ISO --archetype FR` overrides frontmatter-derived archetype resolution | Integration | P1 | FR-004-AC-3 | ✅ |
-| IT-050 | `quire validate NONEXISTENT --module $ISO --json x.json` exits 1 with `UnknownArchetype` on stderr | Integration | P1 | FR-004-AC-5 | ✅ |
+| IT-050 | `quire validate doc.md --module $ISO --archetype NONEXISTENT` exits 1 with `UnknownArchetype` on stderr (re-pointed off the removed `--json` mode) | Integration | P1 | FR-004-AC-6 | ✅ |
 | IT-051 | `quire validate rendered-fr.md --module $ISO` exits 1 when `## Specification` is only `TODO`, reason `placeholder` | Integration | P0 | FR-010-AC-1 | ✅ |
 | IT-052 | Validate exits 1 when an FR required section is missing (reason `missing`), naming the section (line absent for a fully-missing section — FR-010 CR-003) | Integration | P0 | FR-010-AC-2 | ✅ |
 | IT-053 | Validate exits 1 when the Acceptance Criteria table has wrong columns or zero data rows (reason `assert`) | Integration | P0 | FR-010-AC-3 | ✅ |
 | IT-054 | Structural validation failure produces empty stdout + non-empty stderr carrying quire-rs diagnostics unchanged | Integration | P0 | FR-010-AC-5 | ✅ |
-| BENCH-001 | hyperfine p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2, StR-002 |
+| IT-055 | `quire validate ../../etc/passwd --module $ISO` exits 1 with PathSafetyViolation naming the positional document arg | Integration | P0 | FR-005-AC-2, StR-003-AC-2, FR-004-AC-7 |
+| IT-056 | `quire validate no-frontmatter.md --module $ISO` (no frontmatter, no `--archetype`) exits 1; stderr names missing frontmatter / `--archetype` remedy; empty stdout | Integration | P0 | FR-004-AC-4 |
+| IT-057 | `quire validate no-type.md --module $ISO` (frontmatter present, `artifact_type` absent or non-string; no `--archetype`) exits 1; stderr names `--archetype`/`artifact_type` | Integration | P0 | FR-004-AC-5 |
+| IT-058 | path-safety violation diagnostic names the arg label (`document` / `--module`) | Integration | P1 | FR-004-AC-7, FR-009-AC-5 |
+| IT-059 | `quire validate - --module $ISO` reads stdin (path-safety-exempt) and still validates structurally | Integration | P1 | FR-004-AC-8 |
+| IT-060 | `quire schema FR --module $ISO` exits 0; JSON contains FR frontmatter schema + `body_extraction` asserts | Integration | P0 | FR-009-AC-1 |
+| IT-061 | `schema` JSON describes per-section asserts (headings/columns/id-patterns), no template-variable list | Integration | P0 | FR-009-AC-2 |
+| IT-062 | `quire schema NONEXISTENT --module $ISO` exits 1 with `UnknownArchetype`, empty stdout | Integration | P1 | FR-009-AC-3 |
+| IT-063 | Repeated `quire schema FR` calls produce byte-identical stdout | Integration | P2 | FR-009-AC-4 |
+| BENCH-001 | ⊘ RETIRED (§2bis) — hyperfine render p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2 (retired), StR-002 (retired) |
 | AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
-| AUDIT-002 | `src/` grep finds no markdown parsing, no template rendering, no JSON Schema validation (validation delegated to quire-rs) | Static | P1 | StR-004-AC-2, FR-004-AC-6 |
+| AUDIT-002 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9 |
 | AUDIT-003 | `cargo deny check bans` rejects HTTP client crates | Static | P0 | NFR-004-AC-1 |
 | AUDIT-004 | `scripts/check_unsafe_comments.sh` zero unsafe in src/ + tests/ | Static | P0 | NFR-003-AC-1 |
 
@@ -139,17 +158,25 @@ the full gauntlet locally; CI lanes (rust / licenses / bench) mirror the same
 gates. Observed `BENCH-001` p95 is 4.87 ms, well under the 50 ms NFR-001 budget.
 
 GREEN — the markdown-validation slice (ADR 0004): FR-004 recast to a
-markdown-default `validate` with `--json` context mode (AC-1..6) and the recast
-FR-010 (AC-1..5, structural validation delegated to quire-rs `validate_document`,
-FR-032). Traces IT-047..054 are implemented in `tests/cli_validate.rs` and pass
-`make ci`; IT-003/IT-014 were re-pointed to the new FR-004 AC meanings (IT-003 →
-context mode via `--json`, IT-014 → rendered-then-validated markdown sweep). The
-ISO + extract-mod fixtures were migrated off the retired `required_sections`
-manifest field (quire-rs FR-031 CR — unified archetype); a new `validate-mod`
-fixture carries a `body_extraction` DSL with section + table asserts to exercise
-FR-010. FR-010-AC-2's "with a line number" clause is met for present-but-invalid
-elements (IT-051/IT-053); a *fully-absent* section carries no line — see FR-010
-CR-003.
+markdown-default `validate` (structural validation delegated to quire-rs
+`validate_document`, FR-032) and the recast FR-010 (AC-1..5). Traces IT-047..054
+are implemented in `tests/cli_validate.rs` and pass `make ci`. The ISO +
+extract-mod fixtures were migrated off the retired `required_sections` manifest
+field (quire-rs FR-031 CR — unified archetype); a `validate-mod` fixture carries a
+`body_extraction` DSL with section + table asserts to exercise FR-010.
 
-Known pre-existing matrix gap (out of scope here): FR-009 `schema` subcommand
-(AC-1..5) and its ACs are absent from this matrix.
+**Render removal (2026-06-04) — SPEC ONLY, awaiting implementation.** Per
+`spec.md` §2bis (mirroring quire-rs commit 500a3d3), the `render` subcommand, the
+`validate --json` context mode, and the render benchmark are retired. FR-004 is now
+**markdown-only** with new ACs (AC-4..8: archetype-resolution failures, path-safety
+arg label, stdin exemption; AC-9 renumbers the thin-boundary AC). Retired rows are
+marked ⊘ RETIRED above (ids retained, dropped from the coverage tally). New traces
+IT-055..063 (FR-004 failure paths + FR-009 schema coverage) and re-pointed IT-003
+/IT-014/IT-050 are **specified here but not yet implemented** — they land with the
+render-removal code task, alongside fixtures for no-frontmatter / no-`artifact_type`
+documents. FR-009 (`schema`) is no longer an uncovered matrix gap.
+
+Coverage tally: render/parity/`--json` traces (IT-001, IT-003, IT-007, IT-009,
+IT-010, IT-017, IT-018, BENCH-001) and the retired FR-001/US-001/NFR-001/StR-002
+ACs are dropped from the required-coverage set; every still-active AC retains at
+least one IT/AUDIT trace.

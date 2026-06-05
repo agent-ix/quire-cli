@@ -16,17 +16,17 @@ The CLI SHALL use the following exit codes uniformly across all subcommands:
 | Code | Meaning |
 |------|---------|
 | 0 | Success. Primary result on stdout (or empty for `validate`). |
-| 1 | **User error** — recoverable by the caller: path-safety violation, unknown archetype, schema violation, render error, malformed JSON input, missing file, module load failure. Diagnostic on stderr. |
+| 1 | **User error** — recoverable by the caller: path-safety violation, unknown archetype, structural-validation failure, archetype-resolution failure (no frontmatter / no `artifact_type`), missing file, module load failure. Diagnostic on stderr. |
 | 2 | **Argument parsing error** — `clap` could not parse argv. clap-generated message on stderr. |
 | 134 | Internal panic (SIGABRT). Indicates a bug; should never happen in normal operation. |
 
-The CLI SHALL NOT use any other exit code. In particular, schema violations, render errors, and parse errors all exit 1 — the diagnostic on stderr discriminates among them.
+The CLI SHALL NOT use any other exit code. In particular, structural-validation failures, archetype-resolution failures, and parse errors all exit 1 — the diagnostic on stderr discriminates among them.
 
 ## Acceptance
 
 - **FR-007-AC-1**: For each subcommand, success exits 0.
 - **FR-007-AC-2**: Path-safety violation exits 1.
 - **FR-007-AC-3**: Unknown archetype exits 1.
-- **FR-007-AC-4**: Schema violation exits 1.
+- **FR-007-AC-4**: Structural-validation failure (`validate_document`) exits 1.
 - **FR-007-AC-5**: `quire --bogus-flag` exits 2.
 - **FR-007-AC-6**: No test triggers exit 134 (no panics on any covered input).

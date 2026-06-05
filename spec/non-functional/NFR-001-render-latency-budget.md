@@ -12,6 +12,13 @@ relationships:
     cardinality: "1:1"
 ---
 
+> **RETIRED (render removal — 2026-06-04):** There is no render path to bench
+> (mirrors quire-rs NFR-001 retirement, commit 500a3d3). The per-artifact latency
+> need is retained at the stakeholder level for the surviving subcommands
+> (`validate`/`parse`/`extract`/`lookup`/`edit`); see the revised StR-002. This
+> render-latency NFR is kept for history only; ACs dropped from the
+> required-coverage tally (ids retained, immutable). Recorded in `spec.md` §2bis.
+
 ## Constraint
 
 End-to-end wall-time for `quire render <archetype> --module <path> --data <json>` SHALL satisfy:
@@ -28,6 +35,6 @@ Per the parent plan, the **process boundary** is the cost driver — not templat
 
 ## Acceptance
 
-- **NFR-001-AC-1**: `make bench` runs `hyperfine --warmup 3 'target/release/quire render FR --module $ISO --data ctx.json'` and reports p95 ≤ 50 ms.
-- **NFR-001-AC-2**: CI runs the same hyperfine harness on each push; merge is blocked if p95 regresses by > 20 % from the prior release.
-- **NFR-001-AC-3**: Cargo release profile uses `lto = "thin"`, `codegen-units = 1`, matching `quire-rs/Cargo.toml`.
+- NFR-001-AC-1 (RETIRED): `make bench` runs `hyperfine --warmup 3 'target/release/quire render FR --module $ISO --data ctx.json'` and reports p95 ≤ 50 ms.
+- NFR-001-AC-2 (RETIRED): CI runs the same hyperfine harness on each push; merge is blocked if p95 regresses by > 20 % from the prior release.
+- NFR-001-AC-3 (RETIRED): Cargo release profile uses `lto = "thin"`, `codegen-units = 1`, matching `quire-rs/Cargo.toml`.
