@@ -1,6 +1,6 @@
 ---
 name: validate-markdown
-description: Use when an agent needs to check whether a Markdown artifact or JSON context is structurally valid with quire-cli. Covers quire validate, parse-based sanity checks, required-section checks, and how to report actionable validation failures without doing domain review.
+description: Use when an agent needs to check whether an authored Markdown artifact is structurally valid with quire-cli. Covers quire validate (markdown-only), parse-based sanity checks, required-section checks, and how to report actionable validation failures without doing domain review.
 metadata:
   short-description: Validate quire artifacts
 ---
@@ -9,23 +9,34 @@ metadata:
 
 Use this skill to check structure and schema. Do not turn this into domain review; report concrete CLI failures and missing sections.
 
-## Validate Context JSON
+## Validate a Markdown Document
 
-Use this before rendering:
-
-```bash
-quire validate FR --module path/to/module --data ctx.json
-```
-
-For stdin:
+`quire validate` is markdown-only: it structurally checks an authored artifact
+(`body_extraction` asserts + frontmatter schema + per-level heading uniqueness).
+`--module` is required so the archetype can be resolved. On success it exits 0
+with no output; on failure it exits 1 with line-numbered diagnostics on stderr.
 
 ```bash
-cat ctx.json | quire validate FR --module path/to/module --data -
+quire validate path/to/artifact.md --module path/to/module
 ```
 
-## Check Rendered Markdown
+The archetype is resolved from the document's frontmatter `artifact_type`. Pass
+`--archetype <NAME>` to override that resolution (or supply it when the document
+has no `artifact_type`):
 
-For rendered Markdown, use parse and lookup checks:
+```bash
+quire validate path/to/artifact.md --module path/to/module --archetype FR
+```
+
+To validate a document streamed on stdin, pass `-` as the positional argument:
+
+```bash
+cat path/to/artifact.md | quire validate - --module path/to/module
+```
+
+## Inspect Structure with parse
+
+For finer-grained structural inspection beyond pass/fail, use parse:
 
 ```bash
 quire parse path/to/artifact.md | jq '.frontmatter'
