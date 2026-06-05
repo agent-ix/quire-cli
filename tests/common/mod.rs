@@ -48,4 +48,14 @@ pub fn iso_doc(name: &str) -> PathBuf {
     fixture_root().join(format!("iso-docs/{name}"))
 }
 
-pub const ISO_ARCHETYPES: &[&str] = &["FR", "NFR", "StR", "US", "IT", "TC", "AC", "CON"];
+pub const ISO_ARCHETYPES: &[&str] = &[
+    "FR",
+    "NFR",
+    "StR",
+    "US",
+    "IT",
+    "TC",
+    "AC",
+    "CON",
+    "master-requirements",
+];

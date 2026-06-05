@@ -118,6 +118,14 @@ artifact_types:
   - references
   examples: []
   lint_rules_ref: []
+- name: master-requirements
+  grammar_ref: iso-spec-core
+  frontmatter_schema_ref: schemas/master-requirements-frontmatter.schema.json
+  allowed_links:
+  - depends_on
+  - references
+  examples: []
+  lint_rules_ref: []
 doc_kinds:
 - spec
 object_types: []
