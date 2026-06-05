@@ -1,57 +1,61 @@
 ---
 name: write-markdown
-description: Use when an agent needs to generate or update a Markdown artifact with quire-cli from structured data. Covers choosing an archetype, preparing context JSON, rendering with quire render, handling schema or template errors, and verifying the generated document without domain-specific review guidance.
+description: Use when an agent needs to author or update a Markdown artifact for a quire module. Covers choosing an archetype, fetching its input contract with quire schema, authoring the Markdown directly, and validating the document with quire validate without domain-specific review guidance.
 metadata:
-  short-description: Generate Markdown artifacts
+  short-description: Author Markdown artifacts
 ---
 
 # Write Markdown
 
-Use this skill to generate Markdown artifacts through `quire render`. Keep domain decisions in the calling workflow; this skill only covers the CLI path.
+Use this skill to author Markdown artifacts for a quire module by hand, guided by the archetype's input contract. Keep domain decisions in the calling workflow; this skill only covers the CLI path. There is no `render` step — quire-cli does not generate Markdown from data; you write the Markdown directly and validate it.
 
 ## Workflow
 
 1. Identify the archetype name, for example `FR`, `US`, `NFR`, or a project-specific type.
 2. Locate the module directory that contains `manifest.yaml`.
-3. Prepare context JSON matching the archetype schema.
-4. Render to stdout first unless the user explicitly asked for a file write.
-5. Parse or validate the result before considering the artifact done.
+3. Fetch the archetype's input contract with `quire schema` (see below). It describes the required frontmatter (a JSON Schema) and the body structure — required headings, table columns, and id-patterns — that validation enforces.
+4. Author the Markdown document directly: write frontmatter satisfying the schema and a body that satisfies the contract's structural asserts.
+5. Validate the finished document with `quire validate` before considering the artifact done.
 
 ## Commands
 
-Render from a JSON file:
+Get the input contract for an archetype:
 
 ```bash
-quire render FR --module path/to/module --data ctx.json
+quire schema FR --module path/to/module
 ```
 
-Render from stdin:
+This emits deterministic JSON: the frontmatter JSON Schema plus the `body_extraction` asserts (required headings, table columns, id-patterns) that `quire validate` checks. Use it as the skeleton for the document you author.
+
+Validate an authored document:
 
 ```bash
-cat ctx.json | quire render FR --module path/to/module --data -
+quire validate path/to/artifact.md --module path/to/module
 ```
 
-Write directly to a file:
+Validate against a specific archetype (when it cannot be inferred from frontmatter):
 
 ```bash
-quire render FR --module path/to/module --data ctx.json --out spec/functional/FR-123.md
+quire validate path/to/artifact.md --module path/to/module --archetype FR
 ```
+
+`quire validate` exits 0 with no stdout on success, and exits 1 with diagnostics on stderr on failure. It writes nothing to stdout.
 
 ## Error Handling
 
-Schema and template errors are user errors. Read stderr, fix the context JSON, and rerun. Do not patch rendered Markdown to hide a schema problem; fix the source data unless the user explicitly wants manual Markdown edits.
+Validation failures are authoring errors. Read stderr, fix the Markdown — the frontmatter or the body structure — and rerun. Do not work around a contract failure; bring the document into line with the contract reported by `quire schema`.
 
 ## Done Check
 
-For a generated artifact, run:
+For an authored artifact, confirm the structure parses and read back the sections you care about:
 
 ```bash
 quire parse path/to/artifact.md | jq '.frontmatter'
 quire lookup path/to/artifact.md --heading Acceptance --content
 ```
 
-Use `quire validate` on the context JSON that produced the artifact:
+Then validate:
 
 ```bash
-quire validate FR --module path/to/module --data ctx.json
+quire validate path/to/artifact.md --module path/to/module
 ```

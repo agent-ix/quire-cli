@@ -21,7 +21,6 @@ ALLOWED_REGEX='^src/(main\.rs|commands/.*\.rs)$'
 PATTERNS=(
   'quire_rs::parse_document'
   'quire_rs::render\b'
-  'quire_rs::render_by_name'
   'quire_rs::render_block'
   'quire_rs::render_with_env'
   'quire_rs::validate\b'

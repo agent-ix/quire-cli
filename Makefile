@@ -77,7 +77,7 @@ deny-bans:
 # Fixtures
 # =============================================================================
 
-QUIRE_RS_ISO ?= ../quire-rs/tests/render_parity/modules/iso
+QUIRE_RS_ISO ?= ../quire-rs/tests/fixtures/modules/iso
 
 .PHONY: refresh-fixtures
 refresh-fixtures:

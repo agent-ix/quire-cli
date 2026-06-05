@@ -1,4 +1,4 @@
-//! Subcommand implementations. Each module owns one of the five
+//! Subcommand implementations. Each module owns one of the six
 //! `quire <verb>` subcommands and stays a thin wrapper over `quire-rs`.
 
 pub mod edit;

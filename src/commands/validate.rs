@@ -2,9 +2,9 @@
 //!
 //! Markdown-only structural validation: surfaces `quire_rs::validate_document`
 //! (upstream FR-032) — `body_extraction` asserts + frontmatter-schema +
-//! per-level heading uniqueness over an authored document. The `--json`
-//! context/data mode was removed with the render retirement (FR-004 CR note,
-//! 2026-06-04); no backward-compatibility layer.
+//! per-level heading uniqueness over an authored document. The context/data
+//! mode was removed with the render retirement (FR-004 CR note, 2026-06-04);
+//! no backward-compatibility layer.
 //!
 //! Exit 0 on success (no stdout). Exit 1 on validation failure, with the
 //! quire-rs diagnostics surfaced verbatim on stderr. NEVER writes stdout.

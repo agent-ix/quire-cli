@@ -76,7 +76,7 @@ pub fn validate_module_path(raw: &str) -> Result<PathBuf, PathError> {
 }
 
 /// Validate an input-file path argument under the given `argument` label
-/// (e.g. `--data`, `--json`, or `document` for a positional). `"-"`
+/// (e.g. `--data` or `document` for a positional). `"-"`
 /// (stdin) bypasses this guard and is the caller's responsibility.
 pub fn validate_input_path(argument: &str, raw: &str) -> Result<PathBuf, PathError> {
     reject_dotdot(argument, raw)?;
