@@ -17,7 +17,6 @@ doc_kinds:
 artifact_types:
 - name: FR
   grammar_ref: validate-mod-core
-  template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
   body_extraction:
     yield_pattern:

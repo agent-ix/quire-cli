@@ -1,4 +1,4 @@
-//! IT-008 / NFR-004-AC-2: under `strace -fe network`, none of the five
+//! IT-008 / NFR-004-AC-2: under `strace -fe network`, none of the
 //! subcommands opens an AF_INET / AF_INET6 socket on a happy-path run.
 //!
 //! `strace` is Linux-only. We additionally skip if strace isn't on PATH
@@ -15,8 +15,12 @@ fn iso_module() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/iso")
 }
 
-fn fr_ctx() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/contexts/FR.json")
+fn validate_module() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/validate-mod")
+}
+
+fn iso_doc(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("tests/fixtures/iso-docs/{name}"))
 }
 
 fn quire_bin() -> PathBuf {
@@ -65,22 +69,14 @@ fn assert_no_inet_socket(trace: &str, subcommand: &str) {
 }
 
 #[test]
-fn render_does_not_open_inet_socket() {
+fn schema_does_not_open_inet_socket() {
     if !strace_available() {
         eprintln!("skipping: strace not on PATH");
         return;
     }
-    let module = iso_module();
-    let data = fr_ctx();
-    let trace = run_under_strace(&[
-        "render",
-        "FR",
-        "--module",
-        module.to_str().unwrap(),
-        "--data",
-        data.to_str().unwrap(),
-    ]);
-    assert_no_inet_socket(&trace, "render");
+    let module = validate_module();
+    let trace = run_under_strace(&["schema", "FR", "--module", module.to_str().unwrap()]);
+    assert_no_inet_socket(&trace, "schema");
 }
 
 #[test]
@@ -102,14 +98,12 @@ fn validate_does_not_open_inet_socket() {
         return;
     }
     let module = iso_module();
-    let data = fr_ctx();
+    let doc = iso_doc("FR-valid.md");
     let trace = run_under_strace(&[
         "validate",
-        "FR",
+        doc.to_str().unwrap(),
         "--module",
         module.to_str().unwrap(),
-        "--json",
-        data.to_str().unwrap(),
     ]);
     assert_no_inet_socket(&trace, "validate");
 }

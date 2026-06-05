@@ -7,7 +7,7 @@ mod common;
 use std::io::Write;
 use std::process::Stdio;
 
-use common::{ctx_path, iso_module, quire};
+use common::{quire, validate_module};
 
 const SIMPLE_DOC: &str = "---\nid: FR-001\nartifact_type: FR\n---\n# [FR-001] Hi\n";
 
@@ -35,15 +35,13 @@ fn it_011_parse_dash_reads_stdin() {
 
 #[test]
 fn it_024_stdout_and_stderr_do_not_interleave() {
-    // Render an archetype that exists — stderr should be empty, stdout
-    // should be a single well-formed payload.
+    // `schema` for an archetype that exists — stdout is a single JSON
+    // payload; stderr carries no error on a clean run.
     let out = quire()
-        .arg("render")
+        .arg("schema")
         .arg("FR")
         .arg("--module")
-        .arg(iso_module())
-        .arg("--data")
-        .arg(ctx_path("FR"))
+        .arg(validate_module())
         .output()
         .unwrap();
     assert!(out.status.success());
@@ -51,8 +49,8 @@ fn it_024_stdout_and_stderr_do_not_interleave() {
     let stderr = String::from_utf8(out.stderr).unwrap();
     // Sanity: nothing on stdout looks like a diagnostic header.
     assert!(!stdout.contains("PathTraversal"));
-    // The rendered markdown starts cleanly with frontmatter.
-    assert!(stdout.starts_with("---") || stdout.contains("---"));
+    // The contract payload is a JSON object.
+    assert!(stdout.trim_start().starts_with('{'));
     // No "QuireError" prefix in stderr on a clean run.
     assert!(
         !stderr.contains("QuireError"),
@@ -67,12 +65,10 @@ fn it_025_diagnostics_format_json_produces_json_lines() {
     let out = quire()
         .arg("--diagnostics-format")
         .arg("json")
-        .arg("render")
+        .arg("schema")
         .arg("FR")
         .arg("--module")
         .arg("foo/../bar")
-        .arg("--data")
-        .arg(ctx_path("FR"))
         .output()
         .unwrap();
     assert!(!out.status.success());

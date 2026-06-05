@@ -1,10 +1,10 @@
-//! `quire validate <DOC.md|-> [--module <PATH>] [--archetype <NAME>]`        (default: markdown)
-//! `quire validate <ARCHETYPE> --module <PATH> --json <FILE|->`              (context/data)
+//! `quire validate <DOC.md|-> --module <PATH> [--archetype <NAME>]`
 //!
-//! Default markdown mode surfaces `quire_rs::validate_document` (upstream
-//! FR-032): structural validation of an authored document against a
-//! unified archetype. The `--json` context mode preserves the legacy
-//! JSON-object validation via `quire_rs::validate` (upstream FR-002).
+//! Markdown-only structural validation: surfaces `quire_rs::validate_document`
+//! (upstream FR-032) — `body_extraction` asserts + frontmatter-schema +
+//! per-level heading uniqueness over an authored document. The `--json`
+//! context/data mode was removed with the render retirement (FR-004 CR note,
+//! 2026-06-04); no backward-compatibility layer.
 //!
 //! Exit 0 on success (no stdout). Exit 1 on validation failure, with the
 //! quire-rs diagnostics surfaced verbatim on stderr. NEVER writes stdout.
@@ -21,23 +21,17 @@ use super::Ctx;
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// Markdown document path (or `-` for stdin) in the default mode; the
-    /// archetype name when `--json` selects context mode.
-    pub target: String,
+    /// Markdown document path (or `-` for stdin).
+    pub document: String,
 
     /// Path to the module directory (containing `manifest.yaml`).
     #[arg(long, value_name = "PATH")]
     pub module: String,
 
     /// Override the archetype resolved from the document frontmatter
-    /// `artifact_type` (markdown mode only).
+    /// `artifact_type`.
     #[arg(long, value_name = "NAME")]
     pub archetype: Option<String>,
-
-    /// Validate a JSON context object (file or `-`) against the archetype
-    /// schema instead of a markdown document. Selects context mode.
-    #[arg(long, value_name = "FILE")]
-    pub json: Option<String>,
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
@@ -46,20 +40,14 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let registry = Registry::load_module(&module).context("loading module registry")?;
     emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
 
-    match args.json.as_deref() {
-        Some(json) => run_context(ctx, &args, &registry, json),
-        None => run_markdown(ctx, &args, &registry),
+    // A positional `-` is path-safety-exempt (stdin); any other value is a
+    // document path and is checked under the `document` argument label.
+    if args.document != "-" {
+        safety::validate_input_path("document", &args.document)
+            .with_context(|| format!("validating document '{}'", args.document))?;
     }
-}
-
-/// Default markdown mode: validate an authored document against its
-/// archetype via `quire_rs::validate_document` (FR-032).
-fn run_markdown(ctx: &Ctx, args: &Args, registry: &Registry) -> anyhow::Result<()> {
-    if args.target != "-" {
-        safety::validate_input_path("document", &args.target)
-            .with_context(|| format!("validating document '{}'", args.target))?;
-    }
-    let text = io::read_text(&args.target).with_context(|| format!("reading '{}'", args.target))?;
+    let text =
+        io::read_text(&args.document).with_context(|| format!("reading '{}'", args.document))?;
 
     let archetype_name = match &args.archetype {
         Some(name) => name.clone(),
@@ -73,39 +61,25 @@ fn run_markdown(ctx: &Ctx, args: &Args, registry: &Registry) -> anyhow::Result<(
     surface_result(ctx, &result)
 }
 
-/// Context mode (`--json`): validate a JSON object against the archetype
-/// schema via `quire_rs::validate` (FR-002).
-fn run_context(ctx: &Ctx, args: &Args, registry: &Registry, json: &str) -> anyhow::Result<()> {
-    if json != "-" {
-        safety::validate_input_path("--json", json)
-            .with_context(|| format!("validating --json '{json}'"))?;
-    }
-    let data = io::read_data(json).context("reading --json")?;
-
-    let archetype = registry
-        .archetype(&args.target)
-        .ok_or_else(|| anyhow!("UnknownArchetype: '{}' is not registered", args.target))?;
-
-    quire_rs::validate(archetype, &data)
-        .with_context(|| format!("validating against archetype '{}'", args.target))?;
-    let _ = ctx;
-    Ok(())
-}
-
 /// Read the archetype name from the document's frontmatter
-/// `artifact_type` field (markdown mode default resolution).
+/// `artifact_type` field (default resolution, FR-004-AC-4/AC-5).
 fn archetype_from_frontmatter(text: &str) -> anyhow::Result<String> {
     let doc = quire_rs::parse_document(text);
-    let frontmatter = doc
-        .frontmatter
-        .as_ref()
-        .ok_or_else(|| anyhow!("document has no frontmatter; cannot resolve archetype"))?;
+    let frontmatter = doc.frontmatter.as_ref().ok_or_else(|| {
+        anyhow!(
+            "document has no frontmatter from which to resolve the archetype; \
+             add a frontmatter block with `artifact_type`, or pass --archetype <NAME>"
+        )
+    })?;
     frontmatter
         .get("artifact_type")
         .and_then(|v| v.as_str())
         .map(str::to_string)
         .ok_or_else(|| {
-            anyhow!("frontmatter has no string 'artifact_type'; pass --archetype to override")
+            anyhow!(
+                "frontmatter has no string `artifact_type` from which to resolve the archetype; \
+                 add `artifact_type`, or pass --archetype <NAME>"
+            )
         })
 }
 

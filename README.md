@@ -2,22 +2,21 @@
 
 `quire-cli` is a static command-line wrapper around
 [`quire-rs`](https://github.com/agent-ix/quire-rs). It gives agents and
-humans one fast binary for rendering, parsing, extracting, looking up, editing,
-and validating Markdown artifacts.
+humans one fast binary for parsing, extracting, looking up, editing,
+validating, and inspecting the input contract of Markdown artifacts.
 
 The crate is intentionally a thin process boundary: Markdown parsing,
-template rendering, extraction, and schema validation live in `quire-rs`.
+extraction, and structural validation live in `quire-rs`.
 
 ## Commands
 
 ```bash
-quire render <ARCHETYPE> --module <PATH> --data <FILE|->
 quire parse <DOC|->
 quire lookup <DOC|-> (--heading <TEXT> [--level <1..6>] | --id <ID> | --block-id <BLOCK_ID>) [--content]
 quire edit <DOC|-> (--heading <TEXT> | --block-id <BLOCK_ID>) --content <FILE|-> [--out <PATH>]
 quire extract <DOC|-> --module <PATH> [--archetype <NAME>]
-quire validate <DOC|-> --module <PATH> [--archetype <NAME>]          # markdown (default)
-quire validate <ARCHETYPE> --module <PATH> --json <FILE|->          # JSON context
+quire validate <DOC|-> --module <PATH> [--archetype <NAME>]
+quire schema <ARCHETYPE> --module <PATH>
 ```
 
 Global flags:
@@ -54,30 +53,6 @@ target/release/quire --help
 During development, `target/debug/quire` is fine for local testing.
 
 ## Usage Instructions
-
-### Render Markdown
-
-Render a registered archetype from context JSON:
-
-```bash
-quire render FR --module ./tests/fixtures/iso --data ./tests/fixtures/contexts/FR.json
-```
-
-Read context JSON from stdin:
-
-```bash
-cat FR.json | quire render FR --module ./iso --data -
-```
-
-Write to a file:
-
-```bash
-quire render FR --module ./iso --data FR.json --out spec/functional/FR-123.md
-```
-
-Use `validate` (markdown default) to structurally check an authored document,
-or `validate ... --json` on context JSON before rendering for a schema-only
-check without producing Markdown.
 
 ### Parse And Outline Markdown
 
@@ -172,7 +147,7 @@ quire extract EX-001.md --module ./extract-mod | jq '.edges'
 `extract` does not auto-validate. Run `validate` separately for context
 JSON schema checks.
 
-### Validate A Markdown Document (default)
+### Validate A Markdown Document
 
 Structurally validate an authored document against its archetype. The archetype
 is resolved from the frontmatter `artifact_type` unless `--archetype` overrides
@@ -191,17 +166,20 @@ the line-numbered quire-rs diagnostics (naming the archetype, section/assert, an
 reason: `missing`/`empty`/`placeholder`/`assert`/`frontmatter`/`duplicate-heading`)
 to stderr — verbatim, the CLI adds no validation logic of its own.
 
-### Validate Context JSON (`--json`)
+### Inspect An Archetype's Input Contract
 
-Validate input data against an archetype schema before rendering:
+Emit the archetype input contract — the frontmatter JSON Schema plus the
+`body_extraction` asserts (required headings, table columns, id-patterns) that
+`validate` enforces — as deterministic JSON. This is the same contract an
+authoring agent fills; there is no template-variable list (templates were
+removed):
 
 ```bash
-quire validate FR --module ./iso --json ./FR-001.json
-cat FR-001.json | quire validate FR --module ./iso --json -
+quire schema FR --module ./iso
+quire --pretty schema FR --module ./iso
 ```
 
-`validate` writes nothing to stdout. A nonzero exit means stderr carries the
-diagnostic.
+Unknown archetypes exit 1 with `UnknownArchetype` on stderr.
 
 ## Agent Skills
 
@@ -214,8 +192,8 @@ Available skills:
 | Skill | Slash-style name | Purpose |
 |-------|------------------|---------|
 | `explore-markdown` | `/explore-markdown` | Outline Markdown and fetch targeted sections with `parse` and `lookup`. |
-| `write-markdown` | `/write-markdown` | Generate Markdown artifacts from structured data with `render`. |
-| `validate-markdown` | `/validate-markdown` | Check context JSON and rendered Markdown structure with `validate`, `parse`, and `lookup`. |
+| `write-markdown` | `/write-markdown` | Author Markdown artifacts against an archetype's input contract via `schema` + `validate`. |
+| `validate-markdown` | `/validate-markdown` | Check authored Markdown structure with `validate`, `parse`, and `lookup`. |
 | `link-markdown` | `/link-markdown` | Inspect relationships, `ix://` links, and blast radius with `extract`. |
 
 Each skill has:
@@ -242,10 +220,10 @@ python3 path/to/quick_validate.py skills/link-markdown
 
 Path safety is part of the CLI contract:
 
-- `--module`, `--data`, `--out`, and positional document paths reject `..`
+- `--module`, `--out`, `--content`, and positional document paths reject `..`
   traversal where the command applies path safety.
 - Symlink escapes are rejected.
-- `--data -` and document `-` read from stdin by design.
+- A positional `-` reads from stdin by design (path-safety-exempt).
 - The CLI makes no network calls in normal operation; tests audit this with
   `strace`.
 
@@ -260,7 +238,6 @@ make deny                # cargo deny check licenses
 make deny-bans           # cargo deny check bans
 make audit-unsafe        # every unsafe block carries a // SAFETY: comment
 make audit-thin-boundary # src/ stays a thin wrapper over quire-rs
-make bench               # hyperfine p95 <= 50 ms gate
 make refresh-fixtures    # re-sync tests/fixtures/iso from ../quire-rs
 make ci                  # local CI gauntlet
 ```

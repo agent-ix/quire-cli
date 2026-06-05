@@ -14,7 +14,6 @@ artifact_types: []
 object_types:
 - name: ExtractSample
   grammar_ref: extract-mod-core
-  template_ref: templates/sample.md.j2
   frontmatter_schema_ref: schemas/sample-frontmatter.schema.json
   body_extraction:
     yield_pattern:

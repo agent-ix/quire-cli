@@ -42,4 +42,10 @@ pub fn validate_doc(name: &str) -> PathBuf {
     fixture_root().join(format!("validate-mod/docs/{name}"))
 }
 
+/// A direct-markdown document fixture under `iso-docs/` (used by the
+/// render-free validate sweep, IT-014, and FR-004 failure-path ITs).
+pub fn iso_doc(name: &str) -> PathBuf {
+    fixture_root().join(format!("iso-docs/{name}"))
+}
+
 pub const ISO_ARCHETYPES: &[&str] = &["FR", "NFR", "StR", "US", "IT", "TC", "AC", "CON"];

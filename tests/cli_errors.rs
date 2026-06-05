@@ -1,5 +1,5 @@
 //! Error-path ITs.
-//! Covers IT-010 (schema violation), IT-012 (malformed frontmatter),
+//! Covers IT-012 (malformed frontmatter), IT-013 (unknown archetype),
 //! IT-026 (each documented exit code), IT-027 (no panic on garbage).
 
 mod common;
@@ -7,33 +7,13 @@ mod common;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
-use common::{ctx_path, iso_module, quire};
+use common::{iso_doc, iso_module, quire, validate_doc, validate_module};
 
 fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir();
     let p = dir.join(format!("quire-cli-err-{}-{suffix}", std::process::id()));
     std::fs::write(&p, contents).unwrap();
     p
-}
-
-#[test]
-fn it_010_render_schema_violation_exits_1_before_stdout() {
-    // render does NOT pre-validate context against the schema — that's
-    // validate's job — but a missing required key surfaces from the
-    // template's strict-undefined evaluator as an error. Either way the
-    // process must exit 1 with no stdout payload.
-    let bad = write_tmp(r#"{"not_an_fr_context": true}"#, "schema-bad.json");
-    let out = quire()
-        .arg("render")
-        .arg("FR")
-        .arg("--module")
-        .arg(iso_module())
-        .arg("--data")
-        .arg(&bad)
-        .output()
-        .unwrap();
-    assert!(!out.status.success());
-    assert_eq!(out.status.code(), Some(1));
 }
 
 #[test]
@@ -56,11 +36,9 @@ fn it_012_malformed_frontmatter_still_parses() {
 fn it_026_exit_code_0_on_success() {
     quire()
         .arg("validate")
-        .arg("FR")
+        .arg(validate_doc("valid-fr.md"))
         .arg("--module")
-        .arg(iso_module())
-        .arg("--json")
-        .arg(ctx_path("FR"))
+        .arg(validate_module())
         .assert()
         .success()
         .code(0);
@@ -70,11 +48,9 @@ fn it_026_exit_code_0_on_success() {
 fn it_026_exit_code_1_on_validation_failure() {
     quire()
         .arg("validate")
-        .arg("FR")
+        .arg(iso_doc("FR-invalid.md"))
         .arg("--module")
         .arg(iso_module())
-        .arg("--json")
-        .arg(ctx_path("FR-invalid"))
         .assert()
         .failure()
         .code(1);
@@ -82,12 +58,10 @@ fn it_026_exit_code_1_on_validation_failure() {
 
 #[test]
 fn it_026_exit_code_2_on_argv_error() {
-    // Missing required `--data`.
+    // Missing required `--module`.
     quire()
-        .arg("render")
-        .arg("FR")
-        .arg("--module")
-        .arg(iso_module())
+        .arg("validate")
+        .arg(validate_doc("valid-fr.md"))
         .assert()
         .failure()
         .code(2);
@@ -109,11 +83,11 @@ fn it_027_no_panic_on_random_garbage_input() {
 fn it_013_unknown_archetype_exits_1() {
     quire()
         .arg("validate")
-        .arg("DEFINITELY_NOT_AN_ARCHETYPE")
+        .arg(validate_doc("valid-fr.md"))
         .arg("--module")
-        .arg(iso_module())
-        .arg("--json")
-        .arg(ctx_path("FR"))
+        .arg(validate_module())
+        .arg("--archetype")
+        .arg("DEFINITELY_NOT_AN_ARCHETYPE")
         .assert()
         .failure()
         .code(1)

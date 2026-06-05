@@ -90,21 +90,6 @@ refresh-fixtures:
 	@echo "refreshed tests/fixtures/iso from $(QUIRE_RS_ISO)"
 
 # =============================================================================
-# Benchmarks
-# =============================================================================
-
-BENCH_MODULE ?= $(CURDIR)/tests/fixtures/iso
-BENCH_CTX    ?= $(CURDIR)/tests/fixtures/contexts/FR.json
-BENCH_P95_MS ?= 50
-
-.PHONY: bench
-bench: build
-	@command -v hyperfine >/dev/null || { echo "hyperfine not installed" >&2; exit 1; }
-	hyperfine --warmup 3 --export-json target/bench.json \
-		'target/release/quire render FR --module $(BENCH_MODULE) --data $(BENCH_CTX)'
-	@python3 scripts/check_bench_p95.py target/bench.json $(BENCH_P95_MS)
-
-# =============================================================================
 # Composite
 # =============================================================================
 

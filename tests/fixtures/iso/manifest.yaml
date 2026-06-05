@@ -25,7 +25,6 @@ grammars:
 artifact_types:
 - name: FR
   grammar_ref: iso-spec-core
-  template_ref: templates/fr.md.j2
   frontmatter_schema_ref: schemas/fr-frontmatter.schema.json
   defaults:
     id_pattern: FR-{next:03d}
@@ -48,7 +47,6 @@ artifact_types:
   lint_rules_ref: []
 - name: NFR
   grammar_ref: iso-spec-core
-  template_ref: templates/nfr.md.j2
   frontmatter_schema_ref: schemas/nfr-frontmatter.schema.json
   defaults:
     id_pattern: NFR-{next:03d}
@@ -60,7 +58,6 @@ artifact_types:
   lint_rules_ref: []
 - name: StR
   grammar_ref: iso-spec-core
-  template_ref: templates/str.md.j2
   frontmatter_schema_ref: schemas/str-frontmatter.schema.json
   defaults:
     id_pattern: StR-{next:03d}
@@ -72,7 +69,6 @@ artifact_types:
   lint_rules_ref: []
 - name: US
   grammar_ref: iso-spec-core
-  template_ref: templates/us.md.j2
   frontmatter_schema_ref: schemas/us-frontmatter.schema.json
   defaults:
     id_pattern: US-{next:03d}
@@ -84,7 +80,6 @@ artifact_types:
   lint_rules_ref: []
 - name: IT
   grammar_ref: iso-spec-core
-  template_ref: templates/it.md.j2
   frontmatter_schema_ref: schemas/it-frontmatter.schema.json
   defaults:
     id_pattern: IT-{next:03d}
@@ -96,7 +91,6 @@ artifact_types:
   lint_rules_ref: []
 - name: TC
   grammar_ref: iso-spec-core
-  template_ref: templates/tc.md.j2
   frontmatter_schema_ref: schemas/tc-frontmatter.schema.json
   defaults:
     id_pattern: TC-{next:03d}
@@ -107,7 +101,6 @@ artifact_types:
   lint_rules_ref: []
 - name: AC
   grammar_ref: iso-spec-core
-  template_ref: templates/ac.md.j2
   frontmatter_schema_ref: schemas/ac-frontmatter.schema.json
   defaults:
     id_pattern: AC-{next:03d}
@@ -117,7 +110,6 @@ artifact_types:
   lint_rules_ref: []
 - name: CON
   grammar_ref: iso-spec-core
-  template_ref: templates/con.md.j2
   frontmatter_schema_ref: schemas/con-frontmatter.schema.json
   defaults:
     id_pattern: CON-{next:03d}

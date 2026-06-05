@@ -1,92 +1,18 @@
-//! `validate` ITs — markdown default mode (FR-004/FR-010) + `--json`
-//! context mode (legacy FR-002 path).
+//! `validate` ITs — markdown-only structural validation over
+//! `quire_rs::validate_document` (FR-004 / FR-010). The `--json` context
+//! mode was removed with the render retirement (FR-004 CR note).
 //!
-//! Covers IT-003 (context), IT-014 (markdown iso sweep), IT-021,
-//! IT-047..054.
+//! Covers IT-014 (direct-markdown ISO sweep), IT-021, IT-047..059.
 
 mod common;
 
-use std::io::Write;
-
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
-use tempfile::NamedTempFile;
 
-use common::{ctx_path, iso_module, quire, validate_doc, validate_module, ISO_ARCHETYPES};
-
-// ----------------------------------------------------------------------
-// Context mode (`--json`) — legacy FR-002 path preserved.
-// ----------------------------------------------------------------------
-
-// IT-003: context-mode validate returns 0/1 by schema conformance.
-#[test]
-fn it_003_validate_json_context_returns_0_on_valid_data() {
-    quire()
-        .arg("validate")
-        .arg("FR")
-        .arg("--module")
-        .arg(iso_module())
-        .arg("--json")
-        .arg(ctx_path("FR"))
-        .assert()
-        .success()
-        .stdout(predicate::str::is_empty());
-}
-
-#[test]
-fn it_003_validate_json_context_returns_1_on_invalid_data() {
-    quire()
-        .arg("validate")
-        .arg("FR")
-        .arg("--module")
-        .arg(iso_module())
-        .arg("--json")
-        .arg(ctx_path("FR-invalid"))
-        .assert()
-        .failure()
-        .code(1);
-}
-
-// FR-004-AC-4: a missing required `id` surfaces a `/id` `required`
-// violation on stderr in context mode.
-#[test]
-fn fr004_ac4_json_missing_id_reports_required_violation() {
-    let mut f = NamedTempFile::new().unwrap();
-    write!(f, r#"{{"title": "no id", "artifact_type": "FR"}}"#).unwrap();
-    quire()
-        .arg("validate")
-        .arg("FR")
-        .arg("--module")
-        .arg(iso_module())
-        .arg("--json")
-        .arg(f.path())
-        .assert()
-        .failure()
-        .code(1)
-        .stderr(predicate::str::contains("id").and(predicate::str::contains("required")));
-}
-
-// IT-050 (FR-004-AC-5): unknown archetype + `--json` → exit 1 with
-// `UnknownArchetype` on stderr.
-#[test]
-fn it_050_unknown_archetype_with_json_reports_unknown() {
-    let mut f = NamedTempFile::new().unwrap();
-    write!(f, r#"{{"id": "FR-1"}}"#).unwrap();
-    quire()
-        .arg("validate")
-        .arg("NONEXISTENT")
-        .arg("--module")
-        .arg(iso_module())
-        .arg("--json")
-        .arg(f.path())
-        .assert()
-        .failure()
-        .code(1)
-        .stderr(predicate::str::contains("UnknownArchetype"));
-}
+use common::{iso_doc, iso_module, quire, validate_doc, validate_module, ISO_ARCHETYPES};
 
 // ----------------------------------------------------------------------
-// Markdown default mode — FR-004 / FR-010 over `validate_document`.
+// Markdown structural validation — FR-004 / FR-010 over validate_document.
 // ----------------------------------------------------------------------
 
 // IT-047 (FR-004-AC-1, FR-010-AC-4): a valid document exits 0, no output.
@@ -150,6 +76,24 @@ fn it_049_archetype_flag_overrides_frontmatter_resolution() {
         .stdout(predicate::str::is_empty());
 }
 
+// IT-050 (FR-004-AC-6): an unknown `--archetype` → exit 1 with
+// `UnknownArchetype` on stderr (re-pointed off the removed `--json` mode).
+#[test]
+fn it_050_unknown_archetype_reports_unknown() {
+    quire()
+        .arg("validate")
+        .arg(validate_doc("valid-fr.md"))
+        .arg("--module")
+        .arg(validate_module())
+        .arg("--archetype")
+        .arg("NONEXISTENT")
+        .assert()
+        .failure()
+        .code(1)
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::contains("UnknownArchetype"));
+}
+
 // IT-051 (FR-010-AC-1): placeholder-only Specification → reason
 // `placeholder`.
 #[test]
@@ -166,10 +110,7 @@ fn it_051_placeholder_section_reports_placeholder() {
 }
 
 // IT-052 (FR-010-AC-2): a missing required section → reason `missing`,
-// naming the offending section. (See FR-010 CR-003: for a fully-absent
-// section quire-rs `validate_document` emits no line number — there is
-// no document line to attribute — so the line-number clause is exercised
-// by IT-051/IT-053 where the offending element is present.)
+// naming the offending section.
 #[test]
 fn it_052_missing_section_reports_missing() {
     quire()
@@ -226,36 +167,128 @@ fn it_021_valid_markdown_writes_nothing_to_stdout() {
         .stdout(predicate::str::is_empty());
 }
 
-// IT-014: parametric markdown sweep across the 8 ISO archetypes. The ISO
-// archetypes have no `body_extraction`, so `validate_document` enforces
-// frontmatter-schema + per-level heading uniqueness; a rendered document
-// validates clean, and a frontmatter-broken one fails.
+// IT-014: parametric direct-markdown validate sweep across the 8 ISO
+// archetypes (no render-then-validate). The ISO archetypes have no
+// `body_extraction`, so `validate_document` enforces frontmatter-schema +
+// per-level heading uniqueness; a well-formed document validates clean and
+// a frontmatter-broken one (bad `id`) fails.
 #[test]
 fn it_014_markdown_sweep_each_iso_archetype() {
     for archetype in ISO_ARCHETYPES {
-        // Render a valid document for this archetype, then validate it.
-        let rendered = quire()
-            .arg("render")
-            .arg(archetype)
+        quire()
+            .arg("validate")
+            .arg(iso_doc(&format!("{archetype}-valid.md")))
             .arg("--module")
             .arg(iso_module())
-            .arg("--data")
-            .arg(ctx_path(archetype))
-            .output()
-            .expect("render");
-        assert!(rendered.status.success(), "render {archetype} failed");
-
-        let mut doc = NamedTempFile::new().unwrap();
-        doc.write_all(&rendered.stdout).unwrap();
+            .assert()
+            .success()
+            .stdout(predicate::str::is_empty());
 
         quire()
             .arg("validate")
-            .arg(doc.path())
+            .arg(iso_doc(&format!("{archetype}-invalid.md")))
             .arg("--module")
             .arg(iso_module())
-            .arg("--archetype")
-            .arg(archetype)
             .assert()
-            .success();
+            .failure()
+            .code(1);
     }
+}
+
+// ----------------------------------------------------------------------
+// FR-004 archetype-resolution failure paths + path-safety arg label.
+// ----------------------------------------------------------------------
+
+// IT-056 (FR-004-AC-4): a document with no frontmatter and no `--archetype`
+// exits 1; stderr names the missing frontmatter / `--archetype` remedy;
+// empty stdout.
+#[test]
+fn it_056_no_frontmatter_names_archetype_remedy() {
+    quire()
+        .arg("validate")
+        .arg(iso_doc("no-frontmatter.md"))
+        .arg("--module")
+        .arg(iso_module())
+        .assert()
+        .failure()
+        .code(1)
+        .stdout(predicate::str::is_empty())
+        .stderr(
+            predicate::str::contains("frontmatter").and(predicate::str::contains("--archetype")),
+        );
+}
+
+// IT-057 (FR-004-AC-5): frontmatter present but no string `artifact_type`
+// and no `--archetype` exits 1; the diagnostic names `--archetype` /
+// `artifact_type`.
+#[test]
+fn it_057_no_artifact_type_names_archetype() {
+    quire()
+        .arg("validate")
+        .arg(iso_doc("no-type.md"))
+        .arg("--module")
+        .arg(iso_module())
+        .assert()
+        .failure()
+        .code(1)
+        .stdout(predicate::str::is_empty())
+        .stderr(
+            predicate::str::contains("artifact_type").and(predicate::str::contains("--archetype")),
+        );
+}
+
+// IT-055 (FR-005-AC-2 / FR-004-AC-7): a `..` document path exits 1 with a
+// PathTraversal naming the positional `document` arg.
+#[test]
+fn it_055_dotdot_document_path_rejected() {
+    quire()
+        .arg("validate")
+        .arg("../../etc/passwd")
+        .arg("--module")
+        .arg(iso_module())
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(
+            predicate::str::contains("PathTraversal").and(predicate::str::contains("document")),
+        );
+}
+
+// IT-058 (FR-004-AC-7): the path-safety diagnostic names the offending
+// arg label — `document` for the positional, `--module` for the module.
+#[test]
+fn it_058_path_safety_diagnostic_names_arg_label() {
+    // Module arg violation names `--module`.
+    quire()
+        .arg("validate")
+        .arg(validate_doc("valid-fr.md"))
+        .arg("--module")
+        .arg("../nope")
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(predicate::str::contains("--module"));
+}
+
+// IT-059 (FR-004-AC-8): `validate - --module $ISO` reads the document from
+// stdin (path-safety-exempt) and still validates structurally.
+#[test]
+fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
+    use std::io::Write;
+
+    let valid = std::fs::read(iso_doc("FR-valid.md")).unwrap();
+    let mut cmd = quire();
+    cmd.arg("validate")
+        .arg("-")
+        .arg("--module")
+        .arg(iso_module());
+    let mut child = cmd
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(&valid).unwrap();
+    let out = child.wait_with_output().unwrap();
+    assert!(out.status.success(), "stdin validate should succeed");
+    assert!(out.stdout.is_empty(), "no stdout on success");
 }

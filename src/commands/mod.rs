@@ -5,7 +5,7 @@ pub mod edit;
 pub mod extract;
 pub mod lookup;
 pub mod parse;
-pub mod render;
+pub mod schema;
 pub mod validate;
 
 use quire_cli::io::DiagnosticsFormat;

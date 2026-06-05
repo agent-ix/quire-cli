@@ -1,14 +1,14 @@
-Thin CLI over quire-rs (render, parse, extract, lookup, edit, validate)
+Thin CLI over quire-rs (parse, extract, lookup, edit, validate, schema)
 
 Usage: quire [OPTIONS] <COMMAND>
 
 Commands:
-  render    Render an archetype to markdown
   parse     Parse a markdown document to JSON
   extract   Extract structured records + edges from a document
   lookup    Look up one parsed section by heading, id, or block id
   edit      Edit one section/block of a document in place via byte-exact writeback
-  validate  Validate a markdown document (default) or a JSON context (`--json`)
+  validate  Validate a markdown document against its archetype structure
+  schema    Emit an archetype's input contract (frontmatter schema + asserts) as JSON
   help      Print this message or the help of the given subcommand(s)
 
 Options:
