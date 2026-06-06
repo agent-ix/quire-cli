@@ -11,23 +11,13 @@ jobs:
   rust:
     name: Rust Checks
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: quire-cli
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: quire-cli
 
-      # actions/checkout refuses paths outside the workspace, so both repos are
-      # checked out into sibling subdirs (quire-cli/, quire-rs/); the Cargo path
-      # dep `../quire-rs` then resolves from quire-cli/.
-      - name: Checkout quire-rs (sibling path dep)
-        uses: actions/checkout@v4
-        with:
-          repository: agent-ix/quire-rs
-          token: ${{ secrets.REGISTRY_TOKEN }}
-          path: quire-rs
+      - name: Authenticate cargo git fetch (private quire-rs)
+        run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -36,8 +26,6 @@ jobs:
 
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: quire-cli
 
       - name: Format
         run: make fmt-check
@@ -57,25 +45,16 @@ jobs:
   licenses:
     name: License + bans Check
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: quire-cli
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: quire-cli
-      - name: Checkout quire-rs (sibling path dep)
-        uses: actions/checkout@v4
-        with:
-          repository: agent-ix/quire-rs
-          token: ${{ secrets.REGISTRY_TOKEN }}
-          path: quire-rs
+      - name: Authenticate cargo git fetch (private quire-rs)
+        run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: quire-cli
       - name: Install cargo-deny
         uses: taiki-e/install-action@v2
         with:
@@ -88,25 +67,16 @@ jobs:
   bench:
     name: Latency budget (NFR-001)
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: quire-cli
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: quire-cli
-      - name: Checkout quire-rs (sibling path dep)
-        uses: actions/checkout@v4
-        with:
-          repository: agent-ix/quire-rs
-          token: ${{ secrets.REGISTRY_TOKEN }}
-          path: quire-rs
+      - name: Authenticate cargo git fetch (private quire-rs)
+        run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: quire-cli
       - name: Install hyperfine
         uses: taiki-e/install-action@v2
         with:
