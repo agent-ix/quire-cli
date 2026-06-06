@@ -1,9 +1,9 @@
 [package]
 name = "quire-cli"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.75"
-description = "Static binary CLI wrapping quire-rs (render, parse, extract, validate)."
+description = "Static binary CLI wrapping quire-rs (parse, extract, lookup, edit, validate, schema)."
 authors = ["Agent IX <kreneskyp@gmail.com>"]
 license = "MIT"
 repository = "https://github.com/agent-ix/quire-cli"
