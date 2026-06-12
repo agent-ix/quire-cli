@@ -58,7 +58,7 @@ This document is the **top-level requirements artifact** for the repository.
 ### 2.1 In Scope
 
 This specification governs:
-- The `quire` binary's subcommand surface (`parse`, `extract`, `validate`, `schema`, `lookup`, `edit`) — **`render` is removed** (see §2bis)
+- The `quire` binary's subcommand surface (`parse`, `extract`, `validate`, `schema`, `lookup`, `edit`, `lint`) — **`render` is removed** (see §2bis)
 - Argument parsing, exit codes, and stdout/stderr conventions
 - Path-safety checks on user-supplied `--module` and positional document arguments (and `edit` write targets)
 - JSON encoding of `QuireDocument`, `ExtractionResult`, `HarvestedEdge[]` on stdout
@@ -318,7 +318,11 @@ FRs are verified by:
 
 ## 14. Lifecycle Status
 
-DRAFT — initial requirements authoring.
+BASELINED — v0.2.x released. The surface is seven subcommands: the six in §3.1
+(`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`) plus `lint`
+(FR-013, added in v0.2.0); `render` is removed (§2bis). Under SemVer the
+subcommand surface, exit codes, and JSON output schemas are the stable contract
+(NFR-006). Further changes follow §13 change management.
 
 ---
 
