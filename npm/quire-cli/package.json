@@ -1,0 +1,40 @@
+{
+  "name": "@agent-ix/quire-cli",
+  "version": "0.2.1",
+  "description": "Static CLI over quire-rs (parse, extract, lookup, edit, validate, schema, lint) for Markdown artifacts.",
+  "keywords": [
+    "quire",
+    "cli",
+    "markdown",
+    "spec",
+    "filament",
+    "agent-ix"
+  ],
+  "homepage": "https://github.com/agent-ix/quire-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-ix/quire-cli.git"
+  },
+  "license": "MIT",
+  "author": "Agent IX <kreneskyp@gmail.com>",
+  "type": "commonjs",
+  "bin": {
+    "quire": "bin/quire.js"
+  },
+  "files": [
+    "bin/"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "optionalDependencies": {
+    "@agent-ix/quire-cli-linux-x64": "0.2.1",
+    "@agent-ix/quire-cli-linux-arm64": "0.2.1",
+    "@agent-ix/quire-cli-darwin-x64": "0.2.1",
+    "@agent-ix/quire-cli-darwin-arm64": "0.2.1",
+    "@agent-ix/quire-cli-win32-x64": "0.2.1"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}
