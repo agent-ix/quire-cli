@@ -23,6 +23,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      # Tolerate the reserved Windows name tests/fixtures/contexts/CON.json when
+      # git validates tree paths during checkout. Combined with the sparse
+      # checkout below (which never materializes tests/ on disk), this lets the
+      # win32 job clone. Honored by every git invocation, incl. actions/checkout.
+      # No-op on Linux/macOS.
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: core.protectNTFS
+      GIT_CONFIG_VALUE_0: "false"
     strategy:
       fail-fast: false
       matrix:
