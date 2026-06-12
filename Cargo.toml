@@ -31,3 +31,5 @@ tempfile = "3"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+strip = true          # drop symbols — smaller distributed binary
+panic = "abort"       # no unwinder; a panic SIGABRTs → exit 134 (matches FR-007)
