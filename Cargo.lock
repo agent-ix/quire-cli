@@ -962,8 +962,8 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.4.1"
-source = "git+https://github.com/agent-ix/quire-rs?tag=v0.4.1#0c6b82dcb73d1a1175746d22577d9a3e76568607"
+version = "0.4.2"
+source = "git+https://github.com/agent-ix/quire-rs?tag=v0.4.2#070a24c4d2f9eea55459ddfcad33d3a188d9610e"
 dependencies = [
  "ignore",
  "indexmap",
