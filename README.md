@@ -37,17 +37,42 @@ Exit codes:
 
 ## Install
 
-From Git:
+### npm (prebuilt binary — recommended)
 
-```bash
-cargo install --git https://github.com/agent-ix/quire-cli
+Published to GitHub Packages as [`@agent-ix/quire-cli`](https://github.com/agent-ix/quire-cli/pkgs/npm/quire-cli).
+A per-platform optional dependency carries the prebuilt binary, so no Rust
+toolchain and no access to the private `quire-rs` repo are needed. Point the
+`@agent-ix` scope at GitHub Packages in `.npmrc`:
+
+```
+@agent-ix:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
 ```
 
-From a checkout:
+```bash
+npm install -g @agent-ix/quire-cli   # or: npx @agent-ix/quire-cli --help
+quire --help
+```
+
+Prebuilt targets: linux-x64, linux-arm64 (musl/static), darwin-x64, darwin-arm64,
+win32-x64. Linux x64 covers Intel and AMD; win32-x64 covers Intel and AMD Windows.
+
+### Prebuilt tarball
+
+Each [release](https://github.com/agent-ix/quire-cli/releases) attaches a
+`quire-<version>-<target>.tar.gz` (`.zip` on Windows) plus `SHA256SUMS.txt`.
+Download, verify, and drop `quire` on your `PATH`.
+
+### From source (requires private `quire-rs` access)
+
+Because `quire-rs` is a private git dependency, source builds need repo access
+(and `cargo` configured with `net.git-fetch-with-cli = true`). This route is not
+available to the public — use npm or the tarball instead.
 
 ```bash
-cargo build --release
-target/release/quire --help
+cargo install --git https://github.com/agent-ix/quire-cli   # contributors only
+# or, from a checkout:
+cargo build --release && target/release/quire --help
 ```
 
 During development, `target/debug/quire` is fine for local testing.

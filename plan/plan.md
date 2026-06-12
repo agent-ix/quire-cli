@@ -1,5 +1,18 @@
 # Implementation Plan: quire-cli
 
+> **Status (2026-06-12): SUPERSEDED — historical v0.1.0 plan.** All tracks below
+> shipped (G1..G8 green, tagged `v0.1.0`). Two structural changes happened after
+> this plan was written; treat the conflicting parts below as historical:
+> - **`render` removed** (spec §2bis, 2026-06-04). FR-001 `render`, US-001,
+>   NFR-001 render-latency, and StR-002's render budget are retired. The
+>   render/latency rows below no longer apply.
+> - **Subcommands added after v0.1.0**: `schema` (FR-009), `lookup` (FR-011),
+>   `edit` (FR-012), `lint` (FR-013). These are not in the tracks below; see the
+>   matching `spec/functional/FR-0NN-*.md` and `CHANGELOG.md`.
+>
+> The live surface and contract are defined by `spec/spec.md` (BASELINED) and the
+> per-FR artifacts, not by this plan. Kept for traceability of the initial build.
+
 Generated from `~/dev/quire-cli/spec/` via `/spec-to-plan`. Derived from 4 StR + 4 US + 8 FR + 6 NFR + 32 IT/BENCH/AUDIT cases (see `spec/tests.md` — 100 % AC coverage).
 
 This is a **thin process boundary** over `quire-rs`. The plan is correspondingly small: argv parsing, sandbox guards, I/O wiring, packaging — every parse/render/extract/validate behavior delegates to the upstream crate.
