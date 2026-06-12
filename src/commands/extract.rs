@@ -18,7 +18,7 @@ use serde::Serialize;
 
 use quire_cli::io::{self, emit_quire_diagnostics};
 use quire_cli::safety;
-use quire_rs::{harvest_edges, LoadedDocument, Registry};
+use quire_rs::{harvest_edges, LoadedDocument};
 
 use super::Ctx;
 
@@ -80,8 +80,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             .to_string(),
     };
 
-    let registry = Registry::load_module(&module).context("loading module registry")?;
-    emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
+    let registry = super::load_module_registry(ctx, &module)?;
 
     let compiled = registry.archetype(&archetype_name).ok_or_else(|| {
         anyhow!(

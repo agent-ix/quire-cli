@@ -13,9 +13,9 @@
 use anyhow::{anyhow, bail, Context};
 use clap::Parser;
 
-use quire_cli::io::{self, emit_quire_diagnostics};
+use quire_cli::io;
 use quire_cli::safety;
-use quire_rs::{Registry, ValidationResult};
+use quire_rs::ValidationResult;
 
 use super::Ctx;
 
@@ -37,8 +37,7 @@ pub struct Args {
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let module = safety::validate_module_path(&args.module)
         .with_context(|| format!("validating --module '{}'", args.module))?;
-    let registry = Registry::load_module(&module).context("loading module registry")?;
-    emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
+    let registry = super::load_module_registry(ctx, &module)?;
 
     // A positional `-` is path-safety-exempt (stdin); any other value is a
     // document path and is checked under the `document` argument label.

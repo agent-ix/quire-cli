@@ -13,9 +13,8 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
 
-use quire_cli::io::{self, emit_quire_diagnostics};
+use quire_cli::io;
 use quire_cli::safety;
-use quire_rs::Registry;
 
 use super::Ctx;
 
@@ -32,8 +31,7 @@ pub struct Args {
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let module = safety::validate_module_path(&args.module)
         .with_context(|| format!("validating --module '{}'", args.module))?;
-    let registry = Registry::load_module(&module).context("loading module registry")?;
-    emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
+    let registry = super::load_module_registry(ctx, &module)?;
 
     let contract = quire_rs::input_contract_for(&registry, &args.archetype).map_err(|e| {
         // Surface `UnknownArchetype` (and any other contract error) on the

@@ -1,0 +1,19 @@
+name: lint-mod
+version: 0.1.0
+artifact_types:
+- name: FR
+lint_rules:
+- type: table_column_values
+  id: ac-verification-method
+  archetypes: [FR]
+  section: Acceptance Criteria
+  column: Verification
+  allowed: [Inspection, Analysis, Demonstration, Test]
+  annotation_pattern: '\(TC-\d+(,\s*TC-\d+)*\)'
+  severity: warning
+- type: table_column_values
+  id: configuration-scope
+  section: Configuration
+  column: Scope
+  allowed: [creation, runtime, session]
+  severity: error

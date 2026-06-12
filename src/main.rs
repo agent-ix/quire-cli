@@ -44,6 +44,8 @@ enum Command {
     Validate(commands::validate::Args),
     /// Emit an archetype's input contract (frontmatter schema + asserts) as JSON.
     Schema(commands::schema::Args),
+    /// Evaluate the module's advisory lint rules against a document.
+    Lint(commands::lint::Args),
 }
 
 fn main() {
@@ -59,6 +61,7 @@ fn main() {
         Command::Edit(a) => commands::edit::run(&ctx, a),
         Command::Validate(a) => commands::validate::run(&ctx, a),
         Command::Schema(a) => commands::schema::run(&ctx, a),
+        Command::Lint(a) => commands::lint::run(&ctx, a),
     };
     match result {
         Ok(()) => std::process::exit(exit::OK),

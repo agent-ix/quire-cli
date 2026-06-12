@@ -25,6 +25,18 @@ relationships:
 > registry to resolve the archetype and its `body_extraction` asserts, so `--module`
 > is mandatory (not bracketed/optional) in the implementation.
 
+> **CR note (eager module-load failure, 2026-06-11):** the tolerant engine load
+> reports a missing/unloadable `manifest.yaml` as an `ArchetypeLoadFailure` while
+> returning an EMPTY registry (quire-rs FR-013-AC-13). The CLI previously ignored
+> `Registry::failures()` and died later with a misleading
+> `UnknownArchetype: 'FR' is not registered`. All module-loading subcommands
+> (`validate`, `extract`, `schema`, `lint`) now share a loader helper that fails
+> fast — exit 1 with the real reason, e.g.
+> `module load failed: manifest.yaml not found in module root (<path>/manifest.yaml)`
+> — whenever the load yields zero modules and at least one failure. Surfaced by the
+> spec-objects format walkthrough (issue #5). Verified by
+> `tests/cli_lint.rs::missing_manifest_reports_real_reason_not_unknown_archetype`.
+
 ## Behavior
 
 The CLI SHALL expose a single-mode (markdown-only) `validate` subcommand:

@@ -61,6 +61,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-009 schema subcommand (asserts-based contract) | AC-1..5 | IT-060 (FR schema + asserts), IT-061 (per-section asserts, no template vars), IT-062 (unknown archetype), IT-063 (deterministic stdout), IT-058 (path-safety) | ✅ |
 | FR-011 lookup subcommand | AC-1..6 | IT-033, IT-034, IT-035, IT-036, IT-037, IT-038, IT-039 | ✅ |
 | FR-012 edit subcommand | AC-1..6 | IT-040, IT-041, IT-042, IT-043, IT-044, IT-045, IT-046 | ✅ |
+| FR-013 lint subcommand | AC-1..5 | IT-064 (clean exit 0 silent), IT-065 (warning exit 0 + stderr), IT-066 (error exit 1), IT-067 (--archetype scoping), IT-068 (missing manifest fails fast — also covers the FR-004 CR-note eager-loader behavior for validate/extract/schema) | ✅ |
 
 ## Non-Functional Requirement Coverage
 
@@ -142,6 +143,11 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-061 | `schema` JSON describes per-section asserts (headings/columns/id-patterns), no template-variable list | Integration | P0 | FR-009-AC-2 |
 | IT-062 | `quire schema NONEXISTENT --module $ISO` exits 1 with `UnknownArchetype`, empty stdout | Integration | P1 | FR-009-AC-3 |
 | IT-063 | Repeated `quire schema FR` calls produce byte-identical stdout | Integration | P2 | FR-009-AC-4 |
+| IT-064 | `quire lint clean.md --module $M` exits 0, silent on both streams | Integration | P0 | FR-013-AC-1 |
+| IT-065 | Warning-severity finding: exit 0, stderr `warning: <rule-id>:` + offending value, empty stdout | Integration | P0 | FR-013-AC-2 |
+| IT-066 | Error-severity finding: exit 1, stderr `error: <rule-id>:` | Integration | P0 | FR-013-AC-3 |
+| IT-067 | `--archetype NFR` suppresses a rule scoped `archetypes: [FR]` | Integration | P1 | FR-013-AC-4 |
+| IT-068 | `--module` without manifest.yaml exits 1 naming the missing manifest (eager loader; covers validate/extract/schema too) | Integration | P0 | FR-013-AC-5, FR-004 (CR eager-load) |
 | BENCH-001 | ⊘ RETIRED (§2bis) — hyperfine render p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2 (retired), StR-002 (retired) |
 | AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
 | AUDIT-002 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9 |
