@@ -9,9 +9,11 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-06-14
+
 ### Added
-- Prebuilt binaries for five targets published on each tag: `x86_64`/`aarch64`
-  Linux (musl, static), `x86_64`/`aarch64` macOS, and `x86_64` Windows.
+- Prebuilt binaries for four targets published on each tag: `x86_64`/`aarch64`
+  Linux (musl, static), `aarch64` macOS, and `x86_64` Windows.
 - npm distribution: `@agent-ix/quire-cli` (GitHub Packages) with per-platform
   optional dependencies carrying the prebuilt binary — no source build or access
   to the private `quire-rs` repo required to install.
@@ -51,7 +53,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   output encoding (FR-005..008).
 - Static-binary, zero-unsafe, no-network, and CLI-stability gates (NFR-002..006).
 
-[Unreleased]: https://github.com/agent-ix/quire-cli/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/agent-ix/quire-cli/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/agent-ix/quire-cli/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/agent-ix/quire-cli/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/agent-ix/quire-cli/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/agent-ix/quire-cli/compare/v0.1.0...v0.1.1

@@ -38,12 +38,12 @@ npx @agent-ix/quire-cli parse README.md
 |-----------------|---------------------------------|
 | linux-x64       | `x86_64-unknown-linux-musl`     |
 | linux-arm64     | `aarch64-unknown-linux-musl`    |
-| darwin-x64      | `x86_64-apple-darwin`           |
 | darwin-arm64    | `aarch64-apple-darwin`          |
 | win32-x64       | `x86_64-pc-windows-msvc`        |
 
 Linux x64 covers both Intel and AMD servers; win32-x64 covers both Intel and AMD
-Windows machines. The Linux binaries are statically linked against musl.
+Windows machines. macOS support targets Apple Silicon. The Linux binaries are
+statically linked against musl.
 
 See the [main repository](https://github.com/agent-ix/quire-cli) for command
 documentation.

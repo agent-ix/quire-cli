@@ -19,7 +19,6 @@ const repoRoot = join(here, "..");
 const TARGETS = [
   { rust: "x86_64-unknown-linux-musl", platform: "linux", arch: "x64", windows: false },
   { rust: "aarch64-unknown-linux-musl", platform: "linux", arch: "arm64", windows: false },
-  { rust: "x86_64-apple-darwin", platform: "darwin", arch: "x64", windows: false },
   { rust: "aarch64-apple-darwin", platform: "darwin", arch: "arm64", windows: false },
   { rust: "x86_64-pc-windows-msvc", platform: "win32", arch: "x64", windows: true },
 ];

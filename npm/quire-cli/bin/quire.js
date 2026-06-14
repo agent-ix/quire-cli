@@ -13,7 +13,6 @@ const ARCH = process.arch; // 'x64' | 'arm64' | ...
 const SUPPORTED = [
   "linux-x64",
   "linux-arm64",
-  "darwin-x64",
   "darwin-arm64",
   "win32-x64",
 ];

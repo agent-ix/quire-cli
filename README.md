@@ -54,8 +54,8 @@ npm install -g @agent-ix/quire-cli   # or: npx @agent-ix/quire-cli --help
 quire --help
 ```
 
-Prebuilt targets: linux-x64, linux-arm64 (musl/static), darwin-x64, darwin-arm64,
-win32-x64. Linux x64 covers Intel and AMD; win32-x64 covers Intel and AMD Windows.
+Prebuilt targets: linux-x64, linux-arm64 (musl/static), darwin-arm64, win32-x64.
+Linux x64 covers Intel and AMD; win32-x64 covers Intel and AMD Windows.
 
 ### Prebuilt tarball
 
