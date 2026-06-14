@@ -123,7 +123,17 @@ jobs:
         with:
           path: artifacts
           pattern: bin-*
-          merge-multiple: true
+
+      - name: Normalize binary artifact layout
+        run: |
+          mkdir -p normalized
+          for artifact_dir in artifacts/bin-*; do
+            target="${artifact_dir#artifacts/bin-}"
+            mkdir -p "normalized/${target}"
+            cp "${artifact_dir}"/quire* "normalized/${target}/"
+          done
+          rm -rf artifacts
+          mv normalized artifacts
 
       - name: Build release tarballs + checksums
         run: |
