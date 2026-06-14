@@ -9,7 +9,7 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
-## [0.2.2] — 2026-06-14
+## [0.2.3] — 2026-06-14
 
 ### Added
 - Prebuilt binaries for four targets published on each tag: `x86_64`/`aarch64`
@@ -53,8 +53,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   output encoding (FR-005..008).
 - Static-binary, zero-unsafe, no-network, and CLI-stability gates (NFR-002..006).
 
-[Unreleased]: https://github.com/agent-ix/quire-cli/compare/v0.2.2...HEAD
-[0.2.2]: https://github.com/agent-ix/quire-cli/compare/v0.2.1...v0.2.2
+[Unreleased]: https://github.com/agent-ix/quire-cli/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/agent-ix/quire-cli/compare/v0.2.1...v0.2.3
 [0.2.1]: https://github.com/agent-ix/quire-cli/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/agent-ix/quire-cli/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/agent-ix/quire-cli/compare/v0.1.0...v0.1.1
