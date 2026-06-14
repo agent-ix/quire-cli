@@ -41,8 +41,13 @@ jobs:
           - target: aarch64-unknown-linux-musl
             os: ubuntu-24.04-arm
             musl: true
+          # Cross-compiled from Apple Silicon: GitHub's Intel macOS runners
+          # (macos-13) are scarce and queue for hours. macos-14's toolchain
+          # targets both arches, so build x86_64 there and skip the on-host
+          # smoke test (the runner is arm64).
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-14
+            cross: true
           - target: aarch64-apple-darwin
             os: macos-14
           - target: x86_64-pc-windows-msvc
@@ -80,6 +85,7 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Smoke test (--version)
+        if: ${{ !matrix.cross }}
         shell: bash
         run: |
           BIN=target/${{ matrix.target }}/release/quire
