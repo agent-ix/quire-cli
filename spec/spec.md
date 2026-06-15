@@ -129,7 +129,7 @@ removed — see §2bis):
 
 - `quire parse <doc.md|->` — emit a `QuireDocument` (heading tree, frontmatter, byte slices) as JSON on stdout. Wraps `quire_rs::parse_document` (consumer of `quire-rs` FR-005 / FR-006 / FR-007 / FR-008).
 - `quire extract <doc.md> --module <path>` — run the body-extraction DSL declared in the module against the document and emit `{extraction, edges}` as JSON. Wraps `quire_rs::extract` + `quire_rs::harvest_edges` (consumer of `quire-rs` FR-011 + FR-015).
-- `quire validate <doc.md|-> --module <path> [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032).
+- `quire validate <doc.md|glob|->... [--scope <dir>] [--module <path>] [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. In scoped mode, relative globs are resolved under `--scope` and frontmatter `artifact_type` selects the archetype. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032).
 - `quire schema <archetype> --module <path>` — emit the asserts-based input contract (FR-029) as JSON.
 - `quire lookup` / `quire edit` — read / byte-splice a section or stable block (consumer of `quire-rs` query + `update_section`/`update_block`).
 

@@ -42,14 +42,19 @@ relationships:
 The CLI SHALL expose a single-mode (markdown-only) `validate` subcommand:
 
 ```
-quire validate <DOC.md|-> --module <PATH> [--archetype <NAME>]
+quire validate <DOC.md|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype <NAME>]
 ```
 
-When the positional argument is a document path or `-`:
-1. Path-safety (FR-005) on the document path and `--module`. A positional `-` is path-safety-exempt (stdin); the document text is read to EOF.
+When the positional argument is a document path, glob, or `-`:
+1. Path-safety (FR-005) on each document path, `--scope`, and optional `--module`. A positional `-` is path-safety-exempt (stdin); the document text is read to EOF.
 2. Resolve the archetype: read frontmatter `artifact_type` (a string) unless `--archetype <NAME>` overrides it.
 3. Dispatch to quire-rs `validate_document(archetype, doc_text)` (FR-032): structural validation over `body_extraction` asserts + frontmatter-schema + per-level heading uniqueness.
 4. On success: exit 0, no stdout. On failure: write the line-numbered structured diagnostics to stderr, exit 1.
+
+Scoped validation resolves relative document globs under `--scope`. If `--scope`
+itself contains `manifest.yaml`, it is loaded as one exact module; otherwise
+Quire loads module search roots from the scope, `--scope/.ix/modules`, and
+`IX_SCHEMA_PATH`. `--module` remains the exact single-module compatibility path.
 
 **Archetype-resolution failure paths** (all exit 1, structured diagnostic on
 stderr, no stdout):

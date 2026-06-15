@@ -9,6 +9,18 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.2.4] — 2026-06-15
+
+### Added
+- `quire validate` now accepts one or more document paths/globs and a scoped
+  validation mode: `quire validate --scope <dir> <glob> [glob...]`.
+- Scoped validation resolves relative globs under `--scope`, loads repo/module
+  search roots, and validates each document using frontmatter `artifact_type`.
+
+### Changed
+- `--module` remains available as the exact single-module compatibility path,
+  while scoped validation is the ergonomic default for changed spec files.
+
 ## [0.2.3] — 2026-06-14
 
 ### Added
@@ -53,7 +65,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   output encoding (FR-005..008).
 - Static-binary, zero-unsafe, no-network, and CLI-stability gates (NFR-002..006).
 
-[Unreleased]: https://github.com/agent-ix/quire-cli/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/agent-ix/quire-cli/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/agent-ix/quire-cli/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/agent-ix/quire-cli/compare/v0.2.1...v0.2.3
 [0.2.1]: https://github.com/agent-ix/quire-cli/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/agent-ix/quire-cli/compare/v0.1.1...v0.2.0

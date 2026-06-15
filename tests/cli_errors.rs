@@ -58,13 +58,8 @@ fn it_026_exit_code_1_on_validation_failure() {
 
 #[test]
 fn it_026_exit_code_2_on_argv_error() {
-    // Missing required `--module`.
-    quire()
-        .arg("validate")
-        .arg(validate_doc("valid-fr.md"))
-        .assert()
-        .failure()
-        .code(2);
+    // Missing required document/glob positional.
+    quire().arg("validate").assert().failure().code(2);
 }
 
 #[test]

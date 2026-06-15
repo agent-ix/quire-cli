@@ -1,6 +1,6 @@
 [package]
 name = "quire-cli"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 rust-version = "1.75"
 description = "Static binary CLI wrapping quire-rs (parse, extract, lookup, edit, validate, schema)."
@@ -22,6 +22,7 @@ clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
+glob = "0.3"
 
 [dev-dependencies]
 assert_cmd = "2"

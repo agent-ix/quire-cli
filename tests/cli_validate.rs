@@ -292,3 +292,37 @@ fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
     assert!(out.status.success(), "stdin validate should succeed");
     assert!(out.stdout.is_empty(), "no stdout on success");
 }
+
+// Scoped validation resolves relative globs under --scope and loads modules
+// from that scope, allowing CI/agents to validate all touched artifacts without
+// passing --module per file.
+#[test]
+fn it_060_scope_glob_validates_matching_documents() {
+    quire()
+        .arg("validate")
+        .arg("docs/valid-fr.md")
+        .arg("--scope")
+        .arg(validate_module())
+        .assert()
+        .success()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::is_empty());
+}
+
+#[test]
+fn it_061_scope_glob_surfaces_invalid_document() {
+    quire()
+        .arg("validate")
+        .arg("docs/broken-*.md")
+        .arg("--scope")
+        .arg(validate_module())
+        .assert()
+        .failure()
+        .code(1)
+        .stdout(predicate::str::is_empty())
+        .stderr(
+            predicate::str::contains("broken-fr.md")
+                .and(predicate::str::contains("line"))
+                .and(predicate::str::contains("FR")),
+        );
+}

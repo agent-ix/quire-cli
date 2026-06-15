@@ -1,6 +1,6 @@
 {
   "name": "@agent-ix/quire-cli",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Static CLI over quire-rs (parse, extract, lookup, edit, validate, schema, lint) for Markdown artifacts.",
   "keywords": [
     "quire",
@@ -28,10 +28,10 @@
     "node": ">=16"
   },
   "optionalDependencies": {
-    "@agent-ix/quire-cli-linux-x64": "0.2.3",
-    "@agent-ix/quire-cli-linux-arm64": "0.2.3",
-    "@agent-ix/quire-cli-darwin-arm64": "0.2.3",
-    "@agent-ix/quire-cli-win32-x64": "0.2.3"
+    "@agent-ix/quire-cli-linux-x64": "0.2.4",
+    "@agent-ix/quire-cli-linux-arm64": "0.2.4",
+    "@agent-ix/quire-cli-darwin-arm64": "0.2.4",
+    "@agent-ix/quire-cli-win32-x64": "0.2.4"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"

@@ -15,7 +15,7 @@ quire parse <DOC|->
 quire lookup <DOC|-> (--heading <TEXT> [--level <1..6>] | --id <ID> | --block-id <BLOCK_ID>) [--content]
 quire edit <DOC|-> (--heading <TEXT> | --block-id <BLOCK_ID>) --content <FILE|-> [--out <PATH>]
 quire extract <DOC|-> --module <PATH> [--archetype <NAME>]
-quire validate <DOC|-> --module <PATH> [--archetype <NAME>]
+quire validate <DOC|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype <NAME>]
 quire schema <ARCHETYPE> --module <PATH>
 ```
 
@@ -176,11 +176,15 @@ JSON schema checks.
 
 Structurally validate an authored document against its archetype. The archetype
 is resolved from the frontmatter `artifact_type` unless `--archetype` overrides
-it. quire-rs runs the archetype's `body_extraction` asserts (required-section
+it. Relative document globs are resolved under `--scope`; in scoped mode Quire
+loads modules from that scope, `--scope ./.ix/modules` style plugin roots, and
+`IX_SCHEMA_PATH`. quire-rs runs the archetype's `body_extraction` asserts (required-section
 presence, non-placeholder content, table columns/rows, list items, id patterns)
 plus frontmatter-schema and per-level heading uniqueness:
 
 ```bash
+quire validate --scope . "spec/**/*.md"
+quire validate --scope . "spec/functional/*.md" "spec/usecase/*.md"
 quire validate ./spec/functional/FR-001.md --module ./iso
 quire validate ./FR-001.md --module ./iso --archetype FR
 cat FR-001.md | quire validate - --module ./iso --archetype FR

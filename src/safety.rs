@@ -66,9 +66,16 @@ fn reject_dotdot(argument: &str, raw: &str) -> Result<(), PathError> {
 ///
 /// Rejects `..` segments, canonicalizes, requires a directory.
 pub fn validate_module_path(raw: &str) -> Result<PathBuf, PathError> {
-    reject_dotdot("--module", raw)?;
+    validate_dir_path("--module", raw)
+}
+
+/// Validate a directory path argument under the given label.
+///
+/// Rejects `..` segments, canonicalizes, requires a directory.
+pub fn validate_dir_path(argument: &str, raw: &str) -> Result<PathBuf, PathError> {
+    reject_dotdot(argument, raw)?;
     let p = Path::new(raw);
-    let canonical = p.canonicalize().map_err(|e| map_io("--module", raw, e))?;
+    let canonical = p.canonicalize().map_err(|e| map_io(argument, raw, e))?;
     if !canonical.is_dir() {
         return Err(PathError::NotADirectory(raw.to_string()));
     }
