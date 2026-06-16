@@ -8,7 +8,14 @@
 // Usage:  node npm/build-packages.mjs <version>
 //   env   ARTIFACTS_DIR (default: ./artifacts)
 
-import { mkdirSync, copyFileSync, writeFileSync, chmodSync, existsSync } from "node:fs";
+import {
+  mkdirSync,
+  copyFileSync,
+  writeFileSync,
+  readFileSync,
+  chmodSync,
+  existsSync,
+} from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -67,3 +74,18 @@ for (const t of TARGETS) {
 }
 
 console.log(`\n${built} platform package(s) written under ${outRoot}`);
+
+// Sync the launcher (meta-package) to THIS release: its own version and the
+// optionalDependencies that resolve the platform binaries. Without this the
+// launcher keeps its committed version and republishing it on every tag
+// 409s ("cannot publish over existing version") — and even when it did
+// publish it pulled stale, version-mismatched binaries. Each tag now emits a
+// fresh @agent-ix/quire-cli@<version> whose optional deps match.
+const launcherPath = join(here, "quire-cli", "package.json");
+const launcher = JSON.parse(readFileSync(launcherPath, "utf8"));
+launcher.version = version;
+launcher.optionalDependencies = Object.fromEntries(
+  TARGETS.map((t) => [`@agent-ix/quire-cli-${t.platform}-${t.arch}`, version]),
+);
+writeFileSync(launcherPath, JSON.stringify(launcher, null, 2) + "\n");
+console.log(`synced launcher @agent-ix/quire-cli@${version}`);
