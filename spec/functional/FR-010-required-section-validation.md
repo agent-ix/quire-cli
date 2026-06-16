@@ -1,7 +1,7 @@
 ---
 id: FR-010
 title: "Structural Validation of Rendered Documents"
-artifact_type: FR
+type: FR
 object_type: cli_command
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-004"

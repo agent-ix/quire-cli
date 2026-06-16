@@ -1,7 +1,7 @@
 ---
 id: StR-004
 title: "Thin process boundary, no parallel implementations"
-artifact_type: StR
+type: StR
 ---
 
 ## Stakeholder Need

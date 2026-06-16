@@ -1,7 +1,7 @@
 ---
 id: NFR-003
 title: "Zero unsafe Rust in this crate"
-artifact_type: NFR
+type: NFR
 quality_attribute: security
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-003"

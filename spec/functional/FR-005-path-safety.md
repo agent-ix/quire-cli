@@ -1,7 +1,7 @@
 ---
 id: FR-005
 title: "Path-safety guard on --module, positional doc paths, and edit write targets"
-artifact_type: FR
+type: FR
 object_type: middleware
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-003"

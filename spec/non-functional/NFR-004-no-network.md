@@ -1,7 +1,7 @@
 ---
 id: NFR-004
 title: "No network dependencies, no network calls"
-artifact_type: NFR
+type: NFR
 quality_attribute: security
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"

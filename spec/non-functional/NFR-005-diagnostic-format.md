@@ -1,7 +1,7 @@
 ---
 id: NFR-005
 title: "Diagnostics inherit quire-rs FR-017 format"
-artifact_type: NFR
+type: NFR
 quality_attribute: usability
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-017"

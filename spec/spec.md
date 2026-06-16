@@ -1,5 +1,5 @@
 ---
-artifact_type: master-requirements
+type: master-requirements
 name: quire-cli
 org: agent-ix
 component_type: rust-cli

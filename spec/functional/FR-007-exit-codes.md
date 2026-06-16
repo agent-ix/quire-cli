@@ -1,7 +1,7 @@
 ---
 id: FR-007
 title: "Exit code contract"
-artifact_type: FR
+type: FR
 object_type: cli_command
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"

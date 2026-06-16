@@ -1,7 +1,7 @@
 ---
 id: StR-002
 title: "Sub-50 ms end-to-end budget per artifact"
-artifact_type: StR
+type: StR
 ---
 
 > **RETIRED (render removal — 2026-06-04):** This StR framed the sub-50 ms budget

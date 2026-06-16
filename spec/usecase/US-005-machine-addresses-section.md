@@ -1,7 +1,7 @@
 ---
 id: US-005
 title: "Machine addresses a document section by heading or stable block id"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"
     type: "implements"

@@ -1,7 +1,7 @@
 ---
 id: FR-001
 title: "quire render subcommand"
-artifact_type: FR
+type: FR
 object_type: cli_command
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/usecase/US-001"

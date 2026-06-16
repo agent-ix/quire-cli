@@ -1,7 +1,7 @@
 ---
 id: FR-009
 title: "Archetype Schema Subcommand"
-artifact_type: FR
+type: FR
 object_type: cli_command
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-029"

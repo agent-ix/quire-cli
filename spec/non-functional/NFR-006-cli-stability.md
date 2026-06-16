@@ -1,7 +1,7 @@
 ---
 id: NFR-006
 title: "CLI surface stability under SemVer"
-artifact_type: NFR
+type: NFR
 quality_attribute: compatibility
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"

@@ -1,7 +1,7 @@
 ---
 id: FR-008
 title: "JSON output encoding for parse and extract"
-artifact_type: FR
+type: FR
 object_type: dto
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-002"

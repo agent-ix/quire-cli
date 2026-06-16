@@ -1,7 +1,7 @@
 ---
 id: US-003
 title: "CI validates that all committed artifacts conform to their archetype"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"
     type: "implements"

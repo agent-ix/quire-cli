@@ -1,7 +1,7 @@
 ---
 id: NFR-001
 title: "End-to-end render latency budget p95 ≤ 50 ms"
-artifact_type: NFR
+type: NFR
 quality_attribute: performance
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-002"

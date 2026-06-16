@@ -1,7 +1,7 @@
 ---
 id: StR-003
 title: "Sandbox guarantees inherited from quire-rs and FR-035"
-artifact_type: StR
+type: StR
 ---
 
 > **CR note (render removal — 2026-06-04):** Templates are removed (mirrors

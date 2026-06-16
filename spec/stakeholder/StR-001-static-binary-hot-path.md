@@ -1,7 +1,7 @@
 ---
 id: StR-001
 title: "Static binary serves the agent generation hot path"
-artifact_type: StR
+type: StR
 ---
 
 > **CR note (render removal — 2026-06-04):** The render half is removed (mirrors

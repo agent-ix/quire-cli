@@ -1,7 +1,7 @@
 ---
 id: NFR-002
 title: "Single statically-linked binary"
-artifact_type: NFR
+type: NFR
 quality_attribute: deployability
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"

@@ -1,7 +1,7 @@
 ---
 id: FR-011
 title: "quire lookup subcommand"
-artifact_type: FR
+type: FR
 object_type: cli_command
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/usecase/US-005"

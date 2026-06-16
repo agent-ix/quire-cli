@@ -1,7 +1,7 @@
 ---
 id: US-002
 title: "Human inspects an existing artifact's structure via quire parse"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"
     type: "implements"

@@ -1,7 +1,7 @@
 ---
 id: US-004
 title: "Cross-reference extraction for graph ingestion"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"
     type: "implements"

@@ -1,7 +1,7 @@
 ---
 id: US-001
 title: "Agent renders a new FR artifact during /spec-write-fr"
-artifact_type: US
+type: US
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"
     type: "implements"

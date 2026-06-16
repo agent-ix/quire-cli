@@ -1,7 +1,7 @@
 ---
 id: FR-012
 title: "quire edit subcommand"
-artifact_type: FR
+type: FR
 object_type: cli_command
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-011"
