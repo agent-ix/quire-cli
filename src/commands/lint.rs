@@ -31,7 +31,7 @@ pub struct Args {
     pub module: String,
 
     /// Override the archetype resolved from the document frontmatter
-    /// `artifact_type` (used only for rule scoping).
+    /// `type` (used only for rule scoping).
     #[arg(long, value_name = "NAME")]
     pub archetype: Option<String>,
 }
@@ -51,13 +51,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     // Tolerant archetype resolution (FR-036-AC-3): scoping only —
     // an unresolvable archetype runs unfiltered rules, never errors.
-    let archetype = args.archetype.clone().or_else(|| {
-        doc.frontmatter.as_ref().and_then(|fm| {
-            fm.get("artifact_type")
-                .and_then(|v| v.as_str())
-                .map(str::to_string)
-        })
-    });
+    let archetype = args
+        .archetype
+        .clone()
+        .or_else(|| quire_rs::concept_type(&doc).map(str::to_string));
 
     let findings = quire_rs::lint_document(registry.lint_rules(), archetype.as_deref(), &doc);
 

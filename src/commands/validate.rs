@@ -13,7 +13,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{bail, Context};
 use clap::Parser;
 use glob::glob;
 
@@ -41,7 +41,7 @@ pub struct Args {
     pub scope: String,
 
     /// Override the archetype resolved from the document frontmatter
-    /// `artifact_type`.
+    /// `type`.
     #[arg(long, value_name = "NAME")]
     pub archetype: Option<String>,
 }
@@ -57,13 +57,45 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     for input in inputs {
         let label = input.label();
         let text = input.read().with_context(|| format!("reading '{label}'"))?;
+        // Discriminator resolution (the one piece that must be code: a
+        // schema can't select itself). Missing/unknown `type` is a
+        // per-document validation failure surfaced as a `frontmatter`
+        // diagnostic — not a run-aborting bail — so a batch reports every
+        // bad document, not just the first.
         let archetype_name = match &args.archetype {
             Some(name) => name.clone(),
-            None => archetype_from_frontmatter(&text)?,
+            None => match archetype_from_frontmatter(&text) {
+                Some(name) => name,
+                None => {
+                    emit_frontmatter_failure(
+                        ctx,
+                        &label,
+                        "required 'type' is missing from frontmatter (add `type:`, or pass --archetype <NAME>)",
+                    );
+                    failures += 1;
+                    continue;
+                }
+            },
         };
-        let archetype = registry
-            .archetype(&archetype_name)
-            .ok_or_else(|| anyhow!("UnknownArchetype: '{archetype_name}' is not registered"))?;
+        let archetype = match registry.archetype(&archetype_name) {
+            Some(a) => a,
+            // An explicit `--archetype` that doesn't exist is a usage
+            // error, not document data → fail fast (IT-013/IT-050).
+            None if args.archetype.is_some() => {
+                bail!("UnknownArchetype: '{archetype_name}' is not registered");
+            }
+            // Resolved from frontmatter `type` but unregistered: a
+            // per-document data error, surfaced like any frontmatter fault.
+            None => {
+                emit_frontmatter_failure(
+                    ctx,
+                    &label,
+                    &format!("unknown type '{archetype_name}' (no archetype registered for it)"),
+                );
+                failures += 1;
+                continue;
+            }
+        };
 
         let result = quire_rs::validate_document(archetype, &text);
         if !surface_result(ctx, &label, &result) {
@@ -215,26 +247,23 @@ fn contains_glob(raw: &str) -> bool {
     raw.chars().any(|c| matches!(c, '*' | '?' | '['))
 }
 
-/// Read the archetype name from the document's frontmatter
-/// `artifact_type` field (default resolution, FR-004-AC-4/AC-5).
-fn archetype_from_frontmatter(text: &str) -> anyhow::Result<String> {
+/// Resolve the archetype name from the document's frontmatter `type`
+/// (default resolution, FR-004-AC-4/AC-5) via the one canonical
+/// discriminator read. `None` when the document carries no `type`.
+fn archetype_from_frontmatter(text: &str) -> Option<String> {
     let doc = quire_rs::parse_document(text);
-    let frontmatter = doc.frontmatter.as_ref().ok_or_else(|| {
-        anyhow!(
-            "document has no frontmatter from which to resolve the archetype; \
-             add a frontmatter block with `artifact_type`, or pass --archetype <NAME>"
-        )
-    })?;
-    frontmatter
-        .get("artifact_type")
-        .and_then(|v| v.as_str())
-        .map(str::to_string)
-        .ok_or_else(|| {
-            anyhow!(
-                "frontmatter has no string `artifact_type` from which to resolve the archetype; \
-                 add `artifact_type`, or pass --archetype <NAME>"
-            )
-        })
+    quire_rs::concept_type(&doc).map(str::to_string)
+}
+
+/// Surface a missing/unknown-`type` resolution failure in the same
+/// line-numbered shape as a `quire_rs::ValidationError` with reason
+/// `frontmatter`, so callers see one consistent diagnostic vocabulary.
+fn emit_frontmatter_failure(ctx: &Ctx, label: &str, message: &str) {
+    io::emit_diagnostic(
+        ctx.diagnostics,
+        "ValidationError",
+        &format!("{label}: {message} [frontmatter]"),
+    );
 }
 
 /// Exit 0 when valid; on failure surface each quire-rs diagnostic

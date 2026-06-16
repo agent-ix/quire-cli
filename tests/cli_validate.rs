@@ -218,11 +218,11 @@ fn it_056_no_frontmatter_names_archetype_remedy() {
         );
 }
 
-// IT-057 (FR-004-AC-5): frontmatter present but no string `artifact_type`
-// and no `--archetype` exits 1; the diagnostic names `--archetype` /
-// `artifact_type`.
+// IT-057 (FR-004-AC-5): frontmatter present but no string `type` and no
+// `--archetype` exits 1; the diagnostic names `type` / `--archetype` and
+// rides the `frontmatter` reason vocabulary.
 #[test]
-fn it_057_no_artifact_type_names_archetype() {
+fn it_057_no_type_names_archetype() {
     quire()
         .arg("validate")
         .arg(iso_doc("no-type.md"))
@@ -233,7 +233,9 @@ fn it_057_no_artifact_type_names_archetype() {
         .code(1)
         .stdout(predicate::str::is_empty())
         .stderr(
-            predicate::str::contains("artifact_type").and(predicate::str::contains("--archetype")),
+            predicate::str::contains("type")
+                .and(predicate::str::contains("--archetype"))
+                .and(predicate::str::contains("frontmatter")),
         );
 }
 

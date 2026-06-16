@@ -4,7 +4,7 @@
 //! (upstream FR-011 / FR-015).
 //!
 //! Selection: the archetype is read from the document's frontmatter
-//! `artifact_type` field (or `object_type`), or overridden via
+//! `type` field, or overridden via
 //! `--archetype`. The DSL is read from
 //! `CompiledArchetype::body_extraction()` — no manifest re-read.
 //!
@@ -31,8 +31,7 @@ pub struct Args {
     #[arg(long, value_name = "PATH")]
     pub module: String,
 
-    /// Override the archetype lookup; default reads frontmatter
-    /// `artifact_type` (or `object_type`).
+    /// Override the archetype lookup; default reads frontmatter `type`.
     #[arg(long, value_name = "NAME")]
     pub archetype: Option<String>,
 }
@@ -63,18 +62,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     let archetype_name = match args.archetype.as_deref() {
         Some(name) => name.to_string(),
-        None => parsed
-            .frontmatter
-            .as_ref()
-            .and_then(|fm| {
-                fm.get("object_type")
-                    .or_else(|| fm.get("artifact_type"))
-                    .and_then(|v| v.as_str())
-            })
+        None => quire_rs::concept_type(&parsed)
             .ok_or_else(|| {
                 anyhow!(
-                    "could not infer archetype: frontmatter has neither \
-                     'object_type' nor 'artifact_type'; pass --archetype"
+                    "could not infer archetype: frontmatter has no `type`; \
+                     pass --archetype"
                 )
             })?
             .to_string(),

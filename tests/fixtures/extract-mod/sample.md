@@ -1,6 +1,6 @@
 ---
 id: EX-001
-object_type: ExtractSample
+type: ExtractSample
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-001"
     type: implements

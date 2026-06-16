@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["id", "object_type"],
+  "required": ["id", "type"],
   "additionalProperties": true,
   "properties": {
     "id": {"type": "string"},
-    "object_type": {"const": "ExtractSample"}
+    "type": {"const": "ExtractSample"}
   }
 }

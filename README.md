@@ -175,7 +175,7 @@ JSON schema checks.
 ### Validate A Markdown Document
 
 Structurally validate an authored document against its archetype. The archetype
-is resolved from the frontmatter `artifact_type` unless `--archetype` overrides
+is resolved from the frontmatter `type` unless `--archetype` overrides
 it. Relative document globs are resolved under `--scope`; in scoped mode Quire
 loads modules from that scope, `--scope ./.ix/modules` style plugin roots, and
 `IX_SCHEMA_PATH`. quire-rs runs the archetype's `body_extraction` asserts (required-section
