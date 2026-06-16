@@ -20,7 +20,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 1. **Coverage Rule** — every AC has at least one IT / BENCH / AUDIT trace.
 2. **Path-safety boundary rule** — every user-supplied path argument is exercised with `..`, with a symlink escape, and with a valid in-tree path.
 3. **Exit-code rule** — every exit code in FR-007 has at least one IT producing it.
-4. **Subcommand permutation rule** — for each subcommand (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`), the success path, the unknown-archetype path, and the validation-failure path each have a dedicated IT where applicable. (`render` removed — §2bis.)
+4. **Subcommand permutation rule** — for each subcommand (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`), the success path, the unknown-archetype path, and the validation-failure path each have a dedicated IT where applicable. (`render` removed — §2bis.) `validate` additionally has the `--okf` permissive bundle posture: its hard-error (untyped), warn (unknown-type / broken-link / index-incomplete), and scope-default paths each have a dedicated IT (IT-069..072).
 5. **Determinism rule** — primary JSON outputs (`parse`, `extract`, `lookup`, `schema`) have deterministic field order through Rust struct serialization.
 6. **No-network rule** — IT-008 verifies zero `socket()` calls under strace across all subcommands.
 
@@ -33,7 +33,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | StR-001 Static binary hot path (revised — surviving subcommands) | US-002, US-003, US-004, US-005, FR-002..012 | IT-002, IT-004, IT-047, IT-033, AUDIT-001 (ldd), AUDIT-003 (no-network) | ✅ |
 | StR-002 Sub-50 ms render budget | ⊘ RETIRED (§2bis) | — (render bench removed) | ⊘ |
 | StR-003 Sandbox inheritance (revised — path-safety) | FR-005 | IT-005 (..), IT-006 (symlink escape), IT-055 (doc path safety) | ✅ |
-| StR-004 Thin boundary | FR-002..004, FR-009, FR-011, NFR-005 | AUDIT-002 (src grep for parse logic), IT-033..038 | ✅ |
+| StR-004 Thin boundary | FR-002..004, FR-009, FR-011, FR-014, NFR-005 | AUDIT-002 (src grep for parse logic), IT-033..038 | ✅ |
 
 ## User Story Coverage
 
@@ -51,8 +51,8 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 |----|----|----|--------|
 | FR-001 render subcommand | ⊘ RETIRED (§2bis) | IT-001, IT-009, IT-010, IT-017, IT-018 (all retired) | ⊘ |
 | FR-002 parse subcommand | AC-1..5 | IT-002, IT-011, IT-012, IT-013, IT-019 (byte-offset round-trip) | ✅ |
-| FR-003 extract subcommand | AC-1..4 | IT-004, IT-015, IT-016, IT-020 (determinism rerun) | ✅ |
-| FR-004 validate subcommand (markdown-only; `--json` removed) | AC-1..9 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `artifact_type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), AUDIT-002 (thin boundary) | ✅ |
+| FR-003 extract subcommand | AC-1..5 | IT-004, IT-015, IT-016, IT-020 (determinism rerun), IT-069 (untyped doc → shared `[frontmatter]` diagnostic) | ✅ |
+| FR-004 validate subcommand (markdown-only; `--json` removed) | AC-1..9 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), AUDIT-002 (thin boundary) | ✅ |
 | FR-010 required-section validation (recast onto FR-032) | AC-1..5 | IT-051 (placeholder), IT-052 (missing), IT-053 (assert), IT-047 (valid exit 0), IT-054 (empty stdout + diagnostics) | ✅ |
 | FR-005 path-safety | AC-1..5 | IT-005, IT-006, IT-007, IT-022 (--out reject), IT-023 (stdin bypasses) | ✅ |
 | FR-006 IO contract | AC-1..4 | IT-024 (no interleaving), IT-025 (--diagnostics-format=json), IT-011 (stdin) | ✅ |
@@ -62,6 +62,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-011 lookup subcommand | AC-1..6 | IT-033, IT-034, IT-035, IT-036, IT-037, IT-038, IT-039 | ✅ |
 | FR-012 edit subcommand | AC-1..6 | IT-040, IT-041, IT-042, IT-043, IT-044, IT-045, IT-046 | ✅ |
 | FR-013 lint subcommand | AC-1..5 | IT-064 (clean exit 0 silent), IT-065 (warning exit 0 + stderr), IT-066 (error exit 1), IT-067 (--archetype scoping), IT-068 (missing manifest fails fast — also covers the FR-004 CR-note eager-loader behavior for validate/extract/schema) | ✅ |
+| FR-014 validate --okf bundle posture (`type` discriminator) | AC-1..9 | IT-069 (untyped → exit 1, `[frontmatter]`), IT-070 (unknown type + broken link → warn, exit 0), IT-071 (index incompleteness → warn, exit 0), IT-072 (defaults to --scope dir), IT-026 (bare `validate` no `--okf` → exit 2, `required_unless_present`), AUDIT-002 (thin boundary) | ✅ |
 
 ## Non-Functional Requirement Coverage
 
@@ -105,7 +106,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-023 | positional `-` (stdin) bypasses path-safety | Integration | P1 | FR-005-AC-5 |
 | IT-024 | No stdout/stderr interleaving (chunked write test) | Integration | P1 | FR-006-AC-1..2 |
 | IT-025 | `--diagnostics-format=json` produces parseable Diagnostic | Integration | P1 | FR-006-AC-3, NFR-005-AC-2 |
-| IT-026 | Each documented exit code is produced by at least one input | Integration | P0 | FR-007-AC-1..5 |
+| IT-026 | Each documented exit code is produced by at least one input (incl. bare `validate` with no positional and no `--okf` → exit 2, `cli_errors::it_026_exit_code_2_on_argv_error`) | Integration | P0 | FR-007-AC-1..5, FR-014-AC-7 |
 | IT-027 | No panic on randomly malformed inputs (smoke fuzz) | Integration | P1 | FR-007-AC-6 |
 | IT-028 | Default JSON output is compact (one line) | Integration | P1 | FR-008-AC-1 |
 | IT-029 | `--pretty` produces multi-line indented JSON | Integration | P2 | FR-008-AC-3 |
@@ -136,7 +137,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-054 | Structural validation failure produces empty stdout + non-empty stderr carrying quire-rs diagnostics unchanged | Integration | P0 | FR-010-AC-5 | ✅ |
 | IT-055 | `quire validate ../../etc/passwd --module $ISO` exits 1 with PathSafetyViolation naming the positional document arg | Integration | P0 | FR-005-AC-2, StR-003-AC-2, FR-004-AC-7 |
 | IT-056 | `quire validate no-frontmatter.md --module $ISO` (no frontmatter, no `--archetype`) exits 1; stderr names missing frontmatter / `--archetype` remedy; empty stdout | Integration | P0 | FR-004-AC-4 |
-| IT-057 | `quire validate no-type.md --module $ISO` (frontmatter present, `artifact_type` absent or non-string; no `--archetype`) exits 1; stderr names `--archetype`/`artifact_type` | Integration | P0 | FR-004-AC-5 |
+| IT-057 | `quire validate no-type.md --module $ISO` (frontmatter present, `type` absent or non-string; no `--archetype`) exits 1; stderr names `--archetype`/`type` | Integration | P0 | FR-004-AC-5 |
 | IT-058 | path-safety violation diagnostic names the arg label (`document` / `--module`) | Integration | P1 | FR-004-AC-7, FR-009-AC-5 |
 | IT-059 | `quire validate - --module $ISO` reads stdin (path-safety-exempt) and still validates structurally | Integration | P1 | FR-004-AC-8 |
 | IT-060 | `quire schema FR --module $ISO` exits 0; JSON contains FR frontmatter schema + `body_extraction` asserts | Integration | P0 | FR-009-AC-1 |
@@ -148,9 +149,13 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-066 | Error-severity finding: exit 1, stderr `error: <rule-id>:` | Integration | P0 | FR-013-AC-3 |
 | IT-067 | `--archetype NFR` suppresses a rule scoped `archetypes: [FR]` | Integration | P1 | FR-013-AC-4 |
 | IT-068 | `--module` without manifest.yaml exits 1 naming the missing manifest (eager loader; covers validate/extract/schema too) | Integration | P0 | FR-013-AC-5, FR-004 (CR eager-load) |
+| IT-069 | `validate --okf <DIR>` over a bundle with an **untyped** document exits 1; stderr contains `type` + `[frontmatter]` (`cli_okf::okf_untyped_document_is_error`; also covers extract's shared untyped vocabulary) | Integration | P0 | FR-014-AC-1, FR-014-AC-8, FR-003-AC-5 |
+| IT-070 | `validate --okf <DIR>` tolerates an **unknown `type`** and a **broken `ix://` link** as warnings: exit 0, stderr `[unknown-type]` + `[dangling-reference]` (`cli_okf::okf_tolerates_unknown_type_and_broken_link`) | Integration | P0 | FR-014-AC-2, FR-014-AC-3 |
+| IT-071 | `validate --okf <DIR>` warns on an `index.md` omitting a sibling artifact: exit 0, stderr `[index-incomplete]` naming the missing artifact (root `okf_version` completeness in the same posture) (`cli_okf::okf_index_incompleteness_warns`) | Integration | P0 | FR-014-AC-4, FR-014-AC-5 |
+| IT-072 | `validate --okf --scope <DIR>` with no positional validates the `--scope` directory as the bundle root (exit 0, warning-only bundle) (`cli_okf::okf_defaults_to_scope_directory`) | Integration | P1 | FR-014-AC-6 |
 | BENCH-001 | ⊘ RETIRED (§2bis) — hyperfine render p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2 (retired), StR-002 (retired) |
 | AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
-| AUDIT-002 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9 |
+| AUDIT-002 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document` / `validate_bundle_at`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9, FR-014-AC-9 |
 | AUDIT-003 | `cargo deny check bans` rejects HTTP client crates | Static | P0 | NFR-004-AC-1 |
 | AUDIT-004 | `scripts/check_unsafe_comments.sh` zero unsafe in src/ + tests/ | Static | P0 | NFR-003-AC-1 |
 
@@ -179,10 +184,20 @@ arg label, stdin exemption; AC-9 renumbers the thin-boundary AC). Retired rows a
 marked ⊘ RETIRED above (ids retained, dropped from the coverage tally). New traces
 IT-055..063 (FR-004 failure paths + FR-009 schema coverage) and re-pointed IT-003
 /IT-014/IT-050 are **specified here but not yet implemented** — they land with the
-render-removal code task, alongside fixtures for no-frontmatter / no-`artifact_type`
+render-removal code task, alongside fixtures for no-frontmatter / no-`type`
 documents. FR-009 (`schema`) is no longer an uncovered matrix gap.
 
 Coverage tally: render/parity/`--json` traces (IT-001, IT-003, IT-007, IT-009,
 IT-010, IT-017, IT-018, BENCH-001) and the retired FR-001/US-001/NFR-001/StR-002
 ACs are dropped from the required-coverage set; every still-active AC retains at
 least one IT/AUDIT trace.
+
+GREEN — OKF bundle posture + `type` rename (2026-06-16). FR-014 (`validate --okf`)
+adds the permissive bundle posture; traces IT-069..072 are implemented in
+`tests/cli_okf.rs` (4 ITs: untyped-error, unknown-type/broken-link warn,
+index-incompleteness warn, defaults-to-scope) and FR-014-AC-7 reuses
+`cli_errors::it_026_exit_code_2_on_argv_error` (the `required_unless_present =
+"okf"` argv behavior). FR-003 gains AC-5 (extract emits the shared `[frontmatter]`
+untyped-document vocabulary), traced by IT-069. The `artifact_type` → `type`
+discriminator rename was backsynced across FR-003/004/007/013 and spec.md via CR
+notes; every FR-014 AC (1..9) and FR-003-AC-5 carries an IT/AUDIT trace.

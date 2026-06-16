@@ -107,10 +107,26 @@ are governed by this entry.
 |---|---|
 | **StR-001** Static-binary hot path | AC-1 lists the surviving subcommands (no `render`) |
 | **StR-003** Sandbox inheritance | Template-include sandbox half dropped (templates gone); path-safety half kept; AC-3 retired |
-| **FR-004** `validate` subcommand | **Markdown-only**; `--json` context mode removed; FR-002 consumed-relationship dropped; +archetype-resolution failure ACs (no frontmatter / no string `artifact_type` / unknown), +path-safety arg-label AC, +stdin-exempt AC |
+| **FR-004** `validate` subcommand | **Markdown-only**; `--json` context mode removed; FR-002 consumed-relationship dropped; +archetype-resolution failure ACs (no frontmatter / no string `type` / unknown), +path-safety arg-label AC, +stdin-exempt AC |
 | **FR-005** Path-safety | `--data`/`--out` (render) examples rephrased onto `validate`/`edit`; `--data` AC retired; generic semantics preserved |
 | **FR-006** I/O contract | `render` stdout row + `--data -` stdin trigger removed; AC-4 rephrased onto `parse -` |
 | **FR-009** `schema` subcommand | Asserts-based input contract (FR-029 recast by ADR 0004); "template variables" wording removed |
+
+### OKF bundle posture + `type` rename (2026-06-16)
+
+`validate` gains a `--okf` flag (new **FR-014**) that validates a directory as an
+OKF bundle under the permissive `BundlePosture::Okf` posture via
+`quire_rs::validate_bundle_at`: `type` stays required (untyped doc → hard error,
+exit 1), but unknown types, broken `ix://` links, and `index.md` completeness gaps
+(including a root `index.md` missing `okf_version`) degrade to **warnings** (exit
+0). The positional `documents` arg becomes `required_unless_present = "okf"`, so
+the strict per-file path is unchanged and bare `quire validate` (no `--okf`) is
+still a clap argv error (exit 2). Concurrently, the archetype **discriminator
+frontmatter key is renamed `artifact_type` → `type`** ecosystem-wide; the base
+concept contract (`type` required + non-empty, optional `description`/`tags`
+typed) is enforced upstream in quire-rs for every validated document, and `extract`
+now emits the shared `[frontmatter]` `ValidationError` vocabulary for an untyped
+document (FR-003-AC-5).
 
 ### Decision: `validate` is markdown-only (no `--json`)
 
@@ -129,7 +145,7 @@ removed — see §2bis):
 
 - `quire parse <doc.md|->` — emit a `QuireDocument` (heading tree, frontmatter, byte slices) as JSON on stdout. Wraps `quire_rs::parse_document` (consumer of `quire-rs` FR-005 / FR-006 / FR-007 / FR-008).
 - `quire extract <doc.md> --module <path>` — run the body-extraction DSL declared in the module against the document and emit `{extraction, edges}` as JSON. Wraps `quire_rs::extract` + `quire_rs::harvest_edges` (consumer of `quire-rs` FR-011 + FR-015).
-- `quire validate <doc.md|glob|->... [--scope <dir>] [--module <path>] [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. In scoped mode, relative globs are resolved under `--scope` and frontmatter `artifact_type` selects the archetype. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032).
+- `quire validate <doc.md|glob|->... [--scope <dir>] [--module <path>] [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. In scoped mode, relative globs are resolved under `--scope` and frontmatter `type` selects the archetype. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032). A `--okf` flag (FR-014) validates a directory as an OKF bundle under the permissive posture (unknown types / broken `ix://` links / index-completeness gaps warn; untyped docs are hard errors) via `quire_rs::validate_bundle_at`.
 - `quire schema <archetype> --module <path>` — emit the asserts-based input contract (FR-029) as JSON.
 - `quire lookup` / `quire edit` — read / byte-splice a section or stable block (consumer of `quire-rs` query + `update_section`/`update_block`).
 
@@ -277,7 +293,7 @@ The CLI **adds**:
 | Argument parsing error | `clap` | 2 | stderr |
 | Module load error | `quire-rs` FR-013 / FR-014 | 1 | stderr (structured) |
 | Structural validation error | `quire-rs` FR-032 (`validate_document`) | 1 | stderr (structured per FR-017) |
-| Archetype-resolution error (no frontmatter / no string `artifact_type` / unknown) | This crate + `quire-rs` `UnknownArchetype` | 1 | stderr (structured) |
+| Archetype-resolution error (no frontmatter / no string `type` / unknown) | This crate + `quire-rs` `UnknownArchetype` | 1 | stderr (structured) |
 | Internal panic | Bug | 134 | stderr (rust panic message) |
 
 ### 10.2 Diagnostic Shape

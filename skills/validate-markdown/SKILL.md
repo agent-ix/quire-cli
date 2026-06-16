@@ -20,9 +20,9 @@ with no output; on failure it exits 1 with line-numbered diagnostics on stderr.
 quire validate path/to/artifact.md --module path/to/module
 ```
 
-The archetype is resolved from the document's frontmatter `artifact_type`. Pass
-`--archetype <NAME>` to override that resolution (or supply it when the document
-has no `artifact_type`):
+The archetype is resolved from the document's frontmatter `type` (the OKF
+discriminator). Pass `--archetype <NAME>` to override that resolution (or supply
+it when the document has no `type`):
 
 ```bash
 quire validate path/to/artifact.md --module path/to/module --archetype FR
@@ -33,6 +33,23 @@ To validate a document streamed on stdin, pass `-` as the positional argument:
 ```bash
 cat path/to/artifact.md | quire validate - --module path/to/module
 ```
+
+## Validate an OKF Bundle (`--okf`)
+
+Use `--okf` to read a *foreign* OKF bundle directory under the permissive
+posture. `type` is still required and non-empty, but unknown types, broken
+`ix://` links, and `index.md` completeness gaps are reported as **warnings**
+(exit 0) rather than hard failures. An untyped document is still a hard error.
+
+```bash
+quire validate --okf path/to/bundle --module path/to/module
+quire validate --okf --scope path/to/bundle   # scoped module discovery
+```
+
+Strict bundle validation is the default per-file behavior — `--okf` only loosens
+it for portability. Both postures enforce the base **concept** contract: `type`
+is required and non-empty, and the optional OKF fields `description` (string) and
+`tags` (string array) are type-checked when present.
 
 ## Inspect Structure with parse
 

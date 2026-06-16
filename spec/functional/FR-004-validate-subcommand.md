@@ -37,6 +37,16 @@ relationships:
 > spec-objects format walkthrough (issue #5). Verified by
 > `tests/cli_lint.rs::missing_manifest_reports_real_reason_not_unknown_archetype`.
 
+> **CR note (`type` discriminator rename, 2026-06-16):** OKF adoption renamed the
+> archetype discriminator frontmatter key from `artifact_type` to `type`. All
+> prose and ACs below (notably the archetype-resolution paths and AC-4/AC-5) now
+> read `type`; the implementation reads it via `quire_rs::concept_type(&parsed)`.
+> The new `--okf` bundle posture is specified separately in
+> [FR-014](./FR-014-validate-okf-bundle.md); the default per-file strict path here
+> is unchanged. The base concept contract (`type` required + non-empty, optional
+> `description`/`tags` typed) is now enforced upstream in quire-rs for every
+> validated document — see FR-014 §B.
+
 ## Behavior
 
 The CLI SHALL expose a single-mode (markdown-only) `validate` subcommand:
@@ -47,7 +57,7 @@ quire validate <DOC.md|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype
 
 When the positional argument is a document path, glob, or `-`:
 1. Path-safety (FR-005) on each document path, `--scope`, and optional `--module`. A positional `-` is path-safety-exempt (stdin); the document text is read to EOF.
-2. Resolve the archetype: read frontmatter `artifact_type` (a string) unless `--archetype <NAME>` overrides it.
+2. Resolve the archetype: read frontmatter `type` (a string) unless `--archetype <NAME>` overrides it.
 3. Dispatch to quire-rs `validate_document(archetype, doc_text)` (FR-032): structural validation over `body_extraction` asserts + frontmatter-schema + per-level heading uniqueness.
 4. On success: exit 0, no stdout. On failure: write the line-numbered structured diagnostics to stderr, exit 1.
 
@@ -59,7 +69,7 @@ Quire loads module search roots from the scope, `--scope/.ix/modules`, and
 **Archetype-resolution failure paths** (all exit 1, structured diagnostic on
 stderr, no stdout):
 - No frontmatter block at all → error that the document has no frontmatter from which to resolve the archetype (and `--archetype` was not supplied).
-- Frontmatter present but no string `artifact_type` key (absent, or non-string) and no `--archetype` → error directing the author to add `artifact_type` or pass `--archetype`.
+- Frontmatter present but no string `type` key (absent, or non-string) and no `--archetype` → error directing the author to add `type` or pass `--archetype`.
 - The resolved (or `--archetype`-overridden) name is unknown to the loaded module → quire-rs `UnknownArchetype`.
 
 `validate` SHALL NOT render or write any artifact body. It is a fast CI / authoring gate.
@@ -69,8 +79,8 @@ stderr, no stdout):
 - **FR-004-AC-1**: `quire validate valid-fr.md --module $ISO` exits 0 with no output (frontmatter valid, all required structure present).
 - **FR-004-AC-2**: `quire validate broken-fr.md --module $ISO` exits 1; stderr contains a line-numbered diagnostic naming the failing section/assert.
 - **FR-004-AC-3**: `quire validate fr.md --module $ISO --archetype FR` overrides frontmatter-derived archetype resolution.
-- **FR-004-AC-4**: A document with **no frontmatter** and no `--archetype` exits 1; stderr names the missing frontmatter / `artifact_type` and points at `--archetype` as the remedy. No stdout.
-- **FR-004-AC-5**: A document whose frontmatter is present but has **no string `artifact_type`** (key absent, or a non-string value) and no `--archetype` exits 1; the diagnostic names `--archetype` (or `artifact_type`) as the way to resolve the archetype. No stdout.
+- **FR-004-AC-4**: A document with **no frontmatter** and no `--archetype` exits 1; stderr names the missing frontmatter / `type` and points at `--archetype` as the remedy. No stdout.
+- **FR-004-AC-5**: A document whose frontmatter is present but has **no string `type`** (key absent, or a non-string value) and no `--archetype` exits 1; the diagnostic names `--archetype` (or `type`) as the way to resolve the archetype. No stdout.
 - **FR-004-AC-6**: When the resolved or `--archetype`-overridden name is unknown to the loaded module, `validate` exits 1 with quire-rs `UnknownArchetype` on stderr; empty stdout.
 - **FR-004-AC-7**: A path-safety violation on the document or `--module` exits 1 with a `PathSafetyViolation` (FR-005) whose diagnostic names the offending argument label (the positional `document`, or `--module`).
 - **FR-004-AC-8**: `quire validate - --module $ISO` reads the document from stdin and is **not** subject to path-safety on the document argument (stdin is path-safety-exempt, FR-005-AC-5); the markdown is still validated structurally.

@@ -19,15 +19,16 @@ use glob::glob;
 
 use quire_cli::io;
 use quire_cli::safety;
-use quire_rs::{Registry, ValidationResult};
+use quire_rs::{BundlePosture, BundleReport, Registry, ValidationResult};
 
 use super::Ctx;
 
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Markdown document path, glob, or `-` for stdin. Relative globs are
-    /// resolved under --scope when --module is omitted.
-    #[arg(value_name = "DOC_OR_GLOB", required = true)]
+    /// resolved under --scope when --module is omitted. With --okf, an
+    /// optional bundle directory (defaults to --scope).
+    #[arg(value_name = "DOC_OR_GLOB", required_unless_present = "okf")]
     pub documents: Vec<String>,
 
     /// Path to one exact module directory (containing `manifest.yaml`).
@@ -44,6 +45,13 @@ pub struct Args {
     /// `type`.
     #[arg(long, value_name = "NAME")]
     pub archetype: Option<String>,
+
+    /// Validate a directory as an OKF bundle under the permissive posture:
+    /// `type` is still required, but unknown types, broken `ix://` links,
+    /// and `index.md` completeness gaps are warnings, not errors. Operates
+    /// on the positional bundle directory, or --scope when none is given.
+    #[arg(long)]
+    pub okf: bool,
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
@@ -51,6 +59,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;
     let registry = load_registry(ctx, &args, &scope)?;
+
+    if args.okf {
+        return run_okf(ctx, &args, &scope, scoped, &registry);
+    }
+
+    // clap guarantees a non-empty `documents` here (required_unless_present).
     let inputs = expand_documents(&args.documents, &scope, scoped)?;
 
     let mut failures = 0usize;
@@ -107,6 +121,60 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         bail!("{failures} document(s) failed structural validation");
     }
     Ok(())
+}
+
+/// OKF bundle validation (permissive posture). Validates each bundle
+/// directory wholesale via `quire_rs::validate_bundle_at`, surfacing
+/// warnings and errors on stderr. Exit 1 only when there are hard errors
+/// (untyped documents) — unknown types / broken links / index gaps warn.
+fn run_okf(
+    ctx: &Ctx,
+    args: &Args,
+    scope: &Path,
+    scoped: bool,
+    registry: &Registry,
+) -> anyhow::Result<()> {
+    let roots: Vec<PathBuf> = if args.documents.is_empty() {
+        vec![scope.to_path_buf()]
+    } else {
+        args.documents
+            .iter()
+            .map(|raw| scoped_path(scope, scoped, raw))
+            .collect()
+    };
+
+    let mut errors = 0usize;
+    for root in roots {
+        let root = safety::validate_dir_path("bundle", &root.display().to_string())
+            .with_context(|| format!("validating bundle root '{}'", root.display()))?;
+        let report = quire_rs::validate_bundle_at(&root, registry, BundlePosture::Okf);
+        surface_bundle(ctx, &report);
+        errors += report.errors.len();
+    }
+
+    if errors > 0 {
+        bail!("{errors} OKF bundle validation error(s)");
+    }
+    Ok(())
+}
+
+/// Surface a [`BundleReport`] on stderr: warnings first (non-fatal),
+/// then errors, both in the shared `quire_rs` diagnostic shape.
+fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
+    for w in &report.warnings {
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "Diagnostic",
+            &format!("{}: {} [{}]", w.path.display(), w.message, w.reason),
+        );
+    }
+    for e in &report.errors {
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "ValidationError",
+            &format!("{}: {} [{}]", e.path.display(), e.message, e.reason),
+        );
+    }
 }
 
 fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {

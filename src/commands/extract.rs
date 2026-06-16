@@ -12,7 +12,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use clap::Parser;
 use serde::Serialize;
 
@@ -62,14 +62,23 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     let archetype_name = match args.archetype.as_deref() {
         Some(name) => name.to_string(),
-        None => quire_rs::concept_type(&parsed)
-            .ok_or_else(|| {
-                anyhow!(
-                    "could not infer archetype: frontmatter has no `type`; \
-                     pass --archetype"
-                )
-            })?
-            .to_string(),
+        None => match quire_rs::concept_type(&parsed) {
+            Some(name) => name.to_string(),
+            // Surface the missing discriminator in the same `frontmatter`
+            // diagnostic vocabulary `validate` uses, then exit 1.
+            None => {
+                io::emit_diagnostic(
+                    ctx.diagnostics,
+                    "ValidationError",
+                    &format!(
+                        "{}: required 'type' is missing from frontmatter \
+                         (add `type:`, or pass --archetype <NAME>) [frontmatter]",
+                        args.doc
+                    ),
+                );
+                bail!("missing required 'type'");
+            }
+        },
     };
 
     let registry = super::load_module_registry(ctx, &module)?;

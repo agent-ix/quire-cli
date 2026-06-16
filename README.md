@@ -16,6 +16,7 @@ quire lookup <DOC|-> (--heading <TEXT> [--level <1..6>] | --id <ID> | --block-id
 quire edit <DOC|-> (--heading <TEXT> | --block-id <BLOCK_ID>) --content <FILE|-> [--out <PATH>]
 quire extract <DOC|-> --module <PATH> [--archetype <NAME>]
 quire validate <DOC|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype <NAME>]
+quire validate --okf <BUNDLE_DIR> [--scope <DIR>] [--module <PATH>]
 quire schema <ARCHETYPE> --module <PATH>
 ```
 
@@ -194,6 +195,29 @@ On success `validate` exits 0 with no output. On failure it exits 1 and writes
 the line-numbered quire-rs diagnostics (naming the archetype, section/assert, and
 reason: `missing`/`empty`/`placeholder`/`assert`/`frontmatter`/`duplicate-heading`)
 to stderr — verbatim, the CLI adds no validation logic of its own.
+
+Every document also satisfies the base **concept** contract before its archetype
+runs: `type` is required and non-empty (the OKF discriminator), and the optional
+OKF fields `description` (string) and `tags` (string array) are type-checked when
+present.
+
+### Validate An OKF Bundle (`--okf`)
+
+`--okf` reads a *foreign* OKF bundle directory under a permissive posture for
+portability. `type` is still required and non-empty, but unknown types, broken
+`ix://` links, and `index.md` completeness gaps (every sibling artifact must be
+listed; the bundle-root `index.md` must carry `okf_version`) are reported as
+**warnings** (exit 0) rather than hard errors. An untyped document is still a
+hard error.
+
+```bash
+quire validate --okf path/to/bundle --module ./iso
+quire validate --okf --scope path/to/bundle      # scoped module discovery
+```
+
+Without `--okf`, bundle directories validated via `--scope "spec/**/*.md"` keep
+the strict per-file posture (archetype conformance, resolvable references,
+complete indexes are all hard requirements).
 
 ### Inspect An Archetype's Input Contract
 

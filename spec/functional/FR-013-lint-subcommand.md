@@ -32,7 +32,7 @@ gates extraction or sync.
 2. Load the module via the shared eager-failure loader helper (FR-004 CR
    note): a missing `manifest.yaml` exits 1 with the real reason.
 3. Resolve the archetype **tolerantly** for rule scoping only: `--archetype`
-   override, else frontmatter `artifact_type`, else unresolved — an
+   override, else frontmatter `type`, else unresolved — an
    unresolved archetype runs unfiltered rules and is NOT an error
    (upstream FR-036-AC-3).
 4. Evaluate `lint_document(registry.lint_rules(), archetype, doc)`.

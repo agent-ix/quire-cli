@@ -8,3 +8,4 @@ description: "Chronological log of structural changes to this bundle."
 ## History
 
 * **2026-06-15** — Adopted OKF-compatible bundle structure with directory indexes.
+* **2026-06-16** — Added FR-014 (`quire validate --okf` permissive OKF bundle posture: `type` required, unknown-type/broken-link/index-incompleteness warn). Added FR-003-AC-5 (extract emits shared `[frontmatter]` untyped-document diagnostic). Backsynced the `artifact_type` → `type` discriminator rename across FR-003/004/007/013 and spec.md via CR notes. Mapped IT-069..072 (`tests/cli_okf.rs`) + IT-026 reuse in tests.md.
