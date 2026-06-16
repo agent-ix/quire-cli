@@ -52,15 +52,11 @@ fn it_020_extract_is_deterministic() {
 
 #[test]
 fn extract_no_dsl_archetype_errors_cleanly() {
-    // The ISO module has no object_types; the FR artifact_type isn't an
+    // The ISO module has no object_types; the FR type isn't an
     // object_type either, so extract MUST exit 1 with a stderr message
     // — not crash.
     let doc = std::env::temp_dir().join(format!("quire-cli-extract-err-{}.md", std::process::id()));
-    std::fs::write(
-        &doc,
-        "---\nid: FR-001\nartifact_type: FR\n---\n# [FR-001] Hello\n",
-    )
-    .unwrap();
+    std::fs::write(&doc, "---\nid: FR-001\ntype: FR\n---\n# [FR-001] Hello\n").unwrap();
     quire()
         .arg("extract")
         .arg(&doc)

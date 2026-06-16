@@ -1,5 +1,5 @@
 ---
-artifact_type: master-requirements
+type: master-requirements
 name: example-service
 org: agent-ix
 component_type: fastapi-service

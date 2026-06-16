@@ -1,7 +1,7 @@
 ---
 id: CON-001
 title: CON sweep fixture
-artifact_type: CON
+type: CON
 ---
 
 # CON-001 CON sweep fixture

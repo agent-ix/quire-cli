@@ -1,7 +1,7 @@
 ---
 id: FR-002
 title: "Warns"
-artifact_type: FR
+type: FR
 ---
 
 # [FR-002] Warns

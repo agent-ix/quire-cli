@@ -1,7 +1,7 @@
 ---
 id: bad id
 title: FR broken fixture
-artifact_type: FR
+type: FR
 ---
 
 # FR broken

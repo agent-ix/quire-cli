@@ -1,7 +1,7 @@
 ---
 id: IT-001
 title: IT sweep fixture
-artifact_type: IT
+type: IT
 ---
 
 # IT-001 IT sweep fixture

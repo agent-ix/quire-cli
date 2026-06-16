@@ -1,7 +1,7 @@
 ---
 id: AC-001
 title: AC sweep fixture
-artifact_type: AC
+type: AC
 ---
 
 # AC-001 AC sweep fixture

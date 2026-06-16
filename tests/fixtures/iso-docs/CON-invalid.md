@@ -1,7 +1,7 @@
 ---
 id: bad id
 title: CON broken fixture
-artifact_type: CON
+type: CON
 ---
 
 # CON broken

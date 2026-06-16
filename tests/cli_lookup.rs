@@ -11,7 +11,7 @@ use common::quire;
 const LOOKUP_DOC: &str = "\
 ---
 id: FR-011
-artifact_type: FR
+type: FR
 ---
 # Lookup Title
 

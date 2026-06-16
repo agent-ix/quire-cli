@@ -49,11 +49,11 @@ fn it_048_broken_markdown_exits_1_with_line_numbered_diagnostic() {
 }
 
 // IT-049 (FR-004-AC-3): `--archetype` overrides frontmatter resolution.
-// The document has no `artifact_type`, so default resolution fails; the
+// The document has no `type`, so default resolution fails; the
 // override lets it resolve to FR and validate clean.
 #[test]
 fn it_049_archetype_flag_overrides_frontmatter_resolution() {
-    // Without override → resolution fails (no artifact_type).
+    // Without override → resolution fails (no type).
     quire()
         .arg("validate")
         .arg(validate_doc("override-fr.md"))

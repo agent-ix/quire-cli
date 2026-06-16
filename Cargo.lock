@@ -954,7 +954,7 @@ dependencies = [
 
 [[package]]
 name = "quire-cli"
-version = "0.2.4"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -969,8 +969,8 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.4.2"
-source = "git+https://github.com/agent-ix/quire-rs?tag=v0.4.2#070a24c4d2f9eea55459ddfcad33d3a188d9610e"
+version = "0.5.0"
+source = "git+https://github.com/agent-ix/quire-rs?tag=v0.5.0#c9bfa4848460b3c47da3c3cb8146b46c53f9b477"
 dependencies = [
  "ignore",
  "indexmap",

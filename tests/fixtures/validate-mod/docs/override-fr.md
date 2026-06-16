@@ -1,8 +1,8 @@
 ---
 id: FR-005
-title: An FR with no artifact_type in frontmatter
+title: An FR with no type in frontmatter
 ---
-# [FR-005] An FR with no artifact_type in frontmatter
+# [FR-005] An FR with no type in frontmatter
 
 ## Description
 

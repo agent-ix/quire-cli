@@ -1,7 +1,7 @@
 ---
 id: FR-002
 title: A structurally broken FR
-artifact_type: FR
+type: FR
 ---
 # [FR-002] A structurally broken FR
 

@@ -1,7 +1,7 @@
 ---
 id: FR-004
 title: An FR missing its Specification section
-artifact_type: FR
+type: FR
 ---
 # [FR-004] An FR missing its Specification section
 

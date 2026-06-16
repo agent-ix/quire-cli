@@ -1,7 +1,7 @@
 ---
 id: NFR-001
 title: NFR sweep fixture
-artifact_type: NFR
+type: NFR
 ---
 
 # NFR-001 NFR sweep fixture

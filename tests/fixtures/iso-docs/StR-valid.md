@@ -1,7 +1,7 @@
 ---
 id: STR-001
 title: StR sweep fixture
-artifact_type: StR
+type: StR
 ---
 
 # STR-001 StR sweep fixture

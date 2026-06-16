@@ -1,7 +1,7 @@
 ---
 id: bad id
 title: NFR broken fixture
-artifact_type: NFR
+type: NFR
 ---
 
 # NFR broken

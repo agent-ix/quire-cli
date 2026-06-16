@@ -9,7 +9,7 @@ use std::process::Stdio;
 
 use common::{quire, validate_module};
 
-const SIMPLE_DOC: &str = "---\nid: FR-001\nartifact_type: FR\n---\n# [FR-001] Hi\n";
+const SIMPLE_DOC: &str = "---\nid: FR-001\ntype: FR\n---\n# [FR-001] Hi\n";
 
 #[test]
 fn it_011_parse_dash_reads_stdin() {

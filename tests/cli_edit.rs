@@ -13,7 +13,7 @@ use common::quire;
 const EDIT_DOC: &str = "\
 ---
 id: FR-012
-artifact_type: FR
+type: FR
 ---
 # [FR-012] Title
 
@@ -58,7 +58,7 @@ fn edit_by_heading_replaces_body_and_leaves_rest_byte_identical() {
     assert!(out.contains("new description text"));
     assert!(!out.contains("old description"));
     // ...and every untouched region is byte-identical.
-    assert!(out.starts_with("---\nid: FR-012\nartifact_type: FR\n---\n"));
+    assert!(out.starts_with("---\nid: FR-012\ntype: FR\n---\n"));
     assert!(out.contains("## Behavior {#blk-behavior}\n\nold behavior\n"));
     assert!(out.contains("| FR-012-AC-1 | TODO | Integration Test |"));
 }

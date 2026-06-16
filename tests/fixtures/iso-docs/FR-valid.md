@@ -1,7 +1,7 @@
 ---
 id: FR-001
 title: FR sweep fixture
-artifact_type: FR
+type: FR
 ---
 
 # FR-001 FR sweep fixture

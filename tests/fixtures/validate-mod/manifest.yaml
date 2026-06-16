@@ -3,7 +3,7 @@ name: validate-mod
 version: 0.1.0
 description: >-
   Fixture module exercising markdown `validate` (FR-004/FR-010): an FR
-  artifact_type with a body_extraction DSL whose asserts cover a required
+  type with a body_extraction DSL whose asserts cover a required
   section body (Specification) and an Acceptance Criteria table
   (columns + min_rows).
 grammars:

@@ -1,8 +1,8 @@
 ---
 id: FR-009
-title: missing artifact_type
+title: missing type
 ---
 
-# No artifact_type
+# No type
 
-Frontmatter is present but has no string `artifact_type`.
+Frontmatter is present but has no string `type`.

@@ -1,7 +1,7 @@
 ---
 id: bad id
 title: StR broken fixture
-artifact_type: StR
+type: StR
 ---
 
 # StR broken

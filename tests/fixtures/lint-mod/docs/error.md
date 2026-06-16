@@ -1,7 +1,7 @@
 ---
 id: FR-003
 title: "Errors"
-artifact_type: FR
+type: FR
 ---
 
 # [FR-003] Errors

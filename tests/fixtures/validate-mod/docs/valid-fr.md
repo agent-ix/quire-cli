@@ -1,7 +1,7 @@
 ---
 id: FR-001
 title: A valid functional requirement
-artifact_type: FR
+type: FR
 ---
 # [FR-001] A valid functional requirement
 

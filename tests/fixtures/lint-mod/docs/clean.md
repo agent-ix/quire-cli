@@ -1,7 +1,7 @@
 ---
 id: FR-001
 title: "Clean"
-artifact_type: FR
+type: FR
 ---
 
 # [FR-001] Clean

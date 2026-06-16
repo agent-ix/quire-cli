@@ -32,7 +32,7 @@ pub fn ctx_path(name: &str) -> PathBuf {
 }
 
 /// Module exercising markdown `validate` (FR-004/FR-010): an `FR`
-/// artifact_type with a `body_extraction` DSL carrying asserts.
+/// type with a `body_extraction` DSL carrying asserts.
 pub fn validate_module() -> PathBuf {
     fixture_root().join("validate-mod")
 }

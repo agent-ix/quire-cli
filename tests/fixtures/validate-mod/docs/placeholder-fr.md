@@ -1,7 +1,7 @@
 ---
 id: FR-003
 title: An FR with a placeholder Specification
-artifact_type: FR
+type: FR
 ---
 # [FR-003] An FR with a placeholder Specification
 

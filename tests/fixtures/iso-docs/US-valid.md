@@ -1,7 +1,7 @@
 ---
 id: US-001
 title: US sweep fixture
-artifact_type: US
+type: US
 ---
 
 # US-001 US sweep fixture

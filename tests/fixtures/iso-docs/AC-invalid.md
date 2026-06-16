@@ -1,7 +1,7 @@
 ---
 id: bad id
 title: AC broken fixture
-artifact_type: AC
+type: AC
 ---
 
 # AC broken

@@ -1,7 +1,7 @@
 {
   "id": "FR-002",
   "title": "FR with relationships",
-  "artifact_type": "FR",
+  "type": "FR",
   "relationships": [
     {"target": "ix://agent-ix/quire-cli/spec/stakeholder/StR-001", "type": "implements"}
   ]

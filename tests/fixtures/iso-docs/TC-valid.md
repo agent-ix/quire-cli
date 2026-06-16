@@ -1,7 +1,7 @@
 ---
 id: TC-001
 title: TC sweep fixture
-artifact_type: TC
+type: TC
 ---
 
 # TC-001 TC sweep fixture

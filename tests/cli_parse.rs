@@ -8,7 +8,7 @@ use predicates::prelude::*;
 
 use common::quire;
 
-const SIMPLE_DOC: &str = "---\nid: FR-001\nartifact_type: FR\n---\n# [FR-001] Hello\n\nbody\n";
+const SIMPLE_DOC: &str = "---\nid: FR-001\ntype: FR\n---\n# [FR-001] Hello\n\nbody\n";
 
 fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir();
