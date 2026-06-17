@@ -99,7 +99,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     for (path, mut fixes) in by_file {
         let mut text = std::fs::read_to_string(&path)
             .with_context(|| format!("reading '{}'", path.display()))?;
-        fixes.sort_by(|a, b| b.byte_span.start.cmp(&a.byte_span.start));
+        fixes.sort_by_key(|f| std::cmp::Reverse(f.byte_span.start));
         for f in &fixes {
             if let UnlinkedFix::AutoFix { suggested_link } = &f.fix {
                 text.replace_range(f.byte_span.clone(), suggested_link);

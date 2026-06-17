@@ -1,6 +1,6 @@
 [package]
 name = "quire-cli"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2021"
 rust-version = "1.75"
 description = "Static binary CLI wrapping quire-rs (parse, extract, lookup, edit, validate, schema)."
