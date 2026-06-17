@@ -26,7 +26,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 1. **Coverage Rule** — every AC has at least one IT / BENCH / AUDIT trace.
 2. **Path-safety boundary rule** — every user-supplied path argument is exercised with `..`, with a symlink escape, and with a valid in-tree path.
 3. **Exit-code rule** — every exit code in FR-007 has at least one IT producing it.
-4. **Subcommand permutation rule** — for each subcommand (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`), the success path, the unknown-archetype path, and the validation-failure path each have a dedicated IT where applicable. (`render` removed — §2bis.) `validate` additionally has the `--okf` permissive bundle posture: its hard-error (untyped), warn (unknown-type / broken-link / index-incomplete), and scope-default paths each have a dedicated IT (IT-069..072).
+4. **Subcommand permutation rule** — for each subcommand (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`), the success path, the unknown-archetype path, and the validation-failure path each have a dedicated IT where applicable. (`render` removed — §2bis.) `validate` additionally has the `--okf` permissive bundle posture: its hard-error (untyped), warn (unknown-type / broken-link / index-incomplete), and scope-default paths each have a dedicated IT (IT-069..072). `fix` (ADR 0007 unlinked-reference autofix) has its dry-run (would-fix → exit 1), `--write` apply + idempotent re-run, warn-only, clean-bundle, and `--scope`/path-safety paths each covered (IT-076..080).
 5. **Determinism rule** — primary JSON outputs (`parse`, `extract`, `lookup`, `schema`) have deterministic field order through Rust struct serialization.
 6. **No-network rule** — IT-008 verifies zero `socket()` calls under strace across all subcommands.
 
@@ -69,6 +69,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-012 edit subcommand | AC-1..6 | IT-040, IT-041, IT-042, IT-043, IT-044, IT-045, IT-046 | ✅ |
 | FR-013 lint subcommand | AC-1..5 | IT-064 (clean exit 0 silent), IT-065 (warning exit 0 + stderr), IT-066 (error exit 1), IT-067 (--archetype scoping), IT-068 (missing manifest fails fast — also covers the FR-004 CR-note eager-loader behavior for validate/extract/schema) | ✅ |
 | FR-014 validate --okf bundle posture (`type` discriminator) | AC-1..9 | IT-069 (untyped → exit 1, `[frontmatter]`), IT-070 (unknown type + broken link → warn, exit 0), IT-071 (index incompleteness → warn, exit 0), IT-072 (defaults to --scope dir), IT-026 (bare `validate` no `--okf` → exit 2, `required_unless_present`), AUDIT-002 (thin boundary) | ✅ |
+| FR-015 fix subcommand (unlinked-reference autofix, ADR 0007) | AC-1..6 | IT-076 (dry-run `would-fix` → exit 1, no write), IT-077 (`--write` applies + idempotent re-run exit 0), IT-078 (warn-only never written, no nonzero exit), IT-079 (clean bundle exit 0 empty stdout), IT-080 (`--scope` root + path-safety reject), AUDIT-002 (thin boundary) | 🚧 |
 
 ## Non-Functional Requirement Coverage
 
@@ -162,9 +163,14 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-073 | `quire validate <doc with `object:` unknown> --module $M` (no `--strict`) → exit 0, empty stdout; stderr carries a `warning:`-prefixed line naming the unknown object, distinct from any error | Integration | P0 | FR-004-AC-10 |
 | IT-074 | Same doc with `--strict` → exit 1; stderr still carries the `warning:` line; empty stdout. A clean doc (no warnings/errors) under `--strict` still exits 0 | Integration | P0 | FR-004-AC-11 |
 | IT-075 | Same doc with `--diagnostics-format json --strict` (or no `--strict`) → the warning is a distinct JSON object on stderr carrying a `severity`/`kind` field marking it a warning, separable from an error object | Integration | P1 | FR-004-AC-12 |
+| IT-076 | `quire fix <DIR> --module $M` (dry-run) over a bundle with a bare in-bundle reference → exit 1, stderr `would-fix: <path>: <token> -> [<token>](<rel-path>)`, no file modified | Integration | P0 | FR-015-AC-1 |
+| IT-077 | `quire fix <DIR> --module $M --write` rewrites the reference to the suggested relative-path link; a second `--write` run changes nothing and exits 0 (idempotence) | Integration | P0 | FR-015-AC-2 |
+| IT-078 | A warn-only (unresolved/ambiguous) token is surfaced as `warning: … (<reason>)`, never written even under `--write`, and does not alone cause a nonzero exit | Integration | P0 | FR-015-AC-3 |
+| IT-079 | A clean bundle (no auto-fix findings) exits 0 with empty stdout in both dry-run and `--write` | Integration | P1 | FR-015-AC-4 |
+| IT-080 | `quire fix --scope <DIR> --module $M` with no positional uses `--scope` as root; a `..`/symlink-escape on root or `--module` is rejected by path-safety before any load | Integration | P0 | FR-015-AC-5, FR-005 |
 | BENCH-001 | ⊘ RETIRED (§2bis) — hyperfine render p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2 (retired), StR-002 (retired) |
 | AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
-| AUDIT-002 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document` / `validate_bundle_at`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9, FR-014-AC-9 |
+| AUDIT-002 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document` / `validate_bundle_at`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6 |
 | AUDIT-003 | `cargo deny check bans` rejects HTTP client crates | Static | P0 | NFR-004-AC-1 |
 | AUDIT-004 | `scripts/check_unsafe_comments.sh` zero unsafe in src/ + tests/ | Static | P0 | NFR-003-AC-1 |
 

@@ -21,3 +21,4 @@ description: "Index of artifacts in this directory."
 * [FR-012: quire edit subcommand](./FR-012-edit-subcommand.md)
 * [FR-013: quire lint subcommand](./FR-013-lint-subcommand.md)
 * [FR-014: quire validate --okf bundle posture](./FR-014-validate-okf-bundle.md)
+* [FR-015: quire fix subcommand (unlinked-reference autofix)](./FR-015-fix-subcommand.md)

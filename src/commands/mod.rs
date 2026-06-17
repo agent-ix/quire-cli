@@ -3,6 +3,7 @@
 
 pub mod edit;
 pub mod extract;
+pub mod fix;
 pub mod lint;
 pub mod lookup;
 pub mod parse;

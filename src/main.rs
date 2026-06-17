@@ -51,6 +51,8 @@ enum Command {
     Schema(commands::schema::Args),
     /// Evaluate the module's advisory lint rules against a document.
     Lint(commands::lint::Args),
+    /// Surface (and with --write, apply) internal relative-path link fixes.
+    Fix(commands::fix::Args),
 }
 
 fn main() {
@@ -67,6 +69,7 @@ fn main() {
         Command::Validate(a) => commands::validate::run(&ctx, a),
         Command::Schema(a) => commands::schema::run(&ctx, a),
         Command::Lint(a) => commands::lint::run(&ctx, a),
+        Command::Fix(a) => commands::fix::run(&ctx, a),
     };
     match result {
         Ok(()) => std::process::exit(exit::OK),
