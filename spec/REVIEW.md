@@ -20,12 +20,12 @@ Reviewed `spec/spec.md`, 4 StRs, 4 USs, 8 FRs, 6 NFRs, `tests.md` (32 IT/BENCH/A
 |------|---------|
 | ID format + uniqueness | ✅ All identifiers 3-digit, no duplicates, sequential |
 | US "As/I want/So that" + ≥2 AC | ✅ All four USs comply |
-| FR has Behavior + AC + traces to US + cites upstream quire-rs FR where applicable | ✅ FR-001..004 cite the wrapped quire-rs FR; FR-005..008 are CLI-originated and trace to a StR |
+| FR has Behavior + AC + traces to US + cites upstream quire-rs FR where applicable | ✅ [FR-001](./functional/FR-001-render-subcommand.md)..004 cite the wrapped quire-rs FR; [FR-005](./functional/FR-005-path-safety.md)..008 are CLI-originated and trace to a StR |
 | NFR has measurable acceptance | ✅ All NFRs have either numeric (p95, exit code, ldd shape) or static-analysis (cargo deny, check_unsafe_comments) gates |
 | Test coverage: every AC has ≥1 IT/BENCH/AUDIT | ✅ Verified per `tests.md` traceability table |
-| Error path rule | ✅ FR-007 catalogs every exit code; tests.md IT-026 covers each |
-| Sandbox boundary rule | ✅ FR-005 + StR-003; ITs 5/6/7/22/23 cover `..`, symlink escape, `--data` escape, `--out` escape, stdin bypass |
-| Cross-ref + relationship frontmatter | ✅ FR-001..004 declare `consumes` edges to upstream `quire-rs` FRs by ID |
+| Error path rule | ✅ [FR-007](./functional/FR-007-exit-codes.md) catalogs every exit code; tests.md IT-026 covers each |
+| Sandbox boundary rule | ✅ [FR-005](./functional/FR-005-path-safety.md) + [StR-003](./stakeholder/StR-003-sandbox-inheritance.md); ITs 5/6/7/22/23 cover `..`, symlink escape, `--data` escape, `--out` escape, stdin bypass |
+| Cross-ref + relationship frontmatter | ✅ [FR-001](./functional/FR-001-render-subcommand.md)..004 declare `consumes` edges to upstream `quire-rs` FRs by ID |
 
 ## Findings
 
@@ -35,7 +35,7 @@ Reviewed `spec/spec.md`, 4 StRs, 4 USs, 8 FRs, 6 NFRs, `tests.md` (32 IT/BENCH/A
 
 ### F-2 (Minor) — `quire-rs` parity-fixture sourcing
 
-FR-001-AC-6 and IT-018 require a render parity sweep against the 8 ISO archetypes. The fixture set lives in `quire-rs/tests/render_parity/`. The plan should decide between:
+[FR-001-AC-6](./functional/FR-001-render-subcommand.md) and IT-018 require a render parity sweep against the 8 ISO archetypes. The fixture set lives in `quire-rs/tests/render_parity/`. The plan should decide between:
 
 - **(a)** vendor a copy of the fixtures into `quire-cli/tests/fixtures/` (independent, no submodule),
 - **(b)** depend on `spec-artifacts-iso` directly as a test-fixture path,
@@ -52,7 +52,7 @@ Recommendation: **(a)** — copy into `tests/fixtures/iso/` with a `make refresh
 
 ### F-4 (Minor) — `--help` snapshot location
 
-NFR-006-AC-2 pins `quire --help` via snapshot test. Plan should specify the snapshot lives at `tests/snapshots/help.txt` (or use `insta`-style inline snapshots).
+[NFR-006-AC-2](./non-functional/NFR-006-cli-stability.md) pins `quire --help` via snapshot test. Plan should specify the snapshot lives at `tests/snapshots/help.txt` (or use `insta`-style inline snapshots).
 
 ### F-5 (Design Decision Open) — Does `extract` auto-validate?
 
@@ -62,7 +62,7 @@ Captured here so the plan author records the decision rather than inventing one.
 
 ### F-6 (Style) — Long-form prose in `Behavior` sections
 
-FR-001 and FR-005 lean prose-heavy. Acceptable for first-pass authoring; if quality gates later prefer bulleted normative clauses, refactor — not blocking.
+[FR-001](./functional/FR-001-render-subcommand.md) and [FR-005](./functional/FR-005-path-safety.md) lean prose-heavy. Acceptable for first-pass authoring; if quality gates later prefer bulleted normative clauses, refactor — not blocking.
 
 ## Coverage Summary
 

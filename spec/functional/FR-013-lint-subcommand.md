@@ -30,14 +30,14 @@ quire lint <DOC.md|-> --module <PATH> [--archetype <NAME>]
 
 It surfaces quire-rs declarative lint rules (upstream FR-036): the module's
 `manifest.yaml` `lint_rules:` are evaluated against the parsed document. Lint
-is **advisory** — a posture distinct from `validate` (FR-004): findings flag
+is **advisory** — a posture distinct from `validate` ([FR-004](./FR-004-validate-subcommand.md)): findings flag
 authoring-convention drift (e.g. an AC `Verification` cell outside the
 ISO 29148 vocabulary, a `Configuration` `Scope` cell outside
 `creation`/`runtime`/`session`), never structural invalidity, and lint never
 gates extraction or sync.
 
-1. Path-safety (FR-005) on the document path and `--module`; `-` reads stdin.
-2. Load the module via the shared eager-failure loader helper (FR-004 CR
+1. Path-safety ([FR-005](./FR-005-path-safety.md)) on the document path and `--module`; `-` reads stdin.
+2. Load the module via the shared eager-failure loader helper ([FR-004](./FR-004-validate-subcommand.md) CR
    note): a missing `manifest.yaml` exits 1 with the real reason.
 3. Resolve the archetype **tolerantly** for rule scoping only: `--archetype`
    override, else frontmatter `type`, else unresolved — an
@@ -62,5 +62,5 @@ gates extraction or sync.
 
 ## Dependencies
 
-- **Upstream**: quire-rs FR-036 (declarative lint rules); FR-005 path-safety.
+- **Upstream**: quire-rs FR-036 (declarative lint rules); [FR-005](./FR-005-path-safety.md) path-safety.
 - **Downstream**: authoring agents that consume advisory lint findings.

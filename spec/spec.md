@@ -69,7 +69,7 @@ This specification governs:
 ### 2.2 Out of Scope
 
 This specification does not govern:
-- The parsing, extraction, or validation logic itself — those are normatively defined in **`quire-rs`** FRs (`FR-002` data-schema validation, `FR-005` parse, `FR-010` query, `FR-011` body extraction, `FR-013` archetype loader, `FR-014` module activation, `FR-015` relationship harvesting, `FR-032` `validate_document`). This CLI is a thin process boundary around those APIs. (Rendering/templating is **removed** upstream — see §2bis.)
+- The parsing, extraction, or validation logic itself — those are normatively defined in **`quire-rs`** FRs ([FR-002](./functional/FR-002-parse-subcommand.md) data-schema validation, [FR-005](./functional/FR-005-path-safety.md) parse, [FR-010](./functional/FR-010-required-section-validation.md) query, [FR-011](./functional/FR-011-lookup-subcommand.md) body extraction, [FR-013](./functional/FR-013-lint-subcommand.md) archetype loader, [FR-014](./functional/FR-014-validate-okf-bundle.md) module activation, [FR-015](./functional/FR-015-fix-subcommand.md) relationship harvesting, `FR-032` `validate_document`). This CLI is a thin process boundary around those APIs. (Rendering/templating is **removed** upstream — see §2bis.)
 - Filament Module manifest schema — owned by `filament-core-service/spec/functional/FR-035-module-manifest-schema.md`.
 - Python bindings (owned by `quire-py`) or WASM bindings (owned by `quire-wasm`).
 - Server-side validation in `filament-core-service` (uses `quire-py`, not this CLI).
@@ -85,7 +85,7 @@ render retirement, commit 500a3d3). `quire-cli` is now a **parse / validate /
 extract / schema / lookup / edit** boundary. Artifacts are authored as markdown
 directly (via the `/specify` flow) and checked structurally by `validate` →
 quire-rs `validate_document` (FR-032). The `validate --json` context/data mode
-(which dispatched to quire-rs `validate`/FR-002 over a context JSON object) is
+(which dispatched to quire-rs `validate`/[FR-002](./functional/FR-002-parse-subcommand.md) over a context JSON object) is
 **also removed**: the engine `validate` fn survives upstream to back
 `validate_document`, but it is no longer reachable from the CLI.
 
@@ -97,25 +97,25 @@ are governed by this entry.
 
 | Artifact | Kind | Why |
 |---|---|---|
-| **FR-001** `render` subcommand | FR | No render path; subcommand removed |
-| **US-001** Agent renders an FR | US | Render-centric; author markdown directly + `validate` |
-| **NFR-001** Render latency budget | NFR | No render path to bench |
-| **StR-002** Sub-50 ms render budget | StR | Render-centric budget; fast-CLI need carried by StR-001 |
+| **[FR-001](./functional/FR-001-render-subcommand.md)** `render` subcommand | FR | No render path; subcommand removed |
+| **[US-001](./usecase/US-001-agent-renders-fr.md)** Agent renders an FR | US | Render-centric; author markdown directly + `validate` |
+| **[NFR-001](./non-functional/NFR-001-render-latency-budget.md)** Render latency budget | NFR | No render path to bench |
+| **[StR-002](./stakeholder/StR-002-sub-50ms-budget.md)** Sub-50 ms render budget | StR | Render-centric budget; fast-CLI need carried by [StR-001](./stakeholder/StR-001-static-binary-hot-path.md) |
 
 ### Revised (CR-noted, kept and active)
 
 | Artifact | Change |
 |---|---|
-| **StR-001** Static-binary hot path | AC-1 lists the surviving subcommands (no `render`) |
-| **StR-003** Sandbox inheritance | Template-include sandbox half dropped (templates gone); path-safety half kept; AC-3 retired |
-| **FR-004** `validate` subcommand | **Markdown-only**; `--json` context mode removed; FR-002 consumed-relationship dropped; +archetype-resolution failure ACs (no frontmatter / no string `type` / unknown), +path-safety arg-label AC, +stdin-exempt AC |
-| **FR-005** Path-safety | `--data`/`--out` (render) examples rephrased onto `validate`/`edit`; `--data` AC retired; generic semantics preserved |
-| **FR-006** I/O contract | `render` stdout row + `--data -` stdin trigger removed; AC-4 rephrased onto `parse -` |
-| **FR-009** `schema` subcommand | Asserts-based input contract (FR-029 recast by ADR 0004); "template variables" wording removed |
+| **[StR-001](./stakeholder/StR-001-static-binary-hot-path.md)** Static-binary hot path | AC-1 lists the surviving subcommands (no `render`) |
+| **[StR-003](./stakeholder/StR-003-sandbox-inheritance.md)** Sandbox inheritance | Template-include sandbox half dropped (templates gone); path-safety half kept; AC-3 retired |
+| **[FR-004](./functional/FR-004-validate-subcommand.md)** `validate` subcommand | **Markdown-only**; `--json` context mode removed; [FR-002](./functional/FR-002-parse-subcommand.md) consumed-relationship dropped; +archetype-resolution failure ACs (no frontmatter / no string `type` / unknown), +path-safety arg-label AC, +stdin-exempt AC |
+| **[FR-005](./functional/FR-005-path-safety.md)** Path-safety | `--data`/`--out` (render) examples rephrased onto `validate`/`edit`; `--data` AC retired; generic semantics preserved |
+| **[FR-006](./functional/FR-006-io-contract.md)** I/O contract | `render` stdout row + `--data -` stdin trigger removed; AC-4 rephrased onto `parse -` |
+| **[FR-009](./functional/FR-009-schema-subcommand.md)** `schema` subcommand | Asserts-based input contract (FR-029 recast by ADR 0004); "template variables" wording removed |
 
 ### OKF bundle posture + `type` rename (2026-06-16)
 
-`validate` gains a `--okf` flag (new **FR-014**) that validates a directory as an
+`validate` gains a `--okf` flag (new **[FR-014](./functional/FR-014-validate-okf-bundle.md)**) that validates a directory as an
 OKF bundle under the permissive `BundlePosture::Okf` posture via
 `quire_rs::validate_bundle_at`: `type` stays required (untyped doc → hard error,
 exit 1), but unknown types, broken `ix://` links, and `index.md` completeness gaps
@@ -127,7 +127,7 @@ frontmatter key is renamed `artifact_type` → `type`** ecosystem-wide; the base
 concept contract (`type` required + non-empty, optional `description`/`tags`
 typed) is enforced upstream in quire-rs for every validated document, and `extract`
 now emits the shared `[frontmatter]` `ValidationError` vocabulary for an untyped
-document (FR-003-AC-5).
+document ([FR-003-AC-5](./functional/FR-003-extract-subcommand.md)).
 
 ### Decision: `validate` is markdown-only (no `--json`)
 
@@ -144,9 +144,9 @@ there is exactly one mode, so there is nothing to dispatch on.
 `quire-cli` ships a single Rust binary, `quire`, with these subcommands (render
 removed — see §2bis):
 
-- `quire parse <doc.md|->` — emit a `QuireDocument` (heading tree, frontmatter, byte slices) as JSON on stdout. Wraps `quire_rs::parse_document` (consumer of `quire-rs` FR-005 / FR-006 / FR-007 / FR-008).
-- `quire extract <doc.md> --module <path>` — run the body-extraction DSL declared in the module against the document and emit `{extraction, edges}` as JSON. Wraps `quire_rs::extract` + `quire_rs::harvest_edges` (consumer of `quire-rs` FR-011 + FR-015).
-- `quire validate <doc.md|glob|->... [--scope <dir>] [--module <path>] [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. In scoped mode, relative globs are resolved under `--scope` and frontmatter `type` selects the archetype. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032). A `--okf` flag (FR-014) validates a directory as an OKF bundle under the permissive posture (unknown types / broken `ix://` links / index-completeness gaps warn; untyped docs are hard errors) via `quire_rs::validate_bundle_at`.
+- `quire parse <doc.md|->` — emit a `QuireDocument` (heading tree, frontmatter, byte slices) as JSON on stdout. Wraps `quire_rs::parse_document` (consumer of `quire-rs` [FR-005](./functional/FR-005-path-safety.md) / [FR-006](./functional/FR-006-io-contract.md) / [FR-007](./functional/FR-007-exit-codes.md) / [FR-008](./functional/FR-008-json-output-encoding.md)).
+- `quire extract <doc.md> --module <path>` — run the body-extraction DSL declared in the module against the document and emit `{extraction, edges}` as JSON. Wraps `quire_rs::extract` + `quire_rs::harvest_edges` (consumer of `quire-rs` [FR-011](./functional/FR-011-lookup-subcommand.md) + [FR-015](./functional/FR-015-fix-subcommand.md)).
+- `quire validate <doc.md|glob|->... [--scope <dir>] [--module <path>] [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. In scoped mode, relative globs are resolved under `--scope` and frontmatter `type` selects the archetype. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032). A `--okf` flag ([FR-014](./functional/FR-014-validate-okf-bundle.md)) validates a directory as an OKF bundle under the permissive posture (unknown types / broken `ix://` links / index-completeness gaps warn; untyped docs are hard errors) via `quire_rs::validate_bundle_at`.
 - `quire schema <archetype> --module <path>` — emit the asserts-based input contract (FR-029) as JSON.
 - `quire lookup` / `quire edit` — read / byte-splice a section or stable block (consumer of `quire-rs` query + `update_section`/`update_block`).
 
@@ -212,11 +212,11 @@ spec/
 
 | Artifact | Format | Example |
 |----------|--------|---------|
-| Stakeholder Requirement | `StR-XXX` | `StR-001` |
-| User Story | `US-XXX` | `US-002` |
-| Functional Requirement | `FR-XXX` | `FR-001` |
-| Non-Functional Requirement | `NFR-XXX` | `NFR-001` |
-| Acceptance Criteria | `{FR}-AC-N` | `FR-001-AC-1` |
+| Stakeholder Requirement | `StR-XXX` | [StR-001](./stakeholder/StR-001-static-binary-hot-path.md) |
+| User Story | `US-XXX` | [US-002](./usecase/US-002-human-parses-existing-artifact.md) |
+| Functional Requirement | `FR-XXX` | [FR-001](./functional/FR-001-render-subcommand.md) |
+| Non-Functional Requirement | `NFR-XXX` | [NFR-001](./non-functional/NFR-001-render-latency-budget.md) |
+| Acceptance Criteria | `{FR}-AC-N` | [FR-001-AC-1](./functional/FR-001-render-subcommand.md) |
 | Test Case / IT | `IT-XXX` | `IT-001` |
 
 Identifiers are immutable once assigned.
@@ -269,9 +269,9 @@ The CLI **adds**:
 
 ### 9.1 Budget
 
-> **§2bis note:** The render-latency NFR (NFR-001) and the render-centric StR-002
+> **§2bis note:** The render-latency NFR ([NFR-001](./non-functional/NFR-001-render-latency-budget.md)) and the render-centric [StR-002](./stakeholder/StR-002-sub-50ms-budget.md)
 > budget are retired with render. A fast-CLI target is retained at the stakeholder
-> level (StR-001) for the surviving subcommands; no dedicated render bench remains.
+> level ([StR-001](./stakeholder/StR-001-static-binary-hot-path.md)) for the surviving subcommands; no dedicated render bench remains.
 
 - Target: a one-shot `validate` / `parse` / `extract` (cold start → load module → run → write) stays in the low tens of milliseconds on a modern dev workstation.
 - Measurement harness: `hyperfine` against a representative `spec-artifacts-iso` document (no render bench).
@@ -292,7 +292,7 @@ The CLI **adds**:
 |-------|--------|------|---------|
 | Sandbox violation (`..` in path, symlink escape) | This crate | 1 | stderr (structured) |
 | Argument parsing error | `clap` | 2 | stderr |
-| Module load error | `quire-rs` FR-013 / FR-014 | 1 | stderr (structured) |
+| Module load error | `quire-rs` [FR-013](./functional/FR-013-lint-subcommand.md) / [FR-014](./functional/FR-014-validate-okf-bundle.md) | 1 | stderr (structured) |
 | Structural validation error | `quire-rs` FR-032 (`validate_document`) | 1 | stderr (structured per FR-017) |
 | Archetype-resolution error (no frontmatter / no string `type` / unknown) | This crate + `quire-rs` `UnknownArchetype` | 1 | stderr (structured) |
 | Internal panic | Bug | 134 | stderr (rust panic message) |
@@ -337,9 +337,9 @@ FRs are verified by:
 
 BASELINED — v0.2.x released. The surface is seven subcommands: the six in §3.1
 (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`) plus `lint`
-(FR-013, added in v0.2.0); `render` is removed (§2bis). Under SemVer the
+([FR-013](./functional/FR-013-lint-subcommand.md), added in v0.2.0); `render` is removed (§2bis). Under SemVer the
 subcommand surface, exit codes, and JSON output schemas are the stable contract
-(NFR-006). Further changes follow §13 change management.
+([NFR-006](./non-functional/NFR-006-cli-stability.md)). Further changes follow §13 change management.
 
 ---
 
@@ -347,15 +347,15 @@ subcommand surface, exit codes, and JSON output schemas are the stable contract
 
 - This CLI is a **thin process boundary**. Substantive parse/render/extract/validate logic belongs in `quire-rs`. If a feature request cannot be satisfied by adding flags or composition over existing `quire-rs` APIs, file the upstream FR first.
 - The CLI MUST remain a single static binary. No optional dynamic linking, no plugin loading, no eval-from-env code paths.
-- No network calls of any kind (matches `quire-rs` StR-001 hard rule).
+- No network calls of any kind (matches `quire-rs` [StR-001](./stakeholder/StR-001-static-binary-hot-path.md) hard rule).
 
 ---
 
 ## 16. References
 
-- `quire-rs/spec/spec.md` and its FR-001 through FR-018
+- `quire-rs/spec/spec.md` and its [FR-001](./functional/FR-001-render-subcommand.md) through FR-018
 - `filament-core-service/spec/functional/FR-035-module-manifest-schema.md`
-- `filament-core-service/spec/non-functional/NFR-006-generation-performance.md` (if extant; otherwise the parent plan's design target)
+- [NFR-006](./non-functional/NFR-006-cli-stability.md) (if extant; otherwise the parent plan's design target)
 - ISO/IEC/IEEE 29148 — Requirements Engineering
 - IEEE 828 — Configuration Management
 

@@ -22,7 +22,7 @@ relationships:
 > `quire-rs` (no backward-compatibility layer — mirrors quire-rs FR-001 retirement,
 > commit 500a3d3). There is no `render`/`render_by_name` engine API and no `render`
 > subcommand in `quire-cli`. Artifacts are authored as markdown directly (via the
-> `/specify` flow) and checked structurally by `validate` (FR-004 →
+> `/specify` flow) and checked structurally by `validate` ([FR-004](./FR-004-validate-subcommand.md) →
 > quire-rs `validate_document`/FR-032). This document is kept for history and
 > traceability only; its acceptance criteria are dropped from the required-coverage
 > tally (ids retained, immutable). The retirement is recorded in `spec.md` §2bis.
@@ -52,11 +52,11 @@ Optional:
 
 Behavior:
 1. Argument parsing via `clap` derive. `--help` lists all flags. `--version` prints the crate version.
-2. Path-safety check (per **FR-005**) on `--module`, `--data` (when not `-`), and `--out`.
-3. Load the module: `quire_rs::Registry::load_from(module_path)` (consumer of upstream FR-014). Module load errors are propagated per **FR-007**.
+2. Path-safety check (per **[FR-005](./FR-005-path-safety.md)**) on `--module`, `--data` (when not `-`), and `--out`.
+3. Load the module: `quire_rs::Registry::load_from(module_path)` (consumer of upstream [FR-014](./FR-014-validate-okf-bundle.md)). Module load errors are propagated per **[FR-007](./FR-007-exit-codes.md)**.
 4. Look up the archetype by name. Unknown archetype → exit 1 with `UnknownArchetype` diagnostic.
 5. Read context JSON (from file or stdin), deserialize as `serde_json::Value`.
-6. Dispatch to `quire_rs::render_by_name(&registry, archetype, &data)` (consumer of upstream FR-001 + FR-002).
+6. Dispatch to `quire_rs::render_by_name(&registry, archetype, &data)` (consumer of upstream FR-001 + [FR-002](./FR-002-parse-subcommand.md)).
 7. On success: write rendered markdown to stdout or `--out` PATH.
 8. On error: write structured diagnostic(s) to stderr per upstream FR-017, exit 1.
 
@@ -78,5 +78,5 @@ retained and immutable, but they are dropped from the required-coverage tally.
 
 ## Dependencies
 
-- **Upstream**: US-001 agent renders FR; quire-rs FR-001, FR-002, FR-014 (render APIs, retired).
+- **Upstream**: [US-001](../usecase/US-001-agent-renders-fr.md) agent renders FR; quire-rs FR-001, [FR-002](./FR-002-parse-subcommand.md), [FR-014](./FR-014-validate-okf-bundle.md) (render APIs, retired).
 - **Downstream**: none — the render path is removed; this FR is kept for history only.

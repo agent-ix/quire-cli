@@ -42,5 +42,5 @@ The CLI SHALL NOT use any other exit code. In particular, structural-validation 
 
 ## Dependencies
 
-- **Upstream**: StR-001 single-binary hot path.
-- **Downstream**: every subcommand and FR-006 I/O contract rely on these exit codes.
+- **Upstream**: [StR-001](../stakeholder/StR-001-static-binary-hot-path.md) single-binary hot path.
+- **Downstream**: every subcommand and [FR-006](./FR-006-io-contract.md) I/O contract rely on these exit codes.

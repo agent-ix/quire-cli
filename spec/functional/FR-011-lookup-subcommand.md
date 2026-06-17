@@ -67,5 +67,5 @@ Behavior:
 
 ## Dependencies
 
-- **Upstream**: US-005 machine addresses section; quire-rs FR-005, FR-010, FR-019 (parse + heading/block lookup APIs).
-- **Downstream**: FR-012 edit (shares heading/block addressing).
+- **Upstream**: [US-005](../usecase/US-005-machine-addresses-section.md) machine addresses section; quire-rs [FR-005](./FR-005-path-safety.md), [FR-010](./FR-010-required-section-validation.md), FR-019 (parse + heading/block lookup APIs).
+- **Downstream**: [FR-012](./FR-012-edit-subcommand.md) edit (shares heading/block addressing).

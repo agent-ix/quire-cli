@@ -17,10 +17,10 @@ As a **batch indexer ingesting a spec corpus into Filament**, I want to run `qui
 
 ## Context
 
-Wraps `quire-rs::extract` + `quire-rs::harvest_edges` (upstream FR-011, FR-015). The module supplies the body-extraction DSL declared per-archetype; the harvested edges include both frontmatter sugar fields (`dependencies`, `supersedes`, …) and structured `relationships:` blocks.
+Wraps `quire-rs::extract` + `quire-rs::harvest_edges` (upstream [FR-011](../functional/FR-011-lookup-subcommand.md), [FR-015](../functional/FR-015-fix-subcommand.md)). The module supplies the body-extraction DSL declared per-archetype; the harvested edges include both frontmatter sugar fields (`dependencies`, `supersedes`, …) and structured `relationships:` blocks.
 
 ## Acceptance
 
 - **US-004-AC-1**: `quire extract some-doc.md --module $MOD` writes `{"extraction": {...}, "edges": [...]}` JSON to stdout, exits 0.
-- **US-004-AC-2**: Edges are deduped by `(source, type, target)` per upstream FR-015.
+- **US-004-AC-2**: Edges are deduped by `(source, type, target)` per upstream [FR-015](../functional/FR-015-fix-subcommand.md).
 - **US-004-AC-3**: A document referencing an unknown archetype kind in `--module` exits 1 with an `UnknownArchetype` diagnostic; partial extraction is not emitted.

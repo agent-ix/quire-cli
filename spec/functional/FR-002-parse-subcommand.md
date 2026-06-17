@@ -36,11 +36,11 @@ Required arguments:
 - `<DOC|->` — positional, path to a `.md` file or `-` to read from stdin.
 
 Behavior:
-1. Path-safety check on `<DOC>` (per **FR-005**) when not `-`.
+1. Path-safety check on `<DOC>` (per **[FR-005](./FR-005-path-safety.md)**) when not `-`.
 2. Read full document into memory.
 3. Dispatch to `quire_rs::parse_document(text)`.
 4. Serialize the resulting `QuireDocument` as compact JSON (one line) on stdout.
-5. Non-fatal parse diagnostics (e.g. malformed frontmatter, fallback applied per upstream FR-006) are written to stderr; stdout remains valid JSON.
+5. Non-fatal parse diagnostics (e.g. malformed frontmatter, fallback applied per upstream [FR-006](./FR-006-io-contract.md)) are written to stderr; stdout remains valid JSON.
 
 Output schema MUST be stable across patch releases and SHOULD mirror the public `QuireDocument` Rust type field-for-field.
 
@@ -56,5 +56,5 @@ Output schema MUST be stable across patch releases and SHOULD mirror the public 
 
 ## Dependencies
 
-- **Upstream**: US-002 human parses doc; quire-rs FR-005, FR-006, FR-008 (parsing APIs).
-- **Downstream**: FR-008 JSON output encoding.
+- **Upstream**: [US-002](../usecase/US-002-human-parses-existing-artifact.md) human parses doc; quire-rs [FR-005](./FR-005-path-safety.md), [FR-006](./FR-006-io-contract.md), [FR-008](./FR-008-json-output-encoding.md) (parsing APIs).
+- **Downstream**: [FR-008](./FR-008-json-output-encoding.md) JSON output encoding.

@@ -35,7 +35,7 @@ root:
 
 - **StR-003-AC-1**: `quire validate doc.md --module ../escape` exits 1 with a structured "path safety violation" diagnostic on stderr.
 - **StR-003-AC-2**: `quire validate ../../etc/passwd --module $ISO` exits 1 with the same class of diagnostic.
-- StR-003-AC-3 (RETIRED): A template containing `{% include "/etc/passwd" %}` is rejected at archetype load time by the upstream `quire-rs` FR-004 strict environment (verified via IT).
+- StR-003-AC-3 (RETIRED): A template containing `{% include "/etc/passwd" %}` is rejected at archetype load time by the upstream `quire-rs` [FR-004](../functional/FR-004-validate-subcommand.md) strict environment (verified via IT).
 - **StR-003-AC-4**: Symlinks under `--module` are not followed past the canonicalized root.
 
 ## Priority

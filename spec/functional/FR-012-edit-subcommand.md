@@ -69,5 +69,5 @@ Behavior:
 
 ## Dependencies
 
-- **Upstream**: FR-011 lookup (shared addressing); quire-rs FR-022 (`update_section`/`update_block`).
+- **Upstream**: [FR-011](./FR-011-lookup-subcommand.md) lookup (shared addressing); quire-rs FR-022 (`update_section`/`update_block`).
 - **Downstream**: `/specify` in-place section-edit flow.

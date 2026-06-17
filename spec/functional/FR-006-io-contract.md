@@ -47,9 +47,9 @@ This guarantees that downstream pipelines (`quire parse … | jq …`, `quire ex
 | FR-006-AC-1 | For each subcommand, a failure case produces empty stdout and non-empty stderr | Test |
 | FR-006-AC-2 | For each subcommand, a success case produces non-empty stdout (except `validate`) and empty stderr (except for non-fatal advisories explicitly allowed by upstream `quire-rs` FRs) | Test |
 | FR-006-AC-3 | All structured stderr diagnostics are valid `quire-rs::Diagnostic` JSON when the `--diagnostics-format=json` flag is set (default is human-readable per upstream FR-017) | Test |
-| FR-006-AC-4 | `quire parse - --module $ISO <<< '---\nid: FR-001\n...'` works in bash (positional `-` stdin handling is correct for piped input) | Test |
+| FR-006-AC-4 | [FR-001](./FR-001-render-subcommand.md) works in bash (positional `-` stdin handling is correct for piped input) | Test |
 
 ## Dependencies
 
-- **Upstream**: StR-001 single-binary hot path; quire-rs FR-017 (diagnostic format).
+- **Upstream**: [StR-001](../stakeholder/StR-001-static-binary-hot-path.md) single-binary hot path; quire-rs FR-017 (diagnostic format).
 - **Downstream**: every subcommand (`parse`/`extract`/`validate`/`schema`/`lookup`/`edit`) honours this contract.

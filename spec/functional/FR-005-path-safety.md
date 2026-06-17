@@ -42,11 +42,11 @@ The check SHALL run **before** any file is opened.
 |----|----------|--------------|
 | FR-005-AC-1 | `quire validate doc.md --module ../escape` exits 1 with `PathSafetyViolation` naming `--module` | Test |
 | FR-005-AC-2 | `quire validate ../../etc/passwd --module $ISO` exits 1 with `PathSafetyViolation` naming the positional document argument | Test |
-| FR-005-AC-3 | (RETIRED) `quire render FR --module $ISO --data ctx.json --out ../escape.md` exits 1 with `PathSafetyViolation` naming `--out`. The `--out` rule survives on `edit`'s write target (see FR-012) | Test (TC-022) |
+| FR-005-AC-3 | (RETIRED) `quire render FR --module $ISO --data ctx.json --out ../escape.md` exits 1 with `PathSafetyViolation` naming `--out`. The `--out` rule survives on `edit`'s write target (see [FR-012](./FR-012-edit-subcommand.md)) | Test (TC-022) |
 | FR-005-AC-4 | A symlink inside the module root pointing to `/etc/passwd` is refused at module load time with a `PathSafetyViolation`; the offending symlink's relative path is reported | Test |
 | FR-005-AC-5 | A positional `-` (stdin) is never subject to path-safety checks; it cannot escape the filesystem | Test |
 
 ## Dependencies
 
-- **Upstream**: StR-003 sandbox inheritance; FR-035 manifest contract.
-- **Downstream**: FR-004 validate, FR-003 extract, FR-009 schema, FR-011 lookup, FR-012 edit (all apply path-safety).
+- **Upstream**: [StR-003](../stakeholder/StR-003-sandbox-inheritance.md) sandbox inheritance; FR-035 manifest contract.
+- **Downstream**: [FR-004](./FR-004-validate-subcommand.md) validate, [FR-003](./FR-003-extract-subcommand.md) extract, [FR-009](./FR-009-schema-subcommand.md) schema, [FR-011](./FR-011-lookup-subcommand.md) lookup, [FR-012](./FR-012-edit-subcommand.md) edit (all apply path-safety).

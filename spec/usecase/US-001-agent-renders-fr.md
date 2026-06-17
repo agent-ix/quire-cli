@@ -14,7 +14,7 @@ relationships:
 > **RETIRED (render removal — 2026-06-04):** The render path is removed (mirrors
 > quire-rs US-001/US-009 retirement, commit 500a3d3). Agents executing
 > `/spec-write-fr` now author the FR markdown directly via the `/specify` flow and
-> validate it with `quire validate <doc.md>` (FR-004); there is no `quire render`
+> validate it with `quire validate <doc.md>` ([FR-004](../functional/FR-004-validate-subcommand.md)); there is no `quire render`
 > call. Kept for history and traceability only; ACs dropped from the
 > required-coverage tally (ids retained, immutable). Recorded in `spec.md` §2bis.
 
@@ -24,7 +24,7 @@ As an **agent executing `/spec-write-fr`**, I want to invoke `quire render FR --
 
 ## Context
 
-The FR archetype lives in `spec-artifacts-iso` as `templates/fr.md.j2` plus `schemas/fr-frontmatter.schema.json`. Today the agent runs `minijinja-cli` which renders but does not validate — schema violations only surface later at `/spec-review` or commit time. With `quire render` the schema check is part of the render call (per upstream `quire-rs` FR-001 / FR-002), so invalid frontmatter is caught immediately.
+The FR archetype lives in `spec-artifacts-iso` as `templates/fr.md.j2` plus `schemas/fr-frontmatter.schema.json`. Today the agent runs `minijinja-cli` which renders but does not validate — schema violations only surface later at `/spec-review` or commit time. With `quire render` the schema check is part of the render call (per upstream `quire-rs` [FR-001](../functional/FR-001-render-subcommand.md) / [FR-002](../functional/FR-002-parse-subcommand.md)), so invalid frontmatter is caught immediately.
 
 ## Acceptance
 

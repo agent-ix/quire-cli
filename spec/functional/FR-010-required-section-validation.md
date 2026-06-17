@@ -17,9 +17,9 @@ relationships:
 > field. It is subsumed by quire-rs `validate_document` (FR-032) running the
 > archetype's `body_extraction` asserts (FR-033) — which check section presence at
 > level, non-empty/non-placeholder content, table columns/rows, list items, and id
-> patterns. The CLI's default markdown `validate` (FR-004) invokes that path; this
+> patterns. The CLI's default markdown `validate` ([FR-004](./FR-004-validate-subcommand.md)) invokes that path; this
 > FR now specifies the CLI's surfacing of those structural diagnostics, not a
-> distinct required-sections feature. Prior `--document` flag folded into FR-004's
+> distinct required-sections feature. Prior `--document` flag folded into [FR-004](./FR-004-validate-subcommand.md)'s
 > default positional document argument.
 
 > **CR-003 note (line number for a fully-absent section):** AC-2 reads "…
@@ -27,7 +27,7 @@ relationships:
 > `validate_document` (FR-032) attributes a 1-based line only when the
 > offending element is present in the document; a *fully-absent* required
 > section has no document line to point at, so its `missing` diagnostic
-> carries `line: None`. The CLI surfaces this verbatim (StR-004 — it cannot
+> carries `line: None`. The CLI surfaces this verbatim ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md) — it cannot
 > invent a line). The line-number clause is therefore exercised by the
 > `placeholder`/`empty`/`assert` cases where the element is present
 > (IT-051, IT-053). Flagging for upstream: if a line is required for absent
@@ -36,7 +36,7 @@ relationships:
 
 ## Description
 
-The default markdown `validate` (FR-004) SHALL surface, verbatim from quire-rs
+The default markdown `validate` ([FR-004](./FR-004-validate-subcommand.md)) SHALL surface, verbatim from quire-rs
 `validate_document`, the structural diagnostics that reject documents violating
 their archetype's `body_extraction` asserts (missing/empty/placeholder sections,
 malformed tables, under-length lists, id-pattern failures, duplicate headings).
@@ -45,7 +45,7 @@ surface is specified below.
 
 ## Behavior
 
-The default markdown `validate` (FR-004) SHALL reject documents whose archetype
+The default markdown `validate` ([FR-004](./FR-004-validate-subcommand.md)) SHALL reject documents whose archetype
 structure — as declared by `body_extraction` asserts — is violated: a required
 section missing, empty, or placeholder-only; a table with wrong columns or too few
 rows; a list below `min_items`; an id failing its (possibly `{field}`-interpolated)
@@ -68,5 +68,5 @@ judgement of its own.
 
 ## Dependencies
 
-- **Upstream**: FR-004 validate; quire-rs FR-032 (`validate_document`), FR-033 (`body_extraction` asserts).
+- **Upstream**: [FR-004](./FR-004-validate-subcommand.md) validate; quire-rs FR-032 (`validate_document`), FR-033 (`body_extraction` asserts).
 - **Downstream**: CI gates relying on structural-validation diagnostics.
