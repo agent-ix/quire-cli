@@ -1,8 +1,11 @@
 //! `validate` ITs — markdown-only structural validation over
-//! `quire_rs::validate_document` (FR-004 / FR-010). The `--json` context
-//! mode was removed with the render retirement (FR-004 CR note).
+//! `quire_rs::validate_document_in_registry` (FR-004 / FR-010), composing
+//! the `type` archetype with the frontmatter `object:` archetype
+//! (FR-032-AC-11..13). The `--json` context mode was removed with the
+//! render retirement (FR-004 CR note).
 //!
-//! Covers IT-014 (direct-markdown ISO sweep), IT-021, IT-047..059.
+//! Covers IT-014 (direct-markdown ISO sweep), IT-021, IT-047..061, and the
+//! composed type+object + `--strict` traces IT-073..075.
 
 mod common;
 
@@ -326,5 +329,91 @@ fn it_061_scope_glob_surfaces_invalid_document() {
             predicate::str::contains("broken-fr.md")
                 .and(predicate::str::contains("line"))
                 .and(predicate::str::contains("FR")),
+        );
+}
+
+// ----------------------------------------------------------------------
+// Composed type+object validation + --strict (FR-004-AC-10..12,
+// FR-032-AC-12 upstream). The doc is FR-conformant but declares an
+// unresolvable frontmatter `object:`, which quire-rs surfaces as an
+// advisory WARNING (not an error).
+// ----------------------------------------------------------------------
+
+// IT-073 (FR-004-AC-10): an unknown `object:` warns. Without --strict,
+// exit 0, empty stdout; stderr carries a `warning:`-prefixed line naming
+// the unknown object, distinct from any error.
+#[test]
+fn it_073_unknown_object_warns_exit_0_without_strict() {
+    quire()
+        .arg("validate")
+        .arg(validate_doc("unknown-object-fr.md"))
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .success()
+        .code(0)
+        .stdout(predicate::str::is_empty())
+        .stderr(
+            predicate::str::contains("warning:")
+                .and(predicate::str::contains("totally-unknown"))
+                .and(predicate::str::contains("unknown-object-type"))
+                // No error-severity vocabulary leaked.
+                .and(predicate::str::contains("ValidationError").not()),
+        );
+}
+
+// IT-074 (FR-004-AC-11): --strict escalates the warning to exit 1; the
+// warning still prints; empty stdout. A clean doc still exits 0 under
+// --strict (no warnings → no escalation).
+#[test]
+fn it_074_strict_escalates_warning_to_exit_1() {
+    quire()
+        .arg("validate")
+        .arg(validate_doc("unknown-object-fr.md"))
+        .arg("--module")
+        .arg(validate_module())
+        .arg("--strict")
+        .assert()
+        .failure()
+        .code(1)
+        .stdout(predicate::str::is_empty())
+        .stderr(
+            predicate::str::contains("warning:").and(predicate::str::contains("totally-unknown")),
+        );
+
+    // A warning-free, conformant document still exits 0 under --strict.
+    quire()
+        .arg("validate")
+        .arg(validate_doc("valid-fr.md"))
+        .arg("--module")
+        .arg(validate_module())
+        .arg("--strict")
+        .assert()
+        .success()
+        .code(0)
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::is_empty());
+}
+
+// IT-075 (FR-004-AC-12): under --diagnostics-format json, the warning is a
+// distinct JSON object carrying `severity: "warning"` and a warning
+// `kind`, separable from an error object.
+#[test]
+fn it_075_json_warning_has_distinct_severity() {
+    quire()
+        .arg("--diagnostics-format")
+        .arg("json")
+        .arg("validate")
+        .arg(validate_doc("unknown-object-fr.md"))
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .success()
+        .code(0)
+        .stdout(predicate::str::is_empty())
+        .stderr(
+            predicate::str::contains("\"severity\":\"warning\"")
+                .and(predicate::str::contains("\"kind\":\"ValidationWarning\""))
+                .and(predicate::str::contains("totally-unknown")),
         );
 }

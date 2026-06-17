@@ -1,14 +1,19 @@
-//! `quire validate <DOC.md|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype <NAME>]`
+//! `quire validate <DOC.md|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype <NAME>] [--strict]`
 //!
-//! Markdown-only structural validation: surfaces `quire_rs::validate_document`
-//! (upstream FR-032) — `body_extraction` asserts + frontmatter-schema +
-//! per-level heading uniqueness over an authored document. The context/data
-//! mode was removed with the render retirement (FR-004 CR note, 2026-06-04);
-//! no backward-compatibility layer.
+//! Markdown-only structural validation: surfaces
+//! `quire_rs::validate_document_in_registry` (upstream FR-032-AC-11..13) —
+//! composed validation of the `type` archetype AND the frontmatter `object:`
+//! archetype: `body_extraction` asserts + frontmatter-schema + per-level
+//! heading uniqueness over an authored document. The context/data mode was
+//! removed with the render retirement (FR-004 CR note, 2026-06-04); no
+//! backward-compatibility layer.
 //!
-//! Exit 0 on success (no stdout). Exit 1 on validation failure, with the
-//! quire-rs diagnostics surfaced verbatim on stderr. NEVER writes stdout.
-//! All validation logic lives in quire-rs (StR-004 thin boundary).
+//! The engine result carries `errors` (exit-failing) and `warnings`
+//! (advisory — today only the unknown-`object:` case). Both are surfaced on
+//! stderr; warnings are clearly marked (`warning:` prefix / distinct JSON
+//! `severity`). Exit 0 on success; exit 1 on any error, or — with `--strict`
+//! — on any warning too. NEVER writes stdout. All validation logic lives in
+//! quire-rs (StR-004 thin boundary).
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -52,6 +57,13 @@ pub struct Args {
     /// on the positional bundle directory, or --scope when none is given.
     #[arg(long)]
     pub okf: bool,
+
+    /// Treat advisory warnings as failures: with --strict, any warning
+    /// (today only the unknown-`object:` case from composed type+object
+    /// validation, FR-032-AC-12) makes `validate` exit 1. Warnings are
+    /// always printed; --strict only changes the exit code.
+    #[arg(long)]
+    pub strict: bool,
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
@@ -68,6 +80,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let inputs = expand_documents(&args.documents, &scope, scoped)?;
 
     let mut failures = 0usize;
+    let mut warned = 0usize;
     for input in inputs {
         let label = input.label();
         let text = input.read().with_context(|| format!("reading '{label}'"))?;
@@ -111,14 +124,25 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             }
         };
 
-        let result = quire_rs::validate_document(archetype, &text);
-        if !surface_result(ctx, &label, &result) {
+        // Composed type+object validation (FR-032-AC-11..13): the registry
+        // is available, so resolve the frontmatter `object:` archetype too.
+        let result = quire_rs::validate_document_in_registry(&registry, archetype, &text);
+        let outcome = surface_result(ctx, &label, &result);
+        if outcome.had_errors {
             failures += 1;
+        }
+        if outcome.had_warnings {
+            warned += 1;
         }
     }
 
     if failures > 0 {
         bail!("{failures} document(s) failed structural validation");
+    }
+    // --strict escalates advisory warnings to a failing exit code; warnings
+    // were already printed above (FR-004-AC-10/AC-11).
+    if args.strict && warned > 0 {
+        bail!("{warned} document(s) emitted warnings (--strict)");
     }
     Ok(())
 }
@@ -334,17 +358,20 @@ fn emit_frontmatter_failure(ctx: &Ctx, label: &str, message: &str) {
     );
 }
 
-/// Exit 0 when valid; on failure surface each quire-rs diagnostic
-/// verbatim on stderr (line-numbered) and exit 1 via a user error.
-fn surface_result(ctx: &Ctx, label: &str, result: &ValidationResult) -> bool {
-    if result.is_valid {
-        return true;
-    }
+/// What a single document's validation surfaced.
+struct SurfaceOutcome {
+    had_errors: bool,
+    had_warnings: bool,
+}
+
+/// Surface each quire-rs diagnostic verbatim on stderr (line-numbered):
+/// errors as errors, warnings clearly marked (`warning:` prefix / distinct
+/// JSON severity). Errors are exit-failing; warnings are advisory and
+/// printed regardless of validity (FR-004-AC-10/AC-12). Returns which
+/// severities appeared so the caller can compute the exit code.
+fn surface_result(ctx: &Ctx, label: &str, result: &ValidationResult) -> SurfaceOutcome {
     for error in &result.errors {
-        let line = match error.line {
-            Some(l) => format!("line {l}: "),
-            None => String::new(),
-        };
+        let line = line_prefix(error.line);
         let message = format!(
             "{label}: {line}{} [{}]",
             error.message,
@@ -352,5 +379,25 @@ fn surface_result(ctx: &Ctx, label: &str, result: &ValidationResult) -> bool {
         );
         io::emit_diagnostic(ctx.diagnostics, "ValidationError", &message);
     }
-    false
+    for warning in &result.warnings {
+        let line = line_prefix(warning.line);
+        let message = format!(
+            "{label}: {line}{} [{}]",
+            warning.message,
+            warning.reason.as_str()
+        );
+        io::emit_warning(ctx.diagnostics, &message);
+    }
+    SurfaceOutcome {
+        had_errors: !result.errors.is_empty(),
+        had_warnings: !result.warnings.is_empty(),
+    }
+}
+
+/// Render an optional 1-based line number as a `line N: ` prefix.
+fn line_prefix(line: Option<usize>) -> String {
+    match line {
+        Some(l) => format!("line {l}: "),
+        None => String::new(),
+    }
 }

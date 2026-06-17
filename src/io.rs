@@ -92,15 +92,38 @@ pub fn write_diagnostic_json(kind: &str, message: &str) {
     let line = serde_json::json!({
         "kind": kind,
         "message": message,
+        "severity": "error",
     });
     eprintln!("{line}");
 }
 
-/// Emit a diagnostic according to the configured format.
+/// Emit a diagnostic according to the configured format. Errors carry
+/// `severity: "error"` in the JSON shape (see [`emit_warning`] for the
+/// warning counterpart).
 pub fn emit_diagnostic(format: DiagnosticsFormat, kind: &str, message: &str) {
     match format {
         DiagnosticsFormat::Human => write_diagnostic_human(message),
         DiagnosticsFormat::Json => write_diagnostic_json(kind, message),
+    }
+}
+
+/// Emit an advisory **warning** according to the configured format.
+///
+/// Human format prefixes the line with `warning:` so warnings are
+/// visually distinct from errors; JSON format emits a distinct object
+/// carrying `severity: "warning"` and `kind: "ValidationWarning"`, so
+/// machine consumers can separate warnings from errors (FR-004-AC-10/12).
+pub fn emit_warning(format: DiagnosticsFormat, message: &str) {
+    match format {
+        DiagnosticsFormat::Human => eprintln!("warning: {message}"),
+        DiagnosticsFormat::Json => {
+            let line = serde_json::json!({
+                "kind": "ValidationWarning",
+                "message": message,
+                "severity": "warning",
+            });
+            eprintln!("{line}");
+        }
     }
 }
 
