@@ -17,7 +17,7 @@ relationships:
 
 ## Story
 
-As **CI for a spec repo**, I want to run `quire validate path/to/fr.md --module $ISO` for every committed FR and fail the build on structural-validation failures, so that drift between committed artifacts and the archetype's required structure is caught at push time, not at next agent invocation.
+**As a** CI pipeline for a spec repo, **I want** to run `quire validate path/to/fr.md --module $ISO` for every committed FR and fail the build on structural-validation failures, **So that** drift between committed artifacts and the archetype's required structure is caught at push time, not at next agent invocation.
 
 ## Context
 

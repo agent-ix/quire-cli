@@ -12,6 +12,13 @@ relationships:
     cardinality: "1:1"
 ---
 
+## Description
+
+The `parse` and `extract` subcommands SHALL emit deterministic, UTF-8, stably
+ordered JSON on stdout — compact by default, pretty under `--pretty` — that
+faithfully mirrors the upstream `quire-rs` types with no CLI-introduced fields.
+The encoding rules are specified below.
+
 ## Behavior
 
 The `parse` and `extract` subcommands SHALL emit JSON on stdout subject to the following rules:
@@ -33,10 +40,17 @@ The `parse` and `extract` subcommands SHALL emit JSON on stdout subject to the f
 
 This envelope is the only CLI-introduced structure; both inner values are emitted unmodified.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-008-AC-1**: `quire parse doc.md` output round-trips through `serde_json::from_str::<QuireDocument>` (lib-side smoke test).
-- **FR-008-AC-2**: `quire extract doc.md --module $MOD` output deserializes into `{ "extraction": ExtractionResult, "edges": Vec<HarvestedEdge> }`.
-- **FR-008-AC-3**: `quire parse doc.md --pretty` produces multi-line indented JSON with the same logical content as compact form.
-- **FR-008-AC-4**: Byte-for-byte output of `parse` is identical across runs against the same input (determinism).
-- **FR-008-AC-5**: No CLI version string appears in JSON output.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-008-AC-1 | `quire parse doc.md` output round-trips through `serde_json::from_str::<QuireDocument>` (lib-side smoke test) | Test |
+| FR-008-AC-2 | `quire extract doc.md --module $MOD` output deserializes into `{ "extraction": ExtractionResult, "edges": Vec<HarvestedEdge> }` | Test |
+| FR-008-AC-3 | `quire parse doc.md --pretty` produces multi-line indented JSON with the same logical content as compact form | Test |
+| FR-008-AC-4 | Byte-for-byte output of `parse` is identical across runs against the same input (determinism) | Test |
+| FR-008-AC-5 | No CLI version string appears in JSON output | Test |
+
+## Dependencies
+
+- **Upstream**: FR-002 parse, FR-003 extract (producers of the JSON output).
+- **Downstream**: `jq`/JSONL pipeline consumers of `parse`/`extract` output.

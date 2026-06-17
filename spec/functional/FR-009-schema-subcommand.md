@@ -18,6 +18,14 @@ relationships:
 > structure" (the skeleton/example contract). The contract is still derived from the
 > loaded module (manifest + schema), never inferred from rendered markdown.
 
+## Description
+
+The CLI SHALL expose a `schema` subcommand that emits an archetype's input
+contract — frontmatter JSON Schema plus the `body_extraction` asserts — as
+deterministic JSON on stdout, so LLM authoring agents and CI tools can see the
+same structure `validate_document` enforces. The behavioral surface is specified
+below.
+
 ## Behavior
 
 The CLI SHALL expose a `schema` subcommand:
@@ -32,10 +40,17 @@ The command SHALL load the module registry, resolve `<ARCHETYPE>`, and write the
 
 Unknown archetypes SHALL exit 1 with `UnknownArchetype` diagnostics on stderr. Successful output SHALL follow the stream rules in FR-006.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-009-AC-1**: `quire schema FR --module $ISO` exits 0 and emits JSON containing the FR frontmatter schema and the FR `body_extraction` asserts (required headings / columns).
-- **FR-009-AC-2**: The emitted JSON describes, per required section, the asserts that `validate_document` will enforce (heading presence/level, table columns, id-patterns) — the asserts-based input contract, with no template-variable list.
-- **FR-009-AC-3**: `quire schema NONEXISTENT --module $ISO` exits 1 with `UnknownArchetype` on stderr and empty stdout.
-- **FR-009-AC-4**: Repeated `quire schema FR --module $ISO` calls produce byte-identical stdout.
-- **FR-009-AC-5**: The command performs module and path-safety checks equivalent to `validate` (FR-005).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-009-AC-1 | `quire schema FR --module $ISO` exits 0 and emits JSON containing the FR frontmatter schema and the FR `body_extraction` asserts (required headings / columns) | Test |
+| FR-009-AC-2 | The emitted JSON describes, per required section, the asserts that `validate_document` will enforce (heading presence/level, table columns, id-patterns) — the asserts-based input contract, with no template-variable list | Test |
+| FR-009-AC-3 | `quire schema NONEXISTENT --module $ISO` exits 1 with `UnknownArchetype` on stderr and empty stdout | Test |
+| FR-009-AC-4 | Repeated `quire schema FR --module $ISO` calls produce byte-identical stdout | Test |
+| FR-009-AC-5 | The command performs module and path-safety checks equivalent to `validate` (FR-005) | Test |
+
+## Dependencies
+
+- **Upstream**: quire-rs FR-029 (archetype input contract); FR-005 path-safety.
+- **Downstream**: LLM authoring agents and CI tools that consume the contract.

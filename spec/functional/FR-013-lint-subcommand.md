@@ -12,6 +12,14 @@ relationships:
     cardinality: "1:1"
 ---
 
+## Description
+
+The CLI SHALL expose a `lint` subcommand that surfaces quire-rs declarative lint
+rules (advisory authoring-convention findings, distinct from structural
+`validate`) against a markdown document, emitting findings on stderr and
+delegating all rule evaluation to `quire-rs`. The behavioral surface is specified
+below.
+
 ## Behavior
 
 The CLI SHALL expose a `lint` subcommand:
@@ -42,16 +50,17 @@ gates extraction or sync.
 6. Exit 0 when there are no findings or only `warning`-severity findings;
    exit 1 when any `error`-severity finding fires.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-013-AC-1**: `quire lint clean.md --module $M` against a conforming
-  document exits 0 with empty stdout and empty stderr.
-- **FR-013-AC-2**: Against a document with a `warning`-severity finding, the
-  command exits 0 and stderr carries `warning: <rule-id>:` plus the offending
-  value; stdout stays empty.
-- **FR-013-AC-3**: Against a document with an `error`-severity finding, the
-  command exits 1 and stderr carries `error: <rule-id>:`.
-- **FR-013-AC-4**: `--archetype <NAME>` overrides scoping: a rule filtered to
-  `archetypes: [FR]` emits nothing when the document is linted as `NFR`.
-- **FR-013-AC-5**: A `--module` path without `manifest.yaml` exits 1 naming
-  the missing manifest (shared eager-failure loader), not `UnknownArchetype`.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-013-AC-1 | `quire lint clean.md --module $M` against a conforming document exits 0 with empty stdout and empty stderr | Test |
+| FR-013-AC-2 | Against a document with a `warning`-severity finding, the command exits 0 and stderr carries `warning: <rule-id>:` plus the offending value; stdout stays empty | Test |
+| FR-013-AC-3 | Against a document with an `error`-severity finding, the command exits 1 and stderr carries `error: <rule-id>:` | Test |
+| FR-013-AC-4 | `--archetype <NAME>` overrides scoping: a rule filtered to `archetypes: [FR]` emits nothing when the document is linted as `NFR` | Test |
+| FR-013-AC-5 | A `--module` path without `manifest.yaml` exits 1 naming the missing manifest (shared eager-failure loader), not `UnknownArchetype` | Test |
+
+## Dependencies
+
+- **Upstream**: quire-rs FR-036 (declarative lint rules); FR-005 path-safety.
+- **Downstream**: authoring agents that consume advisory lint findings.

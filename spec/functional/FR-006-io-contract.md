@@ -17,6 +17,13 @@ relationships:
 > commit 500a3d3). The uniform I/O contract is otherwise unchanged and applies to the
 > surviving subcommands. AC-4 is rephrased onto a stdin-reading surviving subcommand.
 
+## Description
+
+Every subcommand SHALL adhere to a uniform stdin/stdout/stderr contract: primary
+result on stdout, all diagnostics on stderr (never interleaved), and stdin used
+only for a positional `-`. This guarantees clean pipelines and clean diagnostic
+suppression. The behavioral surface is specified below.
+
 ## Behavior
 
 Every subcommand SHALL adhere to a uniform I/O contract:
@@ -33,9 +40,16 @@ The CLI SHALL NOT interleave diagnostics with stdout content. Stdout is either:
 
 This guarantees that downstream pipelines (`quire parse … | jq …`, `quire extract … | grep …`) see only well-formed output on success, and `2>/dev/null` cleanly suppresses diagnostics without affecting result correctness.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-006-AC-1**: For each subcommand, a failure case produces empty stdout and non-empty stderr.
-- **FR-006-AC-2**: For each subcommand, a success case produces non-empty stdout (except `validate`) and empty stderr (except for non-fatal advisories explicitly allowed by upstream `quire-rs` FRs).
-- **FR-006-AC-3**: All structured stderr diagnostics are valid `quire-rs::Diagnostic` JSON when the `--diagnostics-format=json` flag is set (default is human-readable per upstream FR-017).
-- **FR-006-AC-4**: `quire parse - --module $ISO <<< '---\nid: FR-001\n...'` works in bash (positional `-` stdin handling is correct for piped input).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-006-AC-1 | For each subcommand, a failure case produces empty stdout and non-empty stderr | Test |
+| FR-006-AC-2 | For each subcommand, a success case produces non-empty stdout (except `validate`) and empty stderr (except for non-fatal advisories explicitly allowed by upstream `quire-rs` FRs) | Test |
+| FR-006-AC-3 | All structured stderr diagnostics are valid `quire-rs::Diagnostic` JSON when the `--diagnostics-format=json` flag is set (default is human-readable per upstream FR-017) | Test |
+| FR-006-AC-4 | `quire parse - --module $ISO <<< '---\nid: FR-001\n...'` works in bash (positional `-` stdin handling is correct for piped input) | Test |
+
+## Dependencies
+
+- **Upstream**: StR-001 single-binary hot path; quire-rs FR-017 (diagnostic format).
+- **Downstream**: every subcommand (`parse`/`extract`/`validate`/`schema`/`lookup`/`edit`) honours this contract.

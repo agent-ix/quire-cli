@@ -19,12 +19,27 @@ Per-artifact generation is on the agent's critical path. A spec-authoring sessio
 
 The CLI MUST hit a p95 end-to-end budget of **50 ms** (cold start → load module → validate → render → write) on a modern dev workstation, matching the headline target of the parent plan and the upstream `filament-core` NFR-006.
 
-## Priority
+## Rationale
 
-Must-Have
+A spec-authoring session may render 20-100 artifacts in a single workflow. At the
+~200 ms Python/Node CLI baseline that is seconds of pure CLI overhead per session —
+latency agents experience as slow tool use and humans experience as a stuttering
+shell. A sub-50 ms p95 budget keeps the per-artifact boundary cost negligible.
+This need framed the budget around the render hot path; with render removed
+(2026-06-04) the render-centric budget is RETIRED and the surviving fast-CLI need
+is carried by the revised StR-001.
 
-## Acceptance
+## Validation Criteria
+
+This need was considered satisfied when a `hyperfine` benchmark of the render hot
+path reported p95 ≤ 50 ms and that benchmark gated CI. With the render path
+removed, these criteria are RETIRED (ids retained, immutable, dropped from the
+coverage tally):
 
 - StR-002-AC-1 (RETIRED): `hyperfine --warmup 3 'quire render FR --module $ISO --data ctx.json'` reports p95 ≤ 50 ms against the `spec-artifacts-iso` FR archetype.
 - StR-002-AC-2 (RETIRED): Same hyperfine harness runs in CI on each push and gates merges.
 - StR-002-AC-3 (RETIRED): Release-profile binary uses LTO thin + codegen-units=1 (matches `quire-rs`).
+
+## Priority
+
+Must-Have

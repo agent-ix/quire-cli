@@ -28,6 +28,13 @@ relationships:
 > by `tests/cli_okf.rs::okf_untyped_document_is_error` for the shared `[frontmatter]`
 > vocabulary.
 
+## Description
+
+The CLI SHALL expose an `extract` subcommand that parses a markdown document,
+runs the module's body-extraction DSL, and emits the extraction result plus
+harvested cross-reference edges as JSON on stdout, delegating all extraction to
+`quire-rs`. The behavioral surface is specified below.
+
 ## Behavior
 
 The CLI SHALL expose an `extract` subcommand:
@@ -59,10 +66,17 @@ Behavior:
 
 The CLI SHALL NOT mutate, normalize, or filter the upstream extraction or edge output beyond the dedup contract guaranteed by `quire-rs`.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-003-AC-1**: `quire extract sample-fr.md --module $ISO` against a fixture document produces JSON with non-empty `extraction` and at least one edge.
-- **FR-003-AC-2**: For a document whose frontmatter declares a `type` not present in the module, exit 1 with `UnknownArchetype` on stderr; stdout is empty.
-- **FR-003-AC-3**: For a document with frontmatter sugar fields (`dependencies: [FR-001]`), the resulting JSON `.edges` contains a `dependencies`-typed edge with `target: "FR-001"`.
-- **FR-003-AC-4**: Re-running extract on the same input produces byte-identical stdout (determinism, matches upstream).
-- **FR-003-AC-5**: For a document with **no `type`** (the discriminator absent from frontmatter) and no `--archetype`, `extract` exits 1 with a `[frontmatter]`-reason `ValidationError`-shaped diagnostic on stderr naming the missing `type` (the same vocabulary `validate` uses), not a generic anyhow error; stdout is empty.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-003-AC-1 | `quire extract sample-fr.md --module $ISO` against a fixture document produces JSON with non-empty `extraction` and at least one edge | Test |
+| FR-003-AC-2 | For a document whose frontmatter declares a `type` not present in the module, exit 1 with `UnknownArchetype` on stderr; stdout is empty | Test |
+| FR-003-AC-3 | For a document with frontmatter sugar fields (`dependencies: [FR-001]`), the resulting JSON `.edges` contains a `dependencies`-typed edge with `target: "FR-001"` | Test |
+| FR-003-AC-4 | Re-running extract on the same input produces byte-identical stdout (determinism, matches upstream) | Test |
+| FR-003-AC-5 | For a document with **no `type`** (the discriminator absent from frontmatter) and no `--archetype`, `extract` exits 1 with a `[frontmatter]`-reason `ValidationError`-shaped diagnostic on stderr naming the missing `type` (the same vocabulary `validate` uses), not a generic anyhow error; stdout is empty | Test |
+
+## Dependencies
+
+- **Upstream**: US-004 cross-reference extraction; quire-rs FR-011, FR-015 (extract + edge harvest APIs).
+- **Downstream**: graph-ingestion consumers of the `{extraction, edges}` envelope.

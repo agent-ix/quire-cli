@@ -1,3 +1,9 @@
+---
+id: REV-001
+title: "Spec Review — quire-cli (first pass)"
+type: Review
+---
+
 # Spec Review — quire-cli (first pass)
 
 Date: 2026-05-28

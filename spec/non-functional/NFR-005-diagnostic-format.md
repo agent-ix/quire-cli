@@ -9,13 +9,32 @@ relationships:
     cardinality: "1:1"
 ---
 
-## Constraint
+## Statement
 
-Every diagnostic the CLI emits to stderr — including CLI-originated diagnostics (`PathSafetyViolation`, `UnknownArchetype` lookup failure prior to engine call) — SHALL be expressible as a `quire-rs::Diagnostic`.
+Every diagnostic the CLI emits to stderr — including CLI-originated diagnostics
+(`PathSafetyViolation`, `UnknownArchetype` lookup failure prior to engine call) —
+SHALL be expressible as a `quire-rs::Diagnostic`. The CLI SHALL NOT invent a
+parallel diagnostic format: human-readable rendering uses
+`quire-rs::format_violation`; JSON rendering uses `serde_json::to_string` against
+the `Diagnostic` type, gated by `--diagnostics-format=json`.
 
-The CLI SHALL NOT invent a parallel diagnostic format. Human-readable rendering uses `quire-rs::format_violation`. JSON rendering uses `serde_json::to_string` against the `Diagnostic` type, gated by `--diagnostics-format=json`.
+## Measurement and Evaluation
 
-## Acceptance
+| Metric | Target | Threshold | Method |
+|--------|--------|-----------|--------|
+| stderr emissions in `src/` not produced via `quire-rs::Diagnostic` | 0 | 0 | Source audit |
+| Known failure modes whose JSON stderr parses as `Diagnostic` | all | all | Integration test |
 
-- **NFR-005-AC-1**: Every stderr emission in `src/` is produced by calling `quire-rs::format_violation` or `serde_json::to_string(&Diagnostic { ... })`.
-- **NFR-005-AC-2**: An IT collects stderr from each known failure mode and confirms parseability as `Diagnostic` JSON when `--diagnostics-format=json` is set.
+## Verification
+
+A source audit confirms every stderr emission routes through
+`quire-rs::format_violation` or `serde_json::to_string(&Diagnostic { ... })`, and
+an integration test collects stderr from each known failure mode and confirms it
+parses as `Diagnostic` JSON under `--diagnostics-format=json`.
+
+## Acceptance Criteria
+
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-005-AC-1 | Every stderr emission in `src/` is produced by calling `quire-rs::format_violation` or `serde_json::to_string(&Diagnostic { ... })` | Inspection |
+| NFR-005-AC-2 | An IT collects stderr from each known failure mode and confirms parseability as `Diagnostic` JSON when `--diagnostics-format=json` is set | Test |

@@ -18,6 +18,13 @@ relationships:
     cardinality: "1:1"
 ---
 
+## Description
+
+The CLI SHALL expose a `lookup` subcommand that locates a single section or block
+in a markdown document by heading, parser id, or stable block id, emitting either
+the `QuireSection` JSON or its raw content, delegating all parsing and lookup to
+`quire-rs`. The behavioral surface is specified below.
+
 ## Behavior
 
 The CLI SHALL expose a `lookup` subcommand with the following surface:
@@ -47,11 +54,18 @@ Behavior:
 
 `QuireSection.id` is parser-derived from `<slug>-L<line>` and is not stable across line shifts. Stable machine addressing SHOULD use `--block-id` with authored Pandoc heading attributes such as `## Behavior {#blk-behavior}`.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-011-AC-1**: Given `# Title`, `quire lookup doc.md --heading Title --level 1` emits a section JSON object with `level: 1` and `heading: "Title"`.
-- **FR-011-AC-2**: Given `## Behavior {#blk-behavior}`, `quire lookup doc.md --block-id blk-behavior` emits a section JSON object with `block_id: "blk-behavior"`.
-- **FR-011-AC-3**: Given `## Behavior` on body line 4, `quire lookup doc.md --id behavior-L4` emits that section.
-- **FR-011-AC-4**: With `--content`, stdout is the selected section's content only, not a JSON string.
-- **FR-011-AC-5**: Passing multiple selectors is an argv error.
-- **FR-011-AC-6**: Passing `--level` without `--heading` is an argv error.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-011-AC-1 | Given `# Title`, `quire lookup doc.md --heading Title --level 1` emits a section JSON object with `level: 1` and `heading: "Title"` | Test |
+| FR-011-AC-2 | Given `## Behavior {#blk-behavior}`, `quire lookup doc.md --block-id blk-behavior` emits a section JSON object with `block_id: "blk-behavior"` | Test |
+| FR-011-AC-3 | Given `## Behavior` on body line 4, `quire lookup doc.md --id behavior-L4` emits that section | Test |
+| FR-011-AC-4 | With `--content`, stdout is the selected section's content only, not a JSON string | Test |
+| FR-011-AC-5 | Passing multiple selectors is an argv error | Test |
+| FR-011-AC-6 | Passing `--level` without `--heading` is an argv error | Test |
+
+## Dependencies
+
+- **Upstream**: US-005 machine addresses section; quire-rs FR-005, FR-010, FR-019 (parse + heading/block lookup APIs).
+- **Downstream**: FR-012 edit (shares heading/block addressing).

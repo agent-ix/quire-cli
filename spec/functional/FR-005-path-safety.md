@@ -18,6 +18,13 @@ relationships:
 > path-safety semantics (reject `..`, canonicalize, no symlink escape, stdin `-`
 > exempt) are preserved verbatim.
 
+## Description
+
+Before any I/O, the CLI SHALL canonicalize and validate every user-supplied
+filesystem path argument, rejecting `..` segments and symlink escapes from the
+`--module` root, so that a malicious or malformed path argument cannot escape the
+intended module root. The behavioral surface is specified below.
+
 ## Behavior
 
 Before any I/O, the CLI SHALL canonicalize and validate every filesystem path argument:
@@ -29,10 +36,17 @@ Before any I/O, the CLI SHALL canonicalize and validate every filesystem path ar
 
 The check SHALL run **before** any file is opened.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-005-AC-1**: `quire validate doc.md --module ../escape` exits 1 with `PathSafetyViolation` naming `--module`.
-- **FR-005-AC-2**: `quire validate ../../etc/passwd --module $ISO` exits 1 with `PathSafetyViolation` naming the positional document argument.
-- FR-005-AC-3 (RETIRED): `quire render FR --module $ISO --data ctx.json --out ../escape.md` exits 1 with `PathSafetyViolation` naming `--out`. (The `--out` rule survives on `edit`'s write target; see FR-012.)
-- **FR-005-AC-4**: A symlink inside the module root pointing to `/etc/passwd` is refused at module load time with a `PathSafetyViolation`; the offending symlink's relative path is reported.
-- **FR-005-AC-5**: A positional `-` (stdin) is never subject to path-safety checks; it cannot escape the filesystem.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-005-AC-1 | `quire validate doc.md --module ../escape` exits 1 with `PathSafetyViolation` naming `--module` | Test |
+| FR-005-AC-2 | `quire validate ../../etc/passwd --module $ISO` exits 1 with `PathSafetyViolation` naming the positional document argument | Test |
+| FR-005-AC-3 | (RETIRED) `quire render FR --module $ISO --data ctx.json --out ../escape.md` exits 1 with `PathSafetyViolation` naming `--out`. The `--out` rule survives on `edit`'s write target (see FR-012) | Test (TC-022) |
+| FR-005-AC-4 | A symlink inside the module root pointing to `/etc/passwd` is refused at module load time with a `PathSafetyViolation`; the offending symlink's relative path is reported | Test |
+| FR-005-AC-5 | A positional `-` (stdin) is never subject to path-safety checks; it cannot escape the filesystem | Test |
+
+## Dependencies
+
+- **Upstream**: StR-003 sandbox inheritance; FR-035 manifest contract.
+- **Downstream**: FR-004 validate, FR-003 extract, FR-009 schema, FR-011 lookup, FR-012 edit (all apply path-safety).

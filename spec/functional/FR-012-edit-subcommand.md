@@ -12,6 +12,14 @@ relationships:
     cardinality: "1:1"
 ---
 
+## Description
+
+The CLI SHALL expose an `edit` subcommand that performs byte-exact section or
+block writeback against an existing markdown document — addressed by heading or
+stable block id — leaving frontmatter and every untouched section byte-identical,
+delegating the writeback to `quire-rs`. The behavioral surface is specified
+below.
+
 ## Behavior
 
 The CLI SHALL expose an `edit` subcommand that performs byte-exact section/block
@@ -48,11 +56,18 @@ Behavior:
 
 `<DOC>` and `--content` SHALL NOT both read from stdin (exactly one stdin source).
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-012-AC-1**: `quire edit doc.md --heading Description --content body.txt` replaces the Description body and leaves frontmatter and all other sections byte-identical.
-- **FR-012-AC-2**: `quire edit doc.md --block-id blk-behavior --content block.txt` replaces the full `{#blk-behavior}` block.
-- **FR-012-AC-3**: `--out` pointing at the input path edits the document in place.
-- **FR-012-AC-4**: A selector that matches no section exits 1 without writing; the input file is unchanged.
-- **FR-012-AC-5**: Passing both `--heading` and `--block-id` is an argv error; passing neither is a user error.
-- **FR-012-AC-6**: Passing `-` for both `<DOC>` and `--content` is a user error.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-012-AC-1 | `quire edit doc.md --heading Description --content body.txt` replaces the Description body and leaves frontmatter and all other sections byte-identical | Test |
+| FR-012-AC-2 | `quire edit doc.md --block-id blk-behavior --content block.txt` replaces the full `{#blk-behavior}` block | Test |
+| FR-012-AC-3 | `--out` pointing at the input path edits the document in place | Test |
+| FR-012-AC-4 | A selector that matches no section exits 1 without writing; the input file is unchanged | Test |
+| FR-012-AC-5 | Passing both `--heading` and `--block-id` is an argv error; passing neither is a user error | Test |
+| FR-012-AC-6 | Passing `-` for both `<DOC>` and `--content` is a user error | Test |
+
+## Dependencies
+
+- **Upstream**: FR-011 lookup (shared addressing); quire-rs FR-022 (`update_section`/`update_block`).
+- **Downstream**: `/specify` in-place section-edit flow.

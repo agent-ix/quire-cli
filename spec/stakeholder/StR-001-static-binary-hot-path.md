@@ -20,13 +20,27 @@ Agent-driven artifact workflows (FR / NFR / ADR / Plan / Review / Ledger workflo
 2. Each subcommand is one cold-start process (no shared daemon, no IPC)
 3. Agent setup documentation pins a single binary version, not three
 
-## Priority
+## Rationale
 
-Must-Have
+Per-artifact CLI invocation is on the agent's critical path: a spec-authoring
+session may invoke the tool dozens of times in one workflow. Spreading the surface
+across multiple binaries multiplies cold starts, install steps, and version
+pinning, and a dynamically-linked binary reintroduces "missing .so" failure modes
+the single-binary posture is meant to eliminate. A single statically-linked binary
+keeps install to one file copy and each subcommand to one cold-start process.
 
-## Acceptance
+## Validation Criteria
+
+This need is considered satisfied when `quire --help` lists exactly the surviving
+subcommands as a single binary, that binary is statically linked with no
+project-supplied shared library, a clean-host install produces a runnable binary,
+and no subcommand opens a network socket. Specifically:
 
 - **StR-001-AC-1**: `quire --help` lists the subcommands `parse`, `extract`, `validate`, `schema`, `lookup`, and `edit` (no `render`).
 - **StR-001-AC-2**: The binary is statically linked; `ldd quire` on Linux lists only libc and dynamic loader (no `libquire_rs.so`).
 - **StR-001-AC-3**: `cargo install --git https://github.com/agent-ix/quire-cli quire-cli` produces a runnable `quire` binary.
 - **StR-001-AC-4**: No subcommand opens a network socket (verified by strace / equivalent in IT).
+
+## Priority
+
+Must-Have

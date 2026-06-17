@@ -31,6 +31,14 @@ relationships:
 > remaining `artifact_type` prose elsewhere in the spec (FR-003, FR-004, FR-013,
 > FR-007, spec.md) — see each artifact's CR note and `spec/log.md`.
 
+## Description
+
+The CLI SHALL add an `--okf` flag to the `validate` subcommand that validates a
+directory wholesale as an OKF bundle under the permissive
+(`BundlePosture::Okf`) posture, plus enforce the base-concept contract (`type`
+required + non-empty) in both postures, delegating all bundle and concept
+validation to `quire-rs`. The behavioral surface is specified below.
+
 ## Behavior
 
 ### §A — `--okf` bundle validation
@@ -82,32 +90,21 @@ The positional `documents` argument is now `required_unless_present = "okf"`:
 - `quire validate --okf` with no positional is **valid**: the bundle root
   defaults to `--scope`.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-014-AC-1**: `quire validate --okf <DIR> --module $M` over a bundle whose
-  document has **no `type`** exits **1**; stderr carries a `[frontmatter]`-reason
-  diagnostic naming `type`. (`type` required under OKF.)
-- **FR-014-AC-2**: An **unknown `type`** under `--okf` is a **warning**: the
-  command exits **0** and stderr carries an `[unknown-type]` diagnostic.
-- **FR-014-AC-3**: A **broken `ix://` link** under `--okf` is a **warning**: the
-  command exits **0** and stderr carries a `[dangling-reference]` diagnostic.
-- **FR-014-AC-4**: An **`index.md` that omits a sibling artifact** under `--okf`
-  is a **warning**: the command exits **0** and stderr carries an
-  `[index-incomplete]` diagnostic naming the missing artifact.
-- **FR-014-AC-5**: A root `index.md` **missing `okf_version`** is reported as an
-  `[index-incomplete]` warning (exit 0), consistent with AC-4's completeness
-  contract.
-- **FR-014-AC-6**: `quire validate --okf --scope <DIR> --module $M` with **no
-  positional** validates the `--scope` directory as the bundle root (exit 0 for a
-  warning-only bundle).
-- **FR-014-AC-7**: `quire validate` with **no positional and no `--okf`** is a
-  clap argv error → **exit 2** (`required_unless_present = "okf"`), unchanged from
-  FR-004.
-- **FR-014-AC-8** (base concept contract): an untyped document is a hard error
-  (exit 1, `[frontmatter]` diagnostic naming `type`) in **both** postures —
-  strict per-file (FR-004) and `--okf` bundle — because quire-rs enforces
-  `type` required + non-empty for every validated document.
-- **FR-014-AC-9** (thin boundary): all bundle/base-concept validation is
-  delegated to quire-rs (`validate_bundle_at`, base-concept enforcement); the CLI
-  only resolves the root, applies path-safety, and surfaces the `BundleReport`
-  (StR-004; AUDIT-002).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-014-AC-1 | `quire validate --okf <DIR> --module $M` over a bundle whose document has **no `type`** exits **1**; stderr carries a `[frontmatter]`-reason diagnostic naming `type` (`type` required under OKF) | Test |
+| FR-014-AC-2 | An **unknown `type`** under `--okf` is a **warning**: the command exits **0** and stderr carries an `[unknown-type]` diagnostic | Test |
+| FR-014-AC-3 | A **broken `ix://` link** under `--okf` is a **warning**: the command exits **0** and stderr carries a `[dangling-reference]` diagnostic | Test |
+| FR-014-AC-4 | An **`index.md` that omits a sibling artifact** under `--okf` is a **warning**: the command exits **0** and stderr carries an `[index-incomplete]` diagnostic naming the missing artifact | Test |
+| FR-014-AC-5 | A root `index.md` **missing `okf_version`** is reported as an `[index-incomplete]` warning (exit 0), consistent with AC-4's completeness contract | Test |
+| FR-014-AC-6 | `quire validate --okf --scope <DIR> --module $M` with **no positional** validates the `--scope` directory as the bundle root (exit 0 for a warning-only bundle) | Test |
+| FR-014-AC-7 | `quire validate` with **no positional and no `--okf`** is a clap argv error → **exit 2** (`required_unless_present = "okf"`), unchanged from FR-004 | Test |
+| FR-014-AC-8 | (base concept contract) an untyped document is a hard error (exit 1, `[frontmatter]` diagnostic naming `type`) in **both** postures — strict per-file (FR-004) and `--okf` bundle — because quire-rs enforces `type` required + non-empty for every validated document | Test |
+| FR-014-AC-9 | (thin boundary) all bundle/base-concept validation is delegated to quire-rs (`validate_bundle_at`, base-concept enforcement); the CLI only resolves the root, applies path-safety, and surfaces the `BundleReport` (StR-004; AUDIT-002) | Inspection |
+
+## Dependencies
+
+- **Upstream**: US-003 CI validates archetype conformance; FR-004 validate (extends); quire-rs FR-032 (`validate_bundle_at`).
+- **Downstream**: OKF bundle CI gates consuming the permissive posture.

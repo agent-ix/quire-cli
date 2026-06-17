@@ -34,6 +34,15 @@ relationships:
 > sections, FR-032 must attribute the expected-insertion line — not a CLI
 > concern. No silent spec edit made.
 
+## Description
+
+The default markdown `validate` (FR-004) SHALL surface, verbatim from quire-rs
+`validate_document`, the structural diagnostics that reject documents violating
+their archetype's `body_extraction` asserts (missing/empty/placeholder sections,
+malformed tables, under-length lists, id-pattern failures, duplicate headings).
+Frontmatter-schema success is necessary but not sufficient. The behavioral
+surface is specified below.
+
 ## Behavior
 
 The default markdown `validate` (FR-004) SHALL reject documents whose archetype
@@ -47,10 +56,17 @@ SHALL be surfaced verbatim from quire-rs `validate_document` (line-numbered,
 naming archetype, section/assert, and reason), with the CLI adding no structural
 judgement of its own.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-010-AC-1**: `quire validate rendered-fr.md --module $ISO` exits 1 when `## Specification` content is only `TODO`, with reason `placeholder`.
-- **FR-010-AC-2**: It exits 1 when any FR required section is missing (reason `missing`), with a line number.
-- **FR-010-AC-3**: It exits 1 when the Acceptance Criteria table has wrong columns or zero data rows (reasons `assert`).
-- **FR-010-AC-4**: It exits 0 when frontmatter is valid and all `body_extraction` asserts hold.
-- **FR-010-AC-5**: Structural failures produce empty stdout and non-empty stderr carrying the quire-rs diagnostics unchanged.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-010-AC-1 | `quire validate rendered-fr.md --module $ISO` exits 1 when `## Specification` content is only `TODO`, with reason `placeholder` | Test |
+| FR-010-AC-2 | It exits 1 when any FR required section is missing (reason `missing`), with a line number | Test |
+| FR-010-AC-3 | It exits 1 when the Acceptance Criteria table has wrong columns or zero data rows (reasons `assert`) | Test |
+| FR-010-AC-4 | It exits 0 when frontmatter is valid and all `body_extraction` asserts hold | Test |
+| FR-010-AC-5 | Structural failures produce empty stdout and non-empty stderr carrying the quire-rs diagnostics unchanged | Test |
+
+## Dependencies
+
+- **Upstream**: FR-004 validate; quire-rs FR-032 (`validate_document`), FR-033 (`body_extraction` asserts).
+- **Downstream**: CI gates relying on structural-validation diagnostics.

@@ -18,6 +18,12 @@ relationships:
     cardinality: "1:1"
 ---
 
+## Description
+
+The CLI SHALL expose a `parse` subcommand that reads a markdown document and
+emits its parsed `QuireDocument` as JSON on stdout, delegating all parsing to
+`quire-rs`. The behavioral surface is specified below.
+
 ## Behavior
 
 The CLI SHALL expose a `parse` subcommand with the following surface:
@@ -38,10 +44,17 @@ Behavior:
 
 Output schema MUST be stable across patch releases and SHOULD mirror the public `QuireDocument` Rust type field-for-field.
 
-## Acceptance
+## Acceptance Criteria
 
-- **FR-002-AC-1**: `quire parse some-doc.md | jq '.frontmatter.id'` returns the document's `id` field for an artifact with `id: FR-035` in frontmatter.
-- **FR-002-AC-2**: `cat some-doc.md | quire parse -` produces identical output to `quire parse some-doc.md`.
-- **FR-002-AC-3**: A document with malformed frontmatter still produces parseable JSON on stdout; stderr contains a non-fatal diagnostic naming the frontmatter line.
-- **FR-002-AC-4**: Stdout for an empty document is a valid `QuireDocument` JSON with empty `sections[]`.
-- **FR-002-AC-5**: The byte offsets in the JSON output match the byte slices `quire_rs::parse_document` produces in-process (round-trip fixture test).
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-002-AC-1 | `quire parse some-doc.md \| jq '.frontmatter.id'` returns the document's `id` field for an artifact with `id: FR-035` in frontmatter | Test |
+| FR-002-AC-2 | `cat some-doc.md \| quire parse -` produces identical output to `quire parse some-doc.md` | Test |
+| FR-002-AC-3 | A document with malformed frontmatter still produces parseable JSON on stdout; stderr contains a non-fatal diagnostic naming the frontmatter line | Test |
+| FR-002-AC-4 | Stdout for an empty document is a valid `QuireDocument` JSON with empty `sections[]` | Test |
+| FR-002-AC-5 | The byte offsets in the JSON output match the byte slices `quire_rs::parse_document` produces in-process (round-trip fixture test) | Test |
+
+## Dependencies
+
+- **Upstream**: US-002 human parses doc; quire-rs FR-005, FR-006, FR-008 (parsing APIs).
+- **Downstream**: FR-008 JSON output encoding.

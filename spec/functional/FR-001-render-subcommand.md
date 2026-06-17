@@ -28,6 +28,12 @@ relationships:
 > tally (ids retained, immutable). The retirement is recorded in `spec.md` §2bis.
 > New work does not target this FR.
 
+## Description
+
+The CLI SHALL expose a `render` subcommand wrapping the (now-retired) `quire-rs`
+render path. The behavioral surface is retained below for history and
+traceability; new work does not target this FR.
+
 ## Behavior
 
 The CLI SHALL expose a `render` subcommand with the following surface:
@@ -56,11 +62,21 @@ Behavior:
 
 The CLI SHALL NOT implement rendering or schema validation logic — the call delegates entirely to `quire-rs`.
 
-## Acceptance
+## Acceptance Criteria
 
-- FR-001-AC-1 (RETIRED): `quire render FR --module $ISO --data ctx.json` against the canonical ISO FR archetype produces byte-identical output to `minijinja-cli templates/fr.md.j2 ctx.json` for the same context.
-- FR-001-AC-2 (RETIRED): `quire render FR --module $ISO --data -` reads context from stdin and produces equivalent output.
-- FR-001-AC-3 (RETIRED): `quire render NONEXISTENT --module $ISO --data ctx.json` exits 1; stderr begins with a `UnknownArchetype` diagnostic; no stdout output.
-- FR-001-AC-4 (RETIRED): `quire render FR --module $ISO --data invalid.json` (failing schema) exits 1; stderr lists violations per FR-017; stdout is empty.
-- FR-001-AC-5 (RETIRED): `quire render FR --module $ISO --data ctx.json --out /tmp/fr.md` writes the file and produces no stdout.
-- FR-001-AC-6 (RETIRED): All 8 ISO archetypes (FR, NFR, StR, US, IT, TC, AC, CON) render byte-identically through this subcommand vs. the Python Jinja2 reference (parity matrix vendored from `quire-rs/tests/render_parity/`).
+These acceptance criteria are RETIRED (render removal — 2026-06-04); ids are
+retained and immutable, but they are dropped from the required-coverage tally.
+
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| FR-001-AC-1 | (RETIRED) `quire render FR --module $ISO --data ctx.json` against the canonical ISO FR archetype produces byte-identical output to `minijinja-cli templates/fr.md.j2 ctx.json` for the same context | Demonstration |
+| FR-001-AC-2 | (RETIRED) `quire render FR --module $ISO --data -` reads context from stdin and produces equivalent output | Demonstration |
+| FR-001-AC-3 | (RETIRED) `quire render NONEXISTENT --module $ISO --data ctx.json` exits 1; stderr begins with a `UnknownArchetype` diagnostic; no stdout output | Demonstration |
+| FR-001-AC-4 | (RETIRED) `quire render FR --module $ISO --data invalid.json` (failing schema) exits 1; stderr lists violations per FR-017; stdout is empty | Demonstration |
+| FR-001-AC-5 | (RETIRED) `quire render FR --module $ISO --data ctx.json --out /tmp/fr.md` writes the file and produces no stdout | Demonstration |
+| FR-001-AC-6 | (RETIRED) All 8 ISO archetypes (FR, NFR, StR, US, IT, TC, AC, CON) render byte-identically through this subcommand vs. the Python Jinja2 reference (parity matrix vendored from `quire-rs/tests/render_parity/`) | Demonstration |
+
+## Dependencies
+
+- **Upstream**: US-001 agent renders FR; quire-rs FR-001, FR-002, FR-014 (render APIs, retired).
+- **Downstream**: none — the render path is removed; this FR is kept for history only.
