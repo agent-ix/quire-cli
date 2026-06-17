@@ -19,7 +19,7 @@ relationships:
 ---
 
 > **RETIRED (render removal — 2026-06-04):** The render path is **removed** from
-> `quire-rs` (no backward-compatibility layer — mirrors quire-rs FR-001 retirement,
+> `quire-rs` (no backward-compatibility layer — mirrors quire-rs [FR-001](ix://agent-ix/quire-rs/FR-001) retirement,
 > commit 500a3d3). There is no `render`/`render_by_name` engine API and no `render`
 > subcommand in `quire-cli`. Artifacts are authored as markdown directly (via the
 > `/specify` flow) and checked structurally by `validate` ([FR-004](./FR-004-validate-subcommand.md) →
@@ -78,5 +78,5 @@ retained and immutable, but they are dropped from the required-coverage tally.
 
 ## Dependencies
 
-- **Upstream**: [US-001](../usecase/US-001-agent-renders-fr.md) agent renders FR; quire-rs FR-001, [FR-002](./FR-002-parse-subcommand.md), [FR-014](./FR-014-validate-okf-bundle.md) (render APIs, retired).
+- **Upstream**: [US-001](../usecase/US-001-agent-renders-fr.md) agent renders FR; quire-rs [FR-001](ix://agent-ix/quire-rs/FR-001), [FR-002](./FR-002-parse-subcommand.md), [FR-014](./FR-014-validate-okf-bundle.md) (render APIs, retired).
 - **Downstream**: none — the render path is removed; this FR is kept for history only.

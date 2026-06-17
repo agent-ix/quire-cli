@@ -51,5 +51,5 @@ This guarantees that downstream pipelines (`quire parse … | jq …`, `quire ex
 
 ## Dependencies
 
-- **Upstream**: [StR-001](../stakeholder/StR-001-static-binary-hot-path.md) single-binary hot path; quire-rs FR-017 (diagnostic format).
+- **Upstream**: [StR-001](../stakeholder/StR-001-static-binary-hot-path.md) single-binary hot path; quire-rs [FR-017](ix://agent-ix/quire-rs/FR-017) (diagnostic format).
 - **Downstream**: every subcommand (`parse`/`extract`/`validate`/`schema`/`lookup`/`edit`) honours this contract.

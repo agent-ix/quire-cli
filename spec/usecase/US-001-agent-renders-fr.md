@@ -12,7 +12,7 @@ relationships:
 ---
 
 > **RETIRED (render removal — 2026-06-04):** The render path is removed (mirrors
-> quire-rs US-001/US-009 retirement, commit 500a3d3). Agents executing
+> quire-rs [US-001](ix://agent-ix/quire-rs/US-001)/US-009 retirement, commit 500a3d3). Agents executing
 > `/spec-write-fr` now author the FR markdown directly via the `/specify` flow and
 > validate it with `quire validate <doc.md>` ([FR-004](../functional/FR-004-validate-subcommand.md)); there is no `quire render`
 > call. Kept for history and traceability only; ACs dropped from the

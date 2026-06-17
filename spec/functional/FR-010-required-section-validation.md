@@ -68,5 +68,5 @@ judgement of its own.
 
 ## Dependencies
 
-- **Upstream**: [FR-004](./FR-004-validate-subcommand.md) validate; quire-rs FR-032 (`validate_document`), FR-033 (`body_extraction` asserts).
+- **Upstream**: [FR-004](./FR-004-validate-subcommand.md) validate; quire-rs [FR-032](ix://agent-ix/quire-rs/FR-032) (`validate_document`), FR-033 (`body_extraction` asserts).
 - **Downstream**: CI gates relying on structural-validation diagnostics.

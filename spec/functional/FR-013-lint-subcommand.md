@@ -62,5 +62,5 @@ gates extraction or sync.
 
 ## Dependencies
 
-- **Upstream**: quire-rs FR-036 (declarative lint rules); [FR-005](./FR-005-path-safety.md) path-safety.
+- **Upstream**: quire-rs [FR-036](ix://agent-ix/quire-rs/FR-036) (declarative lint rules); [FR-005](./FR-005-path-safety.md) path-safety.
 - **Downstream**: authoring agents that consume advisory lint findings.

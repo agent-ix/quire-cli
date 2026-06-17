@@ -52,5 +52,5 @@ Unknown archetypes SHALL exit 1 with `UnknownArchetype` diagnostics on stderr. S
 
 ## Dependencies
 
-- **Upstream**: quire-rs FR-029 (archetype input contract); [FR-005](./FR-005-path-safety.md) path-safety.
+- **Upstream**: quire-rs [FR-029](ix://agent-ix/quire-rs/FR-029) (archetype input contract); [FR-005](./FR-005-path-safety.md) path-safety.
 - **Downstream**: LLM authoring agents and CI tools that consume the contract.

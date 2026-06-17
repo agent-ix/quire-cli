@@ -13,7 +13,7 @@ relationships:
 ---
 
 > **RETIRED (render removal — 2026-06-04):** There is no render path to bench
-> (mirrors quire-rs NFR-001 retirement, commit 500a3d3). The per-artifact latency
+> (mirrors quire-rs [NFR-001](ix://agent-ix/quire-rs/NFR-001) retirement, commit 500a3d3). The per-artifact latency
 > need is retained at the stakeholder level for the surviving subcommands
 > (`validate`/`parse`/`extract`/`lookup`/`edit`); see the revised [StR-002](../stakeholder/StR-002-sub-50ms-budget.md). This
 > render-latency NFR is kept for history only; ACs dropped from the

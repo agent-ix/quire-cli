@@ -115,5 +115,5 @@ stderr, no stdout):
 
 ## Dependencies
 
-- **Upstream**: [US-003](../usecase/US-003-ci-validates-archetype-conformance.md) CI validates archetype conformance; quire-rs FR-032 (`validate_document_in_registry`).
+- **Upstream**: [US-003](../usecase/US-003-ci-validates-archetype-conformance.md) CI validates archetype conformance; quire-rs [FR-032](ix://agent-ix/quire-rs/FR-032) (`validate_document_in_registry`).
 - **Downstream**: [FR-010](./FR-010-required-section-validation.md) structural-validation surfacing; [FR-014](./FR-014-validate-okf-bundle.md) `--okf` bundle posture.

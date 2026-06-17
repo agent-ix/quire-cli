@@ -35,7 +35,7 @@ the loaded `Spec` corpus alone (id index + path→id), with no archetype registr
 
 1. Path-safety ([FR-005](./FR-005-path-safety.md)) on the resolved bundle root (the positional `DIR`, or
    `--scope` when no positional is given).
-2. Load the bundle root into a `Spec` (quire-rs FR-025) and call
+2. Load the bundle root into a `Spec` (quire-rs [FR-025](ix://agent-ix/quire-rs/FR-025)) and call
    `unlinked_references(&spec)` (FR-039). Findings are partitioned by the engine
    into `AutoFix { suggested_link }` and `WarnOnly { reason }`.
 3. **Dry-run (default, no `--write`)** — apply nothing. Emit on **stderr**:
@@ -62,7 +62,7 @@ the loaded `Spec` corpus alone (id index + path→id), with no archetype registr
      since applying every suggestion is idempotent per FR-039); exit **1** only
      on an I/O / path-safety failure.
 
-The bundle / detection / suggestion logic is wholly upstream (quire-rs FR-039 +
+The bundle / detection / suggestion logic is wholly upstream (quire-rs [FR-039](ix://agent-ix/quire-rs/FR-039) +
 writeback [FR-008](./FR-008-json-output-encoding.md)); the CLI is a thin process boundary ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)).
 
 ## Acceptance Criteria
@@ -78,5 +78,5 @@ writeback [FR-008](./FR-008-json-output-encoding.md)); the CLI is a thin process
 
 ## Dependencies
 
-- **Upstream**: quire-rs FR-039 (unlinked-reference detection) + [FR-008](./FR-008-json-output-encoding.md) (byte-exact writeback); [FR-005](./FR-005-path-safety.md) path-safety; [US-004](../usecase/US-004-cross-reference-extraction.md) cross-reference extraction.
+- **Upstream**: quire-rs [FR-039](ix://agent-ix/quire-rs/FR-039) (unlinked-reference detection) + [FR-008](./FR-008-json-output-encoding.md) (byte-exact writeback); [FR-005](./FR-005-path-safety.md) path-safety; [US-004](../usecase/US-004-cross-reference-extraction.md) cross-reference extraction.
 - **Downstream**: OKF migration tooling / CI gates that keep specs link-complete.

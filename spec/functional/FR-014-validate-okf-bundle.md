@@ -106,5 +106,5 @@ The positional `documents` argument is now `required_unless_present = "okf"`:
 
 ## Dependencies
 
-- **Upstream**: [US-003](../usecase/US-003-ci-validates-archetype-conformance.md) CI validates archetype conformance; [FR-004](./FR-004-validate-subcommand.md) validate (extends); quire-rs FR-032 (`validate_bundle_at`).
+- **Upstream**: [US-003](../usecase/US-003-ci-validates-archetype-conformance.md) CI validates archetype conformance; [FR-004](./FR-004-validate-subcommand.md) validate (extends); quire-rs [FR-032](ix://agent-ix/quire-rs/FR-032) (`validate_bundle_at`).
 - **Downstream**: OKF bundle CI gates consuming the permissive posture.
