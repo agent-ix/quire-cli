@@ -12,12 +12,12 @@ pub mod validate;
 use std::path::Path;
 
 use anyhow::{bail, Context};
-use quire_cli::io::{emit_quire_diagnostics, DiagnosticsFormat};
+use quire_cli::io::{emit_quire_diagnostics, Diagnostics};
 use quire_rs::Registry;
 
 /// Cross-command context plumbed in from global flags.
 pub struct Ctx {
-    pub diagnostics: DiagnosticsFormat,
+    pub diagnostics: Diagnostics,
     pub pretty: bool,
 }
 

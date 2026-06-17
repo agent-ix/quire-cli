@@ -5,7 +5,7 @@
 //! - JSON output is compact by default; `--pretty` switches to indented.
 //! - `--diagnostics-format=human|json` selects the stderr encoding.
 
-use std::io::{Read, Write};
+use std::io::{IsTerminal, Read, Write};
 use std::path::Path;
 
 use serde::Serialize;
@@ -28,6 +28,64 @@ impl std::str::FromStr for DiagnosticsFormat {
         }
     }
 }
+
+/// When to colorize human-format stderr diagnostics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ColorChoice {
+    /// Colorize only when stderr is a terminal and `NO_COLOR` is unset.
+    #[default]
+    Auto,
+    /// Always colorize, even when piped.
+    Always,
+    /// Never colorize.
+    Never,
+}
+
+impl std::str::FromStr for ColorChoice {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "auto" => Ok(Self::Auto),
+            "always" => Ok(Self::Always),
+            "never" => Ok(Self::Never),
+            other => Err(format!("unknown color choice: '{other}'")),
+        }
+    }
+}
+
+impl ColorChoice {
+    /// Resolve the choice into a concrete on/off decision for *this* run.
+    /// `Auto` honours the `NO_COLOR` convention and only colorizes a real
+    /// terminal — so piped/redirected output (and the test harness) stays
+    /// plain, byte-for-byte.
+    pub fn resolve(self) -> bool {
+        match self {
+            Self::Always => true,
+            Self::Never => false,
+            Self::Auto => std::env::var_os("NO_COLOR").is_none() && std::io::stderr().is_terminal(),
+        }
+    }
+}
+
+/// Resolved stderr diagnostic settings: the wire format plus whether to
+/// colorize human output. Threaded through [`super`]'s `Ctx`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Diagnostics {
+    pub format: DiagnosticsFormat,
+    pub color: bool,
+}
+
+impl Diagnostics {
+    pub fn new(format: DiagnosticsFormat, color: bool) -> Self {
+        Self { format, color }
+    }
+}
+
+// ANSI SGR codes. Diagnostics are the only colorized surface, so a tiny
+// hand-rolled palette beats pulling in a color crate (leaf-binary, deny.toml).
+const RED: &str = "\x1b[31m";
+const BOLD_YELLOW: &str = "\x1b[1;33m";
+const RESET: &str = "\x1b[0m";
 
 /// Read a `--data` argument: a filesystem path or `-` for stdin.
 ///
@@ -82,9 +140,13 @@ pub fn encode_json<T: Serialize>(value: &T, pretty: bool) -> serde_json::Result<
     }
 }
 
-/// Write a single diagnostic line to stderr.
-pub fn write_diagnostic_human(msg: &str) {
-    eprintln!("{msg}");
+/// Write a single diagnostic line to stderr, optionally in red.
+pub fn write_diagnostic_human(msg: &str, color: bool) {
+    if color {
+        eprintln!("{RED}{msg}{RESET}");
+    } else {
+        eprintln!("{msg}");
+    }
 }
 
 /// Write a diagnostic as a JSON line on stderr.
@@ -99,10 +161,11 @@ pub fn write_diagnostic_json(kind: &str, message: &str) {
 
 /// Emit a diagnostic according to the configured format. Errors carry
 /// `severity: "error"` in the JSON shape (see [`emit_warning`] for the
-/// warning counterpart).
-pub fn emit_diagnostic(format: DiagnosticsFormat, kind: &str, message: &str) {
-    match format {
-        DiagnosticsFormat::Human => write_diagnostic_human(message),
+/// warning counterpart). Human errors are printed red when color is on;
+/// the JSON shape is never colorized.
+pub fn emit_diagnostic(out: Diagnostics, kind: &str, message: &str) {
+    match out.format {
+        DiagnosticsFormat::Human => write_diagnostic_human(message, out.color),
         DiagnosticsFormat::Json => write_diagnostic_json(kind, message),
     }
 }
@@ -113,8 +176,11 @@ pub fn emit_diagnostic(format: DiagnosticsFormat, kind: &str, message: &str) {
 /// visually distinct from errors; JSON format emits a distinct object
 /// carrying `severity: "warning"` and `kind: "ValidationWarning"`, so
 /// machine consumers can separate warnings from errors (FR-004-AC-10/12).
-pub fn emit_warning(format: DiagnosticsFormat, message: &str) {
-    match format {
+pub fn emit_warning(out: Diagnostics, message: &str) {
+    match out.format {
+        DiagnosticsFormat::Human if out.color => {
+            eprintln!("{BOLD_YELLOW}warning:{RESET} {message}")
+        }
         DiagnosticsFormat::Human => eprintln!("warning: {message}"),
         DiagnosticsFormat::Json => {
             let line = serde_json::json!({
@@ -128,7 +194,7 @@ pub fn emit_warning(format: DiagnosticsFormat, message: &str) {
 }
 
 /// Emit every diagnostic in `iter` according to the configured format.
-pub fn emit_quire_diagnostics<'a, I>(format: DiagnosticsFormat, iter: I)
+pub fn emit_quire_diagnostics<'a, I>(out: Diagnostics, iter: I)
 where
     I: IntoIterator<Item = &'a quire_rs::Diagnostic>,
 {
@@ -138,7 +204,7 @@ where
             .get("kind")
             .and_then(|k| k.as_str())
             .unwrap_or("Diagnostic");
-        emit_diagnostic(format, kind, &d.to_string());
+        emit_diagnostic(out, kind, &d.to_string());
     }
 }
 
@@ -166,6 +232,27 @@ mod tests {
             DiagnosticsFormat::Json
         );
         assert!(DiagnosticsFormat::from_str("yaml").is_err());
+    }
+
+    #[test]
+    fn color_choice_parses() {
+        use std::str::FromStr;
+        assert_eq!(ColorChoice::from_str("auto").unwrap(), ColorChoice::Auto);
+        assert_eq!(
+            ColorChoice::from_str("always").unwrap(),
+            ColorChoice::Always
+        );
+        assert_eq!(ColorChoice::from_str("never").unwrap(), ColorChoice::Never);
+        assert!(ColorChoice::from_str("rainbow").is_err());
+    }
+
+    #[test]
+    fn color_choice_resolves_explicit() {
+        // Always/Never are deterministic regardless of TTY/NO_COLOR.
+        assert!(ColorChoice::Always.resolve());
+        assert!(!ColorChoice::Never.resolve());
+        // Under the test harness stderr is not a terminal, so Auto is off.
+        assert!(!ColorChoice::Auto.resolve());
     }
 
     #[test]

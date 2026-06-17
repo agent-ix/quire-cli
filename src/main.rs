@@ -7,7 +7,7 @@
 
 use clap::{Parser, Subcommand};
 
-use quire_cli::io::{self, exit, DiagnosticsFormat};
+use quire_cli::io::{self, exit, ColorChoice, DiagnosticsFormat};
 
 mod commands;
 
@@ -25,6 +25,11 @@ struct Cli {
     /// Emit JSON output with pretty-printing where applicable.
     #[arg(long, global = true)]
     pretty: bool,
+
+    /// Colorize human diagnostics on stderr: auto (TTY only, honours
+    /// NO_COLOR), always, or never.
+    #[arg(long, value_name = "WHEN", default_value = "auto", global = true)]
+    color: ColorChoice,
 
     #[command(subcommand)]
     command: Command,
@@ -51,7 +56,7 @@ enum Command {
 fn main() {
     let cli = Cli::parse();
     let ctx = commands::Ctx {
-        diagnostics: cli.diagnostics_format,
+        diagnostics: io::Diagnostics::new(cli.diagnostics_format, cli.color.resolve()),
         pretty: cli.pretty,
     };
     let result = match cli.command {

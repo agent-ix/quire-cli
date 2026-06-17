@@ -15,5 +15,6 @@ Commands:
 Options:
       --diagnostics-format <FORMAT>  Diagnostic stream format on stderr [default: human]
       --pretty                       Emit JSON output with pretty-printing where applicable
+      --color <WHEN>                 Colorize human diagnostics on stderr: auto (TTY only, honours NO_COLOR), always, or never [default: auto]
   -h, --help                         Print help
   -V, --version                      Print version
