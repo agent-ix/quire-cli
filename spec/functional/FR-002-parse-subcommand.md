@@ -56,5 +56,5 @@ Output schema MUST be stable across patch releases and SHOULD mirror the public 
 
 ## Dependencies
 
-- **Upstream**: [US-002](../usecase/US-002-human-parses-existing-artifact.md) human parses doc; quire-rs [FR-005](./FR-005-path-safety.md), [FR-006](./FR-006-io-contract.md), [FR-008](./FR-008-json-output-encoding.md) (parsing APIs).
+- **Upstream**: [US-002](../usecase/US-002-human-parses-existing-artifact.md) human parses doc; quire-rs [FR-005](ix://agent-ix/quire-rs/FR-005), [FR-006](./FR-006-io-contract.md), [FR-008](./FR-008-json-output-encoding.md) (parsing APIs).
 - **Downstream**: [FR-008](./FR-008-json-output-encoding.md) JSON output encoding.

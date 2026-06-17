@@ -27,7 +27,7 @@ relationships:
 
 > **CR note (eager module-load failure, 2026-06-11):** the tolerant engine load
 > reports a missing/unloadable `manifest.yaml` as an `ArchetypeLoadFailure` while
-> returning an EMPTY registry (quire-rs [FR-013-AC-13](./FR-013-lint-subcommand.md)). The CLI previously ignored
+> returning an EMPTY registry (quire-rs [FR-013-AC-13](ix://agent-ix/quire-rs/FR-013-AC-13)). The CLI previously ignored
 > `Registry::failures()` and died later with a misleading
 > `UnknownArchetype: 'FR' is not registered`. All module-loading subcommands
 > (`validate`, `extract`, `schema`, `lint`) now share a loader helper that fails

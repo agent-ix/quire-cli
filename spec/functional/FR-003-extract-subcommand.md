@@ -78,5 +78,5 @@ The CLI SHALL NOT mutate, normalize, or filter the upstream extraction or edge o
 
 ## Dependencies
 
-- **Upstream**: [US-004](../usecase/US-004-cross-reference-extraction.md) cross-reference extraction; quire-rs [FR-011](./FR-011-lookup-subcommand.md), [FR-015](./FR-015-fix-subcommand.md) (extract + edge harvest APIs).
+- **Upstream**: [US-004](../usecase/US-004-cross-reference-extraction.md) cross-reference extraction; quire-rs [FR-011](ix://agent-ix/quire-rs/FR-011), [FR-015](./FR-015-fix-subcommand.md) (extract + edge harvest APIs).
 - **Downstream**: graph-ingestion consumers of the `{extraction, edges}` envelope.
