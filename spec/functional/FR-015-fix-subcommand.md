@@ -47,9 +47,12 @@ the loaded `Spec` corpus alone (id index + path→id), with no archetype registr
 4. **Apply (`--write`)** — for every `AutoFix`, splice `suggested_link` over the
    finding's `byte_span` using the quire-rs byte-exact writeback primitives
    ([FR-008](./FR-008-json-output-encoding.md)), applying a file's spans in descending start order so earlier offsets
-   stay valid, and rewrite each touched file in place. `WarnOnly` findings are
-   left untouched (the engine supplies no suggestion for them). Report
-   `fixed <N> reference(s) in <path>` per touched file on stderr.
+   stay valid, and rewrite each touched file in place. Any fix whose span
+   **overlaps** one already applied is **skipped** (defensive guard — the engine
+   does not emit overlapping fixes, but applying two splices to the same region
+   would corrupt the file). `WarnOnly` findings are left untouched (the engine
+   supplies no suggestion for them). Report `fixed <N> reference(s) in <path>`
+   per touched file on stderr, where `<N>` counts only the applied fixes.
 5. Exit codes:
    - **dry-run**: exit **0** when there are zero `AutoFix` findings; exit **1**
      when one or more `AutoFix` findings remain (an actionable CI gate —

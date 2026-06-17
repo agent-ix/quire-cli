@@ -130,6 +130,28 @@ fn clean_bundle_exits_zero() {
         .success();
 }
 
+// Multi-token inline-code span (`FR-008/FR-009`) must NOT be converted and
+// must NOT corrupt the file (quire-rs FR-039-AC-10 + CLI overlap guard).
+#[test]
+fn multi_token_code_span_not_corrupted() {
+    let dir = bundle(&[
+        (
+            "functional/FR-001-foo.md",
+            "---\nid: FR-001\ntype: FR\n---\nSee `FR-008/FR-009` together.\n",
+        ),
+        ("functional/FR-008-byte.md", FR008),
+        ("functional/FR-009-baz.md", "---\nid: FR-009\ntype: FR\n---\n# FR-009\n"),
+    ]);
+    let before = fs::read_to_string(dir.path().join("functional/FR-001-foo.md")).unwrap();
+    quire().arg("fix").arg(dir.path()).arg("--write").assert().success();
+    let after = fs::read_to_string(dir.path().join("functional/FR-001-foo.md")).unwrap();
+    // The code span is left intact (no conversion, no corruption).
+    assert_eq!(before, after, "multi-token code span must be left untouched");
+    assert!(after.contains("`FR-008/FR-009`"));
+    // And no orphan link fragment was produced.
+    assert!(!after.contains(".md)F") && !after.contains(".md).md"));
+}
+
 // IT-080 / FR-015-AC-5: a `..` path on the bundle root is rejected by
 // path-safety before any load.
 #[test]

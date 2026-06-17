@@ -99,17 +99,29 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     for (path, mut fixes) in by_file {
         let mut text = std::fs::read_to_string(&path)
             .with_context(|| format!("reading '{}'", path.display()))?;
+        // Apply spans high-to-low so earlier offsets stay valid. Defensively
+        // skip any fix whose span overlaps one already applied — overlapping
+        // spans (e.g. two ids in one code span) would otherwise corrupt the
+        // splice. The engine (FR-039) already avoids emitting these; this is
+        // belt-and-suspenders.
         fixes.sort_by_key(|f| std::cmp::Reverse(f.byte_span.start));
+        let mut applied = 0usize;
+        let mut min_applied_start = usize::MAX;
         for f in &fixes {
             if let UnlinkedFix::AutoFix { suggested_link } = &f.fix {
+                if f.byte_span.end > min_applied_start {
+                    continue; // overlaps an already-applied span
+                }
                 text.replace_range(f.byte_span.clone(), suggested_link);
+                min_applied_start = f.byte_span.start;
+                applied += 1;
             }
         }
         std::fs::write(&path, &text).with_context(|| format!("writing '{}'", path.display()))?;
         io::emit_diagnostic(
             ctx.diagnostics,
             "Fixed",
-            &format!("fixed {} reference(s) in {}", fixes.len(), path.display()),
+            &format!("fixed {applied} reference(s) in {}", path.display()),
         );
     }
     Ok(())
