@@ -46,15 +46,10 @@ Exit codes:
 
 ### npm (prebuilt binary — recommended)
 
-Published to GitHub Packages as [`@agent-ix/quire-cli`](https://github.com/agent-ix/quire-cli/pkgs/npm/quire-cli).
+Published to the public npm registry as [`@agent-ix/quire-cli`](https://www.npmjs.com/package/@agent-ix/quire-cli).
 A per-platform optional dependency carries the prebuilt binary, so no Rust
-toolchain and no access to the private `quire-rs` repo are needed. Point the
-`@agent-ix` scope at GitHub Packages in `.npmrc`:
-
-```
-@agent-ix:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
+toolchain and no `quire-rs` checkout are needed — and because it resolves from
+the default public registry, no auth or `.npmrc` config either:
 
 ```bash
 npm install -g @agent-ix/quire-cli   # or: npx @agent-ix/quire-cli --help
@@ -70,14 +65,13 @@ Each [release](https://github.com/agent-ix/quire-cli/releases) attaches a
 `quire-<version>-<target>.tar.gz` (`.zip` on Windows) plus `SHA256SUMS.txt`.
 Download, verify, and drop `quire` on your `PATH`.
 
-### From source (requires private `quire-rs` access)
+### From source
 
-Because `quire-rs` is a private git dependency, source builds need repo access
-(and `cargo` configured with `net.git-fetch-with-cli = true`). This route is not
-available to the public — use npm or the tarball instead.
+`quire-cli` builds on [`quire-rs`](https://github.com/agent-ix/quire-rs), fetched
+from GitHub at build time, so configure `cargo` with `net.git-fetch-with-cli = true`.
 
 ```bash
-cargo install --git https://github.com/agent-ix/quire-cli   # contributors only
+cargo install --git https://github.com/agent-ix/quire-cli
 # or, from a checkout:
 cargo build --release && target/release/quire --help
 ```
