@@ -6,13 +6,20 @@ extracting, looking up, editing, validating, and inspecting Markdown artifacts.
 
 This npm package is a thin launcher. The actual binary ships in a per-platform
 optional dependency (`@agent-ix/quire-cli-<os>-<arch>`); npm installs only the
-one matching your machine. No source build and no `quire-rs` checkout are
-required.
+one matching your machine. No source build and no access to the private
+`quire-rs` repo are required.
 
 ## Install
 
-This package is published to the **public npm registry**, so no auth or registry
-config is needed:
+This package is published to **GitHub Packages**, so point the `@agent-ix` scope
+at that registry. In `.npmrc`:
+
+```
+@agent-ix:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+Then:
 
 ```bash
 npm install -g @agent-ix/quire-cli
