@@ -6,8 +6,8 @@ extracting, looking up, editing, validating, and inspecting Markdown artifacts.
 
 This npm package is a thin launcher. The actual binary ships in a per-platform
 optional dependency (`@agent-ix/quire-cli-<os>-<arch>`); npm installs only the
-one matching your machine. No source build and no access to the private
-`quire-rs` repo are required.
+one matching your machine. No source build and no `quire-rs` checkout is
+required.
 
 ## Install
 
