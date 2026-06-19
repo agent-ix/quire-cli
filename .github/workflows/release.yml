@@ -15,7 +15,7 @@ concurrency:
 
 permissions:
   contents: write   # create the GitHub Release
-  packages: write   # publish to GitHub Packages (npm)
+  id-token: write   # OIDC token for npm Trusted Publishing (public npm)
 
 jobs:
   build:
@@ -165,20 +165,23 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"   # OIDC Trusted Publishing requires Node >= 22.14
 
-      # Org convention (see agent-ix/nodejs-actions): route @agent-ix at GitHub
-      # Packages and auth with the REGISTRY_TOKEN PAT. Written to $HOME so every
-      # `npm publish` (run from each package dir) picks it up.
-      - name: Configure npm for GitHub Packages
-        env:
-          NPM_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-        run: printf '@agent-ix:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "$NPM_TOKEN" > "$HOME/.npmrc"
+      # OIDC Trusted Publishing needs npm >= 11.5.1.
+      - name: Upgrade npm for Trusted Publishing
+        run: npm install -g npm@latest
+
+      # Public npm via OIDC: route @agent-ix at registry.npmjs.org with no auth
+      # token. `npm publish` performs the tokenless OIDC token exchange (the
+      # id-token: write permission above supplies the GitHub OIDC token).
+      # Written to $HOME so every `npm publish` (run from each package dir) picks it up.
+      - name: Configure npm for public npm
+        run: printf 'registry=https://registry.npmjs.org/\n@agent-ix:registry=https://registry.npmjs.org/\n' > "$HOME/.npmrc"
 
       - name: Generate per-platform npm packages
         run: ARTIFACTS_DIR=artifacts node npm/build-packages.mjs "${{ steps.ver.outputs.version }}"
 
-      - name: Publish to GitHub Packages
+      - name: Publish to public npm
         if: github.event_name == 'push'
         run: |
           set -e

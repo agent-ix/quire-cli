@@ -38,6 +38,7 @@ if (!version) {
 
 const artifactsRoot = process.env.ARTIFACTS_DIR || join(repoRoot, "artifacts");
 const outRoot = join(here, "dist");
+const licenseSrc = join(repoRoot, "LICENSE");
 
 let built = 0;
 for (const t of TARGETS) {
@@ -56,6 +57,9 @@ for (const t of TARGETS) {
   copyFileSync(src, dest);
   if (!t.windows) chmodSync(dest, 0o755);
 
+  // Public packages must ship the MIT license text alongside the binary.
+  copyFileSync(licenseSrc, join(pkgDir, "LICENSE"));
+
   const pkgJson = {
     name: `@agent-ix/${pkgName}`,
     version,
@@ -65,8 +69,8 @@ for (const t of TARGETS) {
     license: "MIT",
     os: [t.platform],
     cpu: [t.arch],
-    files: ["bin/"],
-    publishConfig: { registry: "https://npm.pkg.github.com" },
+    files: ["bin/", "LICENSE"],
+    publishConfig: { registry: "https://registry.npmjs.org/", access: "public" },
   };
   writeFileSync(join(pkgDir, "package.json"), JSON.stringify(pkgJson, null, 2) + "\n");
   console.log(`built @agent-ix/${pkgName}@${version}`);
@@ -88,4 +92,6 @@ launcher.optionalDependencies = Object.fromEntries(
   TARGETS.map((t) => [`@agent-ix/quire-cli-${t.platform}-${t.arch}`, version]),
 );
 writeFileSync(launcherPath, JSON.stringify(launcher, null, 2) + "\n");
+// Ship the MIT license text in the launcher tarball too (files lists "LICENSE").
+copyFileSync(licenseSrc, join(here, "quire-cli", "LICENSE"));
 console.log(`synced launcher @agent-ix/quire-cli@${version}`);

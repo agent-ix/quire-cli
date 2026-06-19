@@ -1,2 +1,5 @@
 # Generated per-platform packages (built from CI artifacts at release time).
 dist/
+
+# LICENSE copied into the launcher by build-packages.mjs at release time.
+quire-cli/LICENSE

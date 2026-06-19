@@ -22,7 +22,8 @@
     "quire": "bin/quire.js"
   },
   "files": [
-    "bin/"
+    "bin/",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=16"
@@ -34,6 +35,7 @@
     "@agent-ix/quire-cli-win32-x64": "0.4.1"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
   }
 }
