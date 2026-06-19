@@ -332,6 +332,38 @@ fn it_061_scope_glob_surfaces_invalid_document() {
         );
 }
 
+// IT-082 (FR-004-AC-14, quoin-absent path): scoped validation with zero
+// discoverable modules and no `quoin` on PATH exits 1 with an actionable
+// diagnostic naming `quoin plugin ensure-defaults`; stdout stays empty. HOME
+// is pointed at an empty dir so the default install root resolves to a missing
+// path, isolating the test from the host's real ~/.ix.
+#[test]
+fn it_082_scoped_no_modules_without_quoin_reports_actionable_error() {
+    let base = std::env::temp_dir().join(format!("quire-cli-it082-{}", std::process::id()));
+    let empty_home = base.join("home");
+    let empty_bin = base.join("bin");
+    let scope = base.join("scope");
+    for dir in [&empty_home, &empty_bin, &scope] {
+        std::fs::create_dir_all(dir).expect("mkdir test dir");
+    }
+
+    quire()
+        .env_clear()
+        .env("HOME", &empty_home) // default_module_root -> empty_home/.ix/... (missing)
+        .env("PATH", &empty_bin) // no `quoin` discoverable on PATH
+        .arg("validate")
+        .arg(iso_doc("FR-valid.md"))
+        .arg("--scope")
+        .arg(&scope)
+        .assert()
+        .failure()
+        .code(1)
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::contains("quoin plugin ensure-defaults"));
+
+    let _ = std::fs::remove_dir_all(&base);
+}
+
 // ----------------------------------------------------------------------
 // Composed type+object validation + --strict (FR-004-AC-10..12,
 // FR-032-AC-12 upstream). The doc is FR-conformant but declares an

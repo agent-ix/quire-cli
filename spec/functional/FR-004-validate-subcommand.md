@@ -60,6 +60,21 @@ relationships:
 > printed). The CLI remains a thin wrapper ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) — all validation/composition
 > logic lives in quire-rs.
 
+> **CR note (scoped discovery roots + lazy-init, 2026-06-19):** Scoped
+> validation now also searches the canonical install root
+> `~/.ix/filament/modules` (the same default `quire-rs`
+> `loader::paths::default_module_root()` reads, where `quoin` materializes the
+> default module set) and the `IX_FILAMENT_MODULES_PATH` env var (preferred;
+> `IX_SCHEMA_PATH` retained as the legacy alias). These additions are pure
+> filesystem discovery — no network. Additionally, when scoped discovery finds
+> **zero** modules, `validate` lazy-installs the default set by shelling out
+> once to `quoin plugin ensure-defaults` and reloading the registry one time
+> before failing; if `quoin` is absent or fails, it falls through to an
+> actionable error. The lazy-install delegates all network I/O to the `quoin`
+> child — quire links no network crate — and is the documented exception to
+> [NFR-004](../non-functional/NFR-004-no-network.md). See
+> [ADR-0001](../assets/adr/0001-validate-lazy-init-module-bootstrap.md).
+
 ## Description
 
 The CLI SHALL expose a single-mode (markdown-only) `validate` subcommand that
@@ -85,8 +100,16 @@ When the positional argument is a document path, glob, or `-`:
 
 Scoped validation resolves relative document globs under `--scope`. If `--scope`
 itself contains `manifest.yaml`, it is loaded as one exact module; otherwise
-Quire loads module search roots from the scope, `--scope/.ix/modules`, and
-`IX_SCHEMA_PATH`. `--module` remains the exact single-module compatibility path.
+Quire loads module search roots from the scope, `--scope/.ix/modules`, the
+`IX_FILAMENT_MODULES_PATH` / `IX_SCHEMA_PATH` env vars, and the default install
+root `~/.ix/filament/modules`. If that search yields **zero** modules, `validate`
+lazy-installs the default module set by shelling out once to
+`quoin plugin ensure-defaults` and reloading the registry a single time; only
+this child performs network I/O (the [NFR-004](../non-functional/NFR-004-no-network.md)
+exception, [ADR-0001](../assets/adr/0001-validate-lazy-init-module-bootstrap.md)).
+When the set is still empty (e.g. `quoin` not installed), it exits 1 with an
+actionable diagnostic. `--module` remains the exact single-module compatibility
+path and never triggers discovery or lazy-init.
 
 **Archetype-resolution failure paths** (all exit 1, structured diagnostic on
 stderr, no stdout):
@@ -112,6 +135,8 @@ stderr, no stdout):
 | FR-004-AC-10 | A document that is otherwise conformant but declares a frontmatter `object:` the registry cannot resolve produces a quire-rs **warning**. Without `--strict`, `validate` exits **0** and prints the warning to stderr, clearly marked (`warning:` prefix in human format) and distinct from any error; stdout stays empty | Test |
 | FR-004-AC-11 | With `--strict`, the same unknown-`object:` warning becomes exit-failing: `validate` exits **1**, the warning still appears on stderr; stdout stays empty. A document with NO warnings and no errors still exits 0 under `--strict` | Test |
 | FR-004-AC-12 | Under `--diagnostics-format json`, a warning is emitted as a distinct JSON object carrying a `severity`/`kind` field marking it a warning (not an error), so machine consumers can tell warnings from errors. An error retains its error `kind` | Test |
+| FR-004-AC-13 | Scoped validation discovers modules from the default install root `~/.ix/filament/modules` and from `IX_FILAMENT_MODULES_PATH` (in addition to `--scope`, `--scope/.ix/modules`, and the legacy `IX_SCHEMA_PATH`) with no env var required and no network: a document validates against a module provided only via the default-root/env discovery path, and the run opens no inet socket | Test |
+| FR-004-AC-14 | When scoped discovery finds zero modules and `quoin` is not available on PATH, `validate` exits 1 with an actionable diagnostic naming `quoin plugin ensure-defaults` (and `IX_FILAMENT_MODULES_PATH`); empty stdout. When `quoin` IS available, the empty-discovery path shells out to `quoin plugin ensure-defaults` once and reloads before validating (the [NFR-004](../non-functional/NFR-004-no-network.md) network exception, [ADR-0001](../assets/adr/0001-validate-lazy-init-module-bootstrap.md)) | Test (quoin-absent path) + Demonstration (lazy install) |
 
 ## Dependencies
 
