@@ -176,7 +176,9 @@ jobs:
       # id-token: write permission above supplies the GitHub OIDC token).
       # Written to $HOME so every `npm publish` (run from each package dir) picks it up.
       - name: Configure npm for public npm
-        run: printf 'registry=https://registry.npmjs.org/\n@agent-ix:registry=https://registry.npmjs.org/\n' > "$HOME/.npmrc"
+        # provenance=false: this repo is private, where provenance attestations
+        # are unsupported; disable so OIDC publish isn't tripped up by it.
+        run: printf 'registry=https://registry.npmjs.org/\n@agent-ix:registry=https://registry.npmjs.org/\nprovenance=false\n' > "$HOME/.npmrc"
 
       - name: Generate per-platform npm packages
         run: ARTIFACTS_DIR=artifacts node npm/build-packages.mjs "${{ steps.ver.outputs.version }}"
