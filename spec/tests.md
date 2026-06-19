@@ -28,7 +28,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 3. **Exit-code rule** — every exit code in FR-007 has at least one IT producing it.
 4. **Subcommand permutation rule** — for each subcommand (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`), the success path, the unknown-archetype path, and the validation-failure path each have a dedicated IT where applicable. (`render` removed — §2bis.) `validate` additionally has the `--okf` permissive bundle posture: its hard-error (untyped), warn (unknown-type / broken-link / index-incomplete), and scope-default paths each have a dedicated IT (IT-069..072). `fix` (ADR 0007 unlinked-reference autofix) has its dry-run (would-fix → exit 1), `--write` apply + idempotent re-run, warn-only, clean-bundle, and `--scope`/path-safety paths each covered (IT-076..080).
 5. **Determinism rule** — primary JSON outputs (`parse`, `extract`, `lookup`, `schema`) have deterministic field order through Rust struct serialization.
-6. **No-network rule** — IT-008 verifies zero `socket()` calls under strace across all subcommands.
+6. **No-network rule** — IT-008 verifies zero `socket()` calls under strace across all subcommands on their happy path (registry present); IT-081 covers scoped discovery finding modules without network. The scoped-`validate` empty-discovery lazy-init spawns `quoin` to bootstrap modules — the documented NFR-004 exception (ADR-0001), out of these traces' scope.
 
 ---
 
@@ -58,7 +58,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-001 render subcommand | ⊘ RETIRED (§2bis) | IT-001, IT-009, IT-010, IT-017, IT-018 (all retired) | ⊘ |
 | FR-002 parse subcommand | AC-1..5 | IT-002, IT-011, IT-012, IT-013, IT-019 (byte-offset round-trip) | ✅ |
 | FR-003 extract subcommand | AC-1..5 | IT-004, IT-015, IT-016, IT-020 (determinism rerun), IT-069 (untyped doc → shared `[frontmatter]` diagnostic) | ✅ |
-| FR-004 validate subcommand (markdown-only; `--json` removed; composed type+object + `--strict`) | AC-1..12 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), IT-073 (unknown `object:` warns, exit 0), IT-074 (`--strict` escalates warning → exit 1), IT-075 (json warning distinct `kind`/severity), AUDIT-002 (thin boundary) | ✅ |
+| FR-004 validate subcommand (markdown-only; `--json` removed; composed type+object + `--strict`; scoped discovery + lazy-init, ADR-0001) | AC-1..14 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), IT-073 (unknown `object:` warns, exit 0), IT-074 (`--strict` escalates warning → exit 1), IT-075 (json warning distinct `kind`/severity), IT-081 (scoped env/default-root discovery validates, network-free → AC-13), IT-082 (empty discovery + no quoin → actionable error → AC-14), AUDIT-002 (thin boundary) | ✅ |
 | FR-010 required-section validation (recast onto FR-032) | AC-1..5 | IT-051 (placeholder), IT-052 (missing), IT-053 (assert), IT-047 (valid exit 0), IT-054 (empty stdout + diagnostics) | ✅ |
 | FR-005 path-safety | AC-1..5 | IT-005, IT-006, IT-007, IT-022 (--out reject), IT-023 (stdin bypasses) | ✅ |
 | FR-006 IO contract | AC-1..4 | IT-024 (no interleaving), IT-025 (--diagnostics-format=json), IT-011 (stdin) | ✅ |
@@ -78,7 +78,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | NFR-001 render p95 ≤ 50 ms | ⊘ RETIRED (§2bis) | BENCH-001 (render bench removed) | ⊘ |
 | NFR-002 Static binary | static audit | AUDIT-001 (`ldd` IT verifies no project .so) | ✅ |
 | NFR-003 Zero unsafe | static audit | AUDIT-004 (`scripts/check_unsafe_comments.sh` CI gate) | ✅ |
-| NFR-004 No network | static + runtime | AUDIT-003 (`cargo deny bans`), IT-008 (strace zero socket()) | ✅ |
+| NFR-004 No network (own process; scoped lazy-init via quoin is the ADR-0001 exception) | static + runtime | AUDIT-003 (`cargo deny bans`), IT-008 (strace zero socket(), happy path), IT-081 (scoped discovery network-free) | ✅ |
 | NFR-005 Diagnostic format | unit + IT | IT-031 (each error class parses as Diagnostic JSON) | ✅ |
 | NFR-006 CLI stability | snapshot | IT-032 (`quire --help` snapshot pinned) | ✅ |
 
@@ -95,7 +95,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-005 | `--module ../escape` exits 1 with PathSafetyViolation | Integration | P0 | FR-005-AC-1, StR-003-AC-1 |
 | IT-006 | Symlink under module to /etc/passwd refused at load | Integration | P0 | FR-005-AC-4, StR-003-AC-4 |
 | IT-007 | ⊘ RETIRED (§2bis) — `--data ../../etc/passwd` exits 1 (replaced by IT-055 on the positional doc path) | Integration | P0 | FR-005-AC-3 (retired) |
-| IT-008 | No network sockets opened (strace) | Integration | P0 | NFR-004-AC-2, StR-001-AC-4 |
+| IT-008 | No network sockets opened (strace, happy path — registry present) | Integration | P0 | NFR-004-AC-2, StR-001-AC-4 |
 | IT-009 | ⊘ RETIRED (§2bis) — Render byte-parity vs minijinja-cli (FR archetype) | Integration | P0 | FR-001-AC-1 (retired), US-001-AC-2 (retired) |
 | IT-010 | ⊘ RETIRED (§2bis) — Schema violation exits 1 before stdout write (render) | Integration | P0 | FR-001-AC-4 (retired), US-001-AC-3 (retired) |
 | IT-011 | `parse -` reads stdin | Integration | P1 | FR-002-AC-2, US-002-AC-4 |
@@ -163,6 +163,8 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-073 | `quire validate <doc with `object:` unknown> --module $M` (no `--strict`) → exit 0, empty stdout; stderr carries a `warning:`-prefixed line naming the unknown object, distinct from any error | Integration | P0 | FR-004-AC-10 |
 | IT-074 | Same doc with `--strict` → exit 1; stderr still carries the `warning:` line; empty stdout. A clean doc (no warnings/errors) under `--strict` still exits 0 | Integration | P0 | FR-004-AC-11 |
 | IT-075 | Same doc with `--diagnostics-format json --strict` (or no `--strict`) → the warning is a distinct JSON object on stderr carrying a `severity`/`kind` field marking it a warning, separable from an error object | Integration | P1 | FR-004-AC-12 |
+| IT-081 | Scoped `validate` whose module is reachable ONLY via `IX_FILAMENT_MODULES_PATH` (HOME repointed so the default root is empty) validates the doc (exit 0) and, under `strace -fe network`, opens no inet socket | Integration | P0 | FR-004-AC-13, NFR-004-AC-2 |
+| IT-082 | Scoped `validate` with zero discoverable modules and no `quoin` on PATH (HOME repointed to an empty dir) exits 1 with a diagnostic naming `quoin plugin ensure-defaults`; empty stdout | Integration | P0 | FR-004-AC-14 |
 | IT-076 | `quire fix <DIR> --module $M` (dry-run) over a bundle with a bare in-bundle reference → exit 1, stderr `would-fix: <path>: <token> -> [<token>](<rel-path>)`, no file modified | Integration | P0 | FR-015-AC-1 |
 | IT-077 | `quire fix <DIR> --module $M --write` rewrites the reference to the suggested relative-path link; a second `--write` run changes nothing and exits 0 (idempotence) | Integration | P0 | FR-015-AC-2 |
 | IT-078 | A warn-only (unresolved/ambiguous) token is surfaced as `warning: … (<reason>)`, never written even under `--write`, and does not alone cause a nonzero exit | Integration | P0 | FR-015-AC-3 |

@@ -42,7 +42,10 @@ pub struct Args {
     pub module: Option<String>,
 
     /// Directory that bounds relative document globs and repo-local module
-    /// discovery. Scoped mode also reads IX_SCHEMA_PATH for installed modules.
+    /// discovery. Scoped mode also searches the default install root
+    /// (~/.ix/filament/modules) and the IX_FILAMENT_MODULES_PATH /
+    /// IX_SCHEMA_PATH env vars; when nothing is found it lazy-installs the
+    /// default module set via `quoin plugin ensure-defaults`.
     #[arg(long, value_name = "DIR", default_value = ".")]
     pub scope: String,
 
@@ -212,20 +215,78 @@ fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registr
         return super::load_module_registry(ctx, scope);
     }
 
-    let roots = scoped_registry_roots(scope);
-    let refs: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
-    let registry = Registry::load_from(&refs).context("loading scoped module registry")?;
+    // Scoped discovery. Load once; if nothing is found, lazy-install the
+    // default module set via quoin and reload exactly once before failing —
+    // so a fresh machine validates without any manual `quoin` step or env var.
+    let mut registry = load_scoped_registry(scope)?;
+    let mut installed = false;
+    if registry.module_names().count() == 0 && lazy_init_default_modules(ctx) {
+        installed = true;
+        registry = load_scoped_registry(scope)?;
+    }
     io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
     if registry.module_names().count() == 0 {
         if let Some(f) = registry.failures().first() {
             bail!("module load failed: {} ({})", f.reason, f.path.display());
         }
+        if installed {
+            bail!(
+                "no modules found after installing the default set via quoin; \
+                 check `quoin plugin ensure-defaults`"
+            );
+        }
         bail!(
-            "no modules found for scoped validation; add modules under --scope, \
-             ~/.ix/schemas, or set IX_SCHEMA_PATH"
+            "no modules found for scoped validation, and automatic install via \
+             quoin was unavailable; install quoin and run `quoin plugin \
+             ensure-defaults` (modules install to ~/.ix/filament/modules), or set \
+             IX_FILAMENT_MODULES_PATH"
         );
     }
     Ok(registry)
+}
+
+/// Build the scoped search roots and load a [`Registry`] from them.
+fn load_scoped_registry(scope: &Path) -> anyhow::Result<Registry> {
+    let roots = scoped_registry_roots(scope);
+    let refs: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
+    Registry::load_from(&refs).context("loading scoped module registry")
+}
+
+/// Best-effort lazy install of the default Filament module set by shelling out
+/// to `quoin plugin ensure-defaults`. Returns `true` only when quoin ran and
+/// exited successfully. A missing `quoin` (or any failure) returns `false`, so
+/// the caller falls through to the standard "no modules" guidance. The child's
+/// stdout is captured (never forwarded) to preserve the stdout-silent contract.
+fn lazy_init_default_modules(ctx: &Ctx) -> bool {
+    io::emit_diagnostic(
+        ctx.diagnostics,
+        "Diagnostic",
+        "no spec modules found; installing the default set via `quoin plugin ensure-defaults`",
+    );
+    let output = match std::process::Command::new("quoin")
+        .args(["plugin", "ensure-defaults"])
+        .output()
+    {
+        Ok(output) => output,
+        Err(_) => {
+            io::emit_diagnostic(
+                ctx.diagnostics,
+                "Diagnostic",
+                "quoin not found on PATH; cannot auto-install default modules",
+            );
+            return false;
+        }
+    };
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "Diagnostic",
+            &format!("quoin failed to install default modules: {}", stderr.trim()),
+        );
+        return false;
+    }
+    true
 }
 
 fn scoped_registry_roots(scope: &Path) -> Vec<PathBuf> {
@@ -238,12 +299,24 @@ fn scoped_registry_roots(scope: &Path) -> Vec<PathBuf> {
         push_root(&mut roots, &mut seen, ix_modules);
     }
 
-    if let Some(paths) = std::env::var_os("IX_SCHEMA_PATH") {
-        for path in std::env::split_paths(&paths) {
-            if path.is_dir() {
-                push_root(&mut roots, &mut seen, path);
+    // Honour the engine's module-path env vars: IX_FILAMENT_MODULES_PATH is
+    // preferred, IX_SCHEMA_PATH is the legacy alias (mirrors quire-rs
+    // loader::paths::module_path_env). Both are unioned into the search set.
+    for var in ["IX_FILAMENT_MODULES_PATH", "IX_SCHEMA_PATH"] {
+        if let Some(paths) = std::env::var_os(var) {
+            for path in std::env::split_paths(&paths) {
+                if path.is_dir() {
+                    push_root(&mut roots, &mut seen, path);
+                }
             }
         }
+    }
+
+    // The canonical install root quoin materializes the default module set
+    // into, and the same directory quire-rs reads by default. Including it
+    // here lets scoped validation find installed defaults with no env var set.
+    if let Some(root) = quire_rs::loader::paths::default_module_root() {
+        push_root(&mut roots, &mut seen, root);
     }
 
     roots
@@ -399,5 +472,26 @@ fn line_prefix(line: Option<usize>) -> String {
     match line {
         Some(l) => format!("line {l}: "),
         None => String::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scoped_roots_include_scope_and_default_install_root() {
+        let scope = Path::new("/tmp/quire-cli-scope-roots-test");
+        let roots = scoped_registry_roots(scope);
+        // The --scope directory is always the first search root.
+        assert_eq!(roots.first(), Some(&scope.to_path_buf()));
+        // The canonical install root (~/.ix/filament/modules) is included so
+        // scoped validation finds quoin-installed defaults with no env var set.
+        if let Some(default_root) = quire_rs::loader::paths::default_module_root() {
+            assert!(
+                roots.contains(&default_root),
+                "default install root {default_root:?} missing from {roots:?}"
+            );
+        }
     }
 }
