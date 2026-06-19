@@ -175,10 +175,22 @@ jobs:
       # token. `npm publish` performs the tokenless OIDC token exchange (the
       # id-token: write permission above supplies the GitHub OIDC token).
       # Written to $HOME so every `npm publish` (run from each package dir) picks it up.
+      # Public npm. Steady state is tokenless OIDC (id-token: write above). The
+      # NPM_TOKEN fallback exists only to BOOTSTRAP: npm requires a package to
+      # exist before a trusted publisher can be attached, and these 5 packages'
+      # binaries can only be built by this CI matrix. Add NPM_TOKEN as a repo
+      # secret for the first release, configure the trusted publishers on
+      # npmjs.com, then DELETE the secret — every later release uses OIDC.
+      # provenance=false: this repo is private, where provenance is unsupported.
       - name: Configure npm for public npm
-        # provenance=false: this repo is private, where provenance attestations
-        # are unsupported; disable so OIDC publish isn't tripped up by it.
-        run: printf 'registry=https://registry.npmjs.org/\n@agent-ix:registry=https://registry.npmjs.org/\nprovenance=false\n' > "$HOME/.npmrc"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            printf 'registry=https://registry.npmjs.org/\n@agent-ix:registry=https://registry.npmjs.org/\n//registry.npmjs.org/:_authToken=%s\nprovenance=false\n' "$NPM_TOKEN" > "$HOME/.npmrc"
+          else
+            printf 'registry=https://registry.npmjs.org/\n@agent-ix:registry=https://registry.npmjs.org/\nprovenance=false\n' > "$HOME/.npmrc"
+          fi
 
       - name: Generate per-platform npm packages
         run: ARTIFACTS_DIR=artifacts node npm/build-packages.mjs "${{ steps.ver.outputs.version }}"
