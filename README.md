@@ -46,15 +46,9 @@ Exit codes:
 
 ### npm (prebuilt binary — recommended)
 
-Published to GitHub Packages as [`@agent-ix/quire-cli`](https://github.com/agent-ix/quire-cli/pkgs/npm/quire-cli).
+Published on the public npm registry as [`@agent-ix/quire-cli`](https://www.npmjs.com/package/@agent-ix/quire-cli).
 A per-platform optional dependency carries the prebuilt binary, so no Rust
-toolchain and no `quire-rs` checkout is needed. Point the
-`@agent-ix` scope at GitHub Packages in `.npmrc`:
-
-```
-@agent-ix:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
-```
+toolchain and no `quire-rs` checkout is needed — just install:
 
 ```bash
 npm install -g @agent-ix/quire-cli   # or: npx @agent-ix/quire-cli --help
