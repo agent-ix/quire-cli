@@ -22,3 +22,4 @@ description: "Index of artifacts in this directory."
 * [FR-013: quire lint subcommand](./FR-013-lint-subcommand.md)
 * [FR-014: quire validate --okf bundle posture](./FR-014-validate-okf-bundle.md)
 * [FR-015: quire fix subcommand (unlinked-reference autofix)](./FR-015-fix-subcommand.md)
+* [FR-016: quire update subcommand (install-source-aware self-update)](./FR-016-update-subcommand.md)

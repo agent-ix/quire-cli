@@ -1,9 +1,10 @@
 //! `quire` binary entry point.
 //!
-//! Dispatches to one of six subcommands: `parse`, `extract`, `lookup`,
-//! `edit`, `validate`, `schema`. Every command is a thin wrapper over `quire-rs` —
-//! no markdown parsing or structural-validation logic lives in this crate
-//! (StR-004).
+//! Dispatches to the `quire <verb>` subcommands: `parse`, `extract`, `lookup`,
+//! `edit`, `validate`, `schema`, `lint`, `fix`. Each is a thin wrapper over
+//! `quire-rs` — no markdown parsing or structural-validation logic lives in
+//! this crate (StR-004). `update` is the one exception: it wraps the
+//! package-agnostic `self_update` engine instead of `quire-rs`.
 
 use clap::{Parser, Subcommand};
 
@@ -53,6 +54,8 @@ enum Command {
     Lint(commands::lint::Args),
     /// Surface (and with --write, apply) internal relative-path link fixes.
     Fix(commands::fix::Args),
+    /// Check for and install the latest quire (auto-detects npm vs cargo).
+    Update(commands::update::Args),
 }
 
 fn main() {
@@ -70,6 +73,7 @@ fn main() {
         Command::Schema(a) => commands::schema::run(&ctx, a),
         Command::Lint(a) => commands::lint::run(&ctx, a),
         Command::Fix(a) => commands::fix::run(&ctx, a),
+        Command::Update(a) => commands::update::run(&ctx, a),
     };
     match result {
         Ok(()) => std::process::exit(exit::OK),

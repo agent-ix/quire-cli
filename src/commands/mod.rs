@@ -1,5 +1,6 @@
-//! Subcommand implementations. Each module owns one of the seven
-//! `quire <verb>` subcommands and stays a thin wrapper over `quire-rs`.
+//! Subcommand implementations. Each module owns one `quire <verb>` subcommand.
+//! The quire-rs-backed verbs stay thin wrappers over the engine; `update` is a
+//! thin wrapper over the package-agnostic `self_update` engine instead.
 
 pub mod edit;
 pub mod extract;
@@ -8,6 +9,7 @@ pub mod lint;
 pub mod lookup;
 pub mod parse;
 pub mod schema;
+pub mod update;
 pub mod validate;
 
 use std::path::Path;

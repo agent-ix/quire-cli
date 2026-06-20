@@ -36,7 +36,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 | StR | Trace to US/FR | Verifying IT/BENCH/AUDIT | Status |
 |-----|---------------|--------------------------|--------|
-| StR-001 Static binary hot path (revised — surviving subcommands) | US-002, US-003, US-004, US-005, FR-002..012 | IT-002, IT-004, IT-047, IT-033, AUDIT-001 (ldd), AUDIT-003 (no-network) | ✅ |
+| StR-001 Static binary hot path (revised — surviving subcommands) | US-002, US-003, US-004, US-005, FR-002..012, FR-016 (binary-lifecycle: keeps the pinned binary current) | IT-002, IT-004, IT-047, IT-033, IT-083, AUDIT-001 (ldd), AUDIT-003 (no-network) | ✅ |
 | StR-002 Sub-50 ms render budget | ⊘ RETIRED (§2bis) | — (render bench removed) | ⊘ |
 | StR-003 Sandbox inheritance (revised — path-safety) | FR-005 | IT-005 (..), IT-006 (symlink escape), IT-055 (doc path safety) | ✅ |
 | StR-004 Thin boundary | FR-002..004, FR-009, FR-011, FR-014, NFR-005 | AUDIT-002 (src grep for parse logic), IT-033..038 | ✅ |
@@ -70,6 +70,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-013 lint subcommand | AC-1..5 | IT-064 (clean exit 0 silent), IT-065 (warning exit 0 + stderr), IT-066 (error exit 1), IT-067 (--archetype scoping), IT-068 (missing manifest fails fast — also covers the FR-004 CR-note eager-loader behavior for validate/extract/schema) | ✅ |
 | FR-014 validate --okf bundle posture (`type` discriminator) | AC-1..9 | IT-069 (untyped → exit 1, `[frontmatter]`), IT-070 (unknown type + broken link → warn, exit 0), IT-071 (index incompleteness → warn, exit 0), IT-072 (defaults to --scope dir), IT-026 (bare `validate` no `--okf` → exit 2, `required_unless_present`), AUDIT-002 (thin boundary) | ✅ |
 | FR-015 fix subcommand (unlinked-reference autofix, ADR 0007) | AC-1..6 | IT-076 (dry-run `would-fix` → exit 1, no write), IT-077 (`--write` applies + idempotent re-run exit 0), IT-078 (warn-only never written, no nonzero exit), IT-079 (clean bundle exit 0 empty stdout), IT-080 (`--scope` root + path-safety reject), AUDIT-002 (thin boundary) | 🚧 |
+| FR-016 update subcommand (install-source-aware self-update) | AC-1..7 | IT-083 (Unknown source: `update --check` prints npm+cargo+releases recipes, exit 0, no install/network), IT-084 (Unknown source: bare `update` also no-install, exit 0), UT-SU-1 (`detect_source` npm/cargo/unknown classification — `self_update::tests`), UT-SU-2 (`registry_args` scope-form for scoped pkg / plain for unscoped / empty when no override), UT-SU-3 (`cargo` `--check` reports branch-tracking, `latest: None`), AUDIT-002 (thin boundary — `update` carries no parser/validator), AUDIT-005 (`self_update` engine imports nothing from quire's `io`/command ctx — package-agnostic) ⚠️ npm-channel `--check`/install (AC-3), registry-unreachable/`npm`-fail exit 1 (AC-7), and cargo install (part of AC-1 dispatch) have **no automated trace** (network + global-install side effects) | ⚠️ |
 
 ## Non-Functional Requirement Coverage
 
@@ -170,11 +171,17 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-078 | A warn-only (unresolved/ambiguous) token is surfaced as `warning: … (<reason>)`, never written even under `--write`, and does not alone cause a nonzero exit | Integration | P0 | FR-015-AC-3 |
 | IT-079 | A clean bundle (no auto-fix findings) exits 0 with empty stdout in both dry-run and `--write` | Integration | P1 | FR-015-AC-4 |
 | IT-080 | `quire fix --scope <DIR> --module $M` with no positional uses `--scope` as root; a `..`/symlink-escape on root or `--module` is rejected by path-safety before any load | Integration | P0 | FR-015-AC-5, FR-005 |
+| IT-083 | `update --check` on an Unknown install source (test binary under `target/`) prints manual instructions (npm recipe + cargo recipe + releases URL), exits 0, performs no install/network (`cli_update::update_check_on_unknown_source_prints_manual_instructions_and_exits_zero`) | Integration | P0 | FR-016-AC-1, FR-016-AC-2 |
+| IT-084 | bare `update` (no `--check`) on an Unknown source also performs no install and exits 0 (`cli_update::update_without_check_on_unknown_source_is_also_safe`) | Integration | P1 | FR-016-AC-2 |
+| UT-SU-1 | `detect_source` classifies `node_modules` path → Npm, `.cargo` path → Cargo, bare path → Unknown (`self_update::tests::detect_*`) | Unit | P0 | FR-016-AC-1 |
+| UT-SU-2 | `registry_args` yields the `--@scope:registry=` form for a scoped package, a plain `--registry <url>` for an unscoped package, and an empty vec when no override is supplied (`self_update::tests::registry_args_*`) | Unit | P0 | FR-016-AC-4 |
+| UT-SU-3 | `run_for_source(Cargo, --check)` reports git-branch tracking with `latest: None` (no cross-scheme version); `run_for_source(Unknown)` emits manual report without installing (`self_update::tests`) | Unit | P1 | FR-016-AC-1, FR-016-AC-5 |
 | BENCH-001 | ⊘ RETIRED (§2bis) — hyperfine render p95 ≤ 50 ms on FR archetype | Benchmark | P0 | NFR-001-AC-1..2 (retired), StR-002 (retired) |
 | AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
 | AUDIT-002 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document` / `validate_bundle_at`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6 |
 | AUDIT-003 | `cargo deny check bans` rejects HTTP client crates | Static | P0 | NFR-004-AC-1 |
 | AUDIT-004 | `scripts/check_unsafe_comments.sh` zero unsafe in src/ + tests/ | Static | P0 | NFR-003-AC-1 |
+| AUDIT-005 | `src/self_update/` imports nothing from `quire`'s `io`/command context (engine is package-agnostic, config-struct driven); `commands/update.rs` is the only quire-specific glue and carries no parser/renderer/validator logic | Static | P1 | FR-016-AC-5, FR-016-AC-6, StR-004-AC-2 |
 
 ---
 
