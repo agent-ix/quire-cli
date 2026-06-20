@@ -179,7 +179,11 @@ fn edit_rejects_doc_and_content_both_stdin() {
         .stderr(std::process::Stdio::piped())
         .spawn()
         .unwrap();
-    child.stdin.take().unwrap().write_all(b"x").unwrap();
+    // The child rejects the both-stdin-args combination before it reads stdin,
+    // so this write races the child's exit: if the child has already closed its
+    // stdin we get a (harmless, expected) BrokenPipe. The real assertions are
+    // the exit code and the stderr message, so don't let the race panic.
+    let _ = child.stdin.take().unwrap().write_all(b"x");
     let out = child.wait_with_output().unwrap();
     assert_eq!(out.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&out.stderr).contains("both <doc> and --content from stdin"));
