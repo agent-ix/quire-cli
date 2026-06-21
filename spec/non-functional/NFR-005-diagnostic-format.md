@@ -5,7 +5,7 @@ type: NFR
 quality_attribute: usability
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-017"
-    type: "consumes"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 

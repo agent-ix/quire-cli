@@ -5,10 +5,10 @@ type: NFR
 quality_attribute: performance_efficiency
 relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-002"
-    type: "implements"
+    type: "traces_to"
     cardinality: "1:1"
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-001"
-    type: "consumes"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 
