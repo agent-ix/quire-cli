@@ -5,7 +5,7 @@ type: NFR
 quality_attribute: security
 relationships:
   - target: "ix://agent-ix/quire-rs/spec/non-functional/NFR-003"
-    type: "consumes"
+    type: "depends_on"
     cardinality: "1:1"
 ---
 
