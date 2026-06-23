@@ -101,7 +101,8 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // `Glossary` `## Terms` table or `## Ubiquitous Language` sections) once,
     // and compose the combined (module ∪ project) lexicon the EARS grammar
     // check consumes for every validated file. Empty when the repo has none.
-    let project_terms = quire_rs::glossary_terms(&quire_rs::Spec::from_path(&scope));
+    // Scans only glossary-bearing docs — never a full-corpus parse.
+    let project_terms = quire_rs::glossary_terms_from_path(&scope);
     let lexicon = registry.lexicon_with(&project_terms);
 
     let mut failures = 0usize;
