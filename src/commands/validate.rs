@@ -67,6 +67,21 @@ pub struct Args {
     /// always printed; --strict only changes the exit code.
     #[arg(long)]
     pub strict: bool,
+
+    /// Print an EARS requirement-grammar summary (FR-042) after validation:
+    /// documents scanned, how many are grammar-clean (doc-level conformance),
+    /// and a per-check finding histogram. Advisory — never changes the exit
+    /// code. Findings are also printed inline as warnings regardless.
+    #[arg(long)]
+    pub summary: bool,
+}
+
+/// The EARS check id inside a grammar warning message (`[ears:<check>] …`),
+/// or `None` for a non-grammar warning.
+fn grammar_check_name(message: &str) -> Option<&str> {
+    let rest = message.strip_prefix("[ears:")?;
+    let end = rest.find(']')?;
+    Some(&rest[..end])
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
@@ -84,6 +99,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     let mut failures = 0usize;
     let mut warned = 0usize;
+    // EARS grammar summary accumulators (FR-042) — populated only to print
+    // the optional --summary block; never affect the exit code.
+    let mut docs_scanned = 0usize;
+    let mut docs_grammar_clean = 0usize;
+    let mut grammar_checks: std::collections::BTreeMap<String, usize> = Default::default();
     for input in inputs {
         let label = input.label();
         let text = input.read().with_context(|| format!("reading '{label}'"))?;
@@ -137,6 +157,22 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         if outcome.had_warnings {
             warned += 1;
         }
+        // Tally EARS grammar findings for the optional summary.
+        docs_scanned += 1;
+        let mut doc_grammar = 0usize;
+        for w in &result.warnings {
+            if let Some(check) = grammar_check_name(&w.message) {
+                *grammar_checks.entry(check.to_string()).or_default() += 1;
+                doc_grammar += 1;
+            }
+        }
+        if doc_grammar == 0 {
+            docs_grammar_clean += 1;
+        }
+    }
+
+    if args.summary {
+        emit_grammar_summary(ctx, docs_scanned, docs_grammar_clean, &grammar_checks);
     }
 
     if failures > 0 {
@@ -148,6 +184,37 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         bail!("{warned} document(s) emitted warnings (--strict)");
     }
     Ok(())
+}
+
+/// Emit the EARS requirement-grammar summary (FR-042) on stderr via the shared
+/// diagnostic channel (human or JSON per --diagnostics-format). Advisory: a
+/// one-line histogram + doc-level conformance, never affecting the exit code.
+fn emit_grammar_summary(
+    ctx: &Ctx,
+    docs_scanned: usize,
+    docs_clean: usize,
+    checks: &std::collections::BTreeMap<String, usize>,
+) {
+    let total_findings: usize = checks.values().sum();
+    let pct = if docs_scanned == 0 {
+        100
+    } else {
+        docs_clean * 100 / docs_scanned
+    };
+    let histogram = if checks.is_empty() {
+        "none".to_string()
+    } else {
+        checks
+            .iter()
+            .map(|(c, n)| format!("{c}={n}"))
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let message = format!(
+        "{docs_clean}/{docs_scanned} docs grammar-clean ({pct}%); \
+         {total_findings} EARS finding(s): {histogram}"
+    );
+    io::emit_diagnostic(ctx.diagnostics, "GrammarSummary", &message);
 }
 
 /// OKF bundle validation (permissive posture). Validates each bundle
