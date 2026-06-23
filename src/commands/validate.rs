@@ -97,6 +97,13 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // clap guarantees a non-empty `documents` here (required_unless_present).
     let inputs = expand_documents(&args.documents, &scope, scoped)?;
 
+    // FR-044: harvest the scope repo's project Ubiquitous-Language terms (a
+    // `Glossary` `## Terms` table or `## Ubiquitous Language` sections) once,
+    // and compose the combined (module ∪ project) lexicon the EARS grammar
+    // check consumes for every validated file. Empty when the repo has none.
+    let project_terms = quire_rs::glossary_terms(&quire_rs::Spec::from_path(&scope));
+    let lexicon = registry.lexicon_with(&project_terms);
+
     let mut failures = 0usize;
     let mut warned = 0usize;
     // EARS grammar summary accumulators (FR-042) — populated only to print
@@ -149,7 +156,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
         // Composed type+object validation (FR-032-AC-11..13): the registry
         // is available, so resolve the frontmatter `object:` archetype too.
-        let result = quire_rs::validate_document_in_registry(&registry, archetype, &text);
+        let result = quire_rs::validate_document_in_registry_with_lexicon(
+            &registry, archetype, &text, &lexicon,
+        );
         let outcome = surface_result(ctx, &label, &result);
         if outcome.had_errors {
             failures += 1;
