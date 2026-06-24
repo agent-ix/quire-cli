@@ -206,11 +206,7 @@ fn emit_grammar_summary(
     checks: &std::collections::BTreeMap<String, usize>,
 ) {
     let total_findings: usize = checks.values().sum();
-    let pct = if docs_scanned == 0 {
-        100
-    } else {
-        docs_clean * 100 / docs_scanned
-    };
+    let pct = (docs_clean * 100).checked_div(docs_scanned).unwrap_or(100);
     let histogram = if checks.is_empty() {
         "none".to_string()
     } else {
