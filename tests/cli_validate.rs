@@ -449,3 +449,45 @@ fn it_075_json_warning_has_distinct_severity() {
                 .and(predicate::str::contains("totally-unknown")),
         );
 }
+
+// ----------------------------------------------------------------------
+// EARS requirement-grammar surfacing (quire-rs FR-042). The `iso` fixture
+// module binds FR to `grammar_ref: iso-spec-core`.
+// ----------------------------------------------------------------------
+
+// A structurally-valid FR carrying EARS violations exits 0 (grammar findings
+// are advisory) and surfaces them as warnings; --summary prints the doc-level
+// conformance + per-check histogram on stderr, stdout stays empty.
+#[test]
+fn ears_grammar_warnings_are_advisory_and_summarized() {
+    quire()
+        .arg("validate")
+        .arg(iso_doc("FR-ears-warn.md"))
+        .arg("--module")
+        .arg(iso_module())
+        .arg("--summary")
+        .assert()
+        .success()
+        .stdout(predicate::str::is_empty())
+        .stderr(
+            predicate::str::contains("[ears:vague-response]")
+                .and(predicate::str::contains("[ears:non-canonical-trigger]"))
+                .and(predicate::str::contains("docs grammar-clean"))
+                .and(predicate::str::contains("vague-response=1")),
+        );
+}
+
+// --strict escalates the advisory EARS warnings to a failing exit code — the
+// per-repo promotion lever: a converted repo flips EARS to blocking in CI.
+#[test]
+fn ears_grammar_warnings_fail_under_strict() {
+    quire()
+        .arg("validate")
+        .arg(iso_doc("FR-ears-warn.md"))
+        .arg("--module")
+        .arg(iso_module())
+        .arg("--strict")
+        .assert()
+        .failure()
+        .code(1);
+}

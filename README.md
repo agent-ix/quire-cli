@@ -305,4 +305,4 @@ to integration tests, benchmarks, or static audits.
 
 ## License
 
-MIT
+AGPL-3.0-or-later
