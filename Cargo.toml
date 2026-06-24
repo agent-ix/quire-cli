@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.75"
 description = "Static binary CLI wrapping quire-rs (parse, extract, lookup, edit, validate, schema)."
 authors = ["Agent IX <kreneskyp@gmail.com>"]
-license = "MIT"
+license = "AGPL-3.0-or-later"
 repository = "https://github.com/agent-ix/quire-cli"
 
 [lib]
@@ -17,7 +17,7 @@ name = "quire"
 path = "src/main.rs"
 
 [dependencies]
-quire-rs = { git = "https://github.com/agent-ix/quire-rs", tag = "v0.11.0" }
+quire-rs = { git = "https://github.com/agent-ix/quire-rs", tag = "v0.12.0" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
