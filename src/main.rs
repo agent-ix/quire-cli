@@ -48,6 +48,8 @@ enum Command {
     Edit(commands::edit::Args),
     /// Validate a markdown document against its archetype structure.
     Validate(commands::validate::Args),
+    /// AC→TC→code coverage rollup (FR-050). Reports; does not judge.
+    Coverage(commands::coverage::Args),
     /// Emit an archetype's input contract (frontmatter schema + asserts) as JSON.
     Schema(commands::schema::Args),
     /// Evaluate the module's advisory lint rules against a document.
@@ -69,6 +71,7 @@ fn main() {
         Command::Extract(a) => commands::extract::run(&ctx, a),
         Command::Lookup(a) => commands::lookup::run(&ctx, a),
         Command::Edit(a) => commands::edit::run(&ctx, a),
+        Command::Coverage(a) => commands::coverage::run(&ctx, a),
         Command::Validate(a) => commands::validate::run(&ctx, a),
         Command::Schema(a) => commands::schema::run(&ctx, a),
         Command::Lint(a) => commands::lint::run(&ctx, a),

@@ -68,20 +68,58 @@ pub struct Args {
     #[arg(long)]
     pub strict: bool,
 
-    /// Print an EARS requirement-grammar summary (FR-042) after validation:
-    /// documents scanned, how many are grammar-clean (doc-level conformance),
-    /// and a per-check finding histogram. Advisory — never changes the exit
-    /// code. Findings are also printed inline as warnings regardless.
+    /// Print a requirement-grammar summary after validation: documents
+    /// scanned, how many are grammar-clean (doc-level conformance), and a
+    /// per-check finding histogram covering **every** grammar in the active
+    /// bundle. Advisory — never changes the exit code. Findings are also
+    /// printed inline as warnings regardless.
     #[arg(long)]
     pub summary: bool,
+
+    /// Override a grammar check's severity: `--severity <grammar>:<check>=<level>`
+    /// where level is `off`, `warning` or `error` (FR-048). Repeatable, and
+    /// takes precedence over a module's `grammar_severity` entry for the same
+    /// key. `off` suppresses the check entirely — no warning, no error, and no
+    /// row in the `--summary` histogram. A malformed entry is rejected before
+    /// any document is read.
+    #[arg(long = "severity", value_name = "GRAMMAR:CHECK=LEVEL")]
+    pub severity: Vec<String>,
 }
 
-/// The EARS check id inside a grammar warning message (`[ears:<check>] …`),
-/// or `None` for a non-grammar warning.
+/// The `<grammar>:<check>` key inside a grammar warning message
+/// (`[<grammar>:<check>] …`), or `None` for a non-grammar warning.
+///
+/// Generic since FR-047 added a second grammar: this previously matched a
+/// hardcoded `[ears:` prefix, so `ac` findings were silently absent from the
+/// histogram (TC-714). The key is returned whole so two grammars declaring the
+/// same check name stay distinguishable.
 fn grammar_check_name(message: &str) -> Option<&str> {
-    let rest = message.strip_prefix("[ears:")?;
+    let rest = message.strip_prefix('[')?;
     let end = rest.find(']')?;
-    Some(&rest[..end])
+    let key = &rest[..end];
+    // A grammar key is exactly `<grammar>:<check>`, both non-empty. Anything
+    // else is an ordinary bracketed diagnostic from another layer.
+    let (grammar, check) = key.split_once(':')?;
+    (!grammar.is_empty()
+        && !check.is_empty()
+        && !grammar.contains(char::is_whitespace)
+        && !check.contains(char::is_whitespace))
+    .then_some(key)
+}
+
+/// Merge the repeatable `--severity <grammar>:<check>=<level>` entries over the
+/// module-declared `grammar_severity` map (FR-048). Returns the registry
+/// unchanged when no entry is given, so the common path allocates nothing.
+fn apply_severity_overrides(registry: &Registry, entries: &[String]) -> anyhow::Result<Registry> {
+    if entries.is_empty() {
+        return Ok(registry.clone());
+    }
+    let merged = quire_rs::grammar::merge_severity_overrides(
+        registry.grammar_severity(),
+        entries.iter().map(String::as_str),
+    )
+    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok(registry.with_grammar_severity(merged))
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
@@ -89,6 +127,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;
     let registry = load_registry(ctx, &args, &scope)?;
+    // FR-048-AC-5/AC-10: layer `--severity` over the module-declared map. A
+    // malformed entry fails here, before any document is read, so the user sees
+    // a usage error rather than a validation run that silently ignored a flag.
+    let registry = apply_severity_overrides(&registry, &args.severity)?;
 
     if args.okf {
         return run_okf(ctx, &args, &scope, scoped, &registry);
@@ -216,9 +258,11 @@ fn emit_grammar_summary(
             .collect::<Vec<_>>()
             .join(" ")
     };
+    // Grammar-neutral wording: the histogram spans every grammar in the
+    // bundle, so naming EARS here would be wrong as soon as `ac` fires.
     let message = format!(
         "{docs_clean}/{docs_scanned} docs grammar-clean ({pct}%); \
-         {total_findings} EARS finding(s): {histogram}"
+         {total_findings} grammar finding(s): {histogram}"
     );
     io::emit_diagnostic(ctx.diagnostics, "GrammarSummary", &message);
 }

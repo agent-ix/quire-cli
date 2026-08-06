@@ -8,6 +8,7 @@ Commands:
   lookup    Look up one parsed section by heading, id, or block id
   edit      Edit one section/block of a document in place via byte-exact writeback
   validate  Validate a markdown document against its archetype structure
+  coverage  AC→TC→code coverage rollup (FR-050). Reports; does not judge
   schema    Emit an archetype's input contract (frontmatter schema + asserts) as JSON
   lint      Evaluate the module's advisory lint rules against a document
   fix       Surface (and with --write, apply) internal relative-path link fixes
