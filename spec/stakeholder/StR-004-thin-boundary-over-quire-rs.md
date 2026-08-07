@@ -25,11 +25,15 @@ forked into the CLI.
 
 ## Validation Criteria
 
+
 This need is considered satisfied when every CLI FR that wraps an engine API
 declares the upstream `quire-rs` FR in its relationships, the `src/` tree carries
 no parsing/rendering/validation logic of its own, and the review checklist
 enforces the thin-boundary stance:
 
-- **StR-004-AC-1**: Each FR in `quire-cli/spec/functional/` that wraps a `quire-rs` API declares the upstream `quire-rs` FR ID in its frontmatter `relationships:` array (`type: implements`).
-- **StR-004-AC-2**: `src/` contains no markdown parsing, no template rendering, no JSON Schema validation logic — only argv parsing, path-safety checks, stdin/stdout wiring, and calls into `quire-rs`.
-- **StR-004-AC-3**: Code review checklist for this repo includes: "Does any new logic belong upstream in `quire-rs`?"
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-004-VC-1 | **StR-004-AC-1**: Each FR in `quire-cli/spec/functional/` that wraps a `quire-rs` API declares the upstream `quire-rs` FR ID in its frontmatter `relationships:` array (`type: implements`). | Demonstration |
+| StR-004-VC-2 | **StR-004-AC-2**: `src/` contains no markdown parsing, no template rendering, no JSON Schema validation logic — only argv parsing, path-safety checks, stdin/stdout wiring, and calls into `quire-rs`. | Inspection |
+| StR-004-VC-3 | **StR-004-AC-3**: Code review checklist for this repo includes: "Does any new logic belong upstream in `quire-rs`?". | Demonstration |
+
