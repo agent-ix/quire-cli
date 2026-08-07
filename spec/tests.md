@@ -8,14 +8,14 @@ type: TestMatrix
 
 ## Overview
 
-This matrix maps every Acceptance Criterion in `quire-cli/spec/` to one or more Test Cases (IT-XXX integration tests, BENCH-XXX benchmark gates, AUDIT-XXX static-analysis gates).
+This matrix maps every Acceptance Criterion in `quire-cli/spec/` to one or more Test Cases. Ids carry one of the two declared evidence-artifact prefixes — `IT-XXX` for an integration test, `TC-XXX` for everything else — and the `Type` column says what kind of evidence each row is (`Integration`, `Unit`, `Benchmark`, `Static`). The benchmark and static-analysis gates formerly numbered `BENCH-XXX` / `AUDIT-XXX` are now `TC-` rows whose `Type` states the same thing (spec-artifacts-process CR-019).
 
 The CLI is a thin process boundary over `quire-rs`; the upstream engine is independently covered by `quire-rs/spec/tests.md`. This matrix tests **only** the CLI's process-level behavior: argv parsing, path-safety, stdin/stdout/stderr contract, exit codes, JSON output encoding, and static-binary properties.
 
 > **Render removal (2026-06-04):** The `render` subcommand, the `validate --json`
 > context mode, and the render benchmark are **removed** (see `spec.md` §2bis,
 > mirroring quire-rs commit 500a3d3). Render/parity traces (IT-001, IT-009, IT-010,
-> IT-017, IT-018, BENCH-001) and the `--json` context traces (IT-003, IT-050 as
+> IT-017, IT-018, TC-088) and the `--json` context traces (IT-003, IT-050 as
 > written) are **retired** — rows marked ⊘ RETIRED below, ids retained, dropped from
 > the coverage tally. IT-014 is re-pointed to a direct-markdown sweep (no
 > render-then-validate). The retired FR-001/US-001/NFR-001/StR-002 ACs no longer
@@ -36,16 +36,16 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 | StR | Trace to US/FR | Verifying IT/BENCH/AUDIT | Status |
 |-----|---------------|--------------------------|--------|
-| StR-001 Static binary hot path (revised — surviving subcommands) | US-002, US-003, US-004, US-005, FR-002..012, FR-016 (binary-lifecycle: keeps the pinned binary current) | IT-002, IT-004, IT-047, IT-033, IT-083, AUDIT-001 (ldd), AUDIT-003 (no-network) | ✅ |
+| StR-001 Static binary hot path (revised — surviving subcommands) | US-002, US-003, US-004, US-005, FR-002..012, FR-016 (binary-lifecycle: keeps the pinned binary current) | IT-002, IT-004, IT-047, IT-033, IT-083, TC-089 (ldd), TC-091 (no-network) | ✅ |
 | StR-002 Sub-50 ms render budget | ⊘ RETIRED (§2bis) | — (render bench removed) | ⊘ |
 | StR-003 Sandbox inheritance (revised — path-safety) | FR-005 | IT-005 (..), IT-006 (symlink escape), IT-055 (doc path safety) | ✅ |
-| StR-004 Thin boundary | FR-002..004, FR-009, FR-011, FR-014, NFR-005 | AUDIT-002 (src grep for parse logic), IT-033..038 | ✅ |
+| StR-004 Thin boundary | FR-002..004, FR-009, FR-011, FR-014, NFR-005 | TC-090 (src grep for parse logic), IT-033..038 | ✅ |
 
 ## User Story Coverage
 
 | User Story | Acceptance Criteria | Test Cases | Coverage Status |
 |----|----|----|--------|
-| US-001 Agent renders FR | ⛔ RETIRED (§2bis) | IT-001, IT-009, IT-010, BENCH-001 (all retired) | ⛔ |
+| US-001 Agent renders FR | ⛔ RETIRED (§2bis) | IT-001, IT-009, IT-010, TC-088 (all retired) | ⛔ |
 | US-002 Human parses doc | AC-1..4 | IT-002, IT-011 (stdin), IT-012 (malformed frontmatter), IT-013 (empty doc) | ✅ |
 | US-003 CI validates | AC-1..3 | IT-003, IT-014 (parametric across 8 ISO archetypes) | ✅ |
 | US-004 Extract for graph ingest | AC-1..4 | IT-004, IT-015 (edge dedup), IT-016 (sugar field harvest) | ✅ |
@@ -58,7 +58,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-001 render subcommand | ⛔ RETIRED (§2bis) | IT-001, IT-009, IT-010, IT-017, IT-018 (all retired) | ⛔ |
 | FR-002 parse subcommand | AC-1..5 | IT-002, IT-011, IT-012, IT-013, IT-019 (byte-offset round-trip) | ✅ |
 | FR-003 extract subcommand | AC-1..5 | IT-004, IT-015, IT-016, IT-020 (determinism rerun), IT-069 (untyped doc → shared `[frontmatter]` diagnostic) | ✅ |
-| FR-004 validate subcommand (markdown-only; `--json` removed; composed type+object + `--strict`; scoped discovery + lazy-init, ADR-0001) | AC-1..14 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), IT-073 (unknown `object:` warns, exit 0), IT-074 (`--strict` escalates warning → exit 1), IT-075 (json warning distinct `kind`/severity), IT-081 (scoped env/default-root discovery validates, network-free → AC-13), IT-082 (empty discovery + no quoin → actionable error → AC-14), AUDIT-002 (thin boundary) | ✅ |
+| FR-004 validate subcommand (markdown-only; `--json` removed; composed type+object + `--strict`; scoped discovery + lazy-init, ADR-0001) | AC-1..14 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), IT-073 (unknown `object:` warns, exit 0), IT-074 (`--strict` escalates warning → exit 1), IT-075 (json warning distinct `kind`/severity), IT-081 (scoped env/default-root discovery validates, network-free → AC-13), IT-082 (empty discovery + no quoin → actionable error → AC-14), TC-090 (thin boundary) | ✅ |
 | FR-010 required-section validation (recast onto FR-032) | AC-1..5 | IT-051 (placeholder), IT-052 (missing), IT-053 (assert), IT-047 (valid exit 0), IT-054 (empty stdout + diagnostics) | ✅ |
 | FR-005 path-safety | AC-1..5 | IT-005, IT-006, IT-007, IT-022 (--out reject), IT-023 (stdin bypasses) | ✅ |
 | FR-006 IO contract | AC-1..4 | IT-024 (no interleaving), IT-025 (--diagnostics-format=json), IT-011 (stdin) | ✅ |
@@ -68,18 +68,18 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-011 lookup subcommand | AC-1..6 | IT-033, IT-034, IT-035, IT-036, IT-037, IT-038, IT-039 | ✅ |
 | FR-012 edit subcommand | AC-1..6 | IT-040, IT-041, IT-042, IT-043, IT-044, IT-045, IT-046 | ✅ |
 | FR-013 lint subcommand | AC-1..5 | IT-064 (clean exit 0 silent), IT-065 (warning exit 0 + stderr), IT-066 (error exit 1), IT-067 (--archetype scoping), IT-068 (missing manifest fails fast — also covers the FR-004 CR-note eager-loader behavior for validate/extract/schema) | ✅ |
-| FR-014 validate --okf bundle posture (`type` discriminator) | AC-1..9 | IT-069 (untyped → exit 1, `[frontmatter]`), IT-070 (unknown type + broken link → warn, exit 0), IT-071 (index incompleteness → warn, exit 0), IT-072 (defaults to --scope dir), IT-026 (bare `validate` no `--okf` → exit 2, `required_unless_present`), AUDIT-002 (thin boundary) | ✅ |
-| FR-015 fix subcommand (unlinked-reference autofix, ADR 0007) | AC-1..6 | IT-076 (dry-run `would-fix` → exit 1, no write), IT-077 (`--write` applies + idempotent re-run exit 0), IT-078 (warn-only never written, no nonzero exit), IT-079 (clean bundle exit 0 empty stdout), IT-080 (`--scope` root + path-safety reject), AUDIT-002 (thin boundary) | 🚧 |
-| FR-016 update subcommand (install-source-aware self-update) | AC-1..7 | IT-083 (Unknown source: `update --check` prints npm+cargo+releases recipes, exit 0, no install/network), IT-084 (Unknown source: bare `update` also no-install, exit 0), UT-SU-1 (`detect_source` npm/cargo/unknown classification — `self_update::tests`), UT-SU-2 (`registry_args` scope-form for scoped pkg / plain for unscoped / empty when no override), UT-SU-3 (`cargo` `--check` reports branch-tracking, `latest: None`), AUDIT-002 (thin boundary — `update` carries no parser/validator), AUDIT-005 (`self_update` engine imports nothing from quire's `io`/command ctx — package-agnostic) ⚠️ npm-channel `--check`/install (AC-3), registry-unreachable/`npm`-fail exit 1 (AC-7), and cargo install (part of AC-1 dispatch) have **no automated trace** (network + global-install side effects) | ⚠️ |
+| FR-014 validate --okf bundle posture (`type` discriminator) | AC-1..9 | IT-069 (untyped → exit 1, `[frontmatter]`), IT-070 (unknown type + broken link → warn, exit 0), IT-071 (index incompleteness → warn, exit 0), IT-072 (defaults to --scope dir), IT-026 (bare `validate` no `--okf` → exit 2, `required_unless_present`), TC-090 (thin boundary) | ✅ |
+| FR-015 fix subcommand (unlinked-reference autofix, ADR 0007) | AC-1..6 | IT-076 (dry-run `would-fix` → exit 1, no write), IT-077 (`--write` applies + idempotent re-run exit 0), IT-078 (warn-only never written, no nonzero exit), IT-079 (clean bundle exit 0 empty stdout), IT-080 (`--scope` root + path-safety reject), TC-090 (thin boundary) | 🚧 |
+| FR-016 update subcommand (install-source-aware self-update) | AC-1..7 | IT-083 (Unknown source: `update --check` prints npm+cargo+releases recipes, exit 0, no install/network), IT-084 (Unknown source: bare `update` also no-install, exit 0), TC-085 (`detect_source` npm/cargo/unknown classification — `self_update::tests`), TC-086 (`registry_args` scope-form for scoped pkg / plain for unscoped / empty when no override), TC-087 (`cargo` `--check` reports branch-tracking, `latest: None`), TC-090 (thin boundary — `update` carries no parser/validator), TC-093 (`self_update` engine imports nothing from quire's `io`/command ctx — package-agnostic) ⚠️ npm-channel `--check`/install (AC-3), registry-unreachable/`npm`-fail exit 1 (AC-7), and cargo install (part of AC-1 dispatch) have **no automated trace** (network + global-install side effects) | ⚠️ |
 
 ## Non-Functional Requirement Coverage
 
 | Non-Functional Req | Verification Method | Evidence/Test Cases | Status |
 |-----|--------------|-------|--------|
-| NFR-001 render p95 ≤ 50 ms | ⛔ RETIRED (§2bis) | BENCH-001 (render bench removed) | ⛔ |
-| NFR-002 Static binary | static audit | AUDIT-001 (`ldd` IT verifies no project .so) | ✅ |
-| NFR-003 Zero unsafe | static audit | AUDIT-004 (`scripts/check_unsafe_comments.sh` CI gate) | ✅ |
-| NFR-004 No network (own process; scoped lazy-init via quoin is the ADR-0001 exception) | static + runtime | AUDIT-003 (`cargo deny bans`), IT-008 (strace zero socket(), happy path), IT-081 (scoped discovery network-free) | ✅ |
+| NFR-001 render p95 ≤ 50 ms | ⛔ RETIRED (§2bis) | TC-088 (render bench removed) | ⛔ |
+| NFR-002 Static binary | static audit | TC-089 (`ldd` IT verifies no project .so) | ✅ |
+| NFR-003 Zero unsafe | static audit | TC-092 (`scripts/check_unsafe_comments.sh` CI gate) | ✅ |
+| NFR-004 No network (own process; scoped lazy-init via quoin is the ADR-0001 exception) | static + runtime | TC-091 (`cargo deny bans`), IT-008 (strace zero socket(), happy path), IT-081 (scoped discovery network-free) | ✅ |
 | NFR-005 Diagnostic format | unit + IT | IT-031 (each error class parses as Diagnostic JSON) | ✅ |
 | NFR-006 CLI stability | snapshot | IT-032 (`quire --help` snapshot pinned) | ✅ |
 
@@ -173,15 +173,15 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-080 | `quire fix --scope <DIR> --module $M` with no positional uses `--scope` as root; a `..`/symlink-escape on root or `--module` is rejected by path-safety before any load | Integration | P0 | FR-015-AC-5, FR-005 | 🚧 |
 | IT-083 | `update --check` on an Unknown install source (test binary under `target/`) prints manual instructions (npm recipe + cargo recipe + releases URL), exits 0, performs no install/network (`cli_update::update_check_on_unknown_source_prints_manual_instructions_and_exits_zero`) | Integration | P0 | FR-016-AC-1, FR-016-AC-2 | ⚠️ |
 | IT-084 | bare `update` (no `--check`) on an Unknown source also performs no install and exits 0 (`cli_update::update_without_check_on_unknown_source_is_also_safe`) | Integration | P1 | FR-016-AC-2 | ⚠️ |
-| UT-SU-1 | `detect_source` classifies `node_modules` path → Npm, `.cargo` path → Cargo, bare path → Unknown (`self_update::tests::detect_*`) | Unit | P0 | FR-016-AC-1 |
-| UT-SU-2 | `registry_args` yields the `--@scope:registry=` form for a scoped package, a plain `--registry <url>` for an unscoped package, and an empty vec when no override is supplied (`self_update::tests::registry_args_*`) | Unit | P0 | FR-016-AC-4 |
-| UT-SU-3 | `run_for_source(Cargo, --check)` reports git-branch tracking with `latest: None` (no cross-scheme version); `run_for_source(Unknown)` emits manual report without installing (`self_update::tests`) | Unit | P1 | FR-016-AC-1, FR-016-AC-5 |
-| BENCH-001 | ⊘ RETIRED (§2bis) — hyperfine render p95 ≤ 50 ms on FR archetype (NFR-001-AC-1..2 (retired); (retired)) | Benchmark | P0 | StR-002 | ⛔ |
-| AUDIT-001 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 |
-| AUDIT-002 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document` / `validate_bundle_at`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6 |
-| AUDIT-003 | `cargo deny check bans` rejects HTTP client crates | Static | P0 | NFR-004-AC-1 |
-| AUDIT-004 | `scripts/check_unsafe_comments.sh` zero unsafe in src/ + tests/ | Static | P0 | NFR-003-AC-1 |
-| AUDIT-005 | `src/self_update/` imports nothing from `quire`'s `io`/command context (engine is package-agnostic, config-struct driven); `commands/update.rs` is the only quire-specific glue and carries no parser/renderer/validator logic | Static | P1 | FR-016-AC-5, FR-016-AC-6, StR-004-AC-2 |
+| TC-085 | `detect_source` classifies `node_modules` path → Npm, `.cargo` path → Cargo, bare path → Unknown (`self_update::tests::detect_*`) | Unit | P0 | FR-016-AC-1 | ⚠️ |
+| TC-086 | `registry_args` yields the `--@scope:registry=` form for a scoped package, a plain `--registry <url>` for an unscoped package, and an empty vec when no override is supplied (`self_update::tests::registry_args_*`) | Unit | P0 | FR-016-AC-4 | ⚠️ |
+| TC-087 | `run_for_source(Cargo, --check)` reports git-branch tracking with `latest: None` (no cross-scheme version); `run_for_source(Unknown)` emits manual report without installing (`self_update::tests`) | Unit | P1 | FR-016-AC-1, FR-016-AC-5 | ⚠️ |
+| TC-088 | ⊘ RETIRED (§2bis) — hyperfine render p95 ≤ 50 ms on FR archetype (NFR-001-AC-1..2 (retired); (retired)) | Benchmark | P0 | StR-002 | ⛔ |
+| TC-089 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 | ✅ |
+| TC-090 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document` / `validate_bundle_at`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6 | ✅ |
+| TC-091 | `cargo deny check bans` rejects HTTP client crates | Static | P0 | NFR-004-AC-1 | ✅ |
+| TC-092 | `scripts/check_unsafe_comments.sh` zero unsafe in src/ + tests/ | Static | P0 | NFR-003-AC-1 | ✅ |
+| TC-093 | `src/self_update/` imports nothing from `quire`'s `io`/command context (engine is package-agnostic, config-struct driven); `commands/update.rs` is the only quire-specific glue and carries no parser/renderer/validator logic | Static | P1 | FR-016-AC-5, FR-016-AC-6, StR-004-AC-2 | ⚠️ |
 
 ---
 
@@ -190,7 +190,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 GREEN for the v0.1 surface — every IT / BENCH / AUDIT through IT-046 has landed
 and passes `make test` + `make bench` on a Linux dev box (WSL2). `make ci` runs
 the full gauntlet locally; CI lanes (rust / licenses / bench) mirror the same
-gates. Observed `BENCH-001` p95 is 4.87 ms, well under the 50 ms NFR-001 budget.
+gates. Observed `TC-088` p95 is 4.87 ms, well under the 50 ms NFR-001 budget.
 
 GREEN — the markdown-validation slice (ADR 0004): FR-004 recast to a
 markdown-default `validate` (structural validation delegated to quire-rs
@@ -212,7 +212,7 @@ render-removal code task, alongside fixtures for no-frontmatter / no-`type`
 documents. FR-009 (`schema`) is no longer an uncovered matrix gap.
 
 Coverage tally: render/parity/`--json` traces (IT-001, IT-003, IT-007, IT-009,
-IT-010, IT-017, IT-018, BENCH-001) and the retired FR-001/US-001/NFR-001/StR-002
+IT-010, IT-017, IT-018, TC-088) and the retired FR-001/US-001/NFR-001/StR-002
 ACs are dropped from the required-coverage set; every still-active AC retains at
 least one IT/AUDIT trace.
 

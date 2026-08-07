@@ -48,7 +48,7 @@ Recommendation: **(a)** — copy into `tests/fixtures/iso/` with a `make refresh
 `IT-008` uses `strace -e network` to verify zero socket calls — Linux-only. Mac/Windows CI lanes would need `dtruss`/`Procmon` equivalents or to skip the test. Plan should:
 
 - mark the IT as `linux-only`,
-- add `AUDIT-003 (cargo deny bans)` as the cross-platform substitute for the no-network guarantee.
+- add `TC-091 (cargo deny bans)` as the cross-platform substitute for the no-network guarantee.
 
 ### F-4 (Minor) — `--help` snapshot location
 
