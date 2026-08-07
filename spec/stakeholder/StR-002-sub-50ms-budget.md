@@ -31,14 +31,17 @@ is carried by the revised [StR-001](./StR-001-static-binary-hot-path.md).
 
 ## Validation Criteria
 
+
 This need was considered satisfied when a `hyperfine` benchmark of the render hot
 path reported p95 ≤ 50 ms and that benchmark gated CI. With the render path
 removed, these criteria are RETIRED (ids retained, immutable, dropped from the
 coverage tally):
 
-- StR-002-AC-1 (RETIRED): `hyperfine --warmup 3 'quire render FR --module $ISO --data ctx.json'` reports p95 ≤ 50 ms against the `spec-artifacts-iso` FR archetype.
-- StR-002-AC-2 (RETIRED): Same hyperfine harness runs in CI on each push and gates merges.
-- StR-002-AC-3 (RETIRED): Release-profile binary uses LTO thin + codegen-units=1 (matches `quire-rs`).
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-002-VC-1 | StR-002-AC-1 (RETIRED): `hyperfine --warmup 3 'quire render FR --module $ISO --data ctx.json'` reports p95 ≤ 50 ms against the `spec-artifacts-iso` FR archetype. | Analysis |
+| StR-002-VC-2 | StR-002-AC-2 (RETIRED): Same hyperfine harness runs in CI on each push and gates merges. | Demonstration |
+| StR-002-VC-3 | StR-002-AC-3 (RETIRED): Release-profile binary uses LTO thin + codegen-units=1 (matches `quire-rs`). | Demonstration |
 
 ## Priority
 

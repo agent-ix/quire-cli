@@ -31,15 +31,18 @@ keeps install to one file copy and each subcommand to one cold-start process.
 
 ## Validation Criteria
 
+
 This need is considered satisfied when `quire --help` lists exactly the surviving
 subcommands as a single binary, that binary is statically linked with no
 project-supplied shared library, a clean-host install produces a runnable binary,
 and no subcommand opens a network socket. Specifically:
 
-- **StR-001-AC-1**: `quire --help` lists the subcommands `parse`, `extract`, `validate`, `schema`, `lookup`, and `edit` (no `render`).
-- **StR-001-AC-2**: The binary is statically linked; `ldd quire` on Linux lists only libc and dynamic loader (no `libquire_rs.so`).
-- **StR-001-AC-3**: `cargo install --git https://github.com/agent-ix/quire-cli quire-cli` produces a runnable `quire` binary.
-- **StR-001-AC-4**: No subcommand opens a network socket (verified by strace / equivalent in IT).
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-001-VC-1 | **StR-001-AC-1**: `quire --help` lists the subcommands `parse`, `extract`, `validate`, `schema`, `lookup`, and `edit` (no `render`). | Inspection |
+| StR-001-VC-2 | **StR-001-AC-2**: The binary is statically linked; `ldd quire` on Linux lists only libc and dynamic loader (no `libquire_rs.so`). | Demonstration |
+| StR-001-VC-3 | **StR-001-AC-3**: `cargo install --git https://github.com/agent-ix/quire-cli quire-cli` produces a runnable `quire` binary. | Demonstration |
+| StR-001-VC-4 | **StR-001-AC-4**: No subcommand opens a network socket (verified by strace / equivalent in IT). | Demonstration |
 
 ## Priority
 

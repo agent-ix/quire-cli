@@ -28,15 +28,18 @@ out of it contains that blast radius at the process boundary.
 
 ## Validation Criteria
 
+
 This need is considered satisfied when path-escape attempts via `..` on
 `--module` or the document argument are rejected with a structured path-safety
 diagnostic and symlinks under `--module` are not followed past the canonicalized
 root:
 
-- **StR-003-AC-1**: `quire validate doc.md --module ../escape` exits 1 with a structured "path safety violation" diagnostic on stderr.
-- **StR-003-AC-2**: `quire validate ../../etc/passwd --module $ISO` exits 1 with the same class of diagnostic.
-- StR-003-AC-3 (RETIRED): A template containing `{% include "/etc/passwd" %}` is rejected at archetype load time by the upstream `quire-rs` [FR-004](../functional/FR-004-validate-subcommand.md) strict environment (verified via IT).
-- **StR-003-AC-4**: Symlinks under `--module` are not followed past the canonicalized root.
+| ID | Criteria | Validation |
+|----|----------|------------|
+| StR-003-VC-1 | **StR-003-AC-1**: `quire validate doc.md --module ../escape` exits 1 with a structured "path safety violation" diagnostic on stderr. | Demonstration |
+| StR-003-VC-2 | **StR-003-AC-2**: `quire validate ../../etc/passwd --module $ISO` exits 1 with the same class of diagnostic. | Demonstration |
+| StR-003-VC-3 | StR-003-AC-3 (RETIRED): A template containing `{% include "/etc/passwd" %}` is rejected at archetype load time by the upstream `quire-rs` [FR-004](../functional/FR-004-validate-subcommand.md) strict environment (verified via IT). | Demonstration |
+| StR-003-VC-4 | **StR-003-AC-4**: Symlinks under `--module` are not followed past the canonicalized root. | Demonstration |
 
 ## Priority
 
