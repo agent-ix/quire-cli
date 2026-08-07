@@ -102,7 +102,7 @@ The positional `documents` argument is now `required_unless_present = "okf"`:
 | FR-014-AC-6 | `quire validate --okf --scope <DIR> --module $M` with **no positional** validates the `--scope` directory as the bundle root (exit 0 for a warning-only bundle) | Test |
 | FR-014-AC-7 | `quire validate` with **no positional and no `--okf`** is a clap argv error → **exit 2** (`required_unless_present = "okf"`), unchanged from [FR-004](./FR-004-validate-subcommand.md) | Test |
 | FR-014-AC-8 | (base concept contract) an untyped document is a hard error (exit 1, `[frontmatter]` diagnostic naming `type`) in **both** postures — strict per-file ([FR-004](./FR-004-validate-subcommand.md)) and `--okf` bundle — because quire-rs enforces `type` required + non-empty for every validated document | Test |
-| FR-014-AC-9 | (thin boundary) all bundle/base-concept validation is delegated to quire-rs (`validate_bundle_at`, base-concept enforcement); the CLI only resolves the root, applies path-safety, and surfaces the `BundleReport` ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); AUDIT-002) | Inspection |
+| FR-014-AC-9 | (thin boundary) all bundle/base-concept validation is delegated to quire-rs (`validate_bundle_at`, base-concept enforcement); the CLI only resolves the root, applies path-safety, and surfaces the `BundleReport` ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); TC-090) | Inspection |
 
 ## Dependencies
 
