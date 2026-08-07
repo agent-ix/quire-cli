@@ -52,6 +52,8 @@ The Measurement and Evaluation table above is the acceptance-criteria equivalent
 The following compliance checks are RETIRED (render removal — 2026-06-04); ids are
 retained and immutable, dropped from the required-coverage tally:
 
-- NFR-001-AC-1 (RETIRED): `make bench` runs `hyperfine --warmup 3 'target/release/quire render FR --module $ISO --data ctx.json'` and reports p95 ≤ 50 ms.
-- NFR-001-AC-2 (RETIRED): CI runs the same hyperfine harness on each push; merge is blocked if p95 regresses by > 20 % from the prior release.
-- NFR-001-AC-3 (RETIRED): Cargo release profile uses `lto = "thin"`, `codegen-units = 1`, matching `quire-rs/Cargo.toml`.
+| ID | Criteria | Verification |
+|----|----------|--------------|
+| NFR-001-AC-1 | (RETIRED) `make bench` runs `hyperfine --warmup 3 'target/release/quire render FR --module $ISO --data ctx.json'` and reports p95 ≤ 50 ms. | Analysis |
+| NFR-001-AC-2 | (RETIRED) CI runs the same hyperfine harness on each push; merge is blocked if p95 regresses by > 20 % from the prior release. | Test |
+| NFR-001-AC-3 | (RETIRED) Cargo release profile uses `lto = "thin"`, `codegen-units = 1`, matching `quire-rs/Cargo.toml`. | Inspection |
