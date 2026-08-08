@@ -9,6 +9,34 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-08-08
+
+### Added
+- **`quire properties`** — per-criterion property-shape classification
+  (quire-rs FR-052). Emits `row_id`, `statement`, `line`, `shape`, `property`,
+  `extractable`, `extraction`, the `{domain, precondition, oracle}` spans and
+  the `signals` audit trail, as JSON under `--json` or a census otherwise.
+  `quire coverage --json` emits only per-document counts, so the per-criterion
+  records a property-test generator reads had no CLI surface before this.
+  Never a finding: classification carries no severity and no check id and is
+  not addressable by the FR-048 `grammar_severity` registry (FR-052-CON-1).
+- **`quire validate --summary`** now also prints the property-extractable
+  ratio and the candidate count. Computed by calling the engine directly, not
+  by reading a warning message back — classification emits no message, and
+  routing it through one would make it a finding.
+
+### Changed
+- Pinned to quire-rs **v0.18.0**.
+
+### Fixed
+- **`release.yml` could never publish.** The workflow is `workflow_dispatch`
+  only by policy, but both publish steps were gated on
+  `github.event_name == 'push'`, so a dispatch built four binaries and skipped
+  the GitHub Release and the npm publish alike — which is why npm sat at 0.4.1
+  against a 0.11.0 `Cargo.toml`. Publishing is now an explicit `publish` input,
+  defaulting to false, and the release tag is derived from the resolved version
+  rather than from `GITHUB_REF_NAME`.
+
 ## [0.2.4] — 2026-06-15
 
 ### Added
