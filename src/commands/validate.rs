@@ -154,6 +154,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let mut docs_scanned = 0usize;
     let mut docs_grammar_clean = 0usize;
     let mut grammar_checks: std::collections::BTreeMap<String, usize> = Default::default();
+    // FR-052 property-classification accumulators — the `--summary` extractable
+    // ratio. Metadata, never a finding: these never touch the exit code.
+    let mut criteria_seen = 0usize;
+    let mut criteria_extractable = 0usize;
+    let mut criteria_candidate = 0usize;
     for input in inputs {
         let label = input.label();
         let text = input.read().with_context(|| format!("reading '{label}'"))?;
@@ -221,10 +226,26 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         if doc_grammar == 0 {
             docs_grammar_clean += 1;
         }
+        // FR-052 property-extractable ratio for `--summary`. Computed by
+        // calling the engine directly rather than by reading it back out of a
+        // warning message, because classification emits no message: it carries
+        // no severity and no check id, and routing it through a warning string
+        // would make it a finding, which FR-052-CON-1 forbids.
+        if args.summary {
+            for r in quire_rs::classify_document_criteria(&registry, archetype, &text) {
+                criteria_seen += 1;
+                match r.extraction {
+                    quire_rs::Extraction::Extractable => criteria_extractable += 1,
+                    quire_rs::Extraction::Candidate => criteria_candidate += 1,
+                    quire_rs::Extraction::NotExtractable => {}
+                }
+            }
+        }
     }
 
     if args.summary {
         emit_grammar_summary(ctx, docs_scanned, docs_grammar_clean, &grammar_checks);
+        emit_property_summary(ctx, criteria_seen, criteria_extractable, criteria_candidate);
     }
 
     if failures > 0 {
@@ -265,6 +286,24 @@ fn emit_grammar_summary(
          {total_findings} grammar finding(s): {histogram}"
     );
     io::emit_diagnostic(ctx.diagnostics, "GrammarSummary", &message);
+}
+
+/// Emit the FR-052 property-extractable ratio for `--summary`.
+///
+/// A count is data, not a verdict: a low ratio says the criteria describe
+/// specific scenarios, which is a legitimate way to write them. This never
+/// affects the exit code, and it is deliberately *not* a grammar check —
+/// classification has no severity key and no promotion path (FR-052-CON-1).
+fn emit_property_summary(ctx: &Ctx, seen: usize, extractable: usize, candidate: usize) {
+    if seen == 0 {
+        return;
+    }
+    let pct = (extractable * 100).checked_div(seen).unwrap_or(0);
+    let message = format!(
+        "{extractable}/{seen} criteria property-extractable ({pct}%); \
+         {candidate} candidate (metamorphic, needs review)"
+    );
+    io::emit_diagnostic(ctx.diagnostics, "PropertySummary", &message);
 }
 
 /// OKF bundle validation (permissive posture). Validates each bundle
@@ -321,7 +360,7 @@ fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
     }
 }
 
-fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
+pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
     if let Some(raw) = &args.module {
         let module = safety::validate_module_path(raw)
             .with_context(|| format!("validating --module '{raw}'"))?;
@@ -446,20 +485,20 @@ fn push_root(roots: &mut Vec<PathBuf>, seen: &mut HashSet<PathBuf>, root: PathBu
 }
 
 #[derive(Debug)]
-enum DocumentInput {
+pub(crate) enum DocumentInput {
     Stdin,
     Path(PathBuf),
 }
 
 impl DocumentInput {
-    fn label(&self) -> String {
+    pub(crate) fn label(&self) -> String {
         match self {
             Self::Stdin => "-".to_string(),
             Self::Path(path) => path.display().to_string(),
         }
     }
 
-    fn read(&self) -> anyhow::Result<String> {
+    pub(crate) fn read(&self) -> anyhow::Result<String> {
         match self {
             Self::Stdin => io::read_text("-"),
             Self::Path(path) => std::fs::read_to_string(path).map_err(Into::into),
@@ -467,7 +506,7 @@ impl DocumentInput {
     }
 }
 
-fn expand_documents(
+pub(crate) fn expand_documents(
     raw_documents: &[String],
     scope: &Path,
     scoped: bool,
@@ -532,7 +571,7 @@ fn contains_glob(raw: &str) -> bool {
 /// Resolve the archetype name from the document's frontmatter `type`
 /// (default resolution, FR-004-AC-4/AC-5) via the one canonical
 /// discriminator read. `None` when the document carries no `type`.
-fn archetype_from_frontmatter(text: &str) -> Option<String> {
+pub(crate) fn archetype_from_frontmatter(text: &str) -> Option<String> {
     let doc = quire_rs::parse_document(text);
     quire_rs::concept_type(&doc).map(str::to_string)
 }
@@ -540,7 +579,7 @@ fn archetype_from_frontmatter(text: &str) -> Option<String> {
 /// Surface a missing/unknown-`type` resolution failure in the same
 /// line-numbered shape as a `quire_rs::ValidationError` with reason
 /// `frontmatter`, so callers see one consistent diagnostic vocabulary.
-fn emit_frontmatter_failure(ctx: &Ctx, label: &str, message: &str) {
+pub(crate) fn emit_frontmatter_failure(ctx: &Ctx, label: &str, message: &str) {
     io::emit_diagnostic(
         ctx.diagnostics,
         "ValidationError",

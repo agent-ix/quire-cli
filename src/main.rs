@@ -50,6 +50,8 @@ enum Command {
     Validate(commands::validate::Args),
     /// AC→TC→code coverage rollup (FR-050). Reports; does not judge.
     Coverage(commands::coverage::Args),
+    /// Per-criterion property-shape classification (FR-052). Reports; never a finding.
+    Properties(commands::properties::Args),
     /// Emit an archetype's input contract (frontmatter schema + asserts) as JSON.
     Schema(commands::schema::Args),
     /// Evaluate the module's advisory lint rules against a document.
@@ -73,6 +75,7 @@ fn main() {
         Command::Edit(a) => commands::edit::run(&ctx, a),
         Command::Coverage(a) => commands::coverage::run(&ctx, a),
         Command::Validate(a) => commands::validate::run(&ctx, a),
+        Command::Properties(a) => commands::properties::run(&ctx, a),
         Command::Schema(a) => commands::schema::run(&ctx, a),
         Command::Lint(a) => commands::lint::run(&ctx, a),
         Command::Fix(a) => commands::fix::run(&ctx, a),

@@ -9,6 +9,7 @@ pub mod fix;
 pub mod lint;
 pub mod lookup;
 pub mod parse;
+pub mod properties;
 pub mod schema;
 pub mod update;
 pub mod validate;
