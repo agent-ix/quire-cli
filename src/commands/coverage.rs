@@ -79,30 +79,71 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         emit_human(ctx, &report);
     }
 
-    if args.strict && (!report.unbacked_rows.is_empty() || !report.status_lies.is_empty()) {
-        bail!(
-            "{} unbacked row(s) and {} contradicted status(es) (--strict)",
-            report.unbacked_rows.len(),
-            report.status_lies.len()
-        );
+    if args.strict {
+        // FR-050-AC-14 (CR-035): a model that matched nothing is the one state
+        // where the two lists below are empty for the *wrong* reason. Checked
+        // first, and reported as itself — a gate told "0 unbacked rows" learns
+        // the opposite of the truth.
+        if report.totals.total == 0 {
+            bail!(
+                "the declared traceability model matched no rows in this scope, \
+                 so nothing was reconciled (--strict); check that the model's \
+                 trace targets name documents and sections this repo actually has"
+            );
+        }
+        if !report.unbacked_rows.is_empty() || !report.status_lies.is_empty() {
+            bail!(
+                "{} unbacked row(s) and {} contradicted status(es) (--strict)",
+                report.unbacked_rows.len(),
+                report.status_lies.len()
+            );
+        }
     }
     Ok(())
 }
 
+/// A backed/total pair as a percentage, or `None` when nothing was counted.
+///
+/// FR-050-AC-14 (CR-035): the empty denominator is not 100%. It used to be —
+/// `checked_div(total).unwrap_or(100)` — so a scope where the model matched
+/// nothing printed `0/0 rows backed (100%)` and a `--strict` gate over it
+/// passed. "Found nothing" and "all covered" are opposite states and must not
+/// render alike.
+fn percent(backed: usize, total: usize) -> Option<usize> {
+    (backed * 100).checked_div(total)
+}
+
+/// `44%`, or a marker naming the empty denominator for what it is.
+fn percent_label(backed: usize, total: usize) -> String {
+    match percent(backed, total) {
+        Some(pct) => format!("{pct}%"),
+        None => "no rows matched".to_string(),
+    }
+}
+
 fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
     let t = &report.totals;
-    let pct = (t.backed * 100).checked_div(t.total).unwrap_or(100);
     io::emit_diagnostic(
         ctx.diagnostics,
         "Coverage",
-        &format!("{}/{} rows backed ({pct}%)", t.backed, t.total),
+        &format!(
+            "{}/{} rows backed ({})",
+            t.backed,
+            t.total,
+            percent_label(t.backed, t.total)
+        ),
     );
     for g in &report.groups {
-        let gp = (g.backed * 100).checked_div(g.total).unwrap_or(100);
         io::emit_diagnostic(
             ctx.diagnostics,
             "CoverageGroup",
-            &format!("{}: {}/{} ({gp}%)", g.document, g.backed, g.total),
+            &format!(
+                "{}: {}/{} ({})",
+                g.document,
+                g.backed,
+                g.total,
+                percent_label(g.backed, g.total)
+            ),
         );
     }
     for r in &report.unbacked_rows {
