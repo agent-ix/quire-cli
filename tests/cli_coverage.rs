@@ -209,3 +209,61 @@ fn tc740_coverage_reports_and_is_deterministic() {
     assert!(!a.is_empty(), "coverage emitted no JSON");
     assert_eq!(a, b, "coverage output must be byte-identical (FR-050-AC-7)");
 }
+
+/// TC-797 (FR-050-AC-14, CR-035): a declared model that matches nothing is not
+/// full coverage. It used to render as `0/0 rows backed (100%)` and pass
+/// `--strict` with exit 0, because the percentage fell back to 100 on an empty
+/// denominator and `--strict` fires only on non-empty unbacked/status lists —
+/// both of which are empty when nothing matched. Every gate wired to this
+/// command passed vacuously, which is how the ecosystem-wide `trace_tags` gap
+/// went unnoticed for nine days.
+#[test]
+fn tc797_zero_matched_rows_is_not_full_coverage() {
+    let dir = TempDir::new().expect("tempdir");
+    let m = module(&dir);
+    let scope = dir.path().to_string_lossy().into_owned();
+
+    // A model whose trace target names a document this scope does not have:
+    // declared, valid, and matching zero rows.
+    fs::write(
+        std::path::Path::new(&m).join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n  grammar_ref: iso-spec-core\n\
+         traceability:\n  trace_targets:\n  - name: test-case\n\
+         \x20   document: nowhere/tests.md\n    section: Test Case Summary\n\
+         \x20   id_column: Test ID\n",
+    )
+    .expect("rewrite manifest");
+
+    let out = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m])
+        .output()
+        .expect("run");
+    assert!(out.status.success(), "a report is not a verdict");
+    let err = String::from_utf8_lossy(&out.stderr);
+    let headline = err
+        .lines()
+        .find(|l| l.contains("rows backed"))
+        .unwrap_or_else(|| panic!("no coverage headline in:\n{err}"));
+    assert!(
+        !headline.contains("100%"),
+        "an empty denominator rendered as full coverage: {headline}"
+    );
+    assert!(
+        headline.contains("no rows matched"),
+        "the empty denominator should say so: {headline}"
+    );
+
+    // The same state under --strict is a failure, and the message says which
+    // failure: nothing was reconciled, not "nothing was wrong".
+    let strict = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m, "--strict"])
+        .output()
+        .expect("run");
+    assert!(
+        !strict.status.success(),
+        "--strict passed over a model that matched nothing"
+    );
+    let serr = String::from_utf8_lossy(&strict.stderr);
+    assert!(serr.contains("matched no rows"), "{serr}");
+}
