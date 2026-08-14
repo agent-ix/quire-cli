@@ -9,6 +9,16 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-08-14
+
+### Changed
+
+- Engine bumped to **quire-rs v0.21.0**. A legacy trace comment carrying a
+  comma-separated list now binds every id it names rather than only the first
+  (quire-rs FR-051-AC-16). Paired with `spec-artifacts-process` v0.13.0, which
+  widens the declared patterns so there is a list to split — **[RAN]** 205 ids
+  across 17 repos start binding with no source edit. Closes agent-ix/quire-rs#68.
+
 ## [0.14.0] — 2026-08-14
 
 ### Changed
