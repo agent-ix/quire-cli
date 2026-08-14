@@ -9,6 +9,31 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-08-14
+
+### Changed
+
+- Engine bumped to **quire-rs v0.20.0**, which brings the traceability model two
+  declarations it could not express and stops the symbol adapters losing whole
+  files:
+  - `exclude:` path globs on trace targets and document references, and
+    `archetype` + `document` declared together (FR-050-AC-15).
+  - `vocabularies.no_source_symbol` — verification methods that mint no source
+    symbol, so `coverage` explains an eval row rather than accusing it
+    (FR-050-AC-16). `CoverageReport` gains `no_symbol_rows`, absent when the
+    active module declares no such vocabulary, so existing output is unchanged.
+  - Rust and TypeScript source scanning is string-aware in one lexer pass
+    (FR-051-AC-14/15). 33 files in quire-rs alone had been rejected as
+    `unbalanced braces` and yielding zero symbols, so every trace tag in them
+    bound to nothing.
+
+This release is what unblocks `spec-artifacts-process` declaring
+`no_source_symbol`: a manifest key fails module load outright against an engine
+that does not know it, so the CLI has to ship first.
+
+> No changelog entry was written for 0.13.0; this entry does not attempt to
+> reconstruct it.
+
 ## [0.12.0] — 2026-08-08
 
 ### Added
