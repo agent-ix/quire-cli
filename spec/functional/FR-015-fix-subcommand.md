@@ -33,8 +33,8 @@ quire fix [<DIR>] [--scope <DIR>] [--write] [--diagnostics-format <fmt>]
 No `--module` is required: unlinked-reference detection (FR-039) operates over
 the loaded `Spec` corpus alone (id index + path→id), with no archetype registry.
 
-1. Path-safety ([FR-005](./FR-005-path-safety.md)) on the resolved bundle root (the positional `DIR`, or
-   `--scope` when no positional is given).
+1. Path-safety ([FR-005](./FR-005-path-safety.md)) on the resolved bundle root — the positional `DIR`, or
+   `<scope>/spec` when no positional is given (CR note below).
 2. Load the bundle root into a `Spec` (quire-rs [FR-025](ix://agent-ix/quire-rs/FR-025)) and call
    `unlinked_references(&spec)` (FR-039). Findings are partitioned by the engine
    into `AutoFix { suggested_link }` and `WarnOnly { reason }`.
@@ -73,8 +73,16 @@ writeback [FR-008](./FR-008-json-output-encoding.md)); the CLI is a thin process
 | FR-015-AC-2 | `quire fix <DIR> --write` rewrites the bare reference to the suggested relative-path link in place; a second `--write` run modifies nothing and exits **0** (idempotence, FR-039) | Test |
 | FR-015-AC-3 | A `WarnOnly` (unresolved/ambiguous) token is surfaced as `warning: … (<reason>)`, is never written even under `--write`, and does not by itself cause a non-zero exit | Test |
 | FR-015-AC-4 | A clean bundle (no `AutoFix` findings) exits **0** with empty stdout in both dry-run and `--write` | Test |
-| FR-015-AC-5 | `quire fix --scope <DIR>` with no positional uses `--scope` as the bundle root; a `..` or symlink-escape path on the root is rejected by path-safety ([FR-005](./FR-005-path-safety.md)) before any load | Test |
+| FR-015-AC-5 | `quire fix --scope <DIR>` with no positional uses `<DIR>/spec` as the bundle root, and a `<DIR>` holding no `spec/` exits non-zero with a diagnostic naming the missing document root; a `..` or symlink-escape path on the root is rejected by path-safety ([FR-005](./FR-005-path-safety.md)) before any load | Test |
 | FR-015-AC-6 | (thin boundary) all detection, classification, suggested-link construction, and span application are delegated to quire-rs (`unlinked_references`, writeback); the CLI only resolves the root, applies path-safety, orders spans, and surfaces results ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) | Inspection |
+
+> **CR note (two roots from one scope, 2026-08-15):** AC-5 previously read
+> "uses `--scope` as the bundle root". `fix` derives its root through the same
+> `spec_root_of` helper `validate --okf` and `coverage` use, so it took the
+> quire-rs CR-045 two-root split with them — see the CR note on
+> [FR-014](./FR-014-validate-okf-bundle.md) for why the split exists and what it
+> breaks. Recorded here because the behavior shipped in PR #27 with no spec
+> edit at all.
 
 ## Dependencies
 

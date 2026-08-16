@@ -91,6 +91,7 @@ fn okf_index_incompleteness_warns() {
 // With no positional, --okf validates the document root `<scope>/spec`
 // (CR-045) — never the scope itself, which was the repo-wide crawl.
 #[test]
+// IT-072, FR-014-AC-6: with no positional the bundle root is <scope>/spec.
 fn okf_defaults_to_scope_spec_directory() {
     let dir = bundle(&[
         ("spec/X-1.md", "---\nid: X-1\ntype: weird\n---\n# x\nbody\n"),
@@ -111,6 +112,8 @@ fn okf_defaults_to_scope_spec_directory() {
 
 // A scope with no spec/ is a named error, not a silent fallback (CR-045).
 #[test]
+// IT-085, FR-014-AC-6: and a scope with no spec/ is a named error, never a
+// silent fallback to walking the scope.
 fn okf_missing_spec_root_is_a_named_error() {
     let dir = bundle(&[("X-1.md", "---\nid: X-1\ntype: weird\n---\n# x\nbody\n")]);
     quire()

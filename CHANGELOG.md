@@ -9,6 +9,43 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-08-15
+
+### Changed
+
+- Engine bumped to **quire-rs v0.25.0**: lazy document bodies, declaration-driven
+  body selection, and the frontmatter-less warning inversion (quire-rs CR-046..049).
+- A markdown file under the document root with **no frontmatter block** is no
+  longer silently ignored: it emits one non-fatal warning naming its path
+  (quire-rs FR-024-AC-10). Silence was justified only by tolerating a
+  repository-root walk, which 0.16.0 removed — what remains inside `spec/` is
+  almost certainly an authoring mistake.
+- `validate --okf` now calls `quire_rs::validate_bundle` with the document root
+  and the reference root stated separately (quire-rs FR-049-AC-9), so a module's
+  `document:`/`exclude:` declarations keep resolving against the repository
+  scope.
+
+## [0.16.0] — 2026-08-15
+
+### Changed
+
+- **BREAKING (traversal).** `coverage`, `validate --okf` and `fix` derive **two
+  roots from one `--scope`**: the corpus is walked from `<scope>/spec`, while
+  the code walk and the module's path-bound declarations keep using `<scope>`
+  (quire-rs CR-045, FR-050-AC-17). Engine bumped to **quire-rs v0.24.0**.
+- A `--scope` with no `spec/` directory now **exits non-zero** with a diagnostic
+  naming the missing document root, instead of silently walking the scope.
+  `quire validate --okf --scope path/to/bundle` therefore fails unless
+  `path/to/bundle/spec` exists — pass a self-contained bundle as the
+  **positional** argument instead, which is honored as given.
+- Repository-root files (`README.md`, `CHANGELOG.md`, `plan/*.md`) are no longer
+  read as spec documents. **[RAN]** this removed 9,172 `required 'type' is
+  missing` errors across 223 repositories — because those files are never
+  visited, not because they were classified away.
+- The minted-id set over a compliant repository (documents under `spec/`) is
+  **byte-identical** to a pre-split run: `--scope` remains the relativization
+  base for every emitted path.
+
 ## [0.15.0] — 2026-08-14
 
 ### Changed
