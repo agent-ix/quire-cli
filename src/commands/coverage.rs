@@ -23,8 +23,10 @@ use crate::commands::Ctx;
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    /// Repository root to scan: the spec bundle *and* the source tree the
-    /// trace tags live in. Defaults to the current directory.
+    /// Repository root. Two roots derive from it and are never interchanged
+    /// (quire-rs FR-050, CR-045): documents are read from `<scope>/spec` and
+    /// trace tags from the source tree at `<scope>`, excluding `spec/`.
+    /// Defaults to the current directory.
     #[arg(long, default_value = ".")]
     pub scope: String,
 
@@ -61,8 +63,14 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         );
     }
 
-    let spec = Spec::from_path(&scope);
-    let extraction = quire_rs::symbols::extract_tree(&scope);
+    // Two roots, one scope (CR-045): the document walk is bounded to
+    // `<scope>/spec`; the code walk covers `<scope>` minus the document
+    // root. `compute_coverage` still relativizes against `<scope>`, so
+    // report paths keep their `spec/` prefix and output is byte-identical
+    // for a compliant repo.
+    let spec_root = super::spec_root_of(&scope)?;
+    let spec = Spec::from_path(&spec_root);
+    let extraction = quire_rs::symbols::extract_tree_excluding(&scope, &[Path::new("spec")]);
     let graph = quire_rs::symbols::trace::bind(
         &extraction,
         registry

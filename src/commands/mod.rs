@@ -14,7 +14,7 @@ pub mod schema;
 pub mod update;
 pub mod validate;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context};
 use quire_cli::io::{emit_quire_diagnostics, Diagnostics};
@@ -35,6 +35,24 @@ pub struct Ctx {
 /// EMPTY registry; commands that ignored `failures()` then died later
 /// with a misleading `UnknownArchetype`. When the load produced zero
 /// modules and at least one failure, fail fast with the real reason.
+/// Derive the document root from a scope (quire-rs FR-050 two-roots,
+/// CR-045): documents live in `<scope>/spec`, never at the repository root.
+/// A missing document root is a **named error** — silently falling back to
+/// walking the scope is how the repository-wide crawl survived unnoticed.
+/// `spec/` is convention, not configuration: no manifest key, no flag.
+pub fn spec_root_of(scope: &Path) -> anyhow::Result<PathBuf> {
+    let root = scope.join("spec");
+    if !root.is_dir() {
+        bail!(
+            "no document root at '{}': spec documents live in `spec/` under \
+             --scope (quire-rs FR-050 two-roots); point --scope at the \
+             repository root, or create spec/",
+            root.display()
+        );
+    }
+    Ok(root)
+}
+
 pub fn load_module_registry(ctx: &Ctx, module: &Path) -> anyhow::Result<Registry> {
     let registry = Registry::load_module(module).context("loading module registry")?;
     emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
