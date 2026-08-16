@@ -26,22 +26,69 @@ pub struct Ctx {
     pub pretty: bool,
 }
 
+/// The name of the document root under a scope. One constant, so the
+/// derivation below and the code walk's exclusion cannot drift apart
+/// (agent-ix/quire-rs#113).
+pub const DOCUMENT_ROOT_DIR: &str = "spec";
+
+/// Why a scope has no usable document root — a typed variant rather than a
+/// formatted string, so `--diagnostics json` carries a stable `kind` and a
+/// test can assert the interpolated path instead of `contains("spec")`
+/// (agent-ix/quire-rs#113).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DocumentRootError {
+    /// `<scope>/spec` does not exist, or is not a directory.
+    Missing { path: PathBuf },
+}
+
+impl DocumentRootError {
+    /// Stable machine token for `--diagnostics json`.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Missing { .. } => "MissingDocumentRoot",
+        }
+    }
+}
+
+impl std::fmt::Display for DocumentRootError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Missing { path } => write!(
+                f,
+                "no document root at '{}': spec documents live in `{DOCUMENT_ROOT_DIR}/` \
+                 under --scope (quire-rs FR-050 two-roots); point --scope at the \
+                 repository root, or create {DOCUMENT_ROOT_DIR}/",
+                path.display()
+            ),
+        }
+    }
+}
+
+impl std::error::Error for DocumentRootError {}
+
 /// Derive the document root from a scope (quire-rs FR-050 two-roots,
 /// CR-045): documents live in `<scope>/spec`, never at the repository root.
 /// A missing document root is a **named error** — silently falling back to
 /// walking the scope is how the repository-wide crawl survived unnoticed.
 /// `spec/` is convention, not configuration: no manifest key, no flag.
+///
+/// The path is **canonicalized** when it resolves. `is_dir()` follows
+/// symlinks while the corpus walker sets `follow_links(false)`, so a
+/// symlinked `spec/` passed this check and then produced zero documents,
+/// `total: 0` and exit 0 — no error anywhere. Canonicalizing here also makes
+/// `coverage` and `validate --okf` agree on the root: `validate` already
+/// canonicalized via `safety::validate_dir_path` while `coverage` did not,
+/// so the two commands resolved *different* document roots for the same
+/// repository (agent-ix/quire-rs#113).
 pub fn spec_root_of(scope: &Path) -> anyhow::Result<PathBuf> {
-    let root = scope.join("spec");
+    let root = scope.join(DOCUMENT_ROOT_DIR);
     if !root.is_dir() {
-        bail!(
-            "no document root at '{}': spec documents live in `spec/` under \
-             --scope (quire-rs FR-050 two-roots); point --scope at the \
-             repository root, or create spec/",
-            root.display()
-        );
+        return Err(DocumentRootError::Missing { path: root }.into());
     }
-    Ok(root)
+    // A resolvable directory that cannot be canonicalized is left as-is
+    // rather than failing: the walk can still read it, and inventing a
+    // failure here would be worse than the drift canonicalizing prevents.
+    Ok(root.canonicalize().unwrap_or(root))
 }
 
 /// Load a single module registry for a `--module <PATH>` argument and

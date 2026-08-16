@@ -220,6 +220,11 @@ module's path-bound declarations keep resolving against the scope. A `--scope`
 with no `spec/` directory is an error, never a silent repository-wide crawl —
 pass the bundle as the positional argument when it is self-contained.
 
+The two forms resolve a module's path-bound declarations differently on
+purpose: `--scope` keeps them repository-relative, while a positional bundle
+is treated as self-contained and resolves them against itself. Use `--scope`
+when the module declares paths like `document: spec/tests.md`.
+
 Without `--okf`, bundle directories validated via `--scope "spec/**/*.md"` keep
 the strict per-file posture (archetype conformance, resolvable references,
 complete indexes are all hard requirements).

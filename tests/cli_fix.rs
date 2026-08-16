@@ -174,3 +174,60 @@ fn path_traversal_rejected() {
         .failure()
         .stderr(predicate::str::contains("PathTraversal").and(predicate::str::contains("..")));
 }
+
+// IT-080 (FR-015-AC-5): `fix` with no positional derives `<scope>/spec`, the
+// same two-root rule `coverage` and `validate --okf` use. The default-root
+// change shipped in PR #27 with no test that omits the positional at all, so
+// nothing distinguished "reads <scope>/spec" from "reads <scope>"
+// (agent-ix/quire-cli#31).
+#[test]
+fn it080_fix_with_no_positional_uses_the_scope_spec_root() {
+    let dir = bundle(&[
+        // Under the document root: seen, and its bare reference is fixable.
+        (
+            "spec/functional/FR-001-foo.md",
+            "---\nid: FR-001\ntype: FR\n---\nSee FR-008 here.\n",
+        ),
+        ("spec/functional/FR-008-byte.md", FR008),
+        // Outside it: a repository-root file the old conflated root would
+        // have walked. It must not be read as a document.
+        (
+            "README.md",
+            "---\nid: FR-002\ntype: FR\n---\nSee FR-008 here.\n",
+        ),
+    ]);
+
+    let out = quire()
+        .arg("fix")
+        .arg("--scope")
+        .arg(dir.path())
+        .output()
+        .expect("run");
+
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("FR-001"),
+        "the document root's finding must be reported: {err}"
+    );
+    assert!(
+        !err.contains("README.md"),
+        "a repository-root file is outside the document root and must not be \
+         walked: {err}"
+    );
+}
+
+// IT-080 (FR-015-AC-5): and a scope with no `spec/` is the same named error
+// the other two commands raise, not a silent walk of the scope.
+#[test]
+fn it080_fix_without_a_spec_root_is_a_named_error() {
+    let dir = bundle(&[("FR-001.md", "---\nid: FR-001\ntype: FR\n---\nbody\n")]);
+    let expected = dir.path().join("spec").display().to_string();
+
+    quire()
+        .arg("fix")
+        .arg("--scope")
+        .arg(dir.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(expected));
+}

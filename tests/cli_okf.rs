@@ -116,6 +116,10 @@ fn okf_defaults_to_scope_spec_directory() {
 // silent fallback to walking the scope.
 fn okf_missing_spec_root_is_a_named_error() {
     let dir = bundle(&[("X-1.md", "---\nid: X-1\ntype: weird\n---\n# x\nbody\n")]);
+    // The interpolated path, not `contains("spec")`: the module-discovery
+    // refusal names `spec-artifacts-process` and would satisfy the weaker
+    // assertion (agent-ix/quire-cli#31).
+    let expected = dir.path().join("spec").display().to_string();
     quire()
         .arg("validate")
         .arg("--okf")
@@ -125,5 +129,83 @@ fn okf_missing_spec_root_is_a_named_error() {
         .arg(validate_module())
         .assert()
         .failure()
-        .stderr(predicate::str::contains("spec"));
+        .stderr(predicate::str::contains(expected));
+}
+
+// IT-088 (agent-ix/quire-rs#110): a non-fatal bundle warning is emitted as a
+// WARNING in the machine surface. Every `report.warnings` entry used to go
+// through `emit_diagnostic`, which hardcodes `"severity": "error"` — so under
+// `--diagnostics json` the severity contradicted the exit code, which was
+// correctly 0. The frontmatter-less file is the CR-048 warning that made this
+// visible, and the engine now distinguishes its two flavors by machine reason
+// (quire-rs CR-051).
+#[test]
+fn it088_bundle_warnings_are_emitted_as_warnings_in_json() {
+    let dir = bundle(&[
+        (
+            "spec/FR-001.md",
+            "---\nid: FR-001\ntype: FR\n---\n# FR-001\nbody\n",
+        ),
+        // No frontmatter block at all.
+        ("spec/draft.md", "# draft\n\nno front block.\n"),
+        // A complete fence block that is not a YAML mapping.
+        ("spec/listy.md", "---\n- a\n- b\n---\n# listy\nbody\n"),
+    ]);
+
+    let out = quire()
+        .arg("--diagnostics-format")
+        .arg("json")
+        .arg("validate")
+        .arg("--okf")
+        .arg("--scope")
+        .arg(dir.path())
+        .arg("--module")
+        .arg(validate_module())
+        .output()
+        .expect("run");
+
+    // Warnings never move the exit code.
+    assert!(
+        out.status.success(),
+        "frontmatter-less files are warnings, not errors: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let err = String::from_utf8_lossy(&out.stderr);
+    let lines: Vec<serde_json::Value> = err
+        .lines()
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .collect();
+
+    let warning_for = |needle: &str| {
+        lines
+            .iter()
+            .find(|l| l["message"].as_str().is_some_and(|m| m.contains(needle)))
+    };
+
+    let absent = warning_for("draft.md").expect("the no-frontmatter warning");
+    assert_eq!(
+        absent["severity"], "warning",
+        "a warning must not be emitted with error severity: {absent}"
+    );
+    assert_eq!(absent["kind"], "ValidationWarning");
+    assert!(
+        absent["message"]
+            .as_str()
+            .unwrap()
+            .contains("[no-frontmatter]"),
+        "carries the machine reason: {absent}"
+    );
+
+    // The two flavors are distinguishable in the machine surface
+    // (quire-rs CR-051) — before it, both read `[no-frontmatter]`.
+    let malformed = warning_for("listy.md").expect("the malformed-frontmatter warning");
+    assert_eq!(malformed["severity"], "warning");
+    assert!(
+        malformed["message"]
+            .as_str()
+            .unwrap()
+            .contains("[malformed-frontmatter]"),
+        "the malformed flavor carries its own reason: {malformed}"
+    );
 }

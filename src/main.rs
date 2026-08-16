@@ -89,7 +89,17 @@ fn main() {
             // anyhow chains, and the leaf message carries the load-
             // bearing identifier.
             let msg = format!("{e:#}");
-            io::emit_diagnostic(ctx.diagnostics, "QuireError", &msg);
+            // A typed error keeps its own `kind` in the JSON shape rather
+            // than collapsing into the generic one. `MissingDocumentRoot`
+            // is the first: it is the failure a caller most needs to
+            // branch on, and it was a formatted `bail!` string, which is
+            // why the tests covering it could only assert
+            // `contains("spec")` (agent-ix/quire-rs#113).
+            let kind = e
+                .downcast_ref::<commands::DocumentRootError>()
+                .map(|d| d.kind())
+                .unwrap_or("QuireError");
+            io::emit_diagnostic(ctx.diagnostics, kind, &msg);
             std::process::exit(exit::USER_ERROR);
         }
     }
