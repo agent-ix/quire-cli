@@ -27,6 +27,18 @@ fn it_004_extract_emits_envelope() {
     assert!(v.get("extraction").is_some(), "missing extraction key");
     assert!(v.get("edges").is_some(), "missing edges key");
     assert!(v["edges"].is_array());
+
+    // The fixture declares a real `implements` relationship, so asserting
+    // only "edges is an array" passes on an empty harvest — and the
+    // determinism test compares two empty arrays quite happily
+    // (agent-ix/quire-cli#31). Assert what was harvested.
+    let edges = v["edges"].as_array().unwrap();
+    assert!(
+        edges
+            .iter()
+            .any(|e| e["target"] == "StR-001" && e["type"] == "implements"),
+        "the declared frontmatter relationship must be harvested: {edges:?}"
+    );
 }
 
 #[test]

@@ -364,11 +364,18 @@ fn run_okf(
 
 /// Surface a [`BundleReport`] on stderr: warnings first (non-fatal),
 /// then errors, both in the shared `quire_rs` diagnostic shape.
+///
+/// Warnings go through [`io::emit_warning`], not `emit_diagnostic`. They
+/// used to take the error path, which hardcodes `"severity": "error"` in
+/// the JSON shape — so every non-fatal bundle warning was emitted as an
+/// error while the exit code correctly said otherwise, and a machine
+/// consumer reading `--diagnostics json` had the two contradict each
+/// other. The warning counterpart existed and sat unused on this path
+/// (upstream agent-ix/quire-rs#110).
 fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
     for w in &report.warnings {
-        io::emit_diagnostic(
+        io::emit_warning(
             ctx.diagnostics,
-            "Diagnostic",
             &format!("{}: {} [{}]", w.path.display(), w.message, w.reason),
         );
     }

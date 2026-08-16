@@ -68,9 +68,21 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // root. `compute_coverage` still relativizes against `<scope>`, so
     // report paths keep their `spec/` prefix and output is byte-identical
     // for a compliant repo.
+    // Path-safety on the derived document root, the same guard
+    // `validate --okf` has always applied to its bundle root. `coverage`
+    // skipped it, so the two commands disagreed about what a `..` in the
+    // resolved root meant (agent-ix/quire-rs#113).
     let spec_root = super::spec_root_of(&scope)?;
+    let spec_root = safety::validate_dir_path("document root", &spec_root.display().to_string())
+        .with_context(|| format!("validating document root '{}'", spec_root.display()))?;
     let spec = Spec::from_path(&spec_root);
-    let extraction = quire_rs::symbols::extract_tree_excluding(&scope, &[Path::new("spec")]);
+    // The exclusion is derived from the same constant the root is, rather
+    // than a second literal `"spec"` that can drift from it
+    // (agent-ix/quire-rs#113). The engine compares by canonicalized
+    // identity, so a case-insensitive filesystem or a symlinked root still
+    // excludes what the walk actually reads (quire-rs CR-056).
+    let extraction =
+        quire_rs::symbols::extract_tree_excluding(&scope, &[Path::new(super::DOCUMENT_ROOT_DIR)]);
     let graph = quire_rs::symbols::trace::bind(
         &extraction,
         registry

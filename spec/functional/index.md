@@ -23,3 +23,5 @@ description: "Index of artifacts in this directory."
 * [FR-014: quire validate --okf bundle posture](./FR-014-validate-okf-bundle.md)
 * [FR-015: quire fix subcommand (unlinked-reference autofix)](./FR-015-fix-subcommand.md)
 * [FR-016: quire update subcommand (install-source-aware self-update)](./FR-016-update-subcommand.md)
+* [FR-017: quire coverage subcommand](./FR-017-coverage-subcommand.md)
+* [FR-018: quire properties subcommand](./FR-018-properties-subcommand.md)
