@@ -32,7 +32,8 @@ use super::Ctx;
 pub struct Args {
     /// Markdown document path, glob, or `-` for stdin. Relative globs are
     /// resolved under --scope when --module is omitted. With --okf, an
-    /// optional bundle directory (defaults to --scope).
+    /// optional bundle directory; omitted, the bundle root is
+    /// <scope>/spec (not --scope itself).
     #[arg(value_name = "DOC_OR_GLOB", required_unless_present = "okf")]
     pub documents: Vec<String>,
 
@@ -57,7 +58,9 @@ pub struct Args {
     /// Validate a directory as an OKF bundle under the permissive posture:
     /// `type` is still required, but unknown types, broken `ix://` links,
     /// and `index.md` completeness gaps are warnings, not errors. Operates
-    /// on the positional bundle directory, or --scope when none is given.
+    /// on the positional bundle directory; with none given the bundle root
+    /// is <scope>/spec, and a scope with no spec/ is an error rather than a
+    /// silent repository-wide crawl.
     #[arg(long)]
     pub okf: bool,
 
@@ -307,9 +310,11 @@ fn emit_property_summary(ctx: &Ctx, seen: usize, extractable: usize, candidate: 
 }
 
 /// OKF bundle validation (permissive posture). Validates each bundle
-/// directory wholesale via `quire_rs::validate_bundle_at`, surfacing
-/// warnings and errors on stderr. Exit 1 only when there are hard errors
-/// (untyped documents) — unknown types / broken links / index gaps warn.
+/// directory wholesale via `quire_rs::validate_bundle`, which takes the
+/// document root and the reference root separately (quire-rs FR-049-AC-9);
+/// warnings and errors are surfaced on stderr. Exit 1 only when there are
+/// hard errors (untyped documents) — unknown types / broken links / index
+/// gaps warn.
 fn run_okf(
     ctx: &Ctx,
     args: &Args,

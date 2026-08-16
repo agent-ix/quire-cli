@@ -49,10 +49,12 @@ The CLI SHALL accept an `--okf` flag on the `validate` subcommand:
 quire validate [<DIR>] --okf [--scope <DIR>] [--module <PATH>]
 ```
 
-With `--okf`, the positional argument (or `--scope` when no positional is given)
-names the **bundle root directory**, validated wholesale as an OKF bundle under
-the permissive posture via `quire_rs::validate_bundle_at(root, &registry,
-BundlePosture::Okf)`. The returned `BundleReport` is surfaced on stderr:
+With `--okf`, the **bundle root** is the positional argument when one is given,
+and `<scope>/spec` when none is (CR note below). It is validated wholesale as an
+OKF bundle under the permissive posture via `quire_rs::validate_bundle(&spec,
+&registry, BundlePosture::Okf, document_root, reference_root)` — two roots, so
+the module's path-bound declarations keep resolving against the repository scope
+(quire-rs FR-049-AC-9). The returned `BundleReport` is surfaced on stderr:
 warnings (non-fatal) first, then errors, in the shared quire-rs diagnostic shape
 (`<path>: <message> [<reason>]`).
 
@@ -87,8 +89,9 @@ document**, surfaced through the existing `validate` diagnostics:
 The positional `documents` argument is now `required_unless_present = "okf"`:
 - `quire validate` with no positional **and** no `--okf` remains a clap argv
   error → **exit 2** (unchanged; the strict per-file path needs a document).
-- `quire validate --okf` with no positional is **valid**: the bundle root
-  defaults to `--scope`.
+- `quire validate --okf` with no positional is **valid**: the bundle root is
+  `<scope>/spec`. A scope with no `spec/` directory is a **named error**, never
+  a silent fallback to walking the scope (CR note below).
 
 ## Acceptance Criteria
 
@@ -99,10 +102,31 @@ The positional `documents` argument is now `required_unless_present = "okf"`:
 | FR-014-AC-3 | A **broken `ix://` link** under `--okf` is a **warning**: the command exits **0** and stderr carries a `[dangling-reference]` diagnostic | Test |
 | FR-014-AC-4 | An **`index.md` that omits a sibling artifact** under `--okf` is a **warning**: the command exits **0** and stderr carries an `[index-incomplete]` diagnostic naming the missing artifact | Test |
 | FR-014-AC-5 | A root `index.md` **missing `okf_version`** is reported as an `[index-incomplete]` warning (exit 0), consistent with AC-4's completeness contract | Test |
-| FR-014-AC-6 | `quire validate --okf --scope <DIR> --module $M` with **no positional** validates the `--scope` directory as the bundle root (exit 0 for a warning-only bundle) | Test |
+| FR-014-AC-6 | `quire validate --okf --scope <DIR> --module $M` with **no positional** validates `<DIR>/spec` as the bundle root, with `<DIR>` itself kept as the reference root (exit 0 for a warning-only bundle); a `<DIR>` holding no `spec/` exits non-zero with a diagnostic naming the missing document root, never falling back to walking `<DIR>` | Test |
 | FR-014-AC-7 | `quire validate` with **no positional and no `--okf`** is a clap argv error → **exit 2** (`required_unless_present = "okf"`), unchanged from [FR-004](./FR-004-validate-subcommand.md) | Test |
 | FR-014-AC-8 | (base concept contract) an untyped document is a hard error (exit 1, `[frontmatter]` diagnostic naming `type`) in **both** postures — strict per-file ([FR-004](./FR-004-validate-subcommand.md)) and `--okf` bundle — because quire-rs enforces `type` required + non-empty for every validated document | Test |
-| FR-014-AC-9 | (thin boundary) all bundle/base-concept validation is delegated to quire-rs (`validate_bundle_at`, base-concept enforcement); the CLI only resolves the root, applies path-safety, and surfaces the `BundleReport` ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); TC-090) | Inspection |
+| FR-014-AC-9 | (thin boundary) all bundle/base-concept validation is delegated to quire-rs (`validate_bundle`, base-concept enforcement); the CLI only resolves the root, applies path-safety, and surfaces the `BundleReport` ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); TC-090) | Inspection |
+
+> **CR note (two roots from one scope, 2026-08-15):** AC-6 previously read
+> "validates the `--scope` directory as the bundle root". That is no longer what
+> ships, and the behavior changed in PR #27 without a spec edit — which this
+> note corrects rather than the other way round. Upstream quire-rs CR-045 split
+> the single conflated root into a **document root** (`<scope>/spec`, what the
+> corpus is walked from) and a **reference root** (`<scope>`, what a module's
+> `document:`/`exclude:` declarations resolve against), because a corpus walked
+> from `<scope>/spec` with one conflated root silently un-minted every
+> path-bound trace target — 123 new `dangling-trace-reference` findings on
+> quire-rs's own spec. The same split removed the repository-wide crawl that had
+> been reading `README.md`, `CHANGELOG.md` and `plan/*.md` as documents; 9,172
+> `required 'type' is missing` errors across 223 repos went with it.
+>
+> This is a **breaking traversal change** for any repository that pointed
+> `--scope` directly at a bundle directory: `quire validate --okf --scope
+> path/to/bundle` now errors unless `path/to/bundle/spec` exists. Pass the
+> bundle as the positional argument instead — an explicit positional is honored
+> as given and stays self-contained. `spec/` is convention, not configuration:
+> there is no manifest key and no flag, deliberately, since a configurable
+> document root reintroduces the ambiguity the split removed.
 
 ## Dependencies
 

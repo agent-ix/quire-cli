@@ -211,8 +211,14 @@ hard error.
 
 ```bash
 quire validate --okf path/to/bundle --module ./iso
-quire validate --okf --scope path/to/bundle      # scoped module discovery
+quire validate --okf --scope path/to/repo        # bundle root is path/to/repo/spec
 ```
+
+With no positional bundle the root is **`<scope>/spec`**, not `--scope` itself
+(quire-rs CR-045 two roots): the corpus is walked from `spec/` while the
+module's path-bound declarations keep resolving against the scope. A `--scope`
+with no `spec/` directory is an error, never a silent repository-wide crawl —
+pass the bundle as the positional argument when it is self-contained.
 
 Without `--okf`, bundle directories validated via `--scope "spec/**/*.md"` keep
 the strict per-file posture (archetype conformance, resolvable references,
