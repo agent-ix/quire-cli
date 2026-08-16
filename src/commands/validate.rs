@@ -317,20 +317,36 @@ fn run_okf(
     scoped: bool,
     registry: &Registry,
 ) -> anyhow::Result<()> {
-    let roots: Vec<PathBuf> = if args.documents.is_empty() {
-        vec![scope.to_path_buf()]
+    // Two roots, one scope (CR-045): with no positional bundle, the document
+    // root is `<scope>/spec` — never the scope itself, which is the
+    // repository-wide crawl #91 removed — while the module's traceability
+    // paths keep resolving against the scope (FR-049-AC-9). An explicit
+    // positional directory is honored as given, self-contained.
+    let roots: Vec<(PathBuf, PathBuf)> = if args.documents.is_empty() {
+        vec![(super::spec_root_of(scope)?, scope.to_path_buf())]
     } else {
         args.documents
             .iter()
-            .map(|raw| scoped_path(scope, scoped, raw))
+            .map(|raw| {
+                let dir = scoped_path(scope, scoped, raw);
+                (dir.clone(), dir)
+            })
             .collect()
     };
 
     let mut errors = 0usize;
-    for root in roots {
-        let root = safety::validate_dir_path("bundle", &root.display().to_string())
-            .with_context(|| format!("validating bundle root '{}'", root.display()))?;
-        let report = quire_rs::validate_bundle_at(&root, registry, BundlePosture::Okf);
+    for (document_root, reference_root) in roots {
+        let document_root =
+            safety::validate_dir_path("bundle", &document_root.display().to_string())
+                .with_context(|| format!("validating bundle root '{}'", document_root.display()))?;
+        let spec = quire_rs::Spec::from_path(&document_root);
+        let report = quire_rs::validate_bundle(
+            &spec,
+            registry,
+            BundlePosture::Okf,
+            &document_root,
+            &reference_root,
+        );
         surface_bundle(ctx, &report);
         errors += report.errors.len();
     }

@@ -88,10 +88,16 @@ fn okf_index_incompleteness_warns() {
         );
 }
 
-// With no positional, --okf validates the --scope directory.
+// With no positional, --okf validates the document root `<scope>/spec`
+// (CR-045) — never the scope itself, which was the repo-wide crawl.
 #[test]
-fn okf_defaults_to_scope_directory() {
-    let dir = bundle(&[("X-1.md", "---\nid: X-1\ntype: weird\n---\n# x\nbody\n")]);
+fn okf_defaults_to_scope_spec_directory() {
+    let dir = bundle(&[
+        ("spec/X-1.md", "---\nid: X-1\ntype: weird\n---\n# x\nbody\n"),
+        // An untyped stray at the repo root would be a hard error if it
+        // were visited; bounded to spec/, it never is.
+        ("NOTE-1.md", "---\nid: NOTE-1\n---\n# note\nbody\n"),
+    ]);
     quire()
         .arg("validate")
         .arg("--okf")
@@ -101,4 +107,20 @@ fn okf_defaults_to_scope_directory() {
         .arg(validate_module())
         .assert()
         .success();
+}
+
+// A scope with no spec/ is a named error, not a silent fallback (CR-045).
+#[test]
+fn okf_missing_spec_root_is_a_named_error() {
+    let dir = bundle(&[("X-1.md", "---\nid: X-1\ntype: weird\n---\n# x\nbody\n")]);
+    quire()
+        .arg("validate")
+        .arg("--okf")
+        .arg("--scope")
+        .arg(dir.path())
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("spec"));
 }

@@ -23,11 +23,13 @@ use super::Ctx;
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// Bundle root directory to scan. Defaults to `--scope` when omitted.
+    /// Bundle root directory to scan. Defaults to `<scope>/spec` — the
+    /// document root — when omitted (quire-rs FR-050 two-roots, CR-045).
     #[arg(value_name = "DIR")]
     pub directory: Option<String>,
 
-    /// Directory used as the bundle root when no positional DIR is given.
+    /// Repository root whose `spec/` is the bundle root when no positional
+    /// DIR is given.
     #[arg(long, value_name = "DIR", default_value = ".")]
     pub scope: String,
 
@@ -38,9 +40,17 @@ pub struct Args {
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let root_raw = args.directory.clone().unwrap_or_else(|| args.scope.clone());
-    let root = safety::validate_dir_path("directory", &root_raw)
-        .with_context(|| format!("validating bundle root '{root_raw}'"))?;
+    // An explicit positional DIR is honored as given; the default derives
+    // the document root from --scope (CR-045) — never the scope itself.
+    let root = match &args.directory {
+        Some(raw) => safety::validate_dir_path("directory", raw)
+            .with_context(|| format!("validating bundle root '{raw}'"))?,
+        None => {
+            let scope = safety::validate_dir_path("--scope", &args.scope)
+                .with_context(|| format!("validating --scope '{}'", args.scope))?;
+            super::spec_root_of(&scope)?
+        }
+    };
 
     let spec = Spec::from_path(&root);
     let findings = unlinked_references(&spec);
