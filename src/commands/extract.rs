@@ -108,12 +108,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         .and_then(|fm| fm.get("id").and_then(|v| v.as_str()))
         .unwrap_or(&archetype_name)
         .to_string();
-    let loaded = LoadedDocument {
-        path: PathBuf::from(&args.doc),
-        id: doc_id,
-        uuid: None,
-        doc: parsed,
-    };
+    // CR-047: `LoadedDocument.doc` became a lazy tier behind accessors;
+    // an already-parsed document enters via `from_parsed` (body pre-seeded).
+    let loaded = LoadedDocument::from_parsed(PathBuf::from(&args.doc), doc_id, None, parsed);
     let edges: Vec<EdgeShape> = harvest_edges(&loaded)
         .into_iter()
         .map(|(target, r#type)| EdgeShape { target, r#type })
