@@ -9,6 +9,59 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-08-16
+
+### Changed
+
+- Engine bumped to **quire-rs v0.26.0** — the SR-006 review follow-up program
+  (quire-rs CR-050..CR-058). Behavior reaching this CLI:
+  - a declared `document:` that cannot be read, a declared archetype no
+    document has, and a model with no trace targets are now **reported** in
+    `coverage --json` under a new `diagnostics` key instead of failing open
+    (quire-rs FR-050-AC-19). The key is absent when empty, so a healthy
+    repository's report is byte-identical to before.
+  - the malformed-frontmatter warning carries its own machine reason,
+    `malformed-frontmatter`, distinct from `no-frontmatter`
+    (quire-rs FR-024-AC-12).
+  - `## 3.2 Ubiquitous Language` and other ISO-numbered headings contribute
+    glossary terms again (quire-rs FR-044-AC-8).
+  - the code walk's document-root exclusion is compared by canonicalized
+    identity, so a case-insensitive filesystem or a symlinked `spec/` no
+    longer ingests every spec document a second time as source.
+
+### Fixed
+
+- **`--diagnostics json` emitted non-fatal bundle warnings with
+  `"severity": "error"`.** Every `validate --okf` warning took the error path,
+  which hardcodes error severity, so the machine surface contradicted the exit
+  code — which was correctly 0. Warnings now carry `"severity": "warning"` and
+  `"kind": "ValidationWarning"`.
+- **A symlinked `spec/` produced a silent empty corpus.** `spec_root_of` gated
+  on `is_dir()`, which follows symlinks, while the corpus walker does not — so
+  the check passed and the run reported `total: 0` and exit 0. The derived root
+  is now canonicalized, which also makes `coverage` and `validate --okf` resolve
+  the same document root for the same repository; they previously differed,
+  since only `validate` canonicalized.
+- **The missing-document-root error was a formatted string.** It is now a typed
+  `DocumentRootError` carrying a stable `MissingDocumentRoot` kind into
+  `--diagnostics json`, so a consumer can branch on it instead of matching prose.
+- `coverage` now applies the same path-safety guard to its derived document root
+  that `validate` has always applied to its bundle root.
+
+### Added
+
+- **[FR-017](spec/functional/FR-017-coverage-subcommand.md)** and
+  **[FR-018](spec/functional/FR-018-properties-subcommand.md)** — `coverage` and
+  `properties` shipped in v0.13.0 with no owning requirement, no acceptance
+  criteria and no matrix rows. Both are now specified from working code, with
+  IT-086..IT-097 covering them. Writing them down corrected two documented
+  claims: the human census renders on **stderr** (stdout carries only the
+  `--json` payload), and the `properties` payload is a
+  `{documents: [{document, archetype, criteria}]}` envelope.
+- `fix`'s default-root behavior has coverage for the first time (IT-080), as
+  does the code walk's exclusion of `spec/` (IT-087).
+
+
 ## [0.17.0] — 2026-08-15
 
 ### Changed
