@@ -235,7 +235,13 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // no severity and no check id, and routing it through a warning string
         // would make it a finding, which FR-052-CON-1 forbids.
         if args.summary {
-            for r in quire_rs::classify_document_criteria(&registry, archetype, &text) {
+            let relative = input.scope_relative(&scope);
+            for r in quire_rs::classify_document_criteria(
+                &registry,
+                archetype,
+                &text,
+                relative.as_deref(),
+            ) {
                 criteria_seen += 1;
                 match r.extraction {
                     quire_rs::Extraction::Extractable => criteria_extractable += 1,
@@ -530,6 +536,28 @@ impl DocumentInput {
         match self {
             Self::Stdin => io::read_text("-"),
             Self::Path(path) => std::fs::read_to_string(path).map_err(Into::into),
+        }
+    }
+
+    /// The scope-relative, `/`-separated path an `exclude:` glob is written
+    /// against, or `None` for content with no location.
+    ///
+    /// quire-rs FR-053-AC-14: an obligation source's `exclude:` binds the
+    /// classification surface as well as the coverage rollup, and it can only
+    /// do so if this crate hands it the path. Stdin genuinely has none — a glob
+    /// matches a location, and piped content is not at one.
+    pub(crate) fn scope_relative(&self, scope: &Path) -> Option<PathBuf> {
+        match self {
+            Self::Stdin => None,
+            Self::Path(path) => Some(
+                path.strip_prefix(scope)
+                    .unwrap_or(path)
+                    .components()
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect::<Vec<_>>()
+                    .join("/")
+                    .into(),
+            ),
         }
     }
 }

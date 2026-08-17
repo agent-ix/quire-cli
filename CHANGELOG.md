@@ -9,6 +9,41 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-08-17
+
+### Changed
+
+- Engine bumped to **quire-rs v0.30.0** — the post-merge review follow-ups for
+  the ADR-0011 P1 wave (agent-ix/quire-rs#150–#153, CR-063..CR-065). Reaching
+  this CLI:
+  - `coverage --json` gains two diagnostic reasons:
+    `obligation-row-states-nothing` (a row whose statement cell is empty — the
+    diagnostic FR-053-AC-8 always promised and never emitted) and
+    `uncatalogued-verification-method` (a `Verification` cell naming neither a
+    catalog method id nor a catalog class, which nothing reported before).
+    `diagnostics[].reason` is a deliberately open vocabulary, so neither is a
+    contract break for a consumer that pins the published schema.
+  - `statement_hash` now normalizes to **NFC** before trimming, so an editor
+    rewriting a decomposed accent no longer reads as a reworded requirement.
+  - The `obligations` list is ordered by source **declaration** order rather
+    than source name.
+
+- **`properties --json` and `validate --summary` now pass each document's
+  scope-relative path to the engine** (new **FR-018-AC-7**, IT-098). quire-rs
+  FR-053-AC-14 makes an obligation source's `exclude:` globs bind the
+  classification surface as well as the coverage rollup, and it can only do so
+  if this crate hands over the path. Before, a criterion in an excluded fixture
+  stated no obligation in `coverage --json` and stated one here — and this
+  payload is what `spec-correctness` generates property tests from, so the
+  asymmetry became a generated test carrying a trace tag for an id nothing
+  mints. Stdin passes no path, having no location a glob could match.
+
+### Fixed
+
+- `make fmt-check` was red on `main`: `tests/output_contract.rs` landed
+  unformatted in v0.21.0 (#37). The same class of miss as
+  agent-ix/quire-rs#150, found by the same review.
+
 ## [0.21.0] — 2026-08-17
 
 ### Changed

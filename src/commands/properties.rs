@@ -107,7 +107,13 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
         // A non-binding archetype (US, IT, …) yields no records, exactly as it
         // yields no `ac` findings. That is data, not an error.
-        let records = quire_rs::classify_document_criteria(&registry, archetype, &text);
+        // The path, so an obligation source's `exclude:` binds this surface as
+        // well as the rollup (quire-rs FR-053-AC-14). Without it a criterion in
+        // an excluded fixture states no obligation in `coverage --json` and
+        // states one here — and this payload is what a generator reads.
+        let relative = input.scope_relative(&scope);
+        let records =
+            quire_rs::classify_document_criteria(&registry, archetype, &text, relative.as_deref());
         census.add(&records);
         documents.push(json!({
             "document": label,

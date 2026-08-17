@@ -184,3 +184,81 @@ fn it097_path_traversal_is_rejected() {
         .expect("run");
     assert!(!out.status.success(), "a `..` path must be refused");
 }
+
+// IT-098 (FR-018-AC-6): an obligation source's `exclude:` binds THIS surface.
+//
+// quire-rs FR-053-AC-14. The engine honoured a source's `exclude:` globs in the
+// coverage rollup and could not honour them here, because this crate never
+// handed it the document's path — so a criterion in an excluded fixture stated
+// no obligation in `coverage --json` and stated one in `properties --json`.
+// That payload is what `spec-correctness` generates property tests from, so the
+// asymmetry became a generated test carrying a trace tag for an id nothing
+// mints — quire-rs#72's dead-tag failure through a new door.
+#[test]
+fn it098_excluded_document_states_no_obligation() {
+    let dir = TempDir::new().expect("tempdir");
+    let m = dir.path().join("m");
+    fs::create_dir_all(&m).expect("mkdir");
+    fs::write(
+        m.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n  grammar_ref: iso-spec-core\n\
+         traceability:\n  trace_targets:\n  - name: acceptance-criterion\n\
+         \x20   archetype: FR\n    section: Acceptance Criteria\n\
+         \x20   id_column: ID\n  obligations:\n  - name: acceptance-criterion\n\
+         \x20   target: acceptance-criterion\n    exclude:\n    - \"**/fixtures/**\"\n\
+         \x20   statement_column: Criteria\n",
+    )
+    .expect("write manifest");
+    let m = m.to_string_lossy().into_owned();
+
+    let spec = dir.path().join("spec");
+    fs::create_dir_all(spec.join("fixtures")).expect("mkdir");
+    fs::write(spec.join("FR-001.md"), FR_DOC).expect("write");
+    fs::write(
+        spec.join("fixtures").join("FR-009.md"),
+        FR_DOC.replace("FR-001", "FR-009"),
+    )
+    .expect("write");
+
+    let obligations = |doc: &str| -> Vec<serde_json::Value> {
+        let out = quire()
+            .args([
+                "properties",
+                doc,
+                "--module",
+                &m,
+                "--scope",
+                &dir.path().to_string_lossy(),
+                "--json",
+            ])
+            .output()
+            .expect("run");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let payload: serde_json::Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
+        criteria_of(&payload)
+            .into_iter()
+            .map(|c| c["obligation"].clone())
+            .collect()
+    };
+
+    let included = obligations(&spec.join("FR-001.md").to_string_lossy());
+    assert!(
+        included.iter().all(|o| !o.is_null()),
+        "an included document still states its obligations: {included:#?}",
+    );
+
+    let excluded = obligations(&spec.join("fixtures/FR-009.md").to_string_lossy());
+    assert!(
+        !excluded.is_empty(),
+        "the fixture document must still classify its criteria",
+    );
+    assert!(
+        excluded.iter().all(|o| o.is_null()),
+        "an excluded document must state no obligation on this surface either: {excluded:#?}",
+    );
+}
