@@ -9,6 +9,41 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-08-17
+
+### Changed
+
+- Engine bumped to **quire-rs v0.29.0** — the ADR-0011 engine surface
+  (agent-ix/quire-rs#81 P1: FR-053 obligation record, FR-054 verification-method
+  catalog, FR-055 published output contract, FR-056 requirement-quality lints).
+  Reaching this CLI:
+
+  - **`properties --json` records gain `obligation`** (quire-rs FR-053).
+    `null` for a module declaring no `traceability.obligations:` source, so a
+    corpus that has not adopted them sees the key with a null rather than a
+    shape change. The nested object carries `source`, `statement_hash`,
+    `method`, `criticality` and optional `parameters` — and deliberately **not**
+    `id`, `statement` or `document`, because the record and its enclosing object
+    already carry all three.
+  - **`coverage --json` gains `obligations`**, absent when the model declares no
+    sources — so the payload is byte-identical for every module that has not
+    adopted them.
+  - **`validate` gains the `quality:*` grammar** (quire-rs FR-056):
+    `ambiguous-term`, `agentless-passive`, `mixed-modal`. All **advisory**, and
+    each addressable by `--severity quality:<check>=off|warning|error` like any
+    other check. **Report change**: measured across 239 repositories,
+    20.2% of FR/NFR/StR documents gain at least one warning.
+
+### Added
+
+- **Output-contract conformance tests** (IT-095, IT-096) validating the emitted
+  `properties --json` envelope against quire-rs's published
+  `properties-v1.schema.json`. The engine publishes both schemas and gates the
+  parts it emits; it never constructs this envelope, so without a test here the
+  published schema would describe a shape nothing checked. The schema is read
+  from the resolved quire-rs source rather than vendored — a copy is a second
+  artifact that drifts.
+
 ## [0.20.0] — 2026-08-17
 
 ### Changed

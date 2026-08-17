@@ -153,7 +153,34 @@ fn record_json(r: &AcClassification) -> Value {
         "precondition": span_json(r.precondition.as_ref()),
         "oracle": span_json(r.oracle.as_ref()),
         "signals": r.signals,
+        // FR-053. `null` for a module declaring no `obligations:` source, so a
+        // corpus that has not adopted them sees the key with a null rather than
+        // a shape change. The nested object carries no `id`, `statement` or
+        // `document`: `row_id` and `statement` are right here, and the document
+        // is the enclosing object.
+        "obligation": obligation_json(r.obligation.as_ref()),
     })
+}
+
+fn obligation_json(obligation: Option<&quire_rs::obligation::CriterionObligation>) -> Value {
+    match obligation {
+        None => Value::Null,
+        Some(o) => {
+            let mut out = json!({
+                "source": o.source,
+                "statement_hash": o.statement_hash,
+                "method": o.method,
+                "criticality": o.criticality,
+            });
+            // Parameters are omitted rather than emitted empty: a declared key
+            // with no cell is absent, and an empty map would read as "declared
+            // and empty" (FR-053-AC-6).
+            if !o.parameters.is_empty() {
+                out["parameters"] = json!(o.parameters);
+            }
+            out
+        }
+    }
 }
 
 /// A span carries both byte offsets and its own text: offsets so a consumer
