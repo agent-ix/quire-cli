@@ -9,6 +9,33 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-08-16
+
+### Changed
+
+- Engine bumped to **quire-rs v0.27.0** — the SR-007 blockers
+  (quire-rs CR-059..CR-061). Behavior reaching this CLI:
+  - `coverage --json` distinguishes an **absent** declared auxiliary
+    `document:` from an **unreadable** one: `absent-declared-document` is a new
+    machine reason, and `unreadable-declared-document` narrows to the
+    always-wrong case (quire-rs FR-050-AC-19). A fleet module shipping an
+    optional declaration across many repositories no longer reports a fault
+    where there is none.
+  - a model-level `traceability.exclude:` scopes the criteria walk as well as
+    every declaration (quire-rs FR-050-AC-13/15). **Report change**: a
+    repository declaring the new key with criteria under those paths sees
+    smaller `totals.criteria` / `totals.property_shaped`.
+  - trace tags on **benchmarks** and **fuzz targets** now bind — a
+    `criterion_group!`-registered function or a `fuzz_target!` invocation is
+    leaf evidence, where before it minted no binding (quire-rs FR-051-AC-17).
+    **Report change**: coverage rises for repositories whose benches or fuzz
+    targets carry tracking tags, and correspondingly fewer tags land in
+    `untracked_symbols`.
+
+  This last one is why the bump is cut now rather than batched: the corpus
+  measurements on agent-ix/quire-rs#75 and #78 must run on an engine that binds
+  leaf evidence, or their numbers are stale on arrival.
+
 ## [0.18.0] — 2026-08-16
 
 ### Changed
