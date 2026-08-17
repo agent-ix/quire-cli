@@ -1002,7 +1002,7 @@ dependencies = [
 
 [[package]]
 name = "quire-cli"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1017,8 +1017,8 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.27.0"
-source = "git+https://github.com/agent-ix/quire-rs?tag=v0.27.0#2ad06d2a12c8ff3f6e3e34ab3b1a6e97c1549d25"
+version = "0.28.0"
+source = "git+https://github.com/agent-ix/quire-rs?tag=v0.28.0#148370f9d292244d2b5c343c2fd657fa01a3597d"
 dependencies = [
  "globset",
  "ignore",
