@@ -187,18 +187,30 @@ fn tc740_coverage_reports_and_is_deterministic() {
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("traceability"), "{err}");
 
-    // With a model, the JSON payload is stable across runs.
+    // With a model, the JSON payload is stable across runs. CR-062: a trace
+    // target binds by **archetype**, never by path — the matrix is whichever
+    // corpus document is typed `TestMatrix`, wherever under `spec/` it sits.
     fs::write(
         std::path::Path::new(&m).join("manifest.yaml"),
         "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
-         - name: FR\n  grammar_ref: iso-spec-core\n\
+         - name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\n\
          traceability:\n  trace_targets:\n  - name: test-case\n\
-         \x20   document: tests.md\n    section: Test Case Summary\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
          \x20   id_column: Test ID\n  status:\n    column: Status\n\
          \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
          \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n",
     )
     .expect("rewrite manifest");
+
+    // A matrix that actually mints, so byte-identity is asserted over a report
+    // with rows in it rather than over an empty one.
+    fs::write(
+        dir.path().join("spec").join("tests.md"),
+        "---\nid: TM-001\ntype: TestMatrix\n---\n\
+         ## Test Case Summary\n\n\
+         | Test ID | Status |\n|---------|--------|\n| TC-001 | ✅ |\n",
+    )
+    .expect("write matrix");
 
     let run = || {
         let o = quire()
@@ -226,14 +238,16 @@ fn tc797_zero_matched_rows_is_not_full_coverage() {
     let scope = dir.path().to_string_lossy().into_owned();
     fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
 
-    // A model whose trace target names a document this scope does not have:
-    // declared, valid, and matching zero rows.
+    // A model whose trace target names an archetype no document in this scope
+    // carries: declared, valid, and matching zero rows. (CR-062: a misspelled
+    // or unpopulated archetype is the surviving shape of this fault, where
+    // before it was a path pointing nowhere.)
     fs::write(
         std::path::Path::new(&m).join("manifest.yaml"),
         "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
-         - name: FR\n  grammar_ref: iso-spec-core\n\
+         - name: FR\n  grammar_ref: iso-spec-core\n- name: TestMatrix\n\
          traceability:\n  trace_targets:\n  - name: test-case\n\
-         \x20   document: nowhere/tests.md\n    section: Test Case Summary\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
          \x20   id_column: Test ID\n",
     )
     .expect("rewrite manifest");

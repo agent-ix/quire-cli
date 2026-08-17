@@ -9,6 +9,39 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-08-17
+
+### Changed
+
+- Engine bumped to **quire-rs v0.28.0** — archetype-only trace binding
+  (quire-rs CR-062). Behavior reaching this CLI:
+  - **A module declaring `document:` on a trace target or a document reference
+    no longer loads.** The key is retired and the nested structs are
+    `deny_unknown_fields`, so `quire validate` / `quire coverage` fail loudly
+    against a stale module rather than silently minting nothing. Pair this CLI
+    with `spec-artifacts-process` **v0.14.0** or later, which ships the matching
+    collapse of nine declarations to three.
+  - **`coverage --json` reaches nested matrices.** Path binding enumerated one
+    target per filename convention and could not see
+    `spec/<module>/matrix/tests.md`; archetype binding types the document
+    instead. **Report change**: repositories authoring nested module matrices
+    gain minted ids and backed rows — measured across 238 repositories, dead
+    trace tags fall 1,401 → **1,207** occurrences, and `filament-ide-rs` alone
+    goes 17/850 → **473/2,184** rows backed.
+  - **A mistyped matrix now mints nothing**, where under path binding
+    frontmatter was irrelevant. **Report change**: a repository whose Test
+    Matrix declares the wrong `type:` sees its test-case ids disappear — the
+    fix is to correct the frontmatter, and the six ecosystem cases were
+    corrected before quire-rs cut the release.
+  - The `unreadable-declared-document` and `absent-declared-document` machine
+    reasons are **withdrawn** — v0.19.0 shipped them for the code path CR-062
+    deletes. `archetype-matches-nothing` is the surviving reason. Anything
+    keying on the two withdrawn tokens must migrate.
+
+  Cut now because the ADR-0011 verification program (agent-ix/quire-rs#81)
+  works against the installed CLI: an engine-before-module release ordering is
+  unverifiable if the CLI the modules are validated with lags the engine.
+
 ## [0.19.0] — 2026-08-16
 
 ### Changed
