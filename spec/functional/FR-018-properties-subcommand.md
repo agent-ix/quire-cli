@@ -66,6 +66,7 @@ FR-052-CON-4).
 | FR-018-AC-3 | A document whose archetype binds no criteria yields an empty record set and still exits **0** | Test (IT-095) |
 | FR-018-AC-4 | An unclassifiable or non-extractable criterion is reported in the payload and never changes the exit code — the command has no failure mode driven by classification | Test (IT-096) |
 | FR-018-AC-5 | Relative document paths resolve under `--scope`, and a `..` or symlink-escape path is rejected by path-safety ([FR-005](./FR-005-path-safety.md)) before any load | Test (IT-097) |
+| FR-018-AC-7 | The command passes each document's **scope-relative path** to the engine, so an obligation source's `exclude:` globs bind this payload exactly as they bind `coverage --json` (upstream FR-053-AC-14); stdin passes no path, having no location a glob could match | Test (IT-098) |
 | FR-018-AC-6 | (thin boundary) classification is delegated entirely to quire-rs; the CLI resolves paths, loads the module set, and renders ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) | Inspection (TC-090) |
 
 > **CR note (authored after the fact, 2026-08-16):** authored alongside

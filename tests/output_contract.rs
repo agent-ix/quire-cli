@@ -47,9 +47,10 @@ fn properties_schema() -> Value {
                 .join("schemas/output/properties-v1.schema.json")
         })
         .expect("quire-rs in the dependency graph");
-    serde_json::from_str(&fs::read_to_string(&path).unwrap_or_else(|e| {
-        panic!("reading published schema {}: {e}", path.display())
-    }))
+    serde_json::from_str(
+        &fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("reading published schema {}: {e}", path.display())),
+    )
     .expect("schema is valid JSON")
 }
 
@@ -102,7 +103,11 @@ fn it095_properties_envelope_conforms_to_the_published_schema() {
         .args(["properties", &d, "--module", &m, "--json"])
         .output()
         .expect("run");
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
     let payload: Value =
         serde_json::from_slice(&out.stdout).expect("the emitted payload is valid JSON");
@@ -110,7 +115,9 @@ fn it095_properties_envelope_conforms_to_the_published_schema() {
     let schema = compile(&schema_doc);
 
     if let Err(errors) = schema.validate(&payload) {
-        let listed: Vec<String> = errors.map(|e| format!("{}: {e}", e.instance_path)).collect();
+        let listed: Vec<String> = errors
+            .map(|e| format!("{}: {e}", e.instance_path))
+            .collect();
         panic!(
             "the emitted `properties --json` envelope violates the published contract:\n{listed:#?}\n\
              payload:\n{}",
@@ -148,16 +155,14 @@ fn it096_absent_obligation_is_null_and_still_conforms() {
     let d = doc(&dir);
 
     let out = quire()
-        .args([
-            "properties",
-            &d,
-            "--module",
-            &m.to_string_lossy(),
-            "--json",
-        ])
+        .args(["properties", &d, "--module", &m.to_string_lossy(), "--json"])
         .output()
         .expect("run");
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
     let payload: Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
     let schema_doc = properties_schema();
