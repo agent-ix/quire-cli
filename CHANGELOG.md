@@ -9,6 +9,27 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-08-18
+
+### Changed
+
+- **quire-rs v0.30.0 → v0.33.0.** The engine had moved five releases ahead of
+  this CLI, so **every capability added by ADR-0011 Phase 2 waves A–D was
+  unreachable from any command line**:
+
+  | Engine FR | What was unreachable |
+  |---|---|
+  | FR-057 | per-check corpus severity (`trace:`/`refs:`/`edges:`/`bundle:` keys) |
+  | FR-058 | upward-trace completeness — orphan requirements and unimplemented needs |
+  | FR-059 | declared-vocabulary coverage — which values no document claims |
+  | FR-060 | `from_vocabulary` / `column_vocabularies` in body-extraction asserts |
+  | FR-061 | combinatorial obligations from declared configuration dimensions |
+
+  Nothing in this crate changed to expose them: `validate` already routes the
+  corpus packs and `coverage` already emits the obligation contract, so the
+  bump *is* the fix. That is also why it went unnoticed — the CLI kept working,
+  and simply answered from an older engine.
+
 ## [0.22.0] — 2026-08-17
 
 ### Changed
