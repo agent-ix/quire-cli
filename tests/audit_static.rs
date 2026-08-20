@@ -72,3 +72,43 @@ fn tc092_every_unsafe_block_is_documented() {
     let (ok, output) = run_script("scripts/check_unsafe_comments.sh");
     assert!(ok, "unsafe-comment audit failed:\n{output}");
 }
+
+// TC-093 (FR-016-AC-5, FR-016-AC-6, StR-004-AC-2): the `self_update` engine is
+// package-agnostic — it is driven by a config struct and imports nothing from
+// quire's `io` or command context, so `commands/update.rs` stays the only
+// quire-specific glue. Source inspection is the only way to reach this: no
+// runtime path can observe an import that isn't there.
+#[test]
+fn tc093_self_update_engine_is_package_agnostic() {
+    let root = repo_root();
+    let engine = std::fs::read_to_string(root.join("src/self_update/mod.rs"))
+        .expect("src/self_update/mod.rs");
+
+    const FORBIDDEN: &[&str] = &[
+        "crate::io",
+        "crate::ctx",
+        "crate::Ctx",
+        "use crate::commands",
+    ];
+    for needle in FORBIDDEN {
+        assert!(
+            !engine.contains(needle),
+            "src/self_update/mod.rs reaches into `{needle}`; the engine must stay \
+             config-struct driven (FR-016-AC-6)"
+        );
+    }
+
+    // And the glue that does know about quire carries no parser/validator work.
+    let glue = std::fs::read_to_string(root.join("src/commands/update.rs"))
+        .expect("src/commands/update.rs");
+    for needle in [
+        "quire_rs::parse_document",
+        "quire_rs::validate",
+        "quire_rs::extract",
+    ] {
+        assert!(
+            !glue.contains(needle),
+            "src/commands/update.rs carries `{needle}`; `update` is not a document command"
+        );
+    }
+}

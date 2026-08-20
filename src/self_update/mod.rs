@@ -263,11 +263,13 @@ mod tests {
         releases_url: "https://github.com/agent-ix/quire-cli/releases",
     };
 
+    // TC-086 (FR-016-AC-4): no override yields an empty arg vec.
     #[test]
     fn registry_args_omitted_when_no_override() {
         assert!(registry_args("@agent-ix/quire-cli", None).is_empty());
     }
 
+    // TC-086 (FR-016-AC-4): a scoped package yields the `--@scope:registry=` form.
     #[test]
     fn registry_args_uses_scope_form_for_scoped_package() {
         // A plain --registry is ignored for scoped packages when an npmrc pins
@@ -278,6 +280,7 @@ mod tests {
         );
     }
 
+    // TC-086 (FR-016-AC-4): an unscoped package yields a plain `--registry <url>`.
     #[test]
     fn registry_args_uses_plain_registry_for_unscoped_package() {
         assert_eq!(
@@ -289,6 +292,7 @@ mod tests {
         );
     }
 
+    // TC-085 (FR-016-AC-1): a `node_modules` path classifies as Npm.
     #[test]
     fn detect_npm_from_node_modules_path() {
         let p =
@@ -296,12 +300,14 @@ mod tests {
         assert_eq!(detect_source(p), InstallSource::Npm);
     }
 
+    // TC-085 (FR-016-AC-1): a `.cargo` path classifies as Cargo.
     #[test]
     fn detect_cargo_from_cargo_bin_path() {
         let p = Path::new("/home/u/.cargo/bin/quire");
         assert_eq!(detect_source(p), InstallSource::Cargo);
     }
 
+    // TC-085 (FR-016-AC-1): a bare path classifies as Unknown.
     #[test]
     fn detect_unknown_from_bare_path() {
         let p = Path::new("/usr/local/bin/quire");
@@ -321,6 +327,8 @@ mod tests {
         );
     }
 
+    // TC-087 (FR-016-AC-1, FR-016-AC-5): `run_for_source(Unknown)` reports
+    // Manual and installs nothing.
     #[test]
     fn unknown_source_emits_manual_instructions_without_installing() {
         let opts = SelfUpdateOpts {
@@ -337,6 +345,8 @@ mod tests {
         assert!(joined.contains("releases"));
     }
 
+    // TC-087 (FR-016-AC-1, FR-016-AC-5): `run_for_source(Cargo, --check)`
+    // reports git-branch tracking with `latest: None` — no cross-scheme version.
     #[test]
     fn cargo_check_reports_branch_tracking_without_a_version() {
         let opts = SelfUpdateOpts {
