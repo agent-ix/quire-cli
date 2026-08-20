@@ -48,7 +48,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | US-001 Agent renders FR | ⛔ RETIRED (§2bis) | IT-001, IT-009, IT-010, TC-088 (all retired) | ⛔ |
 | US-002 Human parses doc | AC-1..4 | IT-002, IT-011 (stdin), IT-012 (malformed frontmatter), IT-013 (empty doc) | ✅ |
 | US-003 CI validates | AC-1..3 | IT-003, IT-014 (parametric across 8 ISO archetypes) | ✅ |
-| US-004 Extract for graph ingest | AC-1..4 | IT-004, IT-015 (edge dedup), IT-016 (sugar field harvest) | ✅ |
+| US-004 Extract for graph ingest | AC-1..3 | IT-004 (envelope), IT-015 (edge dedup), IT-020 (determinism) — IT-016 (sugar field harvest) retired, FR-003 CR 2026-08-20 | ✅ |
 | US-005 Machine addresses section | AC-1..5 | IT-033, IT-034, IT-035, IT-036, IT-038 | ✅ |
 
 ## Functional Requirement Coverage
@@ -58,7 +58,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-001 render subcommand | ⛔ RETIRED (§2bis) | IT-001, IT-009, IT-010, IT-017, IT-018 (all retired) | ⛔ |
 | FR-002 parse subcommand | AC-1..5 | IT-002, IT-011, IT-012, IT-013, IT-019 (byte-offset round-trip) | ✅ |
 | FR-003 extract subcommand | AC-1..5 | IT-004, IT-015, IT-016, IT-020 (determinism rerun), IT-069 (untyped doc → shared `[frontmatter]` diagnostic) | ✅ |
-| FR-004 validate subcommand (markdown-only; `--json` removed; composed type+object + `--strict`; scoped discovery + lazy-init, ADR-0001) | AC-1..14 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), IT-073 (unknown `object:` warns, exit 0), IT-074 (`--strict` escalates warning → exit 1), IT-075 (json warning distinct `kind`/severity), IT-081 (scoped env/default-root discovery validates, network-free → AC-13), IT-082 (empty discovery + no quoin → actionable error → AC-14), TC-090 (thin boundary) | ✅ |
+| FR-004 validate subcommand (markdown-only; `--json` removed; composed type+object + `--strict`; scoped discovery + lazy-init, ADR-0001; `--summary` + `--severity`) | AC-1..18 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), IT-073 (unknown `object:` warns, exit 0), IT-074 (`--strict` escalates warning → exit 1), IT-075 (json warning distinct `kind`/severity), IT-081 (scoped env/default-root discovery validates, network-free → AC-13), IT-082 (empty discovery + no quoin → actionable error → AC-14), TC-714 (`--summary` histogram spans every grammar → AC-15), TC-720 (`--severity …=off` suppresses check + histogram row → AC-16), TC-721 (`--severity …=error` promotes and fails the run → AC-17), TC-755 (malformed `--severity` rejected before any read → AC-18), TC-090 (thin boundary) | ✅ |
 | FR-010 required-section validation (recast onto FR-032) | AC-1..5 | IT-051 (placeholder), IT-052 (missing), IT-053 (assert), IT-047 (valid exit 0), IT-054 (empty stdout + diagnostics) | ✅ |
 | FR-005 path-safety | AC-1..5 | IT-005, IT-006, IT-007, IT-022 (--out reject), IT-023 (stdin bypasses) | ✅ |
 | FR-006 IO contract | AC-1..4 | IT-024 (no interleaving), IT-025 (--diagnostics-format=json), IT-011 (stdin) | ✅ |
@@ -93,11 +93,11 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 |---------|-------|------|----------|-----------|--------|
 | IT-001 | ⊘ RETIRED (§2bis) — `quire render FR` happy path produces rendered markdown ((retired); (retired)) | Integration | P0 | FR-001-AC-1, US-001-AC-1 | ⛔ |
 | IT-002 | `quire parse` emits valid QuireDocument JSON | Integration | P0 | FR-002-AC-1, US-002-AC-1 | ✅ |
-| IT-003 | ⊘ RETIRED (§2bis) — `quire validate FR --module $ISO --json <obj>` (context mode removed) ((was context mode; removed)) | Integration | P0 | FR-004-AC-4 | ✅ |
+| IT-003 | ⊘ RETIRED (§2bis) — `quire validate FR --module $ISO --json <obj>` (context mode removed) ((was context mode; removed)) | Integration | P0 | FR-004-AC-4 | ⛔ |
 | IT-004 | `quire extract` emits {extraction, edges} envelope | Integration | P0 | FR-003-AC-1, US-004-AC-1 | ✅ |
 | IT-005 | `--module ../escape` exits 1 with PathSafetyViolation | Integration | P0 | FR-005-AC-1, StR-003-AC-1 | ✅ |
 | IT-006 | Symlink under module to /etc/passwd refused at load | Integration | P0 | FR-005-AC-4, StR-003-AC-4 | ✅ |
-| IT-007 | ⊘ RETIRED (§2bis) — `--data ../../etc/passwd` exits 1 (replaced by IT-055 on the positional doc path) ((retired)) | Integration | P0 | FR-005-AC-3 | ✅ |
+| IT-007 | ⊘ RETIRED (§2bis) — `--data ../../etc/passwd` exits 1 (replaced by IT-055 on the positional doc path) ((retired)) | Integration | P0 | FR-005-AC-3 | ⛔ |
 | IT-008 | No network sockets opened (strace, happy path — registry present) | Integration | P0 | NFR-004-AC-2, StR-001-AC-4 | ✅ |
 | IT-009 | ⊘ RETIRED (§2bis) — Render byte-parity vs minijinja-cli (FR archetype) ((retired); (retired)) | Integration | P0 | FR-001-AC-1, US-001-AC-2 | ⛔ |
 | IT-010 | ⊘ RETIRED (§2bis) — Schema violation exits 1 before stdout write (render) ((retired); (retired)) | Integration | P0 | FR-001-AC-4, US-001-AC-3 | ⛔ |
@@ -105,8 +105,8 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-012 | Malformed frontmatter still parses, stderr warns | Integration | P1 | FR-002-AC-3, US-002-AC-3 | ✅ |
 | IT-013 | Empty document → valid empty QuireDocument JSON | Integration | P1 | FR-002-AC-4 | ✅ |
 | IT-014 | Parametric **direct-markdown** validate sweep across 8 ISO archetypes (valid + invalid each; no render-then-validate) | Integration | P0 | FR-004-AC-1, FR-004-AC-2, US-003-AC-2 | ✅ |
-| IT-015 | Edge dedup by (source, type, target) | Integration | P1 | FR-003-AC-2, US-004-AC-2 | ✅ |
-| IT-016 | Frontmatter sugar field `dependencies:` harvested | Integration | P1 | FR-003-AC-3, US-004-AC-3 | ✅ |
+| IT-015 | Edge dedup by (source, type, target) — a twice-declared relationship and a twice-linked body target each harvest once (`cli_extract::it_015_*`) | Integration | P1 | US-004-AC-2 | ✅ |
+| IT-016 | ⊘ RETIRED (FR-003 CR, 2026-08-20) — Frontmatter sugar field `dependencies:` harvested (no engine ever harvested sugar fields) | Integration | P1 | FR-003-AC-3 | ⛔ |
 | IT-017 | ⊘ RETIRED (§2bis) — render `--out` flag writes file, empty stdout (the `--out` write-target path-safety survives on `edit`, IT-041) ((retired)) | Integration | P1 | FR-001-AC-5 | ⛔ |
 | IT-018 | ⊘ RETIRED (§2bis) — 8-archetype render parity sweep ((retired); (retired)) | Integration | P0 | FR-001-AC-6, StR-002 | ⛔ |
 | IT-019 | parse JSON round-trips through QuireDocument deserialize | Integration | P0 | FR-002-AC-5, FR-008-AC-1 | ✅ |

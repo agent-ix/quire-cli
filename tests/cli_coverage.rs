@@ -42,7 +42,7 @@ fn doc(dir: &TempDir) -> String {
     p.to_string_lossy().into_owned()
 }
 
-/// TC-714 (FR-047-AC-8): the `--summary` histogram groups by the generic
+/// TC-714 (FR-047-AC-8, FR-004-AC-15): the `--summary` histogram groups by the generic
 /// `[<grammar>:<check>]` prefix, so a corpus emitting both `[ears:*]` and
 /// `[ac:*]` findings shows both. Before this the parser matched a hardcoded
 /// `[ears:` prefix and every `ac` finding was silently absent.
@@ -77,7 +77,7 @@ fn tc714_summary_covers_every_grammar() {
     );
 }
 
-/// TC-720 / TC-752 (FR-048-AC-5/AC-9): `--severity <grammar>:<check>=off`
+/// TC-720 / TC-752 (FR-048-AC-5/AC-9, FR-004-AC-16): `--severity <grammar>:<check>=off`
 /// suppresses the check entirely — no warning, and no row in the histogram.
 #[test]
 fn tc720_severity_off_suppresses_a_check() {
@@ -112,7 +112,7 @@ fn tc720_severity_off_suppresses_a_check() {
     assert!(after.contains("ears:"), "{after}");
 }
 
-/// TC-721 (FR-048-AC-6): `--severity …=error` promotes a check, and the run
+/// TC-721 (FR-048-AC-6, FR-004-AC-17): `--severity …=error` promotes a check, and the run
 /// fails on it — the per-check lever `--strict` could not express.
 #[test]
 fn tc721_severity_error_fails_the_run() {
@@ -144,7 +144,7 @@ fn tc721_severity_error_fails_the_run() {
     );
 }
 
-/// TC-755 (FR-048-AC-10): a malformed `--severity` entry is rejected before any
+/// TC-755 (FR-048-AC-10, FR-004-AC-18): a malformed `--severity` entry is rejected before any
 /// document is read, so the user gets a usage error rather than a run that
 /// silently ignored the flag.
 #[test]

@@ -1,6 +1,11 @@
-//! AUDIT-001 (NFR-002): the release binary links only against libc,
-//! libm, libpthread, libdl, ld-linux, and similar baseline dynamic deps —
-//! NO project-private `.so` files. Linux-only.
+//! The release binary links only against libc, libm, libpthread, libdl,
+//! ld-linux, and similar baseline dynamic deps — NO project-private `.so`
+//! files. Linux-only.
+//!
+//! The trace id sits on the test, not here — a `//!` block attaches to the file
+//! and binds to no symbol. The old `AUDIT-001` id predates the `TC-`/`IT-`
+//! prefix unification (spec-artifacts-process CR-019); the matrix row is
+//! TC-089 (agent-ix/quire-cli#43).
 
 #![cfg(target_os = "linux")]
 
@@ -28,6 +33,7 @@ fn is_allowed(lib_name: &str) -> bool {
     ALLOWED_LIBS.contains(&lib_name) || lib_name.starts_with("ld-linux-")
 }
 
+// TC-089 (NFR-002-AC-1): `ldd` shows only libc + loader, no project `.so`.
 #[test]
 fn binary_links_only_baseline_libs() {
     // Resolve the binary path via the same mechanism `assert_cmd` uses.

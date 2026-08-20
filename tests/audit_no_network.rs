@@ -1,11 +1,14 @@
-//! IT-008 / NFR-004-AC-2: under `strace -fe network`, none of the
-//! subcommands opens an AF_INET / AF_INET6 socket on a happy-path run
-//! (registry present). IT-081 additionally proves the new scoped discovery
-//! path (modules found via IX_FILAMENT_MODULES_PATH / the default root) is
-//! network-free. The scoped-`validate` empty-discovery lazy-init — which
-//! spawns `quoin` to bootstrap modules — is the documented NFR-004 exception
-//! (ADR-0001) and is intentionally out of these happy-path traces; its
-//! quoin-absent error path is covered by IT-082 in `cli_validate.rs`.
+//! Under `strace -fe network`, none of the subcommands opens an AF_INET /
+//! AF_INET6 socket on a happy-path run (registry present). The scoped
+//! discovery path (modules found via IX_FILAMENT_MODULES_PATH / the default
+//! root) is proven network-free by the same means. The scoped-`validate`
+//! empty-discovery lazy-init — which spawns `quoin` to bootstrap modules — is
+//! the documented NFR-004 exception (ADR-0001) and is intentionally out of
+//! these happy-path traces; its quoin-absent error path is covered by IT-082
+//! in `cli_validate.rs`.
+//!
+//! Trace ids sit on the tests, not in this header — a `//!` block attaches to
+//! the file and binds to no symbol (agent-ix/quire-cli#43).
 //!
 //! `strace` is Linux-only. We additionally skip if strace isn't on PATH
 //! so the test stays no-op on minimal containers.
@@ -74,6 +77,7 @@ fn assert_no_inet_socket(trace: &str, subcommand: &str) {
     }
 }
 
+// IT-008 (NFR-004-AC-2, StR-001-AC-4): `schema` opens no inet socket.
 #[test]
 fn schema_does_not_open_inet_socket() {
     if !strace_available() {
@@ -85,6 +89,7 @@ fn schema_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "schema");
 }
 
+// IT-008 (NFR-004-AC-2, StR-001-AC-4): `parse` opens no inet socket.
 #[test]
 fn parse_does_not_open_inet_socket() {
     if !strace_available() {
@@ -97,6 +102,7 @@ fn parse_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "parse");
 }
 
+// IT-008 (NFR-004-AC-2, StR-001-AC-4): `validate` opens no inet socket.
 #[test]
 fn validate_does_not_open_inet_socket() {
     if !strace_available() {
@@ -114,6 +120,7 @@ fn validate_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "validate");
 }
 
+// IT-008 (NFR-004-AC-2, StR-001-AC-4): `extract` opens no inet socket.
 #[test]
 fn extract_does_not_open_inet_socket() {
     if !strace_available() {
@@ -132,6 +139,7 @@ fn extract_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "extract");
 }
 
+// IT-008 (NFR-004-AC-2, StR-001-AC-4): `lookup` opens no inet socket.
 #[test]
 fn lookup_does_not_open_inet_socket() {
     if !strace_available() {

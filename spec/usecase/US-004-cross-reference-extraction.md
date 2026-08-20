@@ -17,7 +17,7 @@ As a **batch indexer ingesting a spec corpus into Filament**, I want to run `qui
 
 ## Context
 
-Wraps `quire-rs::extract` + `quire-rs::harvest_edges` (upstream [FR-011](../functional/FR-011-lookup-subcommand.md), [FR-015](../functional/FR-015-fix-subcommand.md)). The module supplies the body-extraction DSL declared per-archetype; the harvested edges include both frontmatter sugar fields (`dependencies`, `supersedes`, …) and structured `relationships:` blocks.
+Wraps `quire-rs::extract` + `quire-rs::harvest_edges` (upstream [FR-011](../functional/FR-011-lookup-subcommand.md), [FR-015](../functional/FR-015-fix-subcommand.md)). The module supplies the body-extraction DSL declared per-archetype; the harvested edges come from the frontmatter `relationships:` array and from `ix://` links in the document body. (Earlier drafts of this paragraph also claimed frontmatter *sugar fields* — `dependencies:`, `supersedes:` — were harvested. They never were; see the CR note on [FR-003](../functional/FR-003-extract-subcommand.md), 2026-08-20.)
 
 ## Acceptance
 

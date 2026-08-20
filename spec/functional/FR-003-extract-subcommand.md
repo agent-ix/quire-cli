@@ -28,6 +28,19 @@ relationships:
 > by `tests/cli_okf.rs::okf_untyped_document_is_error` for the shared `[frontmatter]`
 > vocabulary.
 
+> **CR note (sugar-field harvesting retired, 2026-08-20):** FR-003-AC-3 required
+> `extract` to harvest frontmatter *sugar fields* (`dependencies:`,
+> `supersedes:`, …) into typed edges. **No engine ever implemented this.**
+> `quire_rs::harvest_edges` (`src/corpus/resolve.rs`) reads exactly two sources —
+> the frontmatter `relationships:` array and `ix://` links in the body — and
+> `dependencies` appears nowhere in the quire-rs sources. The concept dates to
+> the FR-001 render era retired under spec.md §2bis. AC-3 and its trace IT-016
+> are therefore **retired**, not deferred: nothing regressed, and the matrix row
+> claiming ✅ was reporting evidence that never existed
+> (agent-ix/quire-cli#43). Harvesting sugar fields remains a legitimate feature
+> request against quire-rs `harvest_edges`; it would arrive as a new AC with a
+> new trace, never by reviving this one.
+
 ## Description
 
 The CLI SHALL expose an `extract` subcommand that parses a markdown document,
@@ -72,7 +85,7 @@ The CLI SHALL NOT mutate, normalize, or filter the upstream extraction or edge o
 |----|----------|--------------|
 | FR-003-AC-1 | `quire extract sample-fr.md --module $ISO` against a fixture document produces JSON with non-empty `extraction` and at least one edge | Test |
 | FR-003-AC-2 | For a document whose frontmatter declares a `type` not present in the module, exit 1 with `UnknownArchetype` on stderr; stdout is empty | Test |
-| FR-003-AC-3 | For a document with frontmatter sugar fields ([FR-001](./FR-001-render-subcommand.md)), the resulting JSON `.edges` contains a `dependencies`-typed edge with [FR-001](./FR-001-render-subcommand.md) | Test |
+| FR-003-AC-3 | ⛔ RETIRED (CR, 2026-08-20) — was: for a document with frontmatter sugar fields, `.edges` contains a `dependencies`-typed edge. No engine ever harvested sugar fields; see the CR note above | Retired |
 | FR-003-AC-4 | Re-running extract on the same input produces byte-identical stdout (determinism, matches upstream) | Test |
 | FR-003-AC-5 | For a document with **no `type`** (the discriminator absent from frontmatter) and no `--archetype`, `extract` exits 1 with a `[frontmatter]`-reason `ValidationError`-shaped diagnostic on stderr naming the missing `type` (the same vocabulary `validate` uses), not a generic anyhow error; stdout is empty | Test |
 

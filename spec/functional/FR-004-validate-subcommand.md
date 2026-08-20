@@ -89,6 +89,7 @@ The CLI SHALL expose a single-mode (markdown-only) `validate` subcommand:
 
 ```
 quire validate <DOC.md|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype <NAME>] [--strict]
+                                  [--summary] [--severity <GRAMMAR>:<CHECK>=<LEVEL>]...
 ```
 
 When the positional argument is a document path, glob, or `-`:
@@ -117,6 +118,30 @@ stderr, no stdout):
 - Frontmatter present but no string `type` key (absent, or non-string) and no `--archetype` → error directing the author to add `type` or pass `--archetype`.
 - The resolved (or `--archetype`-overridden) name is unknown to the loaded module → quire-rs `UnknownArchetype`.
 
+**Requirement-grammar reporting (`--summary`).** The CLI SHALL accept an
+optional `--summary` flag that, after validation completes, emits one
+`GrammarSummary` diagnostic reading
+`<clean>/<scanned> docs grammar-clean (<pct>%); <n> grammar finding(s): <check>=<count> …`,
+plus the property-extractable ratio (quire-rs FR-052). The histogram SHALL group
+findings by the generic `[<grammar>:<check>]` prefix carried in the finding
+message, so every grammar active in the loaded bundle appears — not only `ears`.
+`--summary` is **advisory**: it SHALL NOT change the exit code, and the findings
+it tallies are printed inline as warnings whether or not it is passed.
+
+**Per-check severity override (`--severity`).** The CLI SHALL accept a
+repeatable `--severity <grammar>:<check>=<level>` argument, `level` ∈ {`off`,
+`warning`, `error`}, and SHALL merge the entries over the loaded module's
+`grammar_severity` map before any document is validated. An entry SHALL take
+precedence over a module-declared entry for the same `<grammar>:<check>` key;
+the merge itself is quire-rs `grammar::merge_severity_overrides`
+(upstream FR-048), not CLI logic ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)
+thin boundary). `off` SHALL suppress the check entirely — no warning, no error,
+and no row in the `--summary` histogram. `error` SHALL promote the check so a
+run that would otherwise exit 0 exits 1 on it, a per-check lever `--strict`
+cannot express. The CLI SHALL reject a malformed entry before it reads any
+document, so a mistyped override is a usage error rather than a run that
+silently ignored the flag.
+
 `validate` SHALL NOT render or write any artifact body. It is a fast CI / authoring gate.
 
 ## Acceptance Criteria
@@ -137,8 +162,12 @@ stderr, no stdout):
 | FR-004-AC-12 | Under `--diagnostics-format json`, a warning is emitted as a distinct JSON object carrying a `severity`/`kind` field marking it a warning (not an error), so machine consumers can tell warnings from errors. An error retains its error `kind` | Test |
 | FR-004-AC-13 | Scoped validation discovers modules from the default install root `~/.ix/filament/modules` and from `IX_FILAMENT_MODULES_PATH` (in addition to `--scope`, `--scope/.ix/modules`, and the legacy `IX_SCHEMA_PATH`) with no env var required and no network: a document validates against a module provided only via the default-root/env discovery path, and the run opens no inet socket | Test |
 | FR-004-AC-14 | When scoped discovery finds zero modules and `quoin` is not available on PATH, `validate` exits 1 with an actionable diagnostic naming `quoin plugin ensure-defaults` (and `IX_FILAMENT_MODULES_PATH`); empty stdout. When `quoin` IS available, the empty-discovery path shells out to `quoin plugin ensure-defaults` once and reloads before validating (the [NFR-004](../non-functional/NFR-004-no-network.md) network exception, [ADR-0001](../assets/adr/0001-validate-lazy-init-module-bootstrap.md)) | Test (quoin-absent path) + Demonstration (lazy install) |
+| FR-004-AC-15 | With `--summary`, a run over a bundle whose documents emit findings from two different grammars prints a histogram containing a row for **each** grammar (`[ears:*]` and `[ac:*]` both appear), and the exit code is identical to the same run without `--summary` | Test |
+| FR-004-AC-16 | `--severity <grammar>:<check>=off` suppresses that check entirely: the warning disappears from stderr AND its row disappears from the `--summary` histogram, while every other check's row is unchanged | Test |
+| FR-004-AC-17 | `--severity <grammar>:<check>=error` promotes that check: a run that exits 0 without the override exits 1 with the override, and the finding is reported as an error rather than a warning | Test |
+| FR-004-AC-18 | A malformed `--severity` entry (no `<grammar>:<check>=<level>` shape, an unknown level, or an empty grammar/check segment) exits non-zero with a usage diagnostic **before any document is read**, never a silently ignored flag | Test |
 
 ## Dependencies
 
-- **Upstream**: [US-003](../usecase/US-003-ci-validates-archetype-conformance.md) CI validates archetype conformance; quire-rs [FR-032](ix://agent-ix/quire-rs/FR-032) (`validate_document_in_registry`).
+- **Upstream**: [US-003](../usecase/US-003-ci-validates-archetype-conformance.md) CI validates archetype conformance; quire-rs [FR-032](ix://agent-ix/quire-rs/FR-032) (`validate_document_in_registry`), [FR-047](ix://agent-ix/quire-rs/FR-047) (generic requirement-grammar summary), [FR-048](ix://agent-ix/quire-rs/FR-048) (per-check severity overrides), [FR-052](ix://agent-ix/quire-rs/FR-052) (property classification, the `--summary` extractable ratio).
 - **Downstream**: [FR-010](./FR-010-required-section-validation.md) structural-validation surfacing; [FR-014](./FR-014-validate-okf-bundle.md) `--okf` bundle posture.

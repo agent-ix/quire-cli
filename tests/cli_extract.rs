@@ -1,5 +1,7 @@
 //! Happy-path extract ITs.
-//! Covers IT-004, IT-020.
+//!
+//! Trace ids sit on the tests, not in this header — a `//!` block attaches to
+//! the file and binds to no symbol (agent-ix/quire-cli#43).
 
 mod common;
 
@@ -8,6 +10,8 @@ use predicates::prelude::*;
 
 use common::{extract_module, extract_sample_doc, quire};
 
+// IT-004 (FR-003-AC-1, US-004-AC-1): `extract` emits the {extraction, edges}
+// envelope.
 #[test]
 fn it_004_extract_emits_envelope() {
     let out = quire()
@@ -41,6 +45,7 @@ fn it_004_extract_emits_envelope() {
     );
 }
 
+// IT-020 (FR-003-AC-4): an `extract` rerun produces byte-identical stdout.
 #[test]
 fn it_020_extract_is_deterministic() {
     let one = quire()
@@ -62,6 +67,61 @@ fn it_020_extract_is_deterministic() {
     assert_eq!(one.stdout, two.stdout, "extract output not deterministic");
 }
 
+// IT-015 (US-004-AC-2): edges are deduped by (source, type, target). The same
+// relationship declared twice in frontmatter, and the same `ix://` target
+// linked twice in the body, each collapse to ONE edge — asserted by counting
+// occurrences, not by "an edge exists", which a duplicating harvest also
+// satisfies.
+#[test]
+fn it_015_edges_are_deduped_by_source_type_target() {
+    let doc = std::env::temp_dir().join(format!("quire-cli-it-015-{}.md", std::process::id()));
+    std::fs::write(
+        &doc,
+        "---\nid: EX-015\ntype: ExtractSample\nrelationships:\n  \
+         - target: \"ix://agent-ix/quire-cli/spec/stakeholder/StR-001\"\n    type: implements\n  \
+         - target: \"ix://agent-ix/quire-cli/spec/stakeholder/StR-001\"\n    type: implements\n\
+         ---\n# EX-015\n\n## Purpose\n\n\
+         see ix://agent-ix/quire-cli/spec/usecase/US-004 and again \
+         ix://agent-ix/quire-cli/spec/usecase/US-004\n",
+    )
+    .unwrap();
+    let out = quire()
+        .arg("extract")
+        .arg(&doc)
+        .arg("--module")
+        .arg(extract_module())
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).expect("valid JSON");
+    let edges = v["edges"].as_array().expect("edges array");
+
+    let implements = edges
+        .iter()
+        .filter(|e| e["target"] == "StR-001" && e["type"] == "implements")
+        .count();
+    assert_eq!(
+        implements, 1,
+        "the twice-declared frontmatter relationship must be harvested once: {edges:?}"
+    );
+    let references = edges
+        .iter()
+        .filter(|e| e["target"] == "US-004" && e["type"] == "references")
+        .count();
+    assert_eq!(
+        references, 1,
+        "the twice-linked body target must be harvested once: {edges:?}"
+    );
+}
+
+// FR-003-AC-2 (US-004-AC-3): a document whose `type` resolves to no archetype
+// carrying a DSL exits 1 with a diagnostic naming it — never a crash, never a
+// partial extraction on stdout.
 #[test]
 fn extract_no_dsl_archetype_errors_cleanly() {
     // The ISO module has no object_types; the FR type isn't an

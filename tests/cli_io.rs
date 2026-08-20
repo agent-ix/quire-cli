@@ -1,6 +1,7 @@
 //! I/O contract ITs.
-//! Covers IT-011 (stdin), IT-024 (no interleave), IT-025 (--diagnostics-format=json),
-//! IT-028 (compact default), IT-029 (--pretty), IT-030 (stable field order).
+//!
+//! Trace ids sit on the tests, not in this header — a `//!` block attaches to
+//! the file and binds to no symbol (agent-ix/quire-cli#43).
 
 mod common;
 
@@ -11,6 +12,7 @@ use common::{quire, validate_module};
 
 const SIMPLE_DOC: &str = "---\nid: FR-001\ntype: FR\n---\n# [FR-001] Hi\n";
 
+// IT-011 (FR-002-AC-2, US-002-AC-4, FR-006-AC-4): `parse -` reads stdin.
 #[test]
 fn it_011_parse_dash_reads_stdin() {
     let mut child = quire()
@@ -33,10 +35,11 @@ fn it_011_parse_dash_reads_stdin() {
     assert!(body.contains("FR-001"));
 }
 
+// IT-024 (FR-006-AC-1, FR-006-AC-2): no stdout/stderr interleaving. `schema`
+// for an archetype that exists — stdout is a single JSON payload; stderr
+// carries no error on a clean run.
 #[test]
 fn it_024_stdout_and_stderr_do_not_interleave() {
-    // `schema` for an archetype that exists — stdout is a single JSON
-    // payload; stderr carries no error on a clean run.
     let out = quire()
         .arg("schema")
         .arg("FR")
@@ -58,10 +61,11 @@ fn it_024_stdout_and_stderr_do_not_interleave() {
     );
 }
 
+// IT-025 (FR-006-AC-3, NFR-005-AC-2): drive a deliberate error to get a
+// diagnostic. With `--diagnostics-format=json` each line on stderr should
+// parse as a JSON object with a `kind`.
 #[test]
 fn it_025_diagnostics_format_json_produces_json_lines() {
-    // Drive a deliberate error to get a diagnostic. With --diagnostics-format=json
-    // each line on stderr should parse as a JSON object with a "kind".
     let out = quire()
         .arg("--diagnostics-format")
         .arg("json")
@@ -86,6 +90,86 @@ fn it_025_diagnostics_format_json_produces_json_lines() {
     assert!(found, "no JSON diagnostic found in stderr: {stderr}");
 }
 
+// IT-031 (NFR-005-AC-1, NFR-005-AC-2): EVERY known failure class renders its
+// stderr as `Diagnostic` JSON under `--diagnostics-format json`. IT-025 asserts
+// that *at least one* line parses for *one* class, which an implementation
+// mixing a bare `anyhow` message into the stream still satisfies; this walks
+// each class and requires every non-empty line to carry `kind` + `severity`.
+#[test]
+fn it_031_every_error_class_renders_as_diagnostic_json() {
+    let doc = std::env::temp_dir().join(format!("quire-cli-it-031-{}.md", std::process::id()));
+    std::fs::write(&doc, SIMPLE_DOC).unwrap();
+    let empty_module = tempfile::tempdir().expect("tmpdir");
+
+    let module = validate_module();
+    let module = module.to_str().unwrap();
+    let valid = common::validate_doc("valid-fr.md");
+    let valid = valid.to_str().unwrap();
+    let placeholder = common::validate_doc("placeholder-fr.md");
+    let placeholder = placeholder.to_str().unwrap();
+    let doc = doc.to_str().unwrap().to_owned();
+
+    let classes: Vec<(&str, Vec<&str>)> = vec![
+        (
+            "path-safety",
+            vec!["validate", valid, "--module", "foo/../bar"],
+        ),
+        (
+            "unknown-archetype",
+            vec!["validate", valid, "--module", module, "--archetype", "NOPE"],
+        ),
+        (
+            "missing-manifest",
+            vec![
+                "validate",
+                valid,
+                "--module",
+                empty_module.path().to_str().unwrap(),
+            ],
+        ),
+        (
+            "structural-validation",
+            vec!["validate", placeholder, "--module", module],
+        ),
+        (
+            "section-not-found",
+            vec!["lookup", &doc, "--block-id", "definitely-not-a-block"],
+        ),
+    ];
+
+    for (class, args) in classes {
+        let out = quire()
+            .arg("--diagnostics-format")
+            .arg("json")
+            .args(&args)
+            .output()
+            .unwrap();
+        assert!(
+            !out.status.success(),
+            "{class} was expected to fail; it exited {:?}",
+            out.status.code()
+        );
+        assert!(out.stdout.is_empty(), "{class} wrote to stdout");
+        let stderr = String::from_utf8(out.stderr).unwrap();
+        let mut lines = 0;
+        for line in stderr.lines().filter(|l| !l.trim().is_empty()) {
+            lines += 1;
+            let v: serde_json::Value = serde_json::from_str(line)
+                .unwrap_or_else(|e| panic!("{class}: stderr line is not JSON ({e}): {line}"));
+            assert!(
+                v.get("kind").and_then(|k| k.as_str()).is_some(),
+                "{class}: diagnostic carries no `kind`: {line}"
+            );
+            assert!(
+                v.get("severity").and_then(|s| s.as_str()).is_some(),
+                "{class}: diagnostic carries no `severity`: {line}"
+            );
+        }
+        assert!(lines > 0, "{class} produced no diagnostic at all");
+    }
+}
+
+// IT-028 (FR-008-AC-1): default JSON output is compact (one line).
 #[test]
 fn it_028_parse_json_output_is_compact_by_default() {
     let dir = std::env::temp_dir();
@@ -102,6 +186,7 @@ fn it_028_parse_json_output_is_compact_by_default() {
     );
 }
 
+// IT-029 (FR-008-AC-3): `--pretty` produces multi-line indented JSON.
 #[test]
 fn it_029_pretty_flag_indents_json() {
     let dir = std::env::temp_dir();
@@ -122,6 +207,8 @@ fn it_029_pretty_flag_indents_json() {
     );
 }
 
+// IT-030 (FR-008-AC-4): JSON field order matches Rust struct order, so two
+// runs are byte-identical.
 #[test]
 fn it_030_parse_json_field_order_is_stable_across_runs() {
     let dir = std::env::temp_dir();

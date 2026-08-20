@@ -142,8 +142,8 @@ fn it_053_bad_table_reports_assert() {
         .stderr(predicate::str::contains("assert"));
 }
 
-// IT-021 + IT-054 (FR-010-AC-5): structural failure → empty stdout,
-// non-empty stderr carrying the quire-rs diagnostics.
+// IT-054 (FR-010-AC-5): structural failure → empty stdout, non-empty stderr
+// carrying the quire-rs diagnostics.
 #[test]
 fn it_054_structural_failure_empty_stdout_nonempty_stderr() {
     quire()
@@ -158,6 +158,8 @@ fn it_054_structural_failure_empty_stdout_nonempty_stderr() {
         .stderr(predicate::str::is_empty().not());
 }
 
+// IT-021 (FR-004-AC-1, FR-006): `validate` writes nothing to stdout on
+// success.
 #[test]
 fn it_021_valid_markdown_writes_nothing_to_stdout() {
     quire()

@@ -27,7 +27,9 @@ fn bundle(files: &[(&str, &str)]) -> TempDir {
     dir
 }
 
-// `type` stays required under OKF: an untyped document is a hard error.
+// IT-069 (FR-014-AC-1, FR-014-AC-8, FR-003-AC-5): `type` stays required under
+// OKF — an untyped document is a hard error carrying the shared
+// `[frontmatter]` vocabulary.
 #[test]
 fn okf_untyped_document_is_error() {
     let dir = bundle(&[("NOTE-001.md", "---\nid: NOTE-001\n---\n# note\nbody\n")]);
@@ -43,7 +45,8 @@ fn okf_untyped_document_is_error() {
         .stderr(predicate::str::contains("type").and(predicate::str::contains("[frontmatter]")));
 }
 
-// Unknown type + dangling `ix://` link are tolerated as warnings (exit 0).
+// IT-070 (FR-014-AC-2, FR-014-AC-3): an unknown type and a dangling `ix://`
+// link are tolerated as warnings (exit 0).
 #[test]
 fn okf_tolerates_unknown_type_and_broken_link() {
     let dir = bundle(&[(
@@ -64,7 +67,8 @@ fn okf_tolerates_unknown_type_and_broken_link() {
         );
 }
 
-// An index.md missing a sibling artifact warns under OKF (exit 0).
+// IT-071 (FR-014-AC-4, FR-014-AC-5): an `index.md` missing a sibling artifact
+// warns under OKF (exit 0).
 #[test]
 fn okf_index_incompleteness_warns() {
     let dir = bundle(&[
@@ -88,10 +92,10 @@ fn okf_index_incompleteness_warns() {
         );
 }
 
-// With no positional, --okf validates the document root `<scope>/spec`
-// (CR-045) — never the scope itself, which was the repo-wide crawl.
+// IT-072 (FR-014-AC-6): with no positional, `--okf` validates the document
+// root `<scope>/spec` (CR-045) — never the scope itself, which was the
+// repo-wide crawl.
 #[test]
-// IT-072, FR-014-AC-6: with no positional the bundle root is <scope>/spec.
 fn okf_defaults_to_scope_spec_directory() {
     let dir = bundle(&[
         ("spec/X-1.md", "---\nid: X-1\ntype: weird\n---\n# x\nbody\n"),
@@ -110,10 +114,9 @@ fn okf_defaults_to_scope_spec_directory() {
         .success();
 }
 
-// A scope with no spec/ is a named error, not a silent fallback (CR-045).
+// IT-085 (FR-014-AC-6): a scope with no `spec/` is a named error, never a
+// silent fallback to walking the scope (CR-045).
 #[test]
-// IT-085, FR-014-AC-6: and a scope with no spec/ is a named error, never a
-// silent fallback to walking the scope.
 fn okf_missing_spec_root_is_a_named_error() {
     let dir = bundle(&[("X-1.md", "---\nid: X-1\ntype: weird\n---\n# x\nbody\n")]);
     // The interpolated path, not `contains("spec")`: the module-discovery
