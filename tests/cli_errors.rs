@@ -86,11 +86,15 @@ fn it_027_no_panic_on_random_garbage_input() {
 // → valid empty QuireDocument JSON" (`cli_parse::it_013_*`) — a different
 // behaviour entirely. The behaviour here is IT-050's, and that row is already
 // bound by `cli_validate::it_050_unknown_archetype_reports_unknown`, which
-// asserts strictly more (it also requires stdout to be empty). Tagging this one
-// IT-050 would put two symbols on one row, so deleting either would leave the
-// row green on the strength of the other — the collision this file's ticket
-// exists to remove (agent-ix/quire-cli#45). It stays as an errors-lane smoke
-// check that claims nothing.
+// asserts strictly more (it also requires stdout to be empty). Tagging this
+// test with that row's id would put two symbols on one row, so deleting either
+// would leave the row green on the strength of the other — the collision
+// agent-ix/quire-cli#45 removes. It stays as an errors-lane smoke check that
+// claims nothing.
+//
+// Keep ids out of line-initial position in this block: `rust-comment-id`
+// matches `//` + id + a delimiter, and only the trailing prose saves the
+// mentions above from binding. Reflowing this comment could make one bind.
 #[test]
 fn unknown_archetype_exits_1_with_named_error() {
     quire()

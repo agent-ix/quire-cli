@@ -462,11 +462,12 @@ fn it_075_json_warning_has_distinct_severity() {
 // module binds FR to `grammar_ref: iso-spec-core`.
 // ----------------------------------------------------------------------
 
-// A structurally-valid FR carrying EARS violations exits 0 (grammar findings
-// are advisory) and surfaces them as warnings; --summary prints the doc-level
+// IT-105, FR-004-AC-21, FR-004-AC-15: a structurally-valid FR carrying EARS
+// violations exits 0 (grammar findings are advisory) and surfaces them as
+// warnings under their `[ears:<check>]` labels; --summary prints the doc-level
 // conformance + per-check histogram on stderr, stdout stays empty.
 #[test]
-fn ears_grammar_warnings_are_advisory_and_summarized() {
+fn it_105_ears_grammar_warnings_are_advisory_and_summarized() {
     quire()
         .arg("validate")
         .arg(iso_doc("FR-ears-warn.md"))
@@ -484,10 +485,11 @@ fn ears_grammar_warnings_are_advisory_and_summarized() {
         );
 }
 
-// --strict escalates the advisory EARS warnings to a failing exit code — the
-// per-repo promotion lever: a converted repo flips EARS to blocking in CI.
+// IT-106, FR-004-AC-22: --strict escalates the advisory EARS warnings to a
+// failing exit code — the per-repo promotion lever: a converted repo flips
+// EARS to blocking in CI. Same document as IT-105, which exits 0 without it.
 #[test]
-fn ears_grammar_warnings_fail_under_strict() {
+fn it_106_ears_grammar_warnings_fail_under_strict() {
     quire()
         .arg("validate")
         .arg(iso_doc("FR-ears-warn.md"))
