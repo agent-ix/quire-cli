@@ -300,11 +300,13 @@ fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
     assert!(out.stdout.is_empty(), "no stdout on success");
 }
 
-// Scoped validation resolves relative globs under --scope and loads modules
-// from that scope, allowing CI/agents to validate all touched artifacts without
-// passing --module per file.
+// IT-101, FR-004-AC-19: a relative document path resolves under --scope and
+// validates against modules discovered from that scope, with no --module
+// argument — so CI/agents can validate touched artifacts without passing a
+// module per file. Note this case passes a plain path, not a glob; IT-102
+// covers glob expansion.
 #[test]
-fn it_060_scope_glob_validates_matching_documents() {
+fn it_101_scoped_relative_path_validates_without_module() {
     quire()
         .arg("validate")
         .arg("docs/valid-fr.md")
@@ -316,8 +318,10 @@ fn it_060_scope_glob_validates_matching_documents() {
         .stderr(predicate::str::is_empty());
 }
 
+// IT-102, FR-004-AC-20: a relative glob expands under --scope and a matching
+// non-conformant document exits 1 with a line-numbered diagnostic naming it.
 #[test]
-fn it_061_scope_glob_surfaces_invalid_document() {
+fn it_102_scope_glob_surfaces_invalid_document() {
     quire()
         .arg("validate")
         .arg("docs/broken-*.md")

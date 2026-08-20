@@ -92,10 +92,12 @@ fn doc(dir: &TempDir) -> String {
     p.to_string_lossy().into_owned()
 }
 
-/// IT-095 (quire-rs FR-055-AC-4): the emitted envelope conforms to the
-/// published contract — including the FR-053 obligation nested on each record.
+/// IT-103, FR-018-AC-8: the emitted envelope conforms to the published
+/// contract — including the FR-053 obligation nested on each record. Upstream
+/// this is quire-rs FR-055-AC-4, cited in prose because quire-cli's matrix does
+/// not declare quire-rs criteria; binding it here would mint a dead tag.
 #[test]
-fn it095_properties_envelope_conforms_to_the_published_schema() {
+fn it_103_properties_envelope_conforms_to_the_published_schema() {
     let dir = TempDir::new().expect("tempdir");
     let (d, m) = (doc(&dir), module(&dir));
 
@@ -139,10 +141,11 @@ fn it095_properties_envelope_conforms_to_the_published_schema() {
     );
 }
 
-/// IT-096: a module declaring no obligation source emits `obligation: null` and
-/// still conforms — the shape a corpus that has not adopted obligations sees.
+/// IT-104, FR-018-AC-9: a module declaring no obligation source emits
+/// `obligation: null` and still conforms — the shape a corpus that has not
+/// adopted obligations sees.
 #[test]
-fn it096_absent_obligation_is_null_and_still_conforms() {
+fn it_104_absent_obligation_is_null_and_still_conforms() {
     let dir = TempDir::new().expect("tempdir");
     let m = dir.path().join("plain");
     fs::create_dir_all(&m).expect("mkdir");
