@@ -301,10 +301,11 @@ fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
 }
 
 // IT-101, FR-004-AC-19: a relative document path resolves under --scope and
-// validates against modules discovered from that scope, with no --module
-// argument — so CI/agents can validate touched artifacts without passing a
-// module per file. Note this case passes a plain path, not a glob; IT-102
-// covers glob expansion.
+// validates against the module that scope carries, with no --module argument —
+// so CI/agents can validate touched artifacts without passing a module per
+// file. Two things this case is NOT: it passes a plain path, never a glob
+// (IT-102 covers glob expansion), and the fixture root holds `manifest.yaml`,
+// so this is the exact-module branch — search-root discovery is IT-081's.
 #[test]
 fn it_101_scoped_relative_path_validates_without_module() {
     quire()
