@@ -30,7 +30,7 @@ fn bundle(files: &[(&str, &str)]) -> TempDir {
 
 const FR008: &str = "---\nid: FR-008\ntype: FR\n---\n# FR-008\n";
 
-// IT-076 / FR-015-AC-1: dry-run reports `would-fix` and exits 1; no write.
+// IT-076, FR-015-AC-1: dry-run reports `would-fix` and exits 1; no write.
 #[test]
 fn dry_run_reports_and_exits_one() {
     let dir = bundle(&[
@@ -58,7 +58,7 @@ fn dry_run_reports_and_exits_one() {
     assert_eq!(before, after);
 }
 
-// IT-077 / FR-015-AC-2: --write applies the link; a second run is a no-op (exit 0).
+// IT-077, FR-015-AC-2: --write applies the link; a second run is a no-op (exit 0).
 #[test]
 fn write_applies_and_is_idempotent() {
     let dir = bundle(&[
@@ -92,7 +92,7 @@ fn write_applies_and_is_idempotent() {
     quire().arg("fix").arg(dir.path()).assert().success();
 }
 
-// IT-078 / FR-015-AC-3: a warn-only (unresolved) token warns, is never
+// IT-078, FR-015-AC-3: a warn-only (unresolved) token warns, is never
 // written, and does not by itself cause a nonzero exit.
 #[test]
 fn warn_only_never_written_exit_zero() {
@@ -114,7 +114,7 @@ fn warn_only_never_written_exit_zero() {
     assert_eq!(before, after);
 }
 
-// IT-079 / FR-015-AC-4: a clean bundle exits 0 in both modes.
+// IT-079, FR-015-AC-4: a clean bundle exits 0 in both modes.
 #[test]
 fn clean_bundle_exits_zero() {
     let dir = bundle(&[(
@@ -175,7 +175,7 @@ fn path_traversal_rejected() {
         .stderr(predicate::str::contains("PathTraversal").and(predicate::str::contains("..")));
 }
 
-// IT-080 (FR-015-AC-5): `fix` with no positional derives `<scope>/spec`, the
+// IT-080, FR-015-AC-5: `fix` with no positional derives `<scope>/spec`, the
 // same two-root rule `coverage` and `validate --okf` use. The default-root
 // change shipped in PR #27 with no test that omits the positional at all, so
 // nothing distinguished "reads <scope>/spec" from "reads <scope>"
@@ -216,7 +216,7 @@ fn it080_fix_with_no_positional_uses_the_scope_spec_root() {
     );
 }
 
-// IT-080 (FR-015-AC-5): and a scope with no `spec/` is the same named error
+// IT-080, FR-015-AC-5: and a scope with no `spec/` is the same named error
 // the other two commands raise, not a silent walk of the scope.
 #[test]
 fn it080_fix_without_a_spec_root_is_a_named_error() {

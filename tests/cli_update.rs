@@ -9,7 +9,7 @@ mod common;
 
 use common::quire;
 
-// IT-083 (FR-016-AC-1, FR-016-AC-2): `update --check` on an Unknown install
+// IT-083, FR-016-AC-1, FR-016-AC-2: `update --check` on an Unknown install
 // source prints the npm recipe, the cargo recipe and the releases URL, exits 0,
 // and performs no install or network call.
 #[test]
@@ -34,7 +34,7 @@ fn update_check_on_unknown_source_prints_manual_instructions_and_exits_zero() {
     );
 }
 
-// IT-084 (FR-016-AC-2): even without `--check`, an Unknown source performs no
+// IT-084, FR-016-AC-2: even without `--check`, an Unknown source performs no
 // install — it only emits instructions — so this stays network-free and exits 0.
 #[test]
 fn update_without_check_on_unknown_source_is_also_safe() {

@@ -77,7 +77,7 @@ fn assert_no_inet_socket(trace: &str, subcommand: &str) {
     }
 }
 
-// IT-008 (NFR-004-AC-2, StR-001-AC-4): `schema` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `schema` opens no inet socket.
 #[test]
 fn schema_does_not_open_inet_socket() {
     if !strace_available() {
@@ -89,7 +89,7 @@ fn schema_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "schema");
 }
 
-// IT-008 (NFR-004-AC-2, StR-001-AC-4): `parse` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `parse` opens no inet socket.
 #[test]
 fn parse_does_not_open_inet_socket() {
     if !strace_available() {
@@ -102,7 +102,7 @@ fn parse_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "parse");
 }
 
-// IT-008 (NFR-004-AC-2, StR-001-AC-4): `validate` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `validate` opens no inet socket.
 #[test]
 fn validate_does_not_open_inet_socket() {
     if !strace_available() {
@@ -120,7 +120,7 @@ fn validate_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "validate");
 }
 
-// IT-008 (NFR-004-AC-2, StR-001-AC-4): `extract` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `extract` opens no inet socket.
 #[test]
 fn extract_does_not_open_inet_socket() {
     if !strace_available() {
@@ -139,7 +139,7 @@ fn extract_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "extract");
 }
 
-// IT-008 (NFR-004-AC-2, StR-001-AC-4): `lookup` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `lookup` opens no inet socket.
 #[test]
 fn lookup_does_not_open_inet_socket() {
     if !strace_available() {
@@ -152,7 +152,7 @@ fn lookup_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "lookup");
 }
 
-// IT-081 (FR-004-AC-13, NFR-004-AC-2): scoped validation that discovers its
+// IT-081, FR-004-AC-13, NFR-004-AC-2: scoped validation that discovers its
 // module via the new `IX_FILAMENT_MODULES_PATH` root (modules present, so no
 // `quoin` is spawned) validates the document AND opens no inet socket. HOME is
 // pointed at an empty dir so the default install root resolves to a missing

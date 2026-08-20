@@ -8,7 +8,7 @@ mod common;
 
 use common::quire;
 
-// IT-032 (NFR-006-AC-2): the `quire --help` snapshot is pinned.
+// IT-032, NFR-006-AC-2: the `quire --help` snapshot is pinned.
 #[test]
 fn it_032_help_output_matches_pinned_snapshot() {
     let snapshot = include_str!("snapshots/help.txt");

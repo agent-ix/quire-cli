@@ -33,7 +33,7 @@ fn is_allowed(lib_name: &str) -> bool {
     ALLOWED_LIBS.contains(&lib_name) || lib_name.starts_with("ld-linux-")
 }
 
-// TC-089 (NFR-002-AC-1): `ldd` shows only libc + loader, no project `.so`.
+// TC-089, NFR-002-AC-1: `ldd` shows only libc + loader, no project `.so`.
 #[test]
 fn binary_links_only_baseline_libs() {
     // Resolve the binary path via the same mechanism `assert_cmd` uses.

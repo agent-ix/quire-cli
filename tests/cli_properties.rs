@@ -55,7 +55,7 @@ fn criteria_of(payload: &serde_json::Value) -> Vec<serde_json::Value> {
         .unwrap_or_default()
 }
 
-// IT-093 (FR-018-AC-1): the default human census renders and exits 0.
+// IT-093, FR-018-AC-1: the default human census renders and exits 0.
 #[test]
 fn it093_human_census_renders_and_exits_zero() {
     let dir = TempDir::new().expect("tempdir");
@@ -77,7 +77,7 @@ fn it093_human_census_renders_and_exits_zero() {
     );
 }
 
-// IT-094 (FR-018-AC-2): `--json` emits one record per binding criterion, each
+// IT-094, FR-018-AC-2: `--json` emits one record per binding criterion, each
 // carrying `row_id` and a shape, and repeated runs are byte-identical. This is
 // the payload `spec-correctness` keys its generated tests on.
 #[test]
@@ -114,7 +114,7 @@ fn it094_json_records_carry_row_ids_and_are_deterministic() {
     );
 }
 
-// IT-095 (FR-018-AC-3): a document whose archetype binds no criteria yields an
+// IT-095, FR-018-AC-3: a document whose archetype binds no criteria yields an
 // empty record set and still exits 0 — "nothing to classify" is not an error.
 #[test]
 fn it095_a_document_binding_no_criteria_is_empty_and_succeeds() {
@@ -141,7 +141,7 @@ fn it095_a_document_binding_no_criteria_is_empty_and_succeeds() {
     assert!(records.is_empty(), "expected no records: {records:?}");
 }
 
-// IT-096 (FR-018-AC-4): a criterion the classifier cannot extract from is
+// IT-096, FR-018-AC-4: a criterion the classifier cannot extract from is
 // reported, never failed. FR-052-CON-1 forbids the shape classification from
 // being addressable by the severity registry precisely so authors are not
 // steered into rewording criteria to satisfy a checker.
@@ -172,7 +172,7 @@ fn it096_unextractable_criteria_never_change_the_exit_code() {
     );
 }
 
-// IT-097 (FR-018-AC-5): path-safety applies before any load.
+// IT-097, FR-018-AC-5: path-safety applies before any load.
 #[test]
 fn it097_path_traversal_is_rejected() {
     let dir = TempDir::new().expect("tempdir");
@@ -185,7 +185,7 @@ fn it097_path_traversal_is_rejected() {
     assert!(!out.status.success(), "a `..` path must be refused");
 }
 
-// IT-098 (FR-018-AC-6): an obligation source's `exclude:` binds THIS surface.
+// IT-098, FR-018-AC-6: an obligation source's `exclude:` binds THIS surface.
 //
 // quire-rs FR-053-AC-14. The engine honoured a source's `exclude:` globs in the
 // coverage rollup and could not honour them here, because this crate never

@@ -30,7 +30,8 @@ fn run_script(rel: &str) -> (bool, String) {
     (out.status.success(), combined)
 }
 
-// TC-090 (StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6): `src/` is a
+// TC-090, StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6, FR-017-AC-9:
+// `src/` is a
 // thin process boundary — no markdown parsing, no structural-validation logic,
 // no render/template code outside the documented dispatch sites.
 #[test]
@@ -39,7 +40,8 @@ fn tc090_src_is_a_thin_boundary_over_quire_rs() {
     assert!(ok, "thin-boundary audit failed:\n{output}");
 }
 
-// TC-091 (NFR-004-AC-1): no HTTP/RPC client crate reaches the build. `cargo
+// TC-091, NFR-004-AC-1, NFR-004-AC-3: no HTTP/RPC client crate reaches the
+// build. `cargo
 // deny check bans` is the CI gate; this asserts the same property directly
 // against `deny.toml` and `Cargo.lock` so the row is backed without depending
 // on cargo-deny being installed, and so a ban silently dropped from deny.toml
@@ -65,7 +67,8 @@ fn tc091_no_http_client_crate_is_banned_or_linked() {
     }
 }
 
-// TC-092 (NFR-003-AC-1): every `unsafe {` block in src/ and tests/ carries a
+// TC-092, NFR-003-AC-1, NFR-003-AC-2: every `unsafe {` block in src/ and
+// tests/ carries a
 // `// SAFETY:` comment or sits in the reviewed baseline.
 #[test]
 fn tc092_every_unsafe_block_is_documented() {
@@ -73,7 +76,7 @@ fn tc092_every_unsafe_block_is_documented() {
     assert!(ok, "unsafe-comment audit failed:\n{output}");
 }
 
-// TC-093 (FR-016-AC-5, FR-016-AC-6, StR-004-AC-2): the `self_update` engine is
+// TC-093, FR-016-AC-5, FR-016-AC-6, StR-004-AC-2: the `self_update` engine is
 // package-agnostic — it is driven by a config struct and imports nothing from
 // quire's `io` or command context, so `commands/update.rs` stays the only
 // quire-specific glue. Source inspection is the only way to reach this: no

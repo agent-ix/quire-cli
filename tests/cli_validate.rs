@@ -18,7 +18,7 @@ use common::{iso_doc, iso_module, quire, validate_doc, validate_module, ISO_ARCH
 // Markdown structural validation — FR-004 / FR-010 over validate_document.
 // ----------------------------------------------------------------------
 
-// IT-047 (FR-004-AC-1, FR-010-AC-4): a valid document exits 0, no output.
+// IT-047, FR-004-AC-1, FR-010-AC-4: a valid document exits 0, no output.
 #[test]
 fn it_047_valid_markdown_exits_0_no_output() {
     quire()
@@ -32,7 +32,7 @@ fn it_047_valid_markdown_exits_0_no_output() {
         .stderr(predicate::str::is_empty());
 }
 
-// IT-048 (FR-004-AC-2): a broken document exits 1 with a line-numbered
+// IT-048, FR-004-AC-2: a broken document exits 1 with a line-numbered
 // diagnostic naming the failing section/assert.
 #[test]
 fn it_048_broken_markdown_exits_1_with_line_numbered_diagnostic() {
@@ -51,7 +51,7 @@ fn it_048_broken_markdown_exits_1_with_line_numbered_diagnostic() {
         );
 }
 
-// IT-049 (FR-004-AC-3): `--archetype` overrides frontmatter resolution.
+// IT-049, FR-004-AC-3: `--archetype` overrides frontmatter resolution.
 // The document has no `type`, so default resolution fails; the
 // override lets it resolve to FR and validate clean.
 #[test]
@@ -79,7 +79,7 @@ fn it_049_archetype_flag_overrides_frontmatter_resolution() {
         .stdout(predicate::str::is_empty());
 }
 
-// IT-050 (FR-004-AC-6, FR-007-AC-3): an unknown `--archetype` → exit 1 with
+// IT-050, FR-004-AC-6, FR-007-AC-3: an unknown `--archetype` → exit 1 with
 // `UnknownArchetype` on stderr (re-pointed off the removed `--json` mode).
 #[test]
 fn it_050_unknown_archetype_reports_unknown() {
@@ -97,7 +97,7 @@ fn it_050_unknown_archetype_reports_unknown() {
         .stderr(predicate::str::contains("UnknownArchetype"));
 }
 
-// IT-051 (FR-010-AC-1): placeholder-only Specification → reason
+// IT-051, FR-010-AC-1: placeholder-only Specification → reason
 // `placeholder`.
 #[test]
 fn it_051_placeholder_section_reports_placeholder() {
@@ -112,7 +112,7 @@ fn it_051_placeholder_section_reports_placeholder() {
         .stderr(predicate::str::contains("placeholder"));
 }
 
-// IT-052 (FR-010-AC-2): a missing required section → reason `missing`,
+// IT-052, FR-010-AC-2: a missing required section → reason `missing`,
 // naming the offending section.
 #[test]
 fn it_052_missing_section_reports_missing() {
@@ -127,7 +127,7 @@ fn it_052_missing_section_reports_missing() {
         .stderr(predicate::str::contains("missing").and(predicate::str::contains("Specification")));
 }
 
-// IT-053 (FR-010-AC-3): an Acceptance Criteria table with wrong columns
+// IT-053, FR-010-AC-3: an Acceptance Criteria table with wrong columns
 // (and zero conforming rows) → reason `assert`.
 #[test]
 fn it_053_bad_table_reports_assert() {
@@ -142,7 +142,7 @@ fn it_053_bad_table_reports_assert() {
         .stderr(predicate::str::contains("assert"));
 }
 
-// IT-054 (FR-010-AC-5): structural failure → empty stdout, non-empty stderr
+// IT-054, FR-010-AC-5: structural failure → empty stdout, non-empty stderr
 // carrying the quire-rs diagnostics.
 #[test]
 fn it_054_structural_failure_empty_stdout_nonempty_stderr() {
@@ -158,7 +158,7 @@ fn it_054_structural_failure_empty_stdout_nonempty_stderr() {
         .stderr(predicate::str::is_empty().not());
 }
 
-// IT-021 (FR-004-AC-1, FR-006): `validate` writes nothing to stdout on
+// IT-021, FR-004-AC-1, FR-006: `validate` writes nothing to stdout on
 // success.
 #[test]
 fn it_021_valid_markdown_writes_nothing_to_stdout() {
@@ -204,7 +204,7 @@ fn it_014_markdown_sweep_each_iso_archetype() {
 // FR-004 archetype-resolution failure paths + path-safety arg label.
 // ----------------------------------------------------------------------
 
-// IT-056 (FR-004-AC-4): a document with no frontmatter and no `--archetype`
+// IT-056, FR-004-AC-4: a document with no frontmatter and no `--archetype`
 // exits 1; stderr names the missing frontmatter / `--archetype` remedy;
 // empty stdout.
 #[test]
@@ -223,7 +223,7 @@ fn it_056_no_frontmatter_names_archetype_remedy() {
         );
 }
 
-// IT-057 (FR-004-AC-5): frontmatter present but no string `type` and no
+// IT-057, FR-004-AC-5: frontmatter present but no string `type` and no
 // `--archetype` exits 1; the diagnostic names `type` / `--archetype` and
 // rides the `frontmatter` reason vocabulary.
 #[test]
@@ -244,7 +244,7 @@ fn it_057_no_type_names_archetype() {
         );
 }
 
-// IT-055 (FR-005-AC-2 / FR-004-AC-7): a `..` document path exits 1 with a
+// IT-055, FR-005-AC-2, FR-004-AC-7: a `..` document path exits 1 with a
 // PathTraversal naming the positional `document` arg.
 #[test]
 fn it_055_dotdot_document_path_rejected() {
@@ -261,7 +261,7 @@ fn it_055_dotdot_document_path_rejected() {
         );
 }
 
-// IT-058 (FR-004-AC-7): the path-safety diagnostic names the offending
+// IT-058, FR-004-AC-7: the path-safety diagnostic names the offending
 // arg label — `document` for the positional, `--module` for the module.
 #[test]
 fn it_058_path_safety_diagnostic_names_arg_label() {
@@ -277,7 +277,7 @@ fn it_058_path_safety_diagnostic_names_arg_label() {
         .stderr(predicate::str::contains("--module"));
 }
 
-// IT-059 (FR-004-AC-8): `validate - --module $ISO` reads the document from
+// IT-059, FR-004-AC-8: `validate - --module $ISO` reads the document from
 // stdin (path-safety-exempt) and still validates structurally.
 #[test]
 fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
@@ -334,7 +334,7 @@ fn it_061_scope_glob_surfaces_invalid_document() {
         );
 }
 
-// IT-082 (FR-004-AC-14, quoin-absent path): scoped validation with zero
+// IT-082, FR-004-AC-14: the quoin-absent path — scoped validation with zero
 // discoverable modules and no `quoin` on PATH exits 1 with an actionable
 // diagnostic naming `quoin plugin ensure-defaults`; stdout stays empty. HOME
 // is pointed at an empty dir so the default install root resolves to a missing
@@ -373,7 +373,7 @@ fn it_082_scoped_no_modules_without_quoin_reports_actionable_error() {
 // advisory WARNING (not an error).
 // ----------------------------------------------------------------------
 
-// IT-073 (FR-004-AC-10): an unknown `object:` warns. Without --strict,
+// IT-073, FR-004-AC-10: an unknown `object:` warns. Without --strict,
 // exit 0, empty stdout; stderr carries a `warning:`-prefixed line naming
 // the unknown object, distinct from any error.
 #[test]
@@ -396,7 +396,7 @@ fn it_073_unknown_object_warns_exit_0_without_strict() {
         );
 }
 
-// IT-074 (FR-004-AC-11): --strict escalates the warning to exit 1; the
+// IT-074, FR-004-AC-11: --strict escalates the warning to exit 1; the
 // warning still prints; empty stdout. A clean doc still exits 0 under
 // --strict (no warnings → no escalation).
 #[test]
@@ -429,7 +429,7 @@ fn it_074_strict_escalates_warning_to_exit_1() {
         .stderr(predicate::str::is_empty());
 }
 
-// IT-075 (FR-004-AC-12): under --diagnostics-format json, the warning is a
+// IT-075, FR-004-AC-12: under --diagnostics-format json, the warning is a
 // distinct JSON object carrying `severity: "warning"` and a warning
 // `kind`, separable from an error object.
 #[test]

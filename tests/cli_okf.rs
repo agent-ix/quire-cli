@@ -27,7 +27,7 @@ fn bundle(files: &[(&str, &str)]) -> TempDir {
     dir
 }
 
-// IT-069 (FR-014-AC-1, FR-014-AC-8, FR-003-AC-5): `type` stays required under
+// IT-069, FR-014-AC-1, FR-014-AC-8, FR-003-AC-5: `type` stays required under
 // OKF — an untyped document is a hard error carrying the shared
 // `[frontmatter]` vocabulary.
 #[test]
@@ -45,7 +45,7 @@ fn okf_untyped_document_is_error() {
         .stderr(predicate::str::contains("type").and(predicate::str::contains("[frontmatter]")));
 }
 
-// IT-070 (FR-014-AC-2, FR-014-AC-3): an unknown type and a dangling `ix://`
+// IT-070, FR-014-AC-2, FR-014-AC-3: an unknown type and a dangling `ix://`
 // link are tolerated as warnings (exit 0).
 #[test]
 fn okf_tolerates_unknown_type_and_broken_link() {
@@ -67,7 +67,7 @@ fn okf_tolerates_unknown_type_and_broken_link() {
         );
 }
 
-// IT-071 (FR-014-AC-4, FR-014-AC-5): an `index.md` missing a sibling artifact
+// IT-071, FR-014-AC-4, FR-014-AC-5: an `index.md` missing a sibling artifact
 // warns under OKF (exit 0).
 #[test]
 fn okf_index_incompleteness_warns() {
@@ -92,7 +92,7 @@ fn okf_index_incompleteness_warns() {
         );
 }
 
-// IT-072 (FR-014-AC-6): with no positional, `--okf` validates the document
+// IT-072, FR-014-AC-6: with no positional, `--okf` validates the document
 // root `<scope>/spec` (CR-045) — never the scope itself, which was the
 // repo-wide crawl.
 #[test]
@@ -114,7 +114,7 @@ fn okf_defaults_to_scope_spec_directory() {
         .success();
 }
 
-// IT-085 (FR-014-AC-6): a scope with no `spec/` is a named error, never a
+// IT-085, FR-014-AC-6: a scope with no `spec/` is a named error, never a
 // silent fallback to walking the scope (CR-045).
 #[test]
 fn okf_missing_spec_root_is_a_named_error() {

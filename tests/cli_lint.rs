@@ -17,7 +17,7 @@ fn lint_doc(name: &str) -> std::path::PathBuf {
     fixture_root().join(format!("lint-mod/docs/{name}"))
 }
 
-// IT-064 (FR-013-AC-1): a clean document exits 0, silent on both streams.
+// IT-064, FR-013-AC-1: a clean document exits 0, silent on both streams.
 #[test]
 fn lint_clean_doc_exits_0_silent() {
     quire()
@@ -31,7 +31,7 @@ fn lint_clean_doc_exits_0_silent() {
         .stderr(predicate::str::is_empty());
 }
 
-// IT-065 (FR-013-AC-2): a warning-severity finding exits 0 with a
+// IT-065, FR-013-AC-2: a warning-severity finding exits 0 with a
 // `warning: <rule-id>:` line plus the offending value on stderr, empty stdout.
 #[test]
 fn lint_warning_finding_exits_0_with_stderr() {
@@ -49,7 +49,7 @@ fn lint_warning_finding_exits_0_with_stderr() {
         );
 }
 
-// IT-066 (FR-013-AC-3): an error-severity finding exits 1 with an
+// IT-066, FR-013-AC-3: an error-severity finding exits 1 with an
 // `error: <rule-id>:` line on stderr.
 #[test]
 fn lint_error_finding_exits_1() {
@@ -68,7 +68,7 @@ fn lint_error_finding_exits_1() {
         );
 }
 
-// IT-067 (FR-013-AC-4): a rule scoped `archetypes: [FR]` does not fire when
+// IT-067, FR-013-AC-4: a rule scoped `archetypes: [FR]` does not fire when
 // `--archetype` overrides scoping to a non-matching name (FR-036-AC-3).
 #[test]
 fn lint_archetype_scoping_respects_override() {
@@ -84,7 +84,7 @@ fn lint_archetype_scoping_respects_override() {
         .stderr(predicate::str::is_empty());
 }
 
-// IT-068 (FR-013-AC-5, FR-004): eager module-load failure — a `--module` path
+// IT-068, FR-013-AC-5, FR-004: eager module-load failure — a `--module` path
 // without manifest.yaml reports the REAL problem instead of a downstream
 // UnknownArchetype. This is the `validate` half of the shared eager loader.
 #[test]
@@ -104,7 +104,7 @@ fn missing_manifest_reports_real_reason_not_unknown_archetype() {
         );
 }
 
-// IT-068 (FR-013-AC-5): and the `lint` half fails fast on the same missing
+// IT-068, FR-013-AC-5: and the `lint` half fails fast on the same missing
 // manifest.
 #[test]
 fn lint_missing_manifest_fails_fast_too() {

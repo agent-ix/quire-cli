@@ -17,7 +17,7 @@ fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
     p
 }
 
-// IT-012 (FR-002-AC-3, US-002-AC-3): the parser is tolerant —
+// IT-012, FR-002-AC-3, US-002-AC-3: the parser is tolerant —
 // malformed-but-recognizable frontmatter surfaces as a parseable
 // QuireDocument with a diagnostic on stderr.
 #[test]
@@ -34,7 +34,7 @@ fn it_012_malformed_frontmatter_still_parses() {
     assert!(matches!(out.status.code(), Some(0) | Some(1)));
 }
 
-// IT-026 (FR-007-AC-1): exit code 0 on success.
+// IT-026, FR-007-AC-1: exit code 0 on success.
 #[test]
 fn it_026_exit_code_0_on_success() {
     quire()
@@ -47,7 +47,7 @@ fn it_026_exit_code_0_on_success() {
         .code(0);
 }
 
-// IT-026 (FR-007-AC-4): structural-validation failure exits 1. (AC-2
+// IT-026, FR-007-AC-4: structural-validation failure exits 1. (AC-2
 // path-safety and AC-3 unknown-archetype are their own failure modes, traced by
 // `cli_sandbox::it_005_*` and `cli_validate::it_050_*`.)
 #[test]
@@ -62,14 +62,14 @@ fn it_026_exit_code_1_on_validation_failure() {
         .code(1);
 }
 
-// IT-026 (FR-007-AC-5, FR-014-AC-7): an argv error exits 2 — bare `validate`
+// IT-026, FR-007-AC-5, FR-014-AC-7: an argv error exits 2 — bare `validate`
 // with no positional and no `--okf` trips the `required_unless_present` rule.
 #[test]
 fn it_026_exit_code_2_on_argv_error() {
     quire().arg("validate").assert().failure().code(2);
 }
 
-// IT-027 (FR-007-AC-6): no panic on malformed input — a doc full of NUL bytes,
+// IT-027, FR-007-AC-6: no panic on malformed input — a doc full of NUL bytes,
 // control chars, and broken UTF-8-ish data.
 #[test]
 fn it_027_no_panic_on_random_garbage_input() {
