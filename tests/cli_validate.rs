@@ -300,11 +300,14 @@ fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
     assert!(out.stdout.is_empty(), "no stdout on success");
 }
 
-// Scoped validation resolves relative globs under --scope and loads modules
-// from that scope, allowing CI/agents to validate all touched artifacts without
-// passing --module per file.
+// IT-101, FR-004-AC-19: a relative document path resolves under --scope and
+// validates against the module that scope carries, with no --module argument —
+// so CI/agents can validate touched artifacts without passing a module per
+// file. Two things this case is NOT: it passes a plain path, never a glob
+// (IT-102 covers glob expansion), and the fixture root holds `manifest.yaml`,
+// so this is the exact-module branch — search-root discovery is IT-081's.
 #[test]
-fn it_060_scope_glob_validates_matching_documents() {
+fn it_101_scoped_relative_path_validates_without_module() {
     quire()
         .arg("validate")
         .arg("docs/valid-fr.md")
@@ -316,8 +319,10 @@ fn it_060_scope_glob_validates_matching_documents() {
         .stderr(predicate::str::is_empty());
 }
 
+// IT-102, FR-004-AC-20: a relative glob expands under --scope and a matching
+// non-conformant document exits 1 with a line-numbered diagnostic naming it.
 #[test]
-fn it_061_scope_glob_surfaces_invalid_document() {
+fn it_102_scope_glob_surfaces_invalid_document() {
     quire()
         .arg("validate")
         .arg("docs/broken-*.md")
@@ -457,11 +462,12 @@ fn it_075_json_warning_has_distinct_severity() {
 // module binds FR to `grammar_ref: iso-spec-core`.
 // ----------------------------------------------------------------------
 
-// A structurally-valid FR carrying EARS violations exits 0 (grammar findings
-// are advisory) and surfaces them as warnings; --summary prints the doc-level
+// IT-105, FR-004-AC-21, FR-004-AC-15: a structurally-valid FR carrying EARS
+// violations exits 0 (grammar findings are advisory) and surfaces them as
+// warnings under their `[ears:<check>]` labels; --summary prints the doc-level
 // conformance + per-check histogram on stderr, stdout stays empty.
 #[test]
-fn ears_grammar_warnings_are_advisory_and_summarized() {
+fn it_105_ears_grammar_warnings_are_advisory_and_summarized() {
     quire()
         .arg("validate")
         .arg(iso_doc("FR-ears-warn.md"))
@@ -479,10 +485,11 @@ fn ears_grammar_warnings_are_advisory_and_summarized() {
         );
 }
 
-// --strict escalates the advisory EARS warnings to a failing exit code — the
-// per-repo promotion lever: a converted repo flips EARS to blocking in CI.
+// IT-106, FR-004-AC-22: --strict escalates the advisory EARS warnings to a
+// failing exit code — the per-repo promotion lever: a converted repo flips
+// EARS to blocking in CI. Same document as IT-105, which exits 0 without it.
 #[test]
-fn ears_grammar_warnings_fail_under_strict() {
+fn it_106_ears_grammar_warnings_fail_under_strict() {
     quire()
         .arg("validate")
         .arg(iso_doc("FR-ears-warn.md"))

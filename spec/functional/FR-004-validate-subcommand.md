@@ -166,6 +166,10 @@ silently ignored the flag.
 | FR-004-AC-16 | `--severity <grammar>:<check>=off` suppresses that check entirely: the warning disappears from stderr AND its row disappears from the `--summary` histogram, while every other check's row is unchanged | Test |
 | FR-004-AC-17 | `--severity <grammar>:<check>=error` promotes that check: a run that exits 0 without the override exits 1 with the override, and the finding is reported as an error rather than a warning | Test |
 | FR-004-AC-18 | A malformed `--severity` entry (no `<grammar>:<check>=<level>` shape, an unknown level, or an empty grammar/check segment) exits non-zero with a usage diagnostic **before any document is read**, never a silently ignored flag | Test |
+| FR-004-AC-19 | A **relative document path** given with `--scope <DIR>` resolves under that scope and validates against the module the scope itself carries — the `--scope`-contains-`manifest.yaml` exact-module branch, not the search-root discovery branch, which is AC-13's — with no `--module` argument: a conformant document exits **0** with empty stdout and empty stderr | Test |
+| FR-004-AC-20 | A **relative glob** given with `--scope <DIR>` expands under that scope, and a matching non-conformant document exits **1** with a line-numbered diagnostic on stderr naming the offending file; stdout stays empty | Test |
+| FR-004-AC-21 | Requirement-**grammar** findings are advisory, distinct from the `object:` warning of AC-10: a structurally valid document carrying grammar violations exits **0**, and each finding appears on stderr under its `[<grammar>:<check>]` label; stdout stays empty | Test |
+| FR-004-AC-22 | `--strict` escalates grammar findings the same way it escalates the AC-11 `object:` warning — the same document that exits 0 without it exits **1** with it. This is the per-repo promotion lever: a converted repo flips its grammar to blocking in CI without a module change | Test |
 
 ## Dependencies
 

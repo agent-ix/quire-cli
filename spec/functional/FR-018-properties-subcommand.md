@@ -68,6 +68,8 @@ FR-052-CON-4).
 | FR-018-AC-5 | Relative document paths resolve under `--scope`, and a `..` or symlink-escape path is rejected by path-safety ([FR-005](./FR-005-path-safety.md)) before any load | Test (IT-097) |
 | FR-018-AC-7 | The command passes each document's **scope-relative path** to the engine, so an obligation source's `exclude:` globs bind this payload exactly as they bind `coverage --json` (upstream FR-053-AC-14); stdin passes no path, having no location a glob could match | Test (IT-098) |
 | FR-018-AC-6 | (thin boundary) classification is delegated entirely to quire-rs; the CLI resolves paths, loads the module set, and renders ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) | Inspection (TC-090) |
+| FR-018-AC-8 | The emitted `--json` envelope validates against quire-rs's **published** `schemas/output/properties-v1.schema.json`, read from the resolved dependency checkout rather than a vendored copy. The envelope is assembled here and nowhere else — quire-rs publishes the schema but never constructs one — so this is the only place the shape can be gated. The fixture must exercise the obligation branch, so conformance is not asserted over an empty payload | Test (IT-103) |
+| FR-018-AC-9 | Against a module declaring **no obligation source**, every criterion record carries `obligation: null` and the payload still conforms to the published schema — the shape a corpus that has not adopted obligations sees | Test (IT-104) |
 
 > **CR note (authored after the fact, 2026-08-16):** authored alongside
 > [FR-017](./FR-017-coverage-subcommand.md) for the same reason — the command
