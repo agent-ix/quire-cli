@@ -1,11 +1,14 @@
-//! IT-032 / NFR-006-AC-2: `quire --help` snapshot pinned at
-//! `tests/snapshots/help.txt`. Regenerate by running the binary and
-//! committing the new file — no insta dep.
+//! `quire --help` snapshot pinned at `tests/snapshots/help.txt`. Regenerate by
+//! running the binary and committing the new file — no insta dep.
+//!
+//! The trace id sits on the test, not here — a `//!` block attaches to the file
+//! and binds to no symbol (agent-ix/quire-cli#43).
 
 mod common;
 
 use common::quire;
 
+// IT-032, NFR-006-AC-2: the `quire --help` snapshot is pinned.
 #[test]
 fn it_032_help_output_matches_pinned_snapshot() {
     let snapshot = include_str!("snapshots/help.txt");

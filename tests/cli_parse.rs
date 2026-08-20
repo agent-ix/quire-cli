@@ -1,10 +1,10 @@
 //! Happy-path parse ITs.
-//! Covers IT-002, IT-013, IT-019.
+//!
+//! Trace ids sit on the tests themselves, never here: a `//!` block attaches to
+//! the file, and the coverage extractor binds a marker to the symbol whose
+//! leading comment block spans it (agent-ix/quire-cli#43).
 
 mod common;
-
-use assert_cmd::prelude::*;
-use predicates::prelude::*;
 
 use common::quire;
 
@@ -17,18 +17,26 @@ fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
     p
 }
 
+// IT-002, FR-002-AC-1, US-002-AC-1: `parse` emits valid QuireDocument JSON.
 #[test]
 fn it_002_parse_emits_quire_document_json() {
     let doc = write_tmp(SIMPLE_DOC, "it-002.md");
-    quire()
-        .arg("parse")
-        .arg(&doc)
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("\"frontmatter\""))
-        .stdout(predicate::str::contains("FR-001"));
+    let out = quire().arg("parse").arg(&doc).output().unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    // The criterion is `.frontmatter.id` — read the field, don't grep the
+    // payload: `contains("FR-001")` also passes on a document that carried the
+    // id only in its body.
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).expect("valid JSON");
+    assert_eq!(v["frontmatter"]["id"], "FR-001");
 }
 
+// IT-013, FR-002-AC-4: an empty document parses to a valid empty
+// QuireDocument JSON envelope rather than failing.
 #[test]
 fn it_013_empty_doc_parses_to_empty_json() {
     let doc = write_tmp("", "it-013.md");
@@ -43,8 +51,17 @@ fn it_013_empty_doc_parses_to_empty_json() {
     let parsed: serde_json::Value =
         serde_json::from_str(body.trim()).expect("parse output is valid JSON");
     assert!(parsed.is_object(), "expected object envelope, got: {body}");
+    // The criterion names `sections[]` empty, not merely "an object": an
+    // envelope carrying a phantom section would satisfy the weaker assertion.
+    assert_eq!(
+        parsed["sections"].as_array().map(Vec::len),
+        Some(0),
+        "an empty document must yield empty sections[]: {body}"
+    );
 }
 
+// IT-019, FR-002-AC-5, FR-008-AC-1: parse JSON round-trips through
+// QuireDocument deserialize.
 #[test]
 fn it_019_parse_output_is_valid_json_roundtrip() {
     let doc = write_tmp(SIMPLE_DOC, "it-019.md");

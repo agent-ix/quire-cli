@@ -34,6 +34,8 @@ fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
     p
 }
 
+// IT-033, FR-011-AC-1, US-005-AC-2: `lookup --heading --level 1` returns the
+// H1 section JSON.
 #[test]
 fn lookup_by_heading_and_level_returns_h1() {
     let doc = write_tmp(LOOKUP_DOC, "heading-level.md");
@@ -52,6 +54,9 @@ fn lookup_by_heading_and_level_returns_h1() {
     assert_eq!(v["level"], 1);
 }
 
+// IT-034, US-005-AC-1: `lookup --heading Behavior` uses upstream-style
+// heading normalization, so the leading section number is not part of the
+// selector.
 #[test]
 fn lookup_by_heading_uses_number_normalization() {
     let doc = write_tmp(LOOKUP_DOC, "heading.md");
@@ -70,6 +75,8 @@ fn lookup_by_heading_uses_number_normalization() {
     assert_eq!(v["block_id"], "blk-behavior");
 }
 
+// IT-035, FR-011-AC-2, US-005-AC-3: `lookup --block-id blk-behavior` returns
+// the stable block section JSON.
 #[test]
 fn lookup_by_block_id_returns_stable_block() {
     let doc = write_tmp(LOOKUP_DOC, "block-id.md");
@@ -86,6 +93,8 @@ fn lookup_by_block_id_returns_stable_block() {
     assert_eq!(v["block_id"], "blk-behavior");
 }
 
+// IT-036, FR-011-AC-3, US-005-AC-4: `lookup --id detail-L6` returns the
+// parser-derived id section JSON.
 #[test]
 fn lookup_by_generated_id_returns_section() {
     let doc = write_tmp(LOOKUP_DOC, "id.md");
@@ -101,6 +110,7 @@ fn lookup_by_generated_id_returns_section() {
     assert_eq!(v["heading"], "Detail");
 }
 
+// IT-037, FR-011-AC-4: `lookup --content` emits raw section content only.
 #[test]
 fn lookup_content_outputs_raw_section_content() {
     let doc = write_tmp(LOOKUP_DOC, "content.md");
@@ -115,6 +125,8 @@ fn lookup_content_outputs_raw_section_content() {
         .stdout("\n- AC-1\n");
 }
 
+// IT-038, FR-011-AC-5, US-005-AC-5: a lookup selector that matches nothing
+// exits 1 with empty stdout.
 #[test]
 fn lookup_missing_selector_exits_1_without_stdout() {
     let doc = write_tmp(LOOKUP_DOC, "missing.md");
@@ -130,6 +142,8 @@ fn lookup_missing_selector_exits_1_without_stdout() {
     assert!(String::from_utf8_lossy(&out.stderr).contains("--block-id 'does-not-exist'"));
 }
 
+// IT-039, FR-011-AC-5, FR-011-AC-6: multiple lookup selectors are rejected by
+// clap as an argv error.
 #[test]
 fn lookup_rejects_multiple_selectors_as_argv_error() {
     let doc = write_tmp(LOOKUP_DOC, "argv.md");

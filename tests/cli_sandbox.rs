@@ -1,6 +1,7 @@
 //! Sandbox ITs (path-safety / FR-005).
-//! Covers IT-005 (--module ..), IT-006 (symlink escape),
-//! IT-022 (--out .. on edit), IT-023 (positional `-` bypasses path-safety).
+//!
+//! Trace ids sit on the tests, not in this header — a `//!` block attaches to
+//! the file and binds to no symbol (agent-ix/quire-cli#43).
 
 mod common;
 
@@ -11,6 +12,8 @@ use predicates::prelude::*;
 
 use common::{iso_doc, iso_module, quire};
 
+// IT-005, FR-005-AC-1, StR-003-AC-1, FR-007-AC-2: `--module ../escape` exits 1
+// with a path-safety violation.
 #[test]
 fn it_005_module_dotdot_rejected() {
     quire()
@@ -24,10 +27,10 @@ fn it_005_module_dotdot_rejected() {
         .stderr(predicate::str::contains("PathTraversal"));
 }
 
+// IT-022, FR-005-AC-3, FR-012: the `--out` write-target path-safety survives
+// on `edit`. A `..` out path is rejected before any write.
 #[test]
 fn it_022_out_dotdot_rejected() {
-    // The `--out` write-target path-safety survives on `edit`. A `..` out
-    // path is rejected before any write.
     quire()
         .arg("edit")
         .arg(iso_doc("FR-valid.md"))
@@ -43,12 +46,12 @@ fn it_022_out_dotdot_rejected() {
         .stderr(predicate::str::contains("PathTraversal"));
 }
 
+// IT-006, FR-005-AC-4, StR-003-AC-4: a symlink under the module pointing at
+// /etc is refused at load. Construct a tempdir containing a symlink whose
+// target is outside the tempdir; the CLI must refuse to load it as a module.
 #[cfg(unix)]
 #[test]
 fn it_006_symlink_escape_refused_at_load() {
-    // Construct a tempdir containing a symlink whose target is outside
-    // the tempdir (specifically `/etc`). The CLI must refuse to load it
-    // as a module.
     let dir = tempfile::tempdir().unwrap();
     let link = dir.path().join("escape");
     std::os::unix::fs::symlink("/etc", &link).unwrap();
@@ -67,10 +70,11 @@ fn it_006_symlink_escape_refused_at_load() {
         .code(1);
 }
 
+// IT-023, FR-005-AC-5: a positional `-` reads the document from stdin; the
+// path-safety guard must not gate it. The document still validates
+// structurally.
 #[test]
 fn it_023_positional_stdin_bypasses_path_safety() {
-    // A positional `-` reads the document from stdin; the path-safety
-    // guard must not gate it. The document still validates structurally.
     let valid = std::fs::read(iso_doc("FR-valid.md")).unwrap();
     let mut child = quire()
         .arg("validate")

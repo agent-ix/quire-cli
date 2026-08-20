@@ -1,7 +1,8 @@
 //! `quire coverage` + the release-coupled `validate` surfaces (quire-cli#11).
 //!
-//! Covers quire-rs TC-714 (generic `--summary` prefix), TC-720/721/755
-//! (`--severity` override) and TC-740 (`quire coverage`).
+//! The `--summary` prefix, the `--severity` override and the `coverage`
+//! rollup. Trace ids sit on the tests, not in this header — a `//!` block
+//! attaches to the file and binds to no symbol (agent-ix/quire-cli#43).
 
 use std::fs;
 use std::process::Command;
@@ -42,7 +43,8 @@ fn doc(dir: &TempDir) -> String {
     p.to_string_lossy().into_owned()
 }
 
-/// TC-714 (FR-047-AC-8): the `--summary` histogram groups by the generic
+/// TC-714, FR-004-AC-15 (upstream quire-rs FR-047-AC-8): the `--summary`
+/// histogram groups by the generic
 /// `[<grammar>:<check>]` prefix, so a corpus emitting both `[ears:*]` and
 /// `[ac:*]` findings shows both. Before this the parser matched a hardcoded
 /// `[ears:` prefix and every `ac` finding was silently absent.
@@ -77,8 +79,9 @@ fn tc714_summary_covers_every_grammar() {
     );
 }
 
-/// TC-720 / TC-752 (FR-048-AC-5/AC-9): `--severity <grammar>:<check>=off`
-/// suppresses the check entirely — no warning, and no row in the histogram.
+/// TC-720, FR-004-AC-16 (upstream quire-rs TC-752, FR-048-AC-5/AC-9):
+/// `--severity <grammar>:<check>=off` suppresses the check entirely — no
+/// warning, and no row in the histogram.
 #[test]
 fn tc720_severity_off_suppresses_a_check() {
     let dir = TempDir::new().expect("tempdir");
@@ -112,7 +115,8 @@ fn tc720_severity_off_suppresses_a_check() {
     assert!(after.contains("ears:"), "{after}");
 }
 
-/// TC-721 (FR-048-AC-6): `--severity …=error` promotes a check, and the run
+/// TC-721, FR-004-AC-17 (upstream quire-rs FR-048-AC-6): `--severity …=error`
+/// promotes a check, and the run
 /// fails on it — the per-check lever `--strict` could not express.
 #[test]
 fn tc721_severity_error_fails_the_run() {
@@ -144,7 +148,8 @@ fn tc721_severity_error_fails_the_run() {
     );
 }
 
-/// TC-755 (FR-048-AC-10): a malformed `--severity` entry is rejected before any
+/// TC-755, FR-004-AC-18 (upstream quire-rs FR-048-AC-10): a malformed
+/// `--severity` entry is rejected before any
 /// document is read, so the user gets a usage error rather than a run that
 /// silently ignored the flag.
 #[test]
@@ -166,7 +171,8 @@ fn tc755_malformed_severity_entry_is_rejected() {
     }
 }
 
-/// TC-740 (FR-050): `quire coverage` runs the rollup and its JSON is
+/// TC-740, FR-017-AC-2, FR-017-AC-6 (upstream quire-rs FR-050): `quire coverage`
+/// runs the rollup and its JSON is
 /// byte-identical across runs over identical input (FR-050-AC-7). A module with
 /// no `traceability:` model is a clear error rather than an empty report —
 /// guessing would be the agent-grep behaviour this command replaces.
@@ -224,7 +230,8 @@ fn tc740_coverage_reports_and_is_deterministic() {
     assert_eq!(a, b, "coverage output must be byte-identical (FR-050-AC-7)");
 }
 
-/// TC-797 (FR-050-AC-14, CR-035): a declared model that matches nothing is not
+/// TC-797, FR-017-AC-8 (upstream quire-rs FR-050-AC-14, CR-035): a declared
+/// model that matches nothing is not
 /// full coverage. It used to render as `0/0 rows backed (100%)` and pass
 /// `--strict` with exit 0, because the percentage fell back to 100 on an empty
 /// denominator and `--strict` fires only on non-empty unbacked/status lists —
@@ -312,7 +319,8 @@ fn matrix_doc(id: &str, row: &str) -> String {
     )
 }
 
-/// TC-810 (FR-050-AC-17, CR-045): the document root is `<scope>/spec` — a
+/// TC-810, FR-017-AC-3 (upstream quire-rs FR-050-AC-17, CR-045): the document
+/// root is `<scope>/spec` — a
 /// matrix at the repository root or under `plan/` mints nothing, however
 /// perfectly typed, and repo-root `README.md`/`CHANGELOG.md` are never read.
 /// Before the two-root split every one of these minted into the report.
@@ -368,7 +376,8 @@ fn tc810_document_root_is_scope_spec_not_the_repo() {
     );
 }
 
-/// TC-811 (FR-050-AC-17, CR-045): a scope with no `spec/` directory is a
+/// TC-811, FR-017-AC-5 (upstream quire-rs FR-050-AC-17, CR-045): a scope with
+/// no `spec/` directory is a
 /// named error — never a silent fallback to walking the scope itself, which
 /// is how the repository-wide crawl survived.
 #[test]
@@ -396,7 +405,7 @@ fn tc811_missing_spec_root_is_a_named_error() {
     );
 }
 
-// IT-086 (FR-014-AC-6, agent-ix/quire-rs#113): the missing-root refusal
+// IT-086, FR-017-AC-5 (agent-ix/quire-rs#113): the missing-root refusal
 // carries a stable machine `kind` under --diagnostics json, so a consumer can
 // branch on it instead of matching prose. It was a formatted `bail!` string,
 // which is exactly why the assertions above could only look for a substring.
@@ -437,7 +446,8 @@ fn it086_missing_spec_root_carries_a_typed_kind_in_json() {
     );
 }
 
-// IT-087 (FR-050-AC-17, agent-ix/quire-cli#31): the *second* half of the
+// IT-087, FR-017-AC-4 (upstream quire-rs FR-050-AC-17; agent-ix/quire-cli#31):
+// the *second* half of the
 // two-root derivation — the code walk excludes the document root. Nothing
 // asserted it, so `extract_tree_excluding` could regress to `extract_tree`
 // with the whole suite green. A trace-tagged source file under `<scope>/spec`
@@ -519,7 +529,7 @@ fn it087_the_code_walk_excludes_the_document_root() {
     );
 }
 
-// IT-089 (FR-017-AC-1): the default human census. Everything else about this
+// IT-089, FR-017-AC-1: the default human census. Everything else about this
 // command was tested through `--json`, so the rendered output — what a person
 // actually runs — had no coverage at all.
 #[test]
@@ -557,7 +567,7 @@ fn it089_human_census_is_printed_and_exits_zero() {
     );
 }
 
-// IT-092 (FR-017-AC-7): `--strict` turns an unbacked row into exit 1, and the
+// IT-092, FR-017-AC-7: `--strict` turns an unbacked row into exit 1, and the
 // same repository exits 0 without it. The flag is the whole gate/report
 // distinction (FR-050-CON-1) and nothing asserted both halves.
 #[test]

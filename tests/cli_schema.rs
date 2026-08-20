@@ -11,7 +11,7 @@ use predicates::prelude::*;
 
 use common::{iso_module, quire, validate_module};
 
-// IT-060 (FR-009-AC-1): `schema FR` exits 0; JSON contains the FR
+// IT-060, FR-009-AC-1: `schema FR` exits 0; JSON contains the FR
 // frontmatter schema and the `body_extraction` asserts (required headings
 // / columns). The validate-mod FR carries asserts (Specification section,
 // Acceptance Criteria table columns).
@@ -32,7 +32,7 @@ fn it_060_schema_fr_emits_frontmatter_schema_and_asserts() {
         );
 }
 
-// IT-061 (FR-009-AC-2): the JSON describes per-section asserts (headings /
+// IT-061, FR-009-AC-2: the JSON describes per-section asserts (headings /
 // columns / id-patterns) — the asserts-based contract — and carries NO
 // template-variable list.
 #[test]
@@ -55,7 +55,7 @@ fn it_061_schema_describes_asserts_not_template_vars() {
         );
 }
 
-// IT-062 (FR-009-AC-3): unknown archetype → exit 1 with `UnknownArchetype`
+// IT-062, FR-009-AC-3: unknown archetype → exit 1 with `UnknownArchetype`
 // on stderr, empty stdout.
 #[test]
 fn it_062_schema_unknown_archetype_errors() {
@@ -71,7 +71,7 @@ fn it_062_schema_unknown_archetype_errors() {
         .stderr(predicate::str::contains("UnknownArchetype"));
 }
 
-// IT-063 (FR-009-AC-4): repeated `schema FR` calls produce byte-identical
+// IT-063, FR-009-AC-4: repeated `schema FR` calls produce byte-identical
 // stdout.
 #[test]
 fn it_063_schema_output_is_byte_stable() {
@@ -93,7 +93,7 @@ fn it_063_schema_output_is_byte_stable() {
     assert_eq!(a.stdout, b.stdout, "schema stdout must be byte-stable");
 }
 
-// IT-058 (FR-009-AC-5): `schema` performs module path-safety equivalent to
+// IT-058, FR-009-AC-5: `schema` performs module path-safety equivalent to
 // `validate` — a `..` module path is rejected.
 #[test]
 fn it_058_schema_module_path_safety() {
