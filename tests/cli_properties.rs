@@ -185,7 +185,10 @@ fn it097_path_traversal_is_rejected() {
     assert!(!out.status.success(), "a `..` path must be refused");
 }
 
-// IT-098, FR-018-AC-6: an obligation source's `exclude:` binds THIS surface.
+// IT-098, FR-018-AC-7: an obligation source's `exclude:` binds THIS surface.
+// (AC-6 is the thin-boundary Inspection criterion, traced by TC-090 — not this
+// test. The citation read AC-6 while it was inert prose; binding it would have
+// marked a criterion backed by a test that does not verify it.)
 //
 // quire-rs FR-053-AC-14. The engine honoured a source's `exclude:` globs in the
 // coverage rollup and could not honour them here, because this crate never

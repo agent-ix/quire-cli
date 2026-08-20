@@ -67,13 +67,67 @@ fn tc091_no_http_client_crate_is_banned_or_linked() {
     }
 }
 
-// TC-092, NFR-003-AC-1, NFR-003-AC-2: every `unsafe {` block in src/ and
-// tests/ carries a
-// `// SAFETY:` comment or sits in the reviewed baseline.
+// TC-092, NFR-003-AC-1, NFR-003-AC-2: every `unsafe {` block in `src/` carries
+// a `// SAFETY:` comment or sits in the reviewed baseline (AC-1), AND the gate
+// actually fails on a violation (AC-2).
+//
+// The second half is the point. Asserting only that the script exits 0 today
+// proves the tree is clean, not that the gate would catch anything — a script
+// that unconditionally returned 0 would pass it. So the check is run a second
+// time against a synthetic tree containing an undocumented `unsafe` block, and
+// a third against the same block with its `// SAFETY:` comment, in a tempdir:
+// the script resolves `src/` and its baseline relative to the working
+// directory, so neither run touches this repo.
 #[test]
-fn tc092_every_unsafe_block_is_documented() {
+fn tc092_every_unsafe_block_is_documented_and_the_gate_catches_violations() {
+    let script = repo_root().join("scripts/check_unsafe_comments.sh");
+
+    // AC-1: this repository is clean.
     let (ok, output) = run_script("scripts/check_unsafe_comments.sh");
     assert!(ok, "unsafe-comment audit failed:\n{output}");
+
+    // AC-2: the gate refuses an undocumented `unsafe` block.
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::create_dir_all(dir.path().join("src")).unwrap();
+    std::fs::create_dir_all(dir.path().join("scripts")).unwrap();
+    std::fs::write(dir.path().join("scripts/unsafe_comment_baseline.txt"), "").unwrap();
+    std::fs::write(
+        dir.path().join("src/lib.rs"),
+        "pub fn f() {\n    unsafe {\n        let _ = 1;\n    }\n}\n",
+    )
+    .unwrap();
+    let out = Command::new("bash")
+        .arg(&script)
+        .current_dir(dir.path())
+        .output()
+        .expect("run gate on violating tree");
+    assert!(
+        !out.status.success(),
+        "the gate passed an undocumented `unsafe` block — it catches nothing"
+    );
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("missing SAFETY comment"),
+        "the refusal must name the missing comment; got: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    // ...and accepts the same block once documented, so the refusal is about
+    // the comment and not about the file merely containing `unsafe`.
+    std::fs::write(
+        dir.path().join("src/lib.rs"),
+        "pub fn f() {\n    // SAFETY: nothing is dereferenced here.\n    unsafe {\n        let _ = 1;\n    }\n}\n",
+    )
+    .unwrap();
+    let out = Command::new("bash")
+        .arg(&script)
+        .current_dir(dir.path())
+        .output()
+        .expect("run gate on documented tree");
+    assert!(
+        out.status.success(),
+        "the gate rejected a documented `unsafe` block: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 }
 
 // TC-093, FR-016-AC-5, FR-016-AC-6, StR-004-AC-2: the `self_update` engine is

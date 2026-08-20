@@ -21,8 +21,18 @@ status lies and 4 dead tags, to 92/238 backed with **zero** of either.
 
 ## Verdict
 
-**CONDITIONAL** — no high findings. Six medium findings, all fixed in the branch
-before merge; two low findings recorded for follow-up rather than fixed here.
+**CONDITIONAL** — one high and eight medium findings, all fixed in the branch
+before merge; two low findings (id collisions, a misnamed test) tracked in
+agent-ix/quire-cli#45 rather than fixed here.
+
+The review was run twice. The first pass covered the tagging commit; the second
+was re-run before merge because the largest commit — converting 120 tags from
+the parenthetical form to the comma form — landed *after* the first pass. That
+conversion promoted roughly 200 previously-decorative acceptance-criterion
+citations into binding evidentiary claims, none of which had ever had to be
+true. The second pass diffed every bound tag against its matrix row's declared
+traces and found seven disagreements (FND-009, FND-011). Merging on the strength
+of the first review would have shipped one false claim.
 
 ## Findings
 
@@ -34,6 +44,9 @@ before merge; two low findings recorded for follow-up rather than fixed here.
 | FND-004 | medium   | IT-024 tagged FR-006-AC-1 (failure → empty stdout, non-empty stderr) but asserts only a success run; AC-1 moved to IT-031, which walks five failure classes | tests/cli_io.rs:36, tests/cli_io.rs:100 |
 | FND-005 | medium   | IT-011 tagged FR-006-AC-4, whose text names the retired FR-001 render subcommand; tag dropped rather than claimed through a CR note the AC text never received | tests/cli_io.rs:14         |
 | FND-006 | medium   | Three criteria were backed by assertions weaker than the criterion: FR-002-AC-1 grepped the payload instead of reading `.frontmatter.id`; FR-002-AC-2 never compared `parse -` against `parse <file>`; FR-002-AC-4 asserted "is an object" rather than empty `sections[]` | tests/cli_parse.rs:20, tests/cli_io.rs:14, tests/cli_parse.rs:38 |
+| FND-009 | high     | The tag conversion turned ~200 decorative AC citations into binding claims; a systematic diff of every bound tag against its matrix row's declared traces found IT-098 binding FR-018-AC-6 (the thin-boundary *Inspection* criterion, traced by TC-090) when it verifies AC-7 | tests/cli_properties.rs:188 |
+| FND-010 | medium   | TC-092 asserted only that the unsafe-comment gate exits 0 today, which a script that unconditionally returned 0 also satisfies; NFR-003-AC-2 is about the gate *failing* on a violation | tests/audit_static.rs:68 |
+| FND-011 | medium   | Six matrix rows did not declare acceptance criteria their tests demonstrably verify (IT-005, IT-031, IT-050, TC-090, TC-091, TC-092) — the tags were right and the rows were stale | spec/tests.md |
 | FND-007 | low      | Id collisions predating this change: IT-060/IT-061 name both the `schema` tests and the validate scope-glob tests; IT-095/IT-096 name both the `properties` tests and the output-contract envelope tests | tests/cli_schema.rs:19, tests/cli_validate.rs:304, tests/output_contract.rs:95 |
 | FND-008 | low      | `cli_errors::it_013_unknown_archetype_exits_1` is misnamed — matrix IT-013 is "empty document parses"; the unknown-archetype behaviour is IT-050's | tests/cli_errors.rs:78     |
 

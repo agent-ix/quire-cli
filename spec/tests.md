@@ -95,7 +95,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-002 | `quire parse` emits valid QuireDocument JSON | Integration | P0 | FR-002-AC-1, US-002-AC-1 | ✅ |
 | IT-003 | ⊘ RETIRED (§2bis) — `quire validate FR --module $ISO --json <obj>` (context mode removed) ((was context mode; removed)) | Integration | P0 | FR-004-AC-4 | ⛔ |
 | IT-004 | `quire extract` emits {extraction, edges} envelope | Integration | P0 | FR-003-AC-1, US-004-AC-1 | ✅ |
-| IT-005 | `--module ../escape` exits 1 with PathSafetyViolation | Integration | P0 | FR-005-AC-1, StR-003-AC-1 | ✅ |
+| IT-005 | `--module ../escape` exits 1 with PathSafetyViolation | Integration | P0 | FR-005-AC-1, StR-003-AC-1, FR-007-AC-2 | ✅ |
 | IT-006 | Symlink under module to /etc/passwd refused at load | Integration | P0 | FR-005-AC-4, StR-003-AC-4 | ✅ |
 | IT-007 | ⊘ RETIRED (§2bis) — `--data ../../etc/passwd` exits 1 (replaced by IT-055 on the positional doc path) ((retired)) | Integration | P0 | FR-005-AC-3 | ⛔ |
 | IT-008 | No network sockets opened (strace, happy path — registry present) | Integration | P0 | NFR-004-AC-2, StR-001-AC-4 | ✅ |
@@ -123,7 +123,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-028 | Default JSON output is compact (one line) | Integration | P1 | FR-008-AC-1 | ✅ |
 | IT-029 | `--pretty` produces multi-line indented JSON | Integration | P2 | FR-008-AC-3 | ✅ |
 | IT-030 | JSON field order matches Rust struct order | Integration | P2 | FR-008-AC-4 | ✅ |
-| IT-031 | Each error class's stderr deserializes as Diagnostic when JSON format active | Integration | P1 | NFR-005-AC-1, NFR-005-AC-2 | ✅ |
+| IT-031 | Each error class's stderr deserializes as Diagnostic when JSON format active, with empty stdout and non-empty stderr for every class (`cli_io::it_031_*`) | Integration | P1 | NFR-005-AC-1, NFR-005-AC-2, FR-006-AC-1 | ✅ |
 | IT-032 | `quire --help` snapshot pinned | Integration | P2 | NFR-006-AC-2 | ✅ |
 | IT-033 | `lookup --heading --level 1` returns the H1 section JSON | Integration | P0 | FR-011-AC-1, US-005-AC-2 | ✅ |
 | IT-034 | `lookup --heading Behavior` uses upstream-style heading normalization | Integration | P0 | US-005-AC-1 | ✅ |
@@ -142,7 +142,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-047 | `quire validate valid-fr.md --module $ISO` exits 0 with no output (markdown default, structure present) | Integration | P0 | FR-004-AC-1, FR-010-AC-4, US-003-AC-1 | ✅ |
 | IT-048 | `quire validate broken-fr.md --module $ISO` exits 1; stderr carries a line-numbered diagnostic naming the failing section/assert | Integration | P0 | FR-004-AC-2 | ✅ |
 | IT-049 | `quire validate fr.md --module $ISO --archetype FR` overrides frontmatter-derived archetype resolution | Integration | P1 | FR-004-AC-3 | ✅ |
-| IT-050 | `quire validate doc.md --module $ISO --archetype NONEXISTENT` exits 1 with `UnknownArchetype` on stderr (re-pointed off the removed `--json` mode) | Integration | P1 | FR-004-AC-6 | ✅ |
+| IT-050 | `quire validate doc.md --module $ISO --archetype NONEXISTENT` exits 1 with `UnknownArchetype` on stderr (re-pointed off the removed `--json` mode) | Integration | P1 | FR-004-AC-6, FR-007-AC-3 | ✅ |
 | IT-051 | `quire validate rendered-fr.md --module $ISO` exits 1 when `## Specification` is only `TODO`, reason `placeholder` | Integration | P0 | FR-010-AC-1 | ✅ |
 | IT-052 | Validate exits 1 when an FR required section is missing (reason `missing`), naming the section (line absent for a fully-missing section — FR-010 CR-003) | Integration | P0 | FR-010-AC-2 | ✅ |
 | IT-053 | Validate exits 1 when the Acceptance Criteria table has wrong columns or zero data rows (reason `assert`) | Integration | P0 | FR-010-AC-3 | ✅ |
@@ -194,9 +194,9 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | TC-087 | `run_for_source(Cargo, --check)` reports git-branch tracking with `latest: None` (no cross-scheme version); `run_for_source(Unknown)` emits manual report without installing (`self_update::tests`) | Unit | P1 | FR-016-AC-1, FR-016-AC-5 | ⚠️ |
 | TC-088 | ⊘ RETIRED (§2bis) — hyperfine render p95 ≤ 50 ms on FR archetype (NFR-001-AC-1..2 (retired); (retired)) | Benchmark | P0 | StR-002 | ⛔ |
 | TC-089 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 | ✅ |
-| TC-090 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document` / `validate_bundle`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6 | ✅ |
-| TC-091 | `cargo deny check bans` rejects HTTP client crates | Static | P0 | NFR-004-AC-1 | ✅ |
-| TC-092 | `scripts/check_unsafe_comments.sh` zero unsafe in src/ + tests/ | Static | P0 | NFR-003-AC-1 | ✅ |
+| TC-090 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document` / `validate_bundle`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6, FR-017-AC-9 | ✅ |
+| TC-091 | `cargo deny check bans` rejects HTTP client crates; `deny.toml` still bans each one and `Cargo.lock` links none (`audit_static::tc091_*`) | Static | P0 | NFR-004-AC-1, NFR-004-AC-3 | ✅ |
+| TC-092 | `scripts/check_unsafe_comments.sh` reports zero undocumented `unsafe` in src/, AND refuses a synthetic undocumented block — the gate is proven to catch, not merely to pass (`audit_static::tc092_*`) | Static | P0 | NFR-003-AC-1, NFR-003-AC-2 | ✅ |
 | TC-093 | `src/self_update/` imports nothing from `quire`'s `io`/command context (engine is package-agnostic, config-struct driven); `commands/update.rs` is the only quire-specific glue and carries no parser/renderer/validator logic | Static | P1 | FR-016-AC-5, FR-016-AC-6, StR-004-AC-2 | ⚠️ |
 
 ---
