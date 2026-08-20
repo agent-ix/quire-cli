@@ -57,7 +57,9 @@ for (const t of TARGETS) {
   copyFileSync(src, dest);
   if (!t.windows) chmodSync(dest, 0o755);
 
-  // Public packages must ship the MIT license text alongside the binary.
+  // Public packages must ship the license text alongside the binary. The source
+  // is the repo LICENSE, which is AGPL-3.0 — keep the `license` field below in
+  // step with it, or the tarball ships one license and declares another.
   copyFileSync(licenseSrc, join(pkgDir, "LICENSE"));
 
   const pkgJson = {
@@ -66,7 +68,7 @@ for (const t of TARGETS) {
     description: `Prebuilt quire binary for ${t.platform}-${t.arch}.`,
     homepage: "https://github.com/agent-ix/quire-cli#readme",
     repository: { type: "git", url: "git+https://github.com/agent-ix/quire-cli.git" },
-    license: "MIT",
+    license: "AGPL-3.0-or-later",
     os: [t.platform],
     cpu: [t.arch],
     files: ["bin/", "LICENSE"],
@@ -92,6 +94,6 @@ launcher.optionalDependencies = Object.fromEntries(
   TARGETS.map((t) => [`@agent-ix/quire-cli-${t.platform}-${t.arch}`, version]),
 );
 writeFileSync(launcherPath, JSON.stringify(launcher, null, 2) + "\n");
-// Ship the MIT license text in the launcher tarball too (files lists "LICENSE").
+// Ship the license text in the launcher tarball too (files lists "LICENSE").
 copyFileSync(licenseSrc, join(here, "quire-cli", "LICENSE"));
 console.log(`synced launcher @agent-ix/quire-cli@${version}`);

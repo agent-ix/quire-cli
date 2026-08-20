@@ -15,7 +15,7 @@
     "type": "git",
     "url": "git+https://github.com/agent-ix/quire-cli.git"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "author": "Agent IX <kreneskyp@gmail.com>",
   "type": "commonjs",
   "bin": {
