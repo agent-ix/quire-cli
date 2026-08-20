@@ -79,7 +79,7 @@ fn it_049_archetype_flag_overrides_frontmatter_resolution() {
         .stdout(predicate::str::is_empty());
 }
 
-// IT-050 (FR-004-AC-6): an unknown `--archetype` → exit 1 with
+// IT-050 (FR-004-AC-6, FR-007-AC-3): an unknown `--archetype` → exit 1 with
 // `UnknownArchetype` on stderr (re-pointed off the removed `--json` mode).
 #[test]
 fn it_050_unknown_archetype_reports_unknown() {

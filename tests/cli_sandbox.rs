@@ -12,8 +12,8 @@ use predicates::prelude::*;
 
 use common::{iso_doc, iso_module, quire};
 
-// IT-005 (FR-005-AC-1, StR-003-AC-1): `--module ../escape` exits 1 with a
-// path-safety violation.
+// IT-005 (FR-005-AC-1, StR-003-AC-1, FR-007-AC-2): `--module ../escape` exits 1
+// with a path-safety violation.
 #[test]
 fn it_005_module_dotdot_rejected() {
     quire()

@@ -12,7 +12,10 @@ use common::{quire, validate_module};
 
 const SIMPLE_DOC: &str = "---\nid: FR-001\ntype: FR\n---\n# [FR-001] Hi\n";
 
-// IT-011 (FR-002-AC-2, US-002-AC-4, FR-006-AC-4): `parse -` reads stdin.
+// IT-011 (FR-002-AC-2, US-002-AC-4): `parse -` reads stdin, and its output is
+// byte-identical to `parse <file>` on the same document — the criterion is an
+// equivalence, so asserting only "the id appears" would pass on a stdin path
+// that dropped every section.
 #[test]
 fn it_011_parse_dash_reads_stdin() {
     let mut child = quire()
@@ -33,11 +36,24 @@ fn it_011_parse_dash_reads_stdin() {
     assert!(out.status.success());
     let body = String::from_utf8(out.stdout).unwrap();
     assert!(body.contains("FR-001"));
+
+    // FR-002-AC-2: identical output to the file-path invocation.
+    let path = std::env::temp_dir().join(format!("quire-cli-it-011-{}.md", std::process::id()));
+    std::fs::write(&path, SIMPLE_DOC).unwrap();
+    let from_file = quire().arg("parse").arg(&path).output().unwrap();
+    assert!(from_file.status.success());
+    assert_eq!(
+        body.as_bytes(),
+        from_file.stdout.as_slice(),
+        "`parse -` and `parse <file>` disagree on the same document"
+    );
 }
 
-// IT-024 (FR-006-AC-1, FR-006-AC-2): no stdout/stderr interleaving. `schema`
-// for an archetype that exists — stdout is a single JSON payload; stderr
-// carries no error on a clean run.
+// IT-024 (FR-006-AC-2): no stdout/stderr interleaving on a SUCCESS run —
+// `schema` for an archetype that exists produces a single JSON payload on
+// stdout and no error on stderr. The failure-side half of the contract
+// (FR-006-AC-1, empty stdout + non-empty stderr) is IT-031 below, which walks
+// every failure class rather than one.
 #[test]
 fn it_024_stdout_and_stderr_do_not_interleave() {
     let out = quire()
@@ -90,7 +106,8 @@ fn it_025_diagnostics_format_json_produces_json_lines() {
     assert!(found, "no JSON diagnostic found in stderr: {stderr}");
 }
 
-// IT-031 (NFR-005-AC-1, NFR-005-AC-2): EVERY known failure class renders its
+// IT-031 (NFR-005-AC-1, NFR-005-AC-2, FR-006-AC-1): EVERY known failure class
+// produces empty stdout with a non-empty stderr, and renders its
 // stderr as `Diagnostic` JSON under `--diagnostics-format json`. IT-025 asserts
 // that *at least one* line parses for *one* class, which an implementation
 // mixing a bare `anyhow` message into the stream still satisfies; this walks

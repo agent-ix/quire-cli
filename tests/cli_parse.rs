@@ -6,9 +6,6 @@
 
 mod common;
 
-use assert_cmd::prelude::*;
-use predicates::prelude::*;
-
 use common::quire;
 
 const SIMPLE_DOC: &str = "---\nid: FR-001\ntype: FR\n---\n# [FR-001] Hello\n\nbody\n";
@@ -24,13 +21,18 @@ fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
 #[test]
 fn it_002_parse_emits_quire_document_json() {
     let doc = write_tmp(SIMPLE_DOC, "it-002.md");
-    quire()
-        .arg("parse")
-        .arg(&doc)
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("\"frontmatter\""))
-        .stdout(predicate::str::contains("FR-001"));
+    let out = quire().arg("parse").arg(&doc).output().unwrap();
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    // The criterion is `.frontmatter.id` — read the field, don't grep the
+    // payload: `contains("FR-001")` also passes on a document that carried the
+    // id only in its body.
+    let v: serde_json::Value =
+        serde_json::from_str(String::from_utf8(out.stdout).unwrap().trim()).expect("valid JSON");
+    assert_eq!(v["frontmatter"]["id"], "FR-001");
 }
 
 // IT-013 (FR-002-AC-4): an empty document parses to a valid empty
@@ -49,6 +51,13 @@ fn it_013_empty_doc_parses_to_empty_json() {
     let parsed: serde_json::Value =
         serde_json::from_str(body.trim()).expect("parse output is valid JSON");
     assert!(parsed.is_object(), "expected object envelope, got: {body}");
+    // The criterion names `sections[]` empty, not merely "an object": an
+    // envelope carrying a phantom section would satisfy the weaker assertion.
+    assert_eq!(
+        parsed["sections"].as_array().map(Vec::len),
+        Some(0),
+        "an empty document must yield empty sections[]: {body}"
+    );
 }
 
 // IT-019 (FR-002-AC-5, FR-008-AC-1): parse JSON round-trips through

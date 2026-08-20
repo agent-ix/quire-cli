@@ -47,7 +47,9 @@ fn it_026_exit_code_0_on_success() {
         .code(0);
 }
 
-// IT-026 (FR-007-AC-2, FR-007-AC-3): exit code 1 on validation failure.
+// IT-026 (FR-007-AC-4): structural-validation failure exits 1. (AC-2
+// path-safety and AC-3 unknown-archetype are their own failure modes, traced by
+// `cli_sandbox::it_005_*` and `cli_validate::it_050_*`.)
 #[test]
 fn it_026_exit_code_1_on_validation_failure() {
     quire()
@@ -60,9 +62,8 @@ fn it_026_exit_code_1_on_validation_failure() {
         .code(1);
 }
 
-// IT-026 (FR-007-AC-4, FR-007-AC-5, FR-014-AC-7): exit code 2 on an argv
-// error — bare `validate` with no positional and no `--okf` trips the
-// `required_unless_present` rule.
+// IT-026 (FR-007-AC-5, FR-014-AC-7): an argv error exits 2 — bare `validate`
+// with no positional and no `--okf` trips the `required_unless_present` rule.
 #[test]
 fn it_026_exit_code_2_on_argv_error() {
     quire().arg("validate").assert().failure().code(2);
