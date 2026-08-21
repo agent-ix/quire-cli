@@ -165,14 +165,33 @@ fn multi_token_code_span_not_corrupted() {
 
 // IT-080, FR-015-AC-5: a `..` path on the bundle root is rejected by
 // path-safety before any load.
+//
+// Oracle, stated (#56 — this binding was minted by a one-character comment
+// edit in #54 without saying what it verifies): AC-5's path-safety clause,
+// "a `..` or symlink-escape path on the root is rejected by path-safety
+// (FR-005) before any load". The assertions pin exactly that: exit code 1
+// (FR-007 user error), a `PathTraversal` diagnostic naming the offending
+// `..`, and no `would-fix:`/`warning:` finding line — a finding would mean
+// the bundle was loaded and walked, i.e. the rejection did NOT happen
+// before any load.
 #[test]
 fn path_traversal_rejected() {
-    quire()
-        .arg("fix")
-        .arg("../etc")
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("PathTraversal").and(predicate::str::contains("..")));
+    let out = quire().arg("fix").arg("../etc").output().expect("fix runs");
+    assert_eq!(
+        out.status.code(),
+        Some(1),
+        "a path-safety rejection is the FR-007 user-error exit code"
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("PathTraversal") && err.contains(".."),
+        "the diagnostic names the violation and the offending `..`: {err}"
+    );
+    assert!(
+        !err.contains("would-fix:") && !err.contains("warning:"),
+        "a finding line means the bundle was loaded — the rejection must \
+         come before any load: {err}"
+    );
 }
 
 // IT-080, FR-015-AC-5: `fix` with no positional derives `<scope>/spec`, the

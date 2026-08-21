@@ -725,6 +725,12 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
         .args(["coverage", "--scope", &scope, "--module", &m])
         .output()
         .expect("run");
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "the human census over a report is exit 0: {}",
+        String::from_utf8_lossy(&human.stderr)
+    );
     let rendered = String::from_utf8_lossy(&human.stderr).into_owned()
         + &String::from_utf8_lossy(&human.stdout);
     assert!(
@@ -735,6 +741,10 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
     // FR-017-AC-7 is unchanged: `--strict` does not gate on this class. Shipping
     // it as a gate would flip repositories red on an engine bump for a condition
     // nobody has been told about. A gate deferred, never lowered.
+    //
+    // Both exit codes are pinned to 0 absolutely (#56): the earlier
+    // `strict == plain` equality was near-tautological — it would equally
+    // pass if a regression made both runs exit 1.
     let strict = quire()
         .args(["coverage", "--scope", &scope, "--module", &m, "--strict"])
         .output()
@@ -745,8 +755,15 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
         .expect("run");
     assert_eq!(
         strict.status.code(),
+        Some(0),
+        "--strict must not gate on an undeclared status alone: {}",
+        String::from_utf8_lossy(&strict.stderr)
+    );
+    assert_eq!(
         plain.status.code(),
-        "--strict must not change the exit code for an undeclared status alone"
+        Some(0),
+        "the default run is a report, not a verdict: {}",
+        String::from_utf8_lossy(&plain.stderr)
     );
 }
 

@@ -152,6 +152,35 @@ fn lookup_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "lookup");
 }
 
+// IT-083, FR-016-AC-2, NFR-004-AC-2: `update --check` on the Unknown install
+// source (the test binary lives under `target/`, neither `node_modules` nor
+// `.cargo`) opens no inet socket. Until #56 the "performs no install/network"
+// clause of IT-083/IT-084 held by construction only — the Unknown path never
+// shells out — with nothing observing it (SR-006 FND-001); this is the
+// observation.
+#[test]
+fn update_check_does_not_open_inet_socket() {
+    if !strace_available() {
+        eprintln!("skipping: strace not on PATH");
+        return;
+    }
+    let trace = run_under_strace(&["update", "--check"]);
+    assert_no_inet_socket(&trace, "update --check");
+}
+
+// IT-084, FR-016-AC-2, NFR-004-AC-2: bare `update` on the Unknown source is
+// equally network-free — the manual-instructions path installs nothing and
+// opens no socket.
+#[test]
+fn update_without_check_does_not_open_inet_socket() {
+    if !strace_available() {
+        eprintln!("skipping: strace not on PATH");
+        return;
+    }
+    let trace = run_under_strace(&["update"]);
+    assert_no_inet_socket(&trace, "update");
+}
+
 // IT-081, FR-004-AC-13, NFR-004-AC-2: scoped validation that discovers its
 // module via the new `IX_FILAMENT_MODULES_PATH` root (modules present, so no
 // `quoin` is spawned) validates the document AND opens no inet socket. HOME is

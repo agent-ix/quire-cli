@@ -130,28 +130,143 @@ fn tc092_every_unsafe_block_is_documented_and_the_gate_catches_violations() {
     );
 }
 
+/// Split `s` on commas at brace-nesting depth 0 (helper for
+/// [`expanded_use_paths`]).
+fn split_top_level(s: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut depth = 0usize;
+    let mut start = 0usize;
+    for (i, c) in s.char_indices() {
+        match c {
+            '{' => depth += 1,
+            '}' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                parts.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    parts.push(&s[start..]);
+    parts
+}
+
+/// Recursively expand one `use` declaration body — possibly a brace group,
+/// possibly aliased — into fully-qualified paths.
+fn expand_use(decl: &str, prefix: &str, out: &mut Vec<String>) {
+    let decl = decl.trim();
+    if let Some(open) = decl.find('{') {
+        let stem = decl[..open].trim().trim_end_matches("::").trim();
+        let inner = decl[open + 1..]
+            .rsplit_once('}')
+            .map(|(i, _)| i)
+            .unwrap_or(&decl[open + 1..]);
+        let prefix = if stem.is_empty() {
+            prefix.to_string()
+        } else {
+            format!("{prefix}{stem}::")
+        };
+        for part in split_top_level(inner) {
+            if !part.trim().is_empty() {
+                expand_use(part, &prefix, out);
+            }
+        }
+    } else {
+        // `path as alias` imports `path`; `self` names the group's stem.
+        let path = decl.split(" as ").next().unwrap_or(decl).trim();
+        if path == "self" {
+            out.push(prefix.trim_end_matches("::").to_string());
+        } else {
+            out.push(format!("{prefix}{path}"));
+        }
+    }
+}
+
+/// Every path a file's `use` declarations import, with brace groups expanded
+/// (`use a::{b, c::d}` → `a::b`, `a::c::d`) — so a grouped import cannot
+/// evade a needle match (#56, SR-006 FND-003).
+fn expanded_use_paths(source: &str) -> Vec<String> {
+    let mut paths = Vec::new();
+    for stmt in source.split(';') {
+        // Collapse whitespace (incl. newlines inside multi-line groups).
+        let stmt = stmt.split_whitespace().collect::<Vec<_>>().join(" ");
+        for lead in ["use ", "pub use ", "pub(crate) use "] {
+            if let Some(rest) = stmt.trim_start().strip_prefix(lead) {
+                expand_use(rest, "", &mut paths);
+                break;
+            }
+        }
+    }
+    paths
+}
+
 // TC-093, FR-016-AC-5, FR-016-AC-6, StR-004-AC-2: the `self_update` engine is
 // package-agnostic — it is driven by a config struct and imports nothing from
 // quire's `io` or command context, so `commands/update.rs` stays the only
 // quire-specific glue. Source inspection is the only way to reach this: no
 // runtime path can observe an import that isn't there.
+//
+// The gate matches expanded module paths, not bare substrings (#56, SR-006
+// FND-003): the previous `contains("crate::io")` check was evaded by any
+// grouped import (`use crate::{io, …}`), which contains no needle at all.
 #[test]
 fn tc093_self_update_engine_is_package_agnostic() {
     let root = repo_root();
     let engine = std::fs::read_to_string(root.join("src/self_update/mod.rs"))
         .expect("src/self_update/mod.rs");
 
-    const FORBIDDEN: &[&str] = &[
+    // Module paths the engine must not reach, however imported. `quire_cli::`
+    // forms cover a self-import through the lib name.
+    const FORBIDDEN_PREFIXES: &[&str] = &[
         "crate::io",
-        "crate::ctx",
+        "crate::commands",
         "crate::Ctx",
-        "use crate::commands",
+        "quire_cli::io",
+        "quire_cli::commands",
     ];
-    for needle in FORBIDDEN {
+    let forbidden = |path: &str| {
+        FORBIDDEN_PREFIXES
+            .iter()
+            .any(|p| path == *p || path.starts_with(&format!("{p}::")))
+            // A glob at the crate root imports `io` wholesale.
+            || path == "crate::*"
+            || path == "quire_cli::*"
+    };
+
+    for path in expanded_use_paths(&engine) {
         assert!(
-            !engine.contains(needle),
-            "src/self_update/mod.rs reaches into `{needle}`; the engine must stay \
+            !forbidden(&path),
+            "src/self_update/mod.rs imports `{path}`; the engine must stay \
              config-struct driven (FR-016-AC-6)"
+        );
+    }
+    // Inline fully-qualified references need no `use` at all — check them on
+    // whitespace-normalized text so formatting cannot hide one.
+    let compact: String = engine.split_whitespace().collect();
+    for needle in [
+        "crate::io::",
+        "crate::commands::",
+        "crate::Ctx",
+        "crate::ctx",
+    ] {
+        assert!(
+            !compact.contains(needle),
+            "src/self_update/mod.rs references `{needle}` inline; the engine \
+             must stay config-struct driven (FR-016-AC-6)"
+        );
+    }
+
+    // The hardening is proven to catch, not merely to pass (the TC-092
+    // pattern): each evasion shape the substring gate missed is flagged.
+    for evasion in [
+        "use crate::{io, safety};",
+        "use crate::{\n    io,\n    safety,\n};",
+        "pub use crate::{commands::Ctx as C, safety};",
+        "use quire_cli::{io::emit_diagnostic, safety};",
+    ] {
+        assert!(
+            expanded_use_paths(evasion).iter().any(|p| forbidden(p)),
+            "the gate did not catch the grouped-import evasion: {evasion}"
         );
     }
 

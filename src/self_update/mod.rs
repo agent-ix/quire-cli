@@ -355,5 +355,17 @@ mod tests {
         };
         let report = run_for_source(&CFG, &opts, InstallSource::Cargo).unwrap();
         assert_eq!(report.action, Action::Checked { latest: None });
+        // The matrix row's "reports git-branch tracking" wording, asserted
+        // (#56, SR-006 FND-002): `latest: None` alone never checked that the
+        // report actually SAYS why there is no version to compare.
+        let joined = report.messages.join("\n");
+        assert!(
+            joined.contains("track the git default branch"),
+            "the check report must explain branch tracking: {joined}"
+        );
+        assert!(
+            joined.contains(CFG.cargo_git),
+            "the report names the tracked repository: {joined}"
+        );
     }
 }
