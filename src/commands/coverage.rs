@@ -17,6 +17,7 @@ use anyhow::{bail, Context};
 use clap::Parser;
 use quire_cli::io;
 use quire_cli::safety;
+use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
 use quire_rs::{compute_coverage, Registry, Spec};
 
 use crate::commands::Ctx;
@@ -37,20 +38,54 @@ pub struct Args {
 
     /// Emit the report as JSON on stdout instead of the human summary.
     /// The JSON is the stable interface; the human form may change.
-    #[arg(long)]
+    /// Equivalent to `--format json`.
+    #[arg(long, conflicts_with = "format")]
     pub json: bool,
+
+    /// Output form: `human` census on stderr (default), `json` payload on
+    /// stdout, or `tsv` — one tab-separated record per line on stdout, the
+    /// agent-sized projection of the same records (FR-017-AC-14).
+    #[arg(long, value_enum, value_name = "FORMAT")]
+    pub format: Option<OutputFormat>,
 
     /// Exit 1 when any row is unbacked or any status is contradicted. Off by
     /// default: the rollup is a report, and whether a gap blocks is the
     /// consuming workflow's policy, not this command's.
     #[arg(long)]
     pub strict: bool,
+
+    /// Override a coverage check's severity: `--severity coverage:<check>=<level>`
+    /// where `<check>` is `unbacked-row`, `status-lie`, `untracked-symbol` or
+    /// `undeclared-status` and `<level>` is `off`, `warning` or `error` — the
+    /// same FR-048 machinery `validate --severity` uses, layered over a
+    /// module's `grammar_severity` entries. `off` drops the kind's records
+    /// from every output surface (the projection lever, FR-017-AC-13);
+    /// `error` exits 1 when the kind has findings. Totals always describe the
+    /// full reconciliation, and `--strict` is unaffected by projection.
+    /// Repeatable; a malformed entry is rejected before any document is read.
+    #[arg(long = "severity", value_name = "PACK:CHECK=LEVEL")]
+    pub severity: Vec<String>,
+}
+
+/// How the report leaves the process (FR-017-AC-1/AC-2/AC-14).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum OutputFormat {
+    /// The human census on stderr; stdout stays empty.
+    Human,
+    /// The `CoverageReport` JSON payload on stdout — the stable interface.
+    Json,
+    /// One tab-separated record per line on stdout.
+    Tsv,
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;
     let registry = load_registry(ctx, &args, &scope)?;
+    // FR-017-AC-13 (#53): layer `--severity` over the module-declared
+    // `grammar_severity` map — the identical call `validate` makes — so a
+    // malformed entry is rejected here, before any document is read.
+    let registry = super::validate::apply_severity_overrides(&registry, &args.severity)?;
 
     // FR-050: the model is module data. Without it there is nothing to
     // reconcile against, and guessing would be exactly the agent-grep behaviour
@@ -102,10 +137,44 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let report =
         compute_coverage(&spec, &registry, &graph, &scope).map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    if args.json {
-        println!("{}", report.to_json());
-    } else {
-        emit_human(ctx, &report);
+    // FR-017-AC-13 (#53): the coverage severity pack. Counts are captured on
+    // the FULL computation, before projection — `--strict` and `error`
+    // promotion judge what the engine found, never what rendering shows, so a
+    // projected report can never pass a gate a full one would fail.
+    let severity = registry.grammar_severity().clone();
+    let full_counts = [
+        ("unbacked-row", report.unbacked_rows.len()),
+        ("status-lie", report.status_lies.len()),
+        ("untracked-symbol", report.untracked_symbols.len()),
+        ("undeclared-status", report.undeclared_statuses.len()),
+    ];
+    let report = project_by_severity(ctx, report, &severity);
+
+    let format = match args.format {
+        Some(f) => f,
+        None if args.json => OutputFormat::Json,
+        None => OutputFormat::Human,
+    };
+    match format {
+        // Compact by default, indented under the global `--pretty`
+        // (FR-008-AC-1, FR-017-AC-15): `to_json()` is unconditionally pretty
+        // and the flag was silently ignored (#53). Whitespace-only — the
+        // payload parses identically, and `--pretty` restores the old shape.
+        OutputFormat::Json => println!("{}", io::encode_json(&report, ctx.pretty)?),
+        OutputFormat::Tsv => print!("{}", render_tsv(&report)),
+        OutputFormat::Human => emit_human(ctx, &report),
+    }
+
+    // An `error`-promoted kind fails the run even without --strict — the
+    // per-check gate `--strict` cannot express, mirroring `validate`
+    // (FR-048-AC-6). Judged on the full computation above.
+    let promoted: Vec<String> = full_counts
+        .iter()
+        .filter(|(check, n)| *n > 0 && pack_level(&severity, check) == GrammarSeverityLevel::Error)
+        .map(|(check, n)| format!("{n} coverage:{check} finding(s)"))
+        .collect();
+    if !promoted.is_empty() {
+        bail!("{} at severity `error` (--severity)", promoted.join(", "));
     }
 
     if args.strict {
@@ -120,15 +189,207 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
                  trace targets name documents and sections this repo actually has"
             );
         }
-        if !report.unbacked_rows.is_empty() || !report.status_lies.is_empty() {
-            bail!(
-                "{} unbacked row(s) and {} contradicted status(es) (--strict)",
-                report.unbacked_rows.len(),
-                report.status_lies.len()
-            );
+        let (unbacked, lies) = (full_counts[0].1, full_counts[1].1);
+        if unbacked > 0 || lies > 0 {
+            bail!("{unbacked} unbacked row(s) and {lies} contradicted status(es) (--strict)");
         }
     }
     Ok(())
+}
+
+/// The configured level of one `coverage` pack check — `coverage:<check>` in
+/// the merged severity map, defaulting to `warning` like every FR-048 check.
+fn pack_level(severity: &GrammarSeverityMap, check: &str) -> GrammarSeverityLevel {
+    quire_rs::grammar::severity_level(severity, "coverage", check)
+}
+
+/// Drop every `off` kind's records from the report (FR-017-AC-13, #53) —
+/// human, JSON and TSV all render the same projected struct — announcing each
+/// non-empty suppression on stderr so a projected report can never be
+/// mistaken for a clean one. `totals` and `groups` are untouched: they
+/// describe the full reconciliation, captured before this call.
+fn project_by_severity(
+    ctx: &Ctx,
+    mut report: quire_rs::CoverageReport,
+    severity: &GrammarSeverityMap,
+) -> quire_rs::CoverageReport {
+    let note = |check: &str, n: usize| {
+        if n > 0 {
+            io::emit_diagnostic(
+                ctx.diagnostics,
+                "CoverageProjection",
+                &format!("{n} coverage:{check} finding(s) suppressed by severity `off`"),
+            );
+        }
+    };
+    if pack_level(severity, "unbacked-row") == GrammarSeverityLevel::Off {
+        note("unbacked-row", report.unbacked_rows.len());
+        report.unbacked_rows.clear();
+    }
+    if pack_level(severity, "status-lie") == GrammarSeverityLevel::Off {
+        note("status-lie", report.status_lies.len());
+        report.status_lies.clear();
+    }
+    if pack_level(severity, "untracked-symbol") == GrammarSeverityLevel::Off {
+        note("untracked-symbol", report.untracked_symbols.len());
+        report.untracked_symbols.clear();
+    }
+    if pack_level(severity, "undeclared-status") == GrammarSeverityLevel::Off {
+        note("undeclared-status", report.undeclared_statuses.len());
+        report.undeclared_statuses.clear();
+    }
+    report
+}
+
+/// A TSV cell: the two structural characters (tab, newline) become spaces.
+/// Measured on a real corpus, 0 of 1,107 statements contain either — the
+/// replacement is the guard, not the common case (#53).
+fn tsv_cell(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if matches!(c, '\t' | '\n' | '\r') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
+/// One TSV record: the kind, then the eight fixed data cells.
+fn tsv_line(kind: &str, cells: [&str; 8]) -> String {
+    let mut line = String::from(kind);
+    for c in cells {
+        line.push('\t');
+        line.push_str(&tsv_cell(c));
+    }
+    line.push('\n');
+    line
+}
+
+/// The tab-separated projection (FR-017-AC-14, #53): full records, one per
+/// line on stdout — ~36% of the JSON payload on a real corpus, and the first
+/// human-form rendering `no_symbol_rows`, `diagnostics`, `obligations` and
+/// `implements` have ever had.
+///
+/// Nine fixed columns — `kind id document reference status method line
+/// targets text` — with the empty string where a kind carries no value. The
+/// `line` column is emitted (empty) so the format needs no change when the
+/// engine starts providing line numbers (#51 item 3); `targets` flattens id
+/// lists with `,`; obligation `parameters` are deliberately omitted (a map
+/// does not flatten into one column without an escaping contract). Ordering
+/// mirrors the JSON arrays, so output is byte-identical across runs over
+/// identical input (FR-050-AC-7).
+fn render_tsv(report: &quire_rs::CoverageReport) -> String {
+    let mut out =
+        String::from("kind\tid\tdocument\treference\tstatus\tmethod\tline\ttargets\ttext\n");
+    for r in &report.unbacked_rows {
+        let targets = r.target_ids.join(",");
+        out.push_str(&tsv_line(
+            "unbacked-row",
+            [
+                r.row_id.as_deref().unwrap_or(""),
+                &r.document,
+                &r.reference,
+                "",
+                "",
+                "",
+                &targets,
+                "",
+            ],
+        ));
+    }
+    for l in &report.status_lies {
+        let targets = l.target_ids.join(",");
+        out.push_str(&tsv_line(
+            "status-lie",
+            [
+                l.row_id.as_deref().unwrap_or(""),
+                &l.document,
+                &l.reference,
+                &l.status,
+                "",
+                "",
+                &targets,
+                "",
+            ],
+        ));
+    }
+    for n in &report.no_symbol_rows {
+        let targets = n.target_ids.join(",");
+        out.push_str(&tsv_line(
+            "no-symbol-row",
+            [
+                n.row_id.as_deref().unwrap_or(""),
+                &n.document,
+                &n.reference,
+                "",
+                &n.test_type,
+                "",
+                &targets,
+                "",
+            ],
+        ));
+    }
+    for s in &report.undeclared_statuses {
+        out.push_str(&tsv_line(
+            "undeclared-status",
+            [
+                s.row_id.as_deref().unwrap_or(""),
+                &s.document,
+                &s.reference,
+                &s.status,
+                "",
+                "",
+                "",
+                "",
+            ],
+        ));
+    }
+    for u in &report.untracked_symbols {
+        out.push_str(&tsv_line(
+            "untracked-symbol",
+            ["", &u.path, "", "", "", "", &u.trace_id, &u.symbol],
+        ));
+    }
+    for d in &report.diagnostics {
+        out.push_str(&tsv_line(
+            "diagnostic",
+            [
+                "",
+                d.path.as_deref().unwrap_or(""),
+                &d.declaration,
+                &d.reason,
+                "",
+                "",
+                "",
+                &d.message,
+            ],
+        ));
+    }
+    for o in &report.obligations {
+        let targets = o.target_ids.join(",");
+        out.push_str(&tsv_line(
+            "obligation",
+            [
+                &o.id,
+                &o.document,
+                &o.source,
+                o.criticality.as_deref().unwrap_or(""),
+                o.method.as_deref().unwrap_or(""),
+                "",
+                &targets,
+                &o.statement,
+            ],
+        ));
+    }
+    for i in &report.implements {
+        out.push_str(&tsv_line(
+            "implements",
+            ["", &i.path, &i.form, "", "", "", &i.trace_id, &i.symbol],
+        ));
+    }
+    out
 }
 
 /// A backed/total pair as a percentage, or `None` when nothing was counted.

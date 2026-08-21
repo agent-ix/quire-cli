@@ -16,7 +16,8 @@ over a repository, reconciling the trace ids a module's `traceability:` model
 declares against the source symbols that carry trace tags.
 
 ```
-quire coverage [--scope <DIR>] [--module <PATH>] [--json] [--strict]
+quire coverage [--scope <DIR>] [--module <PATH>] [--json | --format <human|json|tsv>]
+               [--strict] [--severity coverage:<check>=<level>]...
 ```
 
 This command shipped in v0.13.0 and was authored as a requirement only in
@@ -63,6 +64,26 @@ A model matching **zero** rows is reported as itself and fails `--strict`
 separately from a clean run — "found nothing" and "all covered" are opposite
 states (quire-rs FR-050-AC-14, CR-035).
 
+### §D — Agent-sized projection (#53)
+
+The primary consumer of this command is an agent, and the full `--json`
+payload on a real corpus (~310k tokens) exceeds what one can read. Two levers,
+both reusing shapes that already exist:
+
+- **The `coverage` severity pack** — `--severity coverage:<check>=<level>`
+  over the checks `unbacked-row`, `status-lie`, `untracked-symbol`,
+  `undeclared-status`, riding the same FR-048 machinery (module
+  `grammar_severity` ∪ CLI flag, reject-before-read) as `validate
+  --severity`. `off` is the projection lever; `error` a per-check gate.
+- **`--format tsv`** — the same records, one tab-separated line each on
+  stdout (~36% of the JSON size measured), row id leading the data cells and
+  a `line` column already present (empty until the engine provides line
+  numbers). `--json` stays exactly as it is: the stable program contract.
+
+Projection moves the payload cliff; it does not remove it — a large enough
+corpus still needs a file or NDJSON, which is deliberately out of scope until
+a consumer needs the whole rollup.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -79,6 +100,9 @@ states (quire-rs FR-050-AC-14, CR-035).
 | FR-017-AC-10 | A row whose status value the module's `traceability.status` classes as nothing is reported on **both** surfaces — as an `undeclared_statuses` entry in `--json` and as a rendered line in the default human census — carrying the authored value verbatim. `--strict` does not gate on it: the exit code for a report whose only finding is an undeclared status is the same with and without the flag (CR-083) | Test (IT-107) |
 | FR-017-AC-11 | A module-declared `traceability.source_exclude` glob reaches the source walk: a tagged file matching one contributes no symbol, a tagged file outside every glob still does, and a scope whose module declares none behaves exactly as before (CR-085) | Test (IT-108) |
 | FR-017-AC-12 | Each human-census unbacked-row, status-lie and undeclared-status line leads with the row's own id when the record carries one (the declaration names a `row_id_column`) and keeps the reference kind visible in a bracketed trailer — `TC-123 (doc.md) has no backing symbol [traces-to]` — so two rows in the same document render distinguishable lines; a record without a row id renders the reference kind leading, exactly as before. The `--json` payload is unchanged (#51) | Test (IT-109, IT-107) |
+| FR-017-AC-13 | `--severity coverage:<check>=<level>` (checks: `unbacked-row`, `status-lie`, `untracked-symbol`, `undeclared-status`) rides the FR-048 severity machinery: entries layer over module `grammar_severity`, and a malformed entry is rejected before any document is read. `off` drops the kind's records from **every** output surface (human, `--json`, `--format tsv`), announcing each non-empty suppression on stderr with its count. **Totals semantics:** `totals` and `groups` always describe the full reconciliation, computed before projection, and `--strict` gates on the full computation — projection changes what is rendered, never what is judged. `error` exits 1 when the kind has findings, without `--strict` (#53) | Test (IT-110) |
+| FR-017-AC-14 | `--format tsv` emits one tab-separated record per line on stdout: a header naming the nine fixed columns (`kind id document reference status method line targets text`), every record carrying every column (empty where the kind has no value), row id leading the data cells, id lists flattened with `,`, tab/newline in free text replaced by spaces, obligation `parameters` omitted. The `line` column is present and empty until the engine provides line numbers, so their arrival needs no format change. Ordering mirrors the JSON arrays; output is byte-identical across runs (#53) | Test (IT-111) |
+| FR-017-AC-15 | `--json` honours the global `--pretty`: compact single-line by default ([FR-008](./FR-008-json-output-encoding.md)-AC-1), indented with the flag, the identical parsed value either way. Byte-identity across runs (AC-2) holds in both shapes (#53) | Test (IT-112) |
 
 > **CR note (authored after the fact, 2026-08-16):** this document did not
 > exist while the command shipped, changed its default root (PR #27) and
@@ -128,4 +152,15 @@ states (quire-rs FR-050-AC-14, CR-035).
 > still has no human renderer at all (JSON-only — part of #51's remaining
 > scope, with the `path:line` prefix that waits on the engine). The stdout/
 > stderr split of AC-1 is deliberately untouched here.
+
+> **CR note (agent-first output, 2026-08-21, #53):** AC-13..15 are new (§D).
+> One deliberate change to an existing surface rides with them: the `--json`
+> payload was unconditionally pretty-printed (`to_string_pretty`) while the
+> global `--pretty` was silently ignored; AC-15 brings `coverage` onto the
+> FR-008-AC-1 posture every other JSON surface has. Whitespace-only — the
+> payload parses identically, `--pretty` reproduces the previous byte shape,
+> and AC-2's cross-run byte-identity holds in both. `--format tsv` is also
+> the first rendered surface `no_symbol_rows`, `diagnostics` (where
+> `uncatalogued-verification-method` reports), `obligations` and
+> `implements` have ever had.
 

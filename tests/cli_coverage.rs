@@ -357,22 +357,34 @@ fn tc810_document_root_is_scope_spec_not_the_repo() {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    let json = String::from_utf8_lossy(&out.stdout);
+    // Asserted over the parsed payload, not pretty-printed substrings: the
+    // old `"\"total\": 1"` needle depended on `to_string_pretty` spacing and
+    // went vacuous the moment the default became compact (#51 heads-up, #53).
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout).expect("coverage json");
+    let docs: Vec<&str> = report["groups"]
+        .as_array()
+        .expect("groups array")
+        .iter()
+        .filter_map(|g| g["document"].as_str())
+        .collect();
     assert!(
-        json.contains("spec/tests.md"),
-        "spec/ matrix must mint: {json}"
+        docs.contains(&"spec/tests.md"),
+        "spec/ matrix must mint: {report}"
     );
     assert!(
-        !json.contains("plan/tests.md") && !json.contains("\"document\": \"tests.md\""),
-        "a matrix outside spec/ minted ids — the walk left the document root: {json}"
+        !docs
+            .iter()
+            .any(|d| *d == "tests.md" || d.starts_with("plan/")),
+        "a matrix outside spec/ minted ids — the walk left the document root: {report}"
     );
-    assert!(
-        json.contains("\"total\": 1"),
-        "exactly the one spec/ row should mint: {json}"
+    assert_eq!(
+        report["totals"]["total"], 1,
+        "exactly the one spec/ row should mint: {report}"
     );
+    let raw = String::from_utf8_lossy(&out.stdout);
     assert!(
-        !json.contains("README") && !json.contains("CHANGELOG"),
-        "repo-root strays appeared in the report: {json}"
+        !raw.contains("README") && !raw.contains("CHANGELOG") && !raw.contains("plan/tests.md"),
+        "repo-root strays appeared in the report: {raw}"
     );
 }
 
@@ -865,6 +877,306 @@ fn it109_human_finding_lines_lead_with_the_row_id() {
         !err.contains("traces-to (spec/tests.md) has no backing symbol"),
         "a row with a row_id must not render under its reference kind: {err}"
     );
+}
+
+/// The it109 shape as a reusable fixture: an FR minting two acceptance-
+/// criterion ids and a matrix whose two rows reference them, both claiming ✅
+/// with nothing backing them — two unbacked rows and two status lies in one
+/// document. Returns `(scope, module)`.
+fn lying_fixture(dir: &TempDir) -> (String, String) {
+    let m = dir.path().join("m");
+    fs::create_dir_all(&m).expect("mkdir");
+    fs::write(
+        m.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n\
+         - name: TestMatrix\n\
+         traceability:\n  trace_targets:\n  - name: acceptance-criterion\n\
+         \x20   archetype: FR\n    section: Acceptance Criteria\n\
+         \x20   id_column: ID\n\
+         \x20 document_references:\n  - name: traces-to\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+         \x20   column: Traces To\n    row_id_column: Test ID\n\
+         \x20   pattern: '(FR-\\d+-AC-\\d+)'\n\
+         \x20   targets: [acceptance-criterion]\n  status:\n    column: Status\n\
+         \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
+         \x20   failed: [\"❌\"]\n",
+    )
+    .expect("write manifest");
+
+    fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+    fs::write(
+        dir.path().join("spec/FR-001.md"),
+        "---\nid: FR-001\ntype: FR\n---\n# FR-001\n\n\
+         ## Acceptance Criteria\n\n| ID | Criteria |\n|----|----------|\n\
+         | FR-001-AC-1 | it holds |\n| FR-001-AC-2 | it also holds |\n",
+    )
+    .expect("write FR");
+    fs::write(
+        dir.path().join("spec/tests.md"),
+        "---\nid: TM-001\ntype: TestMatrix\n---\n# matrix\n\n\
+         ## Test Case Summary\n\n| Test ID | Traces To | Status |\n\
+         |---------|-----------|--------|\n| TC-001 | FR-001-AC-1 | ✅ |\n\
+         | TC-002 | FR-001-AC-2 | ✅ |\n",
+    )
+    .expect("write matrix");
+
+    (
+        dir.path().to_string_lossy().into_owned(),
+        m.to_string_lossy().into_owned(),
+    )
+}
+
+// IT-110, FR-017-AC-13 (#53): the coverage severity pack. `--severity
+// coverage:<check>=off` is the projection lever — the kind's records drop
+// from every output surface, with the suppression announced and the totals
+// still describing the full reconciliation — and `=error` is the per-check
+// gate `--strict` cannot express. Entries ride the same FR-048 machinery
+// `validate --severity` uses, so parsing, precedence and reject-before-read
+// come for free and cannot drift between the two commands.
+#[test]
+fn it110_severity_pack_projects_and_promotes() {
+    let dir = TempDir::new().expect("tempdir");
+    let (scope, m) = lying_fixture(&dir);
+
+    // `off` drops the kind from the human census; the others survive, and the
+    // suppression is announced so a projected report never reads as clean.
+    let human = quire()
+        .args([
+            "coverage",
+            "--scope",
+            &scope,
+            "--module",
+            &m,
+            "--severity",
+            "coverage:status-lie=off",
+        ])
+        .output()
+        .expect("run");
+    assert_eq!(
+        human.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&human.stderr)
+    );
+    let err = String::from_utf8_lossy(&human.stderr);
+    assert!(
+        !err.contains("claims `✅`"),
+        "an `off` kind must not render: {err}"
+    );
+    assert!(
+        err.contains("has no backing symbol"),
+        "`off` is per-check — other kinds are untouched: {err}"
+    );
+    assert!(
+        err.contains("2 coverage:status-lie finding(s) suppressed"),
+        "the suppression must be announced with its count: {err}"
+    );
+
+    // ...and from the JSON payload, with `totals` still full-computation.
+    let json_out = quire()
+        .args([
+            "coverage",
+            "--scope",
+            &scope,
+            "--module",
+            &m,
+            "--json",
+            "--severity",
+            "coverage:status-lie=off",
+        ])
+        .output()
+        .expect("run");
+    assert!(json_out.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&json_out.stdout).expect("json");
+    assert_eq!(
+        report["status_lies"].as_array().map(Vec::len),
+        Some(0),
+        "suppressed kinds drop from the payload: {report}"
+    );
+    assert_eq!(
+        report["unbacked_rows"].as_array().map(Vec::len),
+        Some(2),
+        "other kinds are untouched: {report}"
+    );
+    assert_eq!(
+        report["totals"]["total"], 2,
+        "totals describe the full reconciliation, never the projection: {report}"
+    );
+
+    // Projection never lowers the gate: --strict fails on the full
+    // computation even with both gated kinds rendered off.
+    let strict = quire()
+        .args([
+            "coverage",
+            "--scope",
+            &scope,
+            "--module",
+            &m,
+            "--strict",
+            "--severity",
+            "coverage:status-lie=off",
+            "--severity",
+            "coverage:unbacked-row=off",
+        ])
+        .output()
+        .expect("run");
+    assert_eq!(
+        strict.status.code(),
+        Some(1),
+        "--strict must judge what the engine found, not what rendering shows"
+    );
+
+    // `error` promotes a kind to a failing exit without --strict.
+    let promoted = quire()
+        .args([
+            "coverage",
+            "--scope",
+            &scope,
+            "--module",
+            &m,
+            "--severity",
+            "coverage:status-lie=error",
+        ])
+        .output()
+        .expect("run");
+    assert_eq!(promoted.status.code(), Some(1), "`error` must fail the run");
+    let perr = String::from_utf8_lossy(&promoted.stderr);
+    assert!(
+        perr.contains("coverage:status-lie") && perr.contains("error"),
+        "the failure names the promoted check: {perr}"
+    );
+
+    // A malformed entry is rejected before any document is read.
+    let bad = quire()
+        .args([
+            "coverage",
+            "--scope",
+            &scope,
+            "--module",
+            &m,
+            "--severity",
+            "coverage:status-lie=loud",
+        ])
+        .output()
+        .expect("run");
+    assert!(!bad.status.success(), "a malformed level must be rejected");
+    assert!(
+        String::from_utf8_lossy(&bad.stderr).contains("--severity"),
+        "the diagnostic names the flag"
+    );
+}
+
+// IT-111, FR-017-AC-14 (#53): `--format tsv` emits one tab-separated record
+// per line on stdout — nine fixed columns, row id leading the data cells, a
+// `line` column already present (empty until the engine provides line
+// numbers, so the format needs no change when it does), and byte-identical
+// output across runs. The severity projection applies to it exactly as to
+// the other surfaces.
+#[test]
+fn it111_tsv_emits_one_record_per_line_on_stdout() {
+    let dir = TempDir::new().expect("tempdir");
+    let (scope, m) = lying_fixture(&dir);
+
+    let run = |extra: &[&str]| {
+        let mut args = vec![
+            "coverage", "--scope", &scope, "--module", &m, "--format", "tsv",
+        ];
+        args.extend_from_slice(extra);
+        let out = quire().args(&args).output().expect("run");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    };
+
+    let tsv = run(&[]);
+    let lines: Vec<&str> = tsv.lines().collect();
+    assert_eq!(
+        lines[0], "kind\tid\tdocument\treference\tstatus\tmethod\tline\ttargets\ttext",
+        "the header names the nine fixed columns"
+    );
+    for line in &lines {
+        assert_eq!(
+            line.split('\t').count(),
+            9,
+            "every record carries every column: {line}"
+        );
+    }
+    // Two unbacked rows and two status lies, each one line, row id leading.
+    for row in ["TC-001", "TC-002"] {
+        assert!(
+            lines
+                .iter()
+                .any(|l| l.starts_with(&format!("unbacked-row\t{row}\tspec/tests.md\ttraces-to\t"))),
+            "unbacked-row record for {row} missing: {tsv}"
+        );
+        let lie = lines
+            .iter()
+            .find(|l| l.starts_with(&format!("status-lie\t{row}\t")))
+            .unwrap_or_else(|| panic!("status-lie record for {row} missing: {tsv}"));
+        let cells: Vec<&str> = lie.split('\t').collect();
+        assert_eq!(cells[4], "✅", "the status column carries the claim: {lie}");
+        assert_eq!(
+            cells[6], "",
+            "the line column is empty until the engine provides it: {lie}"
+        );
+    }
+
+    // Deterministic across runs (FR-050-AC-7 carries over to the projection).
+    assert_eq!(tsv, run(&[]), "tsv output must be byte-identical");
+
+    // The severity projection reaches this surface too.
+    let projected = run(&["--severity", "coverage:status-lie=off"]);
+    assert!(
+        !projected.contains("status-lie\t"),
+        "a suppressed kind must not reach the tsv: {projected}"
+    );
+    assert!(
+        projected.contains("unbacked-row\t"),
+        "other kinds survive: {projected}"
+    );
+}
+
+// IT-112, FR-017-AC-15 (#53): `coverage --json` honours the global
+// `--pretty` — compact single-line by default (the FR-008-AC-1 posture every
+// other JSON surface already has), indented with the flag, the same parsed
+// value either way. `to_json()` was unconditionally pretty and the flag was
+// silently ignored.
+#[test]
+fn it112_coverage_json_honours_the_global_pretty_flag() {
+    let dir = TempDir::new().expect("tempdir");
+    let (scope, m) = lying_fixture(&dir);
+
+    let compact = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m, "--json"])
+        .output()
+        .expect("run");
+    assert!(compact.status.success());
+    let compact = String::from_utf8_lossy(&compact.stdout).into_owned();
+    assert!(
+        !compact.trim_end().contains('\n'),
+        "default JSON is compact — one line (FR-008-AC-1): {compact}"
+    );
+
+    let pretty = quire()
+        .args([
+            "--pretty", "coverage", "--scope", &scope, "--module", &m, "--json",
+        ])
+        .output()
+        .expect("run");
+    assert!(pretty.status.success());
+    let pretty = String::from_utf8_lossy(&pretty.stdout).into_owned();
+    assert!(
+        pretty.trim_end().contains('\n'),
+        "--pretty indents: {pretty}"
+    );
+
+    let a: serde_json::Value = serde_json::from_str(&compact).expect("compact parses");
+    let b: serde_json::Value = serde_json::from_str(&pretty).expect("pretty parses");
+    assert_eq!(a, b, "the two shapes carry the identical report");
 }
 
 // IT-108, FR-017-AC-11 (upstream quire-rs FR-050-AC-22, CR-085): a declared

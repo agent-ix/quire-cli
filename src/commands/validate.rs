@@ -113,7 +113,14 @@ fn grammar_check_name(message: &str) -> Option<&str> {
 /// Merge the repeatable `--severity <grammar>:<check>=<level>` entries over the
 /// module-declared `grammar_severity` map (FR-048). Returns the registry
 /// unchanged when no entry is given, so the common path allocates nothing.
-fn apply_severity_overrides(registry: &Registry, entries: &[String]) -> anyhow::Result<Registry> {
+///
+/// `pub(crate)`: `coverage` layers its severity pack through the identical
+/// call (FR-017-AC-13, #53), so the two surfaces cannot drift on parsing,
+/// precedence or the reject-before-read behavior.
+pub(crate) fn apply_severity_overrides(
+    registry: &Registry,
+    entries: &[String],
+) -> anyhow::Result<Registry> {
     if entries.is_empty() {
         return Ok(registry.clone());
     }
