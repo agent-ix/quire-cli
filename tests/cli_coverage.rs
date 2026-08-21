@@ -749,12 +749,13 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
         rendered.contains("🟡 review-open") && rendered.contains("classes as nothing"),
         "the finding must be rendered, not only serialized: {rendered}"
     );
-    // #51 / FR-017-AC-12: the line leads with the row's own id and keeps the
-    // reference kind visible — the census names the row, not just its kind.
+    // #51 / FR-017-AC-12 + AC-16: the line leads with the row's own id, keeps
+    // the reference kind visible, and the locus is the clickable
+    // `document:line` form — the matrix row sits on line 12 of the fixture.
     assert!(
-        rendered.contains("TC-002 (spec/tests.md)") && rendered.contains("[traces-to]"),
-        "the undeclared-status line must lead with the row id and keep the \
-         reference kind visible: {rendered}"
+        rendered.contains("TC-002 (spec/tests.md:12)") && rendered.contains("[traces-to]"),
+        "the undeclared-status line must lead with the row id, carry the \
+         document:line locus and keep the reference kind visible: {rendered}"
     );
 
     // FR-017-AC-7 is unchanged: `--strict` does not gate on this class. Shipping
@@ -854,21 +855,23 @@ fn it109_human_finding_lines_lead_with_the_row_id() {
     let err = String::from_utf8_lossy(&out.stderr);
 
     // Row id leading, reference kind visible, one line per row — for both
-    // finding classes this fixture produces.
-    for row in ["TC-001", "TC-002"] {
+    // finding classes this fixture produces. The locus carries the engine's
+    // 1-based document line (FR-017-AC-16, quire-rs v0.42.0): the two matrix
+    // rows sit on lines 11 and 12 of the fixture.
+    for (row, line) in [("TC-001", 11), ("TC-002", 12)] {
         assert!(
             err.contains(&format!(
-                "{row} (spec/tests.md) has no backing symbol [traces-to]"
+                "{row} (spec/tests.md:{line}) has no backing symbol [traces-to]"
             )),
-            "unbacked-row line for {row} must lead with the row id and keep \
-             the reference kind: {err}"
+            "unbacked-row line for {row} must lead with the row id, carry the \
+             document:line locus and keep the reference kind: {err}"
         );
         assert!(
             err.contains(&format!(
-                "{row} (spec/tests.md) claims `✅` but is not backed [traces-to]"
+                "{row} (spec/tests.md:{line}) claims `✅` but is not backed [traces-to]"
             )),
-            "status-lie line for {row} must lead with the row id and keep \
-             the reference kind: {err}"
+            "status-lie line for {row} must lead with the row id, carry the \
+             document:line locus and keep the reference kind: {err}"
         );
     }
     // The old shape — the reference kind leading for a record that HAS a row
@@ -1069,10 +1072,10 @@ fn it110_severity_pack_projects_and_promotes() {
 
 // IT-111, FR-017-AC-14 (#53): `--format tsv` emits one tab-separated record
 // per line on stdout — nine fixed columns, row id leading the data cells, a
-// `line` column already present (empty until the engine provides line
-// numbers, so the format needs no change when it does), and byte-identical
-// output across runs. The severity projection applies to it exactly as to
-// the other surfaces.
+// `line` column carrying the engine's 1-based line (populated since quire-rs
+// v0.42.0; the column predates the data, so its arrival needed no format
+// change), and byte-identical output across runs. The severity projection
+// applies to it exactly as to the other surfaces.
 #[test]
 fn it111_tsv_emits_one_record_per_line_on_stdout() {
     let dir = TempDir::new().expect("tempdir");
@@ -1106,7 +1109,11 @@ fn it111_tsv_emits_one_record_per_line_on_stdout() {
         );
     }
     // Two unbacked rows and two status lies, each one line, row id leading.
-    for row in ["TC-001", "TC-002"] {
+    // The `line` column now carries the engine's 1-based document line
+    // (FR-017-AC-14, quire-rs v0.42.0) — the arrival the empty column was
+    // reserved for, with no format change: the matrix rows sit on fixture
+    // lines 11 and 12.
+    for (row, doc_line) in [("TC-001", "11"), ("TC-002", "12")] {
         assert!(
             lines
                 .iter()
@@ -1120,8 +1127,8 @@ fn it111_tsv_emits_one_record_per_line_on_stdout() {
         let cells: Vec<&str> = lie.split('\t').collect();
         assert_eq!(cells[4], "✅", "the status column carries the claim: {lie}");
         assert_eq!(
-            cells[6], "",
-            "the line column is empty until the engine provides it: {lie}"
+            cells[6], doc_line,
+            "the line column carries the record's document line: {lie}"
         );
     }
 
@@ -1268,5 +1275,326 @@ fn it108_a_declared_source_exclude_scopes_the_code_walk() {
     assert!(
         after.contains(&"TC-998".to_string()),
         "the glob removed real source: {after:?}"
+    );
+}
+
+/// The it107 manifest (self-referencing TC ids, declared status vocabulary,
+/// legacy comment trace tags), reusable by the #51-batch tests below.
+fn self_ref_manifest() -> &'static str {
+    "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+     - name: TestMatrix\n\
+     traceability:\n  trace_targets:\n  - name: test-case\n\
+     \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+     \x20   id_column: Test ID\n\
+     \x20 document_references:\n  - name: traces-to\n\
+     \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+     \x20   column: Traces To\n    row_id_column: Test ID\n\
+     \x20   pattern: '((?:TC|FR)-\\d+)'\n    targets: [test-case]\n\
+     \x20 status:\n    column: Status\n\
+     \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
+     \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
+     \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
+     \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n"
+}
+
+// IT-113, FR-017-AC-16 (#51 item 3, quire-rs v0.42.0 FR-050-AC-26): when a
+// finding record carries the engine's 1-based line, the human locus is the
+// clickable `document:line` form. The fixture puts preamble prose ABOVE the
+// table so the asserted numbers can only be document lines — a renderer
+// printing a table-relative row index would fail loudly here while passing
+// on a fixture whose table starts at the top.
+#[test]
+fn it113_human_finding_locus_is_document_colon_line() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = dir.path().to_string_lossy().into_owned();
+    let m = dir.path().join("m");
+    fs::create_dir_all(&m).expect("mkdir");
+    fs::write(m.join("manifest.yaml"), self_ref_manifest()).expect("write manifest");
+    let m = m.to_string_lossy().into_owned();
+
+    fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+    // Rows on document lines 13 and 14: frontmatter (1-4), title (5),
+    // preamble (6-8), section (9-10), header+separator (11-12).
+    fs::write(
+        dir.path().join("spec/tests.md"),
+        "---\nid: TM-001\ntype: TestMatrix\n---\n# matrix\n\n\
+         Preamble prose that shifts the table down the document.\n\n\
+         ## Test Case Summary\n\n\
+         | Test ID | Title | Traces To | Status |\n|---------|-------|-----------|--------|\n\
+         | TC-001 | a case | TC-001 | ✅ |\n\
+         | TC-002 | drifted | TC-002 | 🟡 |\n",
+    )
+    .expect("write matrix");
+
+    let out = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m])
+        .output()
+        .expect("run");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "a report is not a verdict: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+
+    // All three pre-existing row-id kinds carry the locus.
+    assert!(
+        err.contains("TC-001 (spec/tests.md:13) has no backing symbol [traces-to]"),
+        "unbacked-row locus must be document:line: {err}"
+    );
+    assert!(
+        err.contains("TC-001 (spec/tests.md:13) claims `✅` but is not backed [traces-to]"),
+        "status-lie locus must be document:line: {err}"
+    );
+    assert!(
+        err.contains("TC-002 (spec/tests.md:14) has status `🟡`"),
+        "undeclared-status locus must be document:line: {err}"
+    );
+    // And the bare-document form — the pre-line rendering — is gone for
+    // records that carry a line.
+    assert!(
+        !err.contains("(spec/tests.md)"),
+        "a record carrying a line must not render the bare document: {err}"
+    );
+}
+
+// IT-114, FR-017-AC-17 (#51): `no_symbol_rows` renders in the human census
+// like every other row-id-carrying kind. It was JSON/TSV-only — but the
+// record explains an unbacked row the census DOES print, and an explanation
+// only the machine surface carries is one nobody reads (the CR-083 argument
+// that put `undeclared_statuses` on both surfaces).
+#[test]
+fn it114_no_symbol_rows_render_in_the_human_census() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = dir.path().to_string_lossy().into_owned();
+    let m = dir.path().join("m");
+    fs::create_dir_all(&m).expect("mkdir");
+    // The self-referencing manifest plus the CR-041 vocabulary: `Inspection`
+    // is declared to mint no source symbol, read from the `Type` column.
+    fs::write(
+        m.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: TestMatrix\n\
+         traceability:\n  trace_targets:\n  - name: test-case\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+         \x20   id_column: Test ID\n\
+         \x20 document_references:\n  - name: traces-to\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+         \x20   column: Traces To\n    row_id_column: Test ID\n\
+         \x20   pattern: '((?:TC|FR)-\\d+)'\n    targets: [test-case]\n\
+         \x20 status:\n    column: Status\n\
+         \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
+         \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
+         \x20 vocabularies:\n    test_type: [Test, Inspection]\n\
+         \x20   test_type_column: Type\n    no_source_symbol: [Inspection]\n",
+    )
+    .expect("write manifest");
+    let m = m.to_string_lossy().into_owned();
+
+    fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+    // Rows on document lines 11 and 12; both unbacked (no source exists).
+    // TC-001 is Inspection-verified — exempt, and the census must SAY so;
+    // TC-002 is Test-verified and must NOT mint the exemption line.
+    fs::write(
+        dir.path().join("spec/tests.md"),
+        "---\nid: TM-001\ntype: TestMatrix\n---\n# matrix\n\n\
+         ## Test Case Summary\n\n\
+         | Test ID | Type | Traces To | Status |\n|---------|------|-----------|--------|\n\
+         | TC-001 | Inspection | TC-001 | 🚧 |\n\
+         | TC-002 | Test | TC-002 | 🚧 |\n",
+    )
+    .expect("write matrix");
+
+    let out = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m])
+        .output()
+        .expect("run");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "a report is not a verdict: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains(
+            "TC-001 (spec/tests.md:11) is verified by `Inspection`, \
+             which mints no source symbol [traces-to]"
+        ),
+        "the no-symbol row must render with row id, document:line locus and \
+         the exempting value: {err}"
+    );
+    assert!(
+        !err.contains("TC-002 (spec/tests.md:12) is verified by"),
+        "a row whose method mints symbols must not render the exemption: {err}"
+    );
+
+    // The TSV projection of the same record carries the method and the line.
+    let tsv = quire()
+        .args([
+            "coverage", "--scope", &scope, "--module", &m, "--format", "tsv",
+        ])
+        .output()
+        .expect("run");
+    assert!(tsv.status.success());
+    let tsv = String::from_utf8_lossy(&tsv.stdout).into_owned();
+    assert!(
+        tsv.contains("no-symbol-row\tTC-001\tspec/tests.md\ttraces-to\t\tInspection\t11\t"),
+        "the tsv no-symbol-row record must carry method and line: {tsv}"
+    );
+}
+
+// IT-115, FR-017-AC-18 (#51, quire-rs #215): the `source_exclude`
+// subtraction is observable — the census counts what the globs removed — and
+// `SymbolExtraction` diagnostics reach stderr instead of being computed and
+// dropped. Without the count, an over-broad glob reads exactly like tests
+// that were never written; without the diagnostics, a walk that read less
+// than declared said nothing.
+#[test]
+fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
+    let build = |declare_glob: bool| {
+        let dir = TempDir::new().expect("tempdir");
+        let m = dir.path().join("m");
+        fs::create_dir_all(&m).expect("mkdir");
+        let glob = if declare_glob {
+            "  source_exclude: ['tests/fixtures/**']\n"
+        } else {
+            ""
+        };
+        fs::write(
+            m.join("manifest.yaml"),
+            format!(
+                "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+                 - name: TestMatrix\n\
+                 traceability:\n{glob}  trace_targets:\n  - name: test-case\n\
+                 \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+                 \x20   id_column: Test ID\n  status:\n    column: Status\n\
+                 \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
+                 \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
+                 \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
+                 \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n"
+            ),
+        )
+        .expect("write manifest");
+        fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+        fs::create_dir_all(dir.path().join("tests/fixtures")).expect("mkdir fixtures");
+        fs::write(
+            dir.path().join("spec/tests.md"),
+            matrix_doc("TM-001", "TC-001"),
+        )
+        .expect("write matrix");
+        fs::write(
+            dir.path().join("tests/fixtures/sample.rs"),
+            "// TC-999\n#[test]\nfn tc999_covers_nothing() {}\n",
+        )
+        .expect("write fixture");
+        dir
+    };
+
+    let run = |dir: &TempDir| {
+        let scope = dir.path().to_string_lossy().into_owned();
+        let m = dir.path().join("m").to_string_lossy().into_owned();
+        let out = quire()
+            .args(["coverage", "--scope", &scope, "--module", &m])
+            .output()
+            .expect("run");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert!(
+            String::from_utf8_lossy(&out.stdout).trim().is_empty(),
+            "the human census keeps stdout empty (FR-017-AC-1)"
+        );
+        String::from_utf8_lossy(&out.stderr).into_owned()
+    };
+
+    // Declared and matching one file: the census says so, exactly once.
+    let with_glob = run(&build(true));
+    assert!(
+        with_glob.contains("1 source file(s) excluded by source_exclude"),
+        "the census must count the subtraction: {with_glob}"
+    );
+    // Undeclared: zero is the no-op every conformant repo is in — silent.
+    let without = run(&build(false));
+    assert!(
+        !without.contains("excluded by source_exclude"),
+        "no declaration, no line: {without}"
+    );
+
+    // An unreadable source file mints a SymbolExtraction diagnostic, and the
+    // CLI surfaces it on stderr rather than dropping it.
+    let dir = build(false);
+    fs::write(dir.path().join("src.rs"), [0xFFu8, 0xFE, 0x00, 0x01]).expect("write bytes");
+    let err = run(&dir);
+    assert!(
+        err.contains("src.rs: unreadable"),
+        "an extraction diagnostic must reach stderr, naming the file: {err}"
+    );
+}
+
+// IT-116, FR-017-AC-19 (quire-rs v0.42.0, FR-050-AC-23/CR-087): the advisory
+// `shared_trace_ids` list passes through `--json` — one status-carrying row
+// id bound by N distinct symbols is reported, so a green row can no longer
+// rot N-1 tests deep invisibly. Reachability, not re-testing the engine: the
+// CLI serializes the whole `CoverageReport`, and this pins that the field
+// actually arrives from the surface a user invokes.
+#[test]
+fn it116_shared_trace_ids_pass_through_json() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = dir.path().to_string_lossy().into_owned();
+    let m = dir.path().join("m");
+    fs::create_dir_all(&m).expect("mkdir");
+    fs::write(m.join("manifest.yaml"), self_ref_manifest()).expect("write manifest");
+    let m = m.to_string_lossy().into_owned();
+
+    fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+    fs::write(
+        dir.path().join("spec/tests.md"),
+        "---\nid: TM-001\ntype: TestMatrix\n---\n# matrix\n\n\
+         ## Test Case Summary\n\n\
+         | Test ID | Title | Traces To | Status |\n|---------|-------|-----------|--------|\n\
+         | TC-001 | shared | TC-001 | 🚧 |\n",
+    )
+    .expect("write matrix");
+    // TWO distinct symbols in two files bind the one status-carrying row id.
+    fs::create_dir_all(dir.path().join("src")).expect("mkdir src");
+    fs::write(
+        dir.path().join("src/a.rs"),
+        "// TC-001\n#[test]\nfn tc001_first_binder() {}\n",
+    )
+    .expect("write a");
+    fs::write(
+        dir.path().join("src/b.rs"),
+        "// TC-001\n#[test]\nfn tc001_second_binder() {}\n",
+    )
+    .expect("write b");
+
+    let out = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m, "--json"])
+        .output()
+        .expect("run");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout).expect("json");
+    let shared = report["shared_trace_ids"].as_array().expect("array");
+    assert_eq!(shared.len(), 1, "one shared id, one record: {report}");
+    assert_eq!(shared[0]["trace_id"].as_str(), Some("TC-001"));
+    assert_eq!(
+        shared[0]["symbols"].as_array().map(Vec::len),
+        Some(2),
+        "both distinct binders are listed: {report}"
+    );
+    // `vocabulary_coverage` rides the same wholesale serialization and is
+    // absent when empty — the AC-2 byte-identity posture for every module
+    // that has not adopted the declaration.
+    assert!(
+        report.get("vocabulary_coverage").is_none(),
+        "an empty vocabulary_coverage must stay off the wire: {report}"
     );
 }

@@ -132,6 +132,18 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         &[Path::new(super::DOCUMENT_ROOT_DIR)],
         &model.source_exclude,
     );
+    // FR-017-AC-18 (#51, quire-rs #215): extraction diagnostics reach stderr.
+    // A refused `source_exclude` list (FR-050-AC-25) or an unreadable source
+    // file used to be computed and dropped here — a walk that silently read
+    // less than the operator declared. Stderr on every format: diagnostics
+    // are the progress/finding stream, never part of the stdout payload.
+    for d in &extraction.diagnostics {
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "SymbolExtraction",
+            &format!("{}: {}", d.path, d.reason),
+        );
+    }
     let graph = quire_rs::symbols::trace::bind(&extraction, model);
 
     let report =
@@ -269,18 +281,19 @@ fn tsv_line(kind: &str, cells: [&str; 8]) -> String {
 
 /// The tab-separated projection (FR-017-AC-14, #53): full records, one per
 /// line on stdout — ~36% of the JSON payload on a real corpus, and the first
-/// human-form rendering `no_symbol_rows`, `diagnostics`, `obligations` and
-/// `implements` have ever had.
+/// human-form rendering `diagnostics`, `obligations` and `implements` have
+/// ever had.
 ///
 /// Nine fixed columns — `kind id document reference status method line
 /// targets text` — with the empty string where a kind carries no value. The
-/// `line` column is emitted (empty) so the format needs no change when the
-/// engine starts providing line numbers (#51 item 3); `targets` flattens id
-/// lists with `,`; obligation `parameters` are deliberately omitted (a map
-/// does not flatten into one column without an escaping contract). Ordering
-/// mirrors the JSON arrays, so output is byte-identical across runs over
-/// identical input (FR-050-AC-7).
+/// `line` column carries the engine's 1-based line where the record has one
+/// (quire-rs v0.42.0, #210 — the arrival #53 reserved the column for), empty
+/// where it does not; `targets` flattens id lists with `,`; obligation
+/// `parameters` are deliberately omitted (a map does not flatten into one
+/// column without an escaping contract). Ordering mirrors the JSON arrays, so
+/// output is byte-identical across runs over identical input (FR-050-AC-7).
 fn render_tsv(report: &quire_rs::CoverageReport) -> String {
+    let line_cell = |line: Option<usize>| line.map(|l| l.to_string()).unwrap_or_default();
     let mut out =
         String::from("kind\tid\tdocument\treference\tstatus\tmethod\tline\ttargets\ttext\n");
     for r in &report.unbacked_rows {
@@ -293,7 +306,7 @@ fn render_tsv(report: &quire_rs::CoverageReport) -> String {
                 &r.reference,
                 "",
                 "",
-                "",
+                &line_cell(r.line),
                 &targets,
                 "",
             ],
@@ -309,7 +322,7 @@ fn render_tsv(report: &quire_rs::CoverageReport) -> String {
                 &l.reference,
                 &l.status,
                 "",
-                "",
+                &line_cell(l.line),
                 &targets,
                 "",
             ],
@@ -325,7 +338,7 @@ fn render_tsv(report: &quire_rs::CoverageReport) -> String {
                 &n.reference,
                 "",
                 &n.test_type,
-                "",
+                &line_cell(n.line),
                 &targets,
                 "",
             ],
@@ -340,7 +353,7 @@ fn render_tsv(report: &quire_rs::CoverageReport) -> String {
                 &s.reference,
                 &s.status,
                 "",
-                "",
+                &line_cell(s.line),
                 "",
                 "",
             ],
@@ -349,7 +362,16 @@ fn render_tsv(report: &quire_rs::CoverageReport) -> String {
     for u in &report.untracked_symbols {
         out.push_str(&tsv_line(
             "untracked-symbol",
-            ["", &u.path, "", "", "", "", &u.trace_id, &u.symbol],
+            [
+                "",
+                &u.path,
+                "",
+                "",
+                "",
+                &line_cell(u.line),
+                &u.trace_id,
+                &u.symbol,
+            ],
         ));
     }
     for d in &report.diagnostics {
@@ -411,17 +433,31 @@ fn percent_label(backed: usize, total: usize) -> String {
     }
 }
 
-/// The lead and trailer of a human finding line (#51, FR-017-AC-12).
+/// The lead and trailer of a human finding line (#51, FR-017-AC-12/AC-16).
 ///
 /// With a row id — the declaration names a `row_id_column` — the id leads
-/// (`TC-123 (doc.md) …`) and the reference kind moves to a bracketed trailer
-/// (`… [traces-to]`) so it stays visible. Without one, the reference kind
-/// leads exactly as before and there is no trailer: the kind is already the
-/// only identity the record has.
-fn finding_identity(row_id: Option<&str>, reference: &str, document: &str) -> (String, String) {
+/// (`TC-123 (doc.md:7) …`) and the reference kind moves to a bracketed
+/// trailer (`… [traces-to]`) so it stays visible. Without one, the reference
+/// kind leads exactly as before and there is no trailer: the kind is already
+/// the only identity the record has.
+///
+/// The parenthesized locus is `document:line` when the record carries the
+/// engine's 1-based line (quire-rs v0.42.0, FR-050-AC-26) — the clickable
+/// `path:line` form `validate` established — and the bare document when it
+/// does not, exactly as before.
+fn finding_identity(
+    row_id: Option<&str>,
+    line: Option<usize>,
+    reference: &str,
+    document: &str,
+) -> (String, String) {
+    let locus = match line {
+        Some(l) => format!("{document}:{l}"),
+        None => document.to_string(),
+    };
     match row_id {
-        Some(id) => (format!("{id} ({document})"), format!(" [{reference}]")),
-        None => (format!("{reference} ({document})"), String::new()),
+        Some(id) => (format!("{id} ({locus})"), format!(" [{reference}]")),
+        None => (format!("{reference} ({locus})"), String::new()),
     }
 }
 
@@ -450,15 +486,28 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
             ),
         );
     }
+    // FR-017-AC-18 (#51, quire-rs #215): what `source_exclude` subtracted is
+    // part of the census. An over-broad glob otherwise reads exactly like
+    // tests that were never written. Zero — the state every conformant repo
+    // without the declaration is in — prints nothing.
+    if report.excluded_source_files > 0 {
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "CoverageExclusion",
+            &format!(
+                "{} source file(s) excluded by source_exclude",
+                report.excluded_source_files
+            ),
+        );
+    }
     // #51: each finding line leads with the row's own id when the record
     // carries one, so a reader can act on the line without going to `--json`
-    // — `traces-to (spec/tests.md)` four times over names nothing. Of the
-    // row_id-carrying record kinds, three render here; `no_symbol_rows` has
-    // no human renderer at all (JSON-only, tracked by #51's remainder), and
+    // — `traces-to (spec/tests.md)` four times over names nothing. Every
+    // row_id-carrying record kind renders here (AC-12/AC-17), and
     // `UntrackedSymbol` carries no `row_id` by construction — it is a symbol
     // matching no declared row, and its `trace_id` already prints.
     for r in &report.unbacked_rows {
-        let (lead, kind) = finding_identity(r.row_id.as_deref(), &r.reference, &r.document);
+        let (lead, kind) = finding_identity(r.row_id.as_deref(), r.line, &r.reference, &r.document);
         io::emit_diagnostic(
             ctx.diagnostics,
             "UnbackedRow",
@@ -466,18 +515,33 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
         );
     }
     for l in &report.status_lies {
-        let (lead, kind) = finding_identity(l.row_id.as_deref(), &l.reference, &l.document);
+        let (lead, kind) = finding_identity(l.row_id.as_deref(), l.line, &l.reference, &l.document);
         io::emit_diagnostic(
             ctx.diagnostics,
             "StatusLie",
             &format!("{lead} claims `{}` but is not backed{kind}", l.status),
         );
     }
+    // FR-017-AC-17 (#51): rendered like every other row-id-carrying kind. It
+    // was JSON/TSV-only — but the record is the *explanation* for an unbacked
+    // row the census does print, and an explanation only the machine surface
+    // carries is one nobody reads (the CR-083 argument, unchanged).
+    for n in &report.no_symbol_rows {
+        let (lead, kind) = finding_identity(n.row_id.as_deref(), n.line, &n.reference, &n.document);
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "NoSymbolRow",
+            &format!(
+                "{lead} is verified by `{}`, which mints no source symbol{kind}",
+                n.test_type
+            ),
+        );
+    }
     // CR-083. Rendered rather than left to `--json`, because a finding only the
     // machine surface carries is a finding nobody reads: the whole defect this
     // class reports is a value the engine had an opinion about and never said.
     for s in &report.undeclared_statuses {
-        let (lead, kind) = finding_identity(s.row_id.as_deref(), &s.reference, &s.document);
+        let (lead, kind) = finding_identity(s.row_id.as_deref(), s.line, &s.reference, &s.document);
         io::emit_diagnostic(
             ctx.diagnostics,
             "UndeclaredStatus",
