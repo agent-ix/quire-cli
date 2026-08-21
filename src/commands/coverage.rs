@@ -150,6 +150,20 @@ fn percent_label(backed: usize, total: usize) -> String {
     }
 }
 
+/// The lead and trailer of a human finding line (#51, FR-017-AC-12).
+///
+/// With a row id — the declaration names a `row_id_column` — the id leads
+/// (`TC-123 (doc.md) …`) and the reference kind moves to a bracketed trailer
+/// (`… [traces-to]`) so it stays visible. Without one, the reference kind
+/// leads exactly as before and there is no trailer: the kind is already the
+/// only identity the record has.
+fn finding_identity(row_id: Option<&str>, reference: &str, document: &str) -> (String, String) {
+    match row_id {
+        Some(id) => (format!("{id} ({document})"), format!(" [{reference}]")),
+        None => (format!("{reference} ({document})"), String::new()),
+    }
+}
+
 fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
     let t = &report.totals;
     io::emit_diagnostic(
@@ -175,33 +189,40 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
             ),
         );
     }
+    // #51: each finding line leads with the row's own id when the record
+    // carries one, so a reader can act on the line without going to `--json`
+    // — `traces-to (spec/tests.md)` four times over names nothing. Of the
+    // row_id-carrying record kinds, three render here; `no_symbol_rows` has
+    // no human renderer at all (JSON-only, tracked by #51's remainder), and
+    // `UntrackedSymbol` carries no `row_id` by construction — it is a symbol
+    // matching no declared row, and its `trace_id` already prints.
     for r in &report.unbacked_rows {
+        let (lead, kind) = finding_identity(r.row_id.as_deref(), &r.reference, &r.document);
         io::emit_diagnostic(
             ctx.diagnostics,
             "UnbackedRow",
-            &format!("{} ({}) has no backing symbol", r.reference, r.document),
+            &format!("{lead} has no backing symbol{kind}"),
         );
     }
     for l in &report.status_lies {
+        let (lead, kind) = finding_identity(l.row_id.as_deref(), &l.reference, &l.document);
         io::emit_diagnostic(
             ctx.diagnostics,
             "StatusLie",
-            &format!(
-                "{} ({}) claims `{}` but is not backed",
-                l.reference, l.document, l.status
-            ),
+            &format!("{lead} claims `{}` but is not backed{kind}", l.status),
         );
     }
     // CR-083. Rendered rather than left to `--json`, because a finding only the
     // machine surface carries is a finding nobody reads: the whole defect this
     // class reports is a value the engine had an opinion about and never said.
     for s in &report.undeclared_statuses {
+        let (lead, kind) = finding_identity(s.row_id.as_deref(), &s.reference, &s.document);
         io::emit_diagnostic(
             ctx.diagnostics,
             "UndeclaredStatus",
             &format!(
-                "{} ({}) has status `{}`, which the declared vocabulary classes as nothing",
-                s.reference, s.document, s.status
+                "{lead} has status `{}`, which the declared vocabulary classes as nothing{kind}",
+                s.status
             ),
         );
     }

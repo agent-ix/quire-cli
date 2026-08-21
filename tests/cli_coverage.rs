@@ -737,6 +737,13 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
         rendered.contains("🟡 review-open") && rendered.contains("classes as nothing"),
         "the finding must be rendered, not only serialized: {rendered}"
     );
+    // #51 / FR-017-AC-12: the line leads with the row's own id and keeps the
+    // reference kind visible — the census names the row, not just its kind.
+    assert!(
+        rendered.contains("TC-002 (spec/tests.md)") && rendered.contains("[traces-to]"),
+        "the undeclared-status line must lead with the row id and keep the \
+         reference kind visible: {rendered}"
+    );
 
     // FR-017-AC-7 is unchanged: `--strict` does not gate on this class. Shipping
     // it as a gate would flip repositories red on an engine bump for a condition
@@ -764,6 +771,99 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
         Some(0),
         "the default run is a report, not a verdict: {}",
         String::from_utf8_lossy(&plain.stderr)
+    );
+}
+
+// IT-109, FR-017-AC-12 (#51): every human unbacked-row and status-lie line
+// leads with the row's own `row_id`, keeping the reference kind visible in a
+// bracketed trailer — and two rows in the same document therefore render
+// distinguishable lines. Before this the renderer printed the reference KIND
+// (`traces-to`) per line: on a real corpus, 1,432 identical lines a reader
+// could act on only by re-running with `--json`, even though `UnbackedRow`,
+// `StatusLie` and `UndeclaredStatus` all carry `row_id: Option<String>`.
+#[test]
+fn it109_human_finding_lines_lead_with_the_row_id() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = dir.path().to_string_lossy().into_owned();
+
+    // The it092 shape — FR-minted acceptance-criterion ids referenced from a
+    // matrix declaring a `row_id_column` — with TWO rows in one document, so
+    // distinguishability is asserted over lines that differ only by row id.
+    let m = dir.path().join("m");
+    fs::create_dir_all(&m).expect("mkdir");
+    fs::write(
+        m.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n\
+         - name: TestMatrix\n\
+         traceability:\n  trace_targets:\n  - name: acceptance-criterion\n\
+         \x20   archetype: FR\n    section: Acceptance Criteria\n\
+         \x20   id_column: ID\n\
+         \x20 document_references:\n  - name: traces-to\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+         \x20   column: Traces To\n    row_id_column: Test ID\n\
+         \x20   pattern: '(FR-\\d+-AC-\\d+)'\n\
+         \x20   targets: [acceptance-criterion]\n  status:\n    column: Status\n\
+         \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
+         \x20   failed: [\"❌\"]\n",
+    )
+    .expect("write manifest");
+    let m = m.to_string_lossy().into_owned();
+
+    fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+    fs::write(
+        dir.path().join("spec/FR-001.md"),
+        "---\nid: FR-001\ntype: FR\n---\n# FR-001\n\n\
+         ## Acceptance Criteria\n\n| ID | Criteria |\n|----|----------|\n\
+         | FR-001-AC-1 | it holds |\n| FR-001-AC-2 | it also holds |\n",
+    )
+    .expect("write FR");
+    // Two rows claiming ✅ that no symbol backs: two unbacked rows and two
+    // status lies, all in the same document.
+    fs::write(
+        dir.path().join("spec/tests.md"),
+        "---\nid: TM-001\ntype: TestMatrix\n---\n# matrix\n\n\
+         ## Test Case Summary\n\n| Test ID | Traces To | Status |\n\
+         |---------|-----------|--------|\n| TC-001 | FR-001-AC-1 | ✅ |\n\
+         | TC-002 | FR-001-AC-2 | ✅ |\n",
+    )
+    .expect("write matrix");
+
+    let out = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m])
+        .output()
+        .expect("run");
+    assert_eq!(
+        out.status.code(),
+        Some(0),
+        "a report is not a verdict: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+
+    // Row id leading, reference kind visible, one line per row — for both
+    // finding classes this fixture produces.
+    for row in ["TC-001", "TC-002"] {
+        assert!(
+            err.contains(&format!(
+                "{row} (spec/tests.md) has no backing symbol [traces-to]"
+            )),
+            "unbacked-row line for {row} must lead with the row id and keep \
+             the reference kind: {err}"
+        );
+        assert!(
+            err.contains(&format!(
+                "{row} (spec/tests.md) claims `✅` but is not backed [traces-to]"
+            )),
+            "status-lie line for {row} must lead with the row id and keep \
+             the reference kind: {err}"
+        );
+    }
+    // The old shape — the reference kind leading for a record that HAS a row
+    // id — must be gone, or the two rows above collapse into identical lines.
+    assert!(
+        !err.contains("traces-to (spec/tests.md) has no backing symbol"),
+        "a row with a row_id must not render under its reference kind: {err}"
     );
 }
 

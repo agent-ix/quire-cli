@@ -78,6 +78,7 @@ states (quire-rs FR-050-AC-14, CR-035).
 | FR-017-AC-9 | (thin boundary) reconciliation is delegated entirely to quire-rs (`compute_coverage`, `extract_tree_scoped`, `trace::bind`); the CLI resolves the two roots, applies path-safety, and renders ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) | Inspection (TC-090) |
 | FR-017-AC-10 | A row whose status value the module's `traceability.status` classes as nothing is reported on **both** surfaces — as an `undeclared_statuses` entry in `--json` and as a rendered line in the default human census — carrying the authored value verbatim. `--strict` does not gate on it: the exit code for a report whose only finding is an undeclared status is the same with and without the flag (CR-083) | Test (IT-107) |
 | FR-017-AC-11 | A module-declared `traceability.source_exclude` glob reaches the source walk: a tagged file matching one contributes no symbol, a tagged file outside every glob still does, and a scope whose module declares none behaves exactly as before (CR-085) | Test (IT-108) |
+| FR-017-AC-12 | Each human-census unbacked-row, status-lie and undeclared-status line leads with the row's own id when the record carries one (the declaration names a `row_id_column`) and keeps the reference kind visible in a bracketed trailer — `TC-123 (doc.md) has no backing symbol [traces-to]` — so two rows in the same document render distinguishable lines; a record without a row id renders the reference kind leading, exactly as before. The `--json` payload is unchanged (#51) | Test (IT-109, IT-107) |
 
 > **CR note (authored after the fact, 2026-08-16):** this document did not
 > exist while the command shipped, changed its default root (PR #27) and
@@ -115,4 +116,16 @@ states (quire-rs FR-050-AC-14, CR-035).
 > fixture whose rows are all backed so the undeclared status is the only finding
 > — otherwise the assertion would pass on unbacked rows, which `--strict` gates
 > on legitimately.
+
+> **CR note (row-id-leading findings, 2026-08-21, #51):** AC-12 is new. The
+> human renderer printed the reference **kind** per finding line (`traces-to
+> (spec/tests.md) has no backing symbol`, four identical lines for four rows),
+> while `UnbackedRow`, `StatusLie` and `UndeclaredStatus` all already carry
+> `row_id: Option<String>` — the id was computed, serialized to `--json`, and
+> never rendered. That omission is why downstream consumers parsed the
+> megabyte-scale JSON payload to answer questions the human output had
+> already computed. Of the row-id-carrying record kinds, `no_symbol_rows`
+> still has no human renderer at all (JSON-only — part of #51's remaining
+> scope, with the `path:line` prefix that waits on the engine). The stdout/
+> stderr split of AC-1 is deliberately untouched here.
 
