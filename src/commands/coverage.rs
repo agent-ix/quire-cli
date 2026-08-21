@@ -62,7 +62,8 @@ pub struct Args {
     /// from every output surface (the projection lever, FR-017-AC-13);
     /// `error` exits 1 when the kind has findings. Totals always describe the
     /// full reconciliation, and `--strict` is unaffected by projection.
-    /// Repeatable; a malformed entry is rejected before any document is read.
+    /// Repeatable; a malformed entry — or a `coverage:` entry naming a check
+    /// outside the pack's four — is rejected before any document is read.
     #[arg(long = "severity", value_name = "PACK:CHECK=LEVEL")]
     pub severity: Vec<String>,
 }
@@ -84,7 +85,13 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let registry = load_registry(ctx, &args, &scope)?;
     // FR-017-AC-13 (#53): layer `--severity` over the module-declared
     // `grammar_severity` map — the identical call `validate` makes — so a
-    // malformed entry is rejected here, before any document is read.
+    // malformed entry is rejected here, before any document is read. The
+    // pack's check vocabulary is additionally closed (#57): FR-048 validates
+    // only the key's shape, deliberate for `validate` where grammars are
+    // module-declared and open, but this command owns the `coverage` pack and
+    // its four checks — a typo'd check would otherwise merge, match nothing,
+    // and silently not project what the operator asked for.
+    reject_unknown_pack_checks(&args.severity)?;
     let registry = super::validate::apply_severity_overrides(&registry, &args.severity)?;
 
     // FR-050: the model is module data. Without it there is nothing to
@@ -204,6 +211,40 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         let (unbacked, lies) = (full_counts[0].1, full_counts[1].1);
         if unbacked > 0 || lies > 0 {
             bail!("{unbacked} unbacked row(s) and {lies} contradicted status(es) (--strict)");
+        }
+    }
+    Ok(())
+}
+
+/// The four checks the `coverage` severity pack owns (FR-017-AC-13). The
+/// gateable engine kinds, and only those — `no_symbol_rows` is an exemption
+/// note, deliberately outside the pack (FR-017 CR note, #51).
+const PACK_CHECKS: [&str; 4] = [
+    "unbacked-row",
+    "status-lie",
+    "untracked-symbol",
+    "undeclared-status",
+];
+
+/// Reject a `coverage:<check>` entry naming a check outside [`PACK_CHECKS`]
+/// (#57). FR-048's parser validates only the key's *shape* — deliberate for
+/// `validate`, where grammars are module-declared and open — so a typo'd
+/// check (`coverage:unbaked-row=off`) would merge, match nothing, and the run
+/// would proceed as if the flag were absent: a projection the operator asked
+/// for silently not happening. Entries for other grammars are left to the
+/// FR-048 open-vocabulary posture unchanged.
+fn reject_unknown_pack_checks(entries: &[String]) -> anyhow::Result<()> {
+    for entry in entries {
+        let Some(rest) = entry.strip_prefix("coverage:") else {
+            continue;
+        };
+        let check = rest.split('=').next().unwrap_or(rest);
+        if !PACK_CHECKS.contains(&check) {
+            bail!(
+                "--severity entry '{entry}' names no coverage check: the coverage \
+                 pack's checks are {}",
+                PACK_CHECKS.join(", ")
+            );
         }
     }
     Ok(())
@@ -577,4 +618,33 @@ fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registr
     let registry = Registry::from_env().context("loading modules")?;
     io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
     Ok(registry)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // TC-812, FR-017-AC-14 (#57): the TSV escaping guard, pinned. The #53
+    // measurement found 0/1,107 statements carrying a structural character —
+    // which means no corpus fixture can exercise the replacement, and mutating
+    // `tsv_cell` to the identity left the whole suite green. A cell carrying
+    // all three structural characters must still yield exactly one nine-column
+    // record.
+    #[test]
+    fn tc812_tsv_cells_escape_structural_characters() {
+        assert_eq!(tsv_cell("a\tb\nc\rd"), "a b c d");
+        assert_eq!(tsv_cell("plain"), "plain");
+
+        let line = tsv_line("kind", ["a\tb", "c\nd", "", "", "", "e\rf", "x,y", "text"]);
+        let body = line.strip_suffix('\n').expect("one trailing newline");
+        assert_eq!(
+            body.split('\t').count(),
+            9,
+            "hostile cells must not add or remove columns: {body:?}"
+        );
+        assert!(
+            !body.contains('\n') && !body.contains('\r'),
+            "hostile cells must not break the one-record-per-line contract: {body:?}"
+        );
+    }
 }

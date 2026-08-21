@@ -1068,6 +1068,38 @@ fn it110_severity_pack_projects_and_promotes() {
         String::from_utf8_lossy(&bad.stderr).contains("--severity"),
         "the diagnostic names the flag"
     );
+
+    // ...and so is a typo'd coverage check (#57): the pack's vocabulary is a
+    // closed set of four owned by this CLI. FR-048 validates only the key's
+    // shape, so without the pack-side rejection `coverage:unbaked-row=off`
+    // would merge, match nothing, and silently not project — a flag that does
+    // nothing must be an error, not a no-op.
+    let typo = quire()
+        .args([
+            "coverage",
+            "--scope",
+            &scope,
+            "--module",
+            &m,
+            "--severity",
+            "coverage:unbaked-row=off",
+        ])
+        .output()
+        .expect("run");
+    assert_eq!(
+        typo.status.code(),
+        Some(1),
+        "an unknown coverage check must be rejected"
+    );
+    let terr = String::from_utf8_lossy(&typo.stderr);
+    assert!(
+        terr.contains("coverage:unbaked-row") && terr.contains("unbacked-row"),
+        "the rejection quotes the entry and names the valid checks: {terr}"
+    );
+    assert!(
+        !terr.contains("rows backed"),
+        "the rejection must come before any document is read: {terr}"
+    );
 }
 
 // IT-111, FR-017-AC-14 (#53): `--format tsv` emits one tab-separated record
