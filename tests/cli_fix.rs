@@ -163,7 +163,7 @@ fn multi_token_code_span_not_corrupted() {
     assert!(!after.contains(".md)F") && !after.contains(".md).md"));
 }
 
-// IT-080 / FR-015-AC-5: a `..` path on the bundle root is rejected by
+// IT-080, FR-015-AC-5: a `..` path on the bundle root is rejected by
 // path-safety before any load.
 #[test]
 fn path_traversal_rejected() {
