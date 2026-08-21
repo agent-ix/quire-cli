@@ -113,6 +113,29 @@ jobs:
           [ "${{ runner.os }}" = "Windows" ] && BIN="$BIN.exe"
           "$BIN" --version
 
+      # Guard: the binary's own version must match the version being released.
+      # The smoke test above only proves the binary runs; a release cut without
+      # running scripts/set_version.sh would otherwise ship binaries that
+      # report a stale version (npm sat at 0.12.0 against a 0.23.0 Cargo.toml
+      # for exactly this class of drift).
+      - name: Assert binary version matches release version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            EXPECTED="${{ github.event.inputs.version }}"
+          else
+            EXPECTED="${GITHUB_REF_NAME#v}"
+          fi
+          BIN=target/${{ matrix.target }}/release/quire
+          [ "${{ runner.os }}" = "Windows" ] && BIN="$BIN.exe"
+          ACTUAL="$("$BIN" --version | awk '{print $2}')"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::binary reports version ${ACTUAL} but the release version is ${EXPECTED}." \
+              " Run scripts/set_version.sh ${EXPECTED} and commit before releasing."
+            exit 1
+          fi
+          echo "binary version ${ACTUAL} matches release version ${EXPECTED}"
+
       - name: Stage binary
         shell: bash
         run: |
