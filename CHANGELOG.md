@@ -9,6 +9,69 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.29.0] — 2026-08-21
+
+The first npm publish since 0.12.0. `release.yml` now asserts the built
+binary's `--version` matches the version being released (#52) — the guard the
+0.24.0–0.28.0 tags shipped without, every one of whose binaries reported
+`0.23.0`.
+
+### Added
+
+- **`coverage` human findings are actionable lines (#51).** Every
+  unbacked-row, status-lie, undeclared-status — and now no-symbol-row —
+  census line leads with the row's own id and a clickable `document:line`
+  locus (`TC-123 (spec/tests.md:9) has no backing symbol [traces-to]`),
+  instead of the reference kind repeated identically per row. `no_symbol_rows`
+  renders for the first time; what `source_exclude` subtracted is counted on
+  the census, and `SymbolExtraction` diagnostics (refused glob list,
+  unreadable source file) reach stderr instead of being dropped.
+- **Agent-sized `coverage` output (#53).** A `coverage` severity pack —
+  `--severity coverage:{unbacked-row|status-lie|untracked-symbol|undeclared-status}=<off|warning|error>`
+  on the FR-048 machinery `validate` uses; `off` projects a kind out of every
+  output surface (suppression announced with its count), `error` is a
+  per-check gate. Totals and `--strict` always judge the full computation,
+  never the projection. And `--format tsv`: one nine-column tab-separated
+  record per line on stdout (~36% of the JSON size), the first rendered
+  surface `no_symbol_rows`, `diagnostics`, `obligations` and `implements`
+  have had. A typo'd coverage check in `--severity` is rejected, not silently
+  ignored (#57).
+- **`shared_trace_ids` and `vocabulary_coverage` pass through `--json`**
+  (quire-rs v0.42.0 advisory lists), both absent when empty.
+
+### Changed
+
+- **quire-rs v0.40.0 → v0.42.0.** v0.41.0 brought `undeclared_statuses`
+  reporting (CR-083) and `source_exclude` (CR-085), both wired to the command
+  line in the same release; v0.42.0 adds 1-based `line` on the five finding
+  record kinds, `excluded_source_files`, `shared_trace_ids` and
+  `vocabulary_coverage`.
+- **`coverage --json` honours the global `--pretty` (#53).** Compact
+  single-line by default like every other JSON surface (FR-008-AC-1);
+  `--pretty` restores the previous indented shape. Whitespace-only — the
+  payload parses identically.
+
+### Fixed
+
+- npm launcher and platform packages had sat at 0.12.0 against a 0.23.0
+  Cargo.toml; versions are staged in lockstep by `scripts/set_version.sh`
+  and guarded in CI (#52).
+
+## [0.24.0] – [0.28.0] — 2026-08-19 .. 2026-08-20
+
+Tagged without CHANGELOG entries (and without `set_version.sh` — the defect
+#52 closes; none of these reached npm). What each tag carried:
+
+- **0.28.0** — quire-rs v0.41.0 capabilities reach the command line (#50):
+  undeclared statuses on both surfaces, `source_exclude` wired to the walk.
+- **0.27.0** — quire-rs v0.38.0 → v0.40.0 (#48).
+- **0.26.2** — every published npm package declares AGPL-3.0, not MIT (#47).
+- **0.26.1** — matrix trace/criterion bindings repaired (#44, #46).
+- **0.26.0** — quire-rs v0.36.0 → v0.38.0 (#42).
+- **0.25.1** — CI: bounded, retried musl toolchain install (#41).
+- **0.25.0** — quire-rs v0.34.0 → v0.36.0 (#40).
+- **0.24.0** — quire-rs v0.33.0 → v0.34.0 (#39).
+
 ## [0.23.0] — 2026-08-18
 
 ### Changed
