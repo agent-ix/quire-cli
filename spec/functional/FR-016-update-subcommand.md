@@ -79,6 +79,19 @@ quire update [--check] [--registry <URL>]
 | FR-016-AC-6 | The `self_update` engine is package-agnostic: it takes quire's coordinates via a config struct and imports nothing from quire's `io`/command context, so it is extractable into a shared crate; `commands/update.rs` is the only quire-specific glue | Inspection |
 | FR-016-AC-7 | A failing `npm`/`cargo` invocation, or an unreachable registry, exits **1** | Test |
 
+> **CR note (untraced criteria, 2026-08-21, #55):** three paths carry **no
+> automated trace**, because exercising them needs live network access and
+> global-install side effects: the npm-channel `--check`/install of AC-3, the
+> registry-unreachable / failing-`npm`/`cargo` exit-1 of AC-7, and the
+> `cargo install` dispatch half of AC-1. Their `Verification: Test` states the
+> intended method, not an existing trace. This statement lives here rather
+> than in the Test Matrix's Coverage Status column because that column
+> declares no `column_patterns` and is therefore unenforced — prose there is
+> validated by nothing (agent-ix/spec-artifacts-process#57 tracks declaring
+> the column contract; once it lands the rollup row can carry an enforced
+> status instead). The FR-016 matrix row stays 🚧 until these paths gain a
+> recorded trace.
+
 ## Dependencies
 
 - **Upstream**: none in `quire-rs` (binary-lifecycle feature, not an engine
