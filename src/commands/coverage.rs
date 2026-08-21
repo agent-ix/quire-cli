@@ -81,14 +81,23 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // (agent-ix/quire-rs#113). The engine compares by canonicalized
     // identity, so a case-insensitive filesystem or a symlinked root still
     // excludes what the walk actually reads (quire-rs CR-056).
-    let extraction =
-        quire_rs::symbols::extract_tree_excluding(&scope, &[Path::new(super::DOCUMENT_ROOT_DIR)]);
-    let graph = quire_rs::symbols::trace::bind(
-        &extraction,
-        registry
-            .traceability()
-            .expect("traceability model checked above"),
+    let model = registry
+        .traceability()
+        .expect("traceability model checked above");
+    // CR-085: a module may declare `source_exclude` globs naming fixture trees
+    // that hold no traceable source. Two filters, different in kind — the
+    // document root is the caller's non-configurable argument (CR-045), the
+    // globs are declared data that can only subtract within the code root.
+    //
+    // The engine shipping the key is inert until this line passes it; that is
+    // the failure the last programme phase kept finding, so it is wired in the
+    // same release rather than the next one.
+    let extraction = quire_rs::symbols::extract_tree_scoped(
+        &scope,
+        &[Path::new(super::DOCUMENT_ROOT_DIR)],
+        &model.source_exclude,
     );
+    let graph = quire_rs::symbols::trace::bind(&extraction, model);
 
     let report =
         compute_coverage(&spec, &registry, &graph, &scope).map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -180,6 +189,19 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
             &format!(
                 "{} ({}) claims `{}` but is not backed",
                 l.reference, l.document, l.status
+            ),
+        );
+    }
+    // CR-083. Rendered rather than left to `--json`, because a finding only the
+    // machine surface carries is a finding nobody reads: the whole defect this
+    // class reports is a value the engine had an opinion about and never said.
+    for s in &report.undeclared_statuses {
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "UndeclaredStatus",
+            &format!(
+                "{} ({}) has status `{}`, which the declared vocabulary classes as nothing",
+                s.reference, s.document, s.status
             ),
         );
     }

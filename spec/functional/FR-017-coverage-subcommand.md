@@ -76,6 +76,8 @@ states (quire-rs FR-050-AC-14, CR-035).
 | FR-017-AC-7 | `--strict` exits 1 when a row is unbacked or a status is contradicted, and exits 0 on the same repository without it | Test (IT-092) |
 | FR-017-AC-8 | A model matching zero rows fails `--strict` with a diagnostic distinct from the unbacked-rows one, rather than reporting full coverage | Test (TC-797) |
 | FR-017-AC-9 | (thin boundary) reconciliation is delegated entirely to quire-rs (`compute_coverage`, `extract_tree_excluding`, `trace::bind`); the CLI resolves the two roots, applies path-safety, and renders ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) | Inspection (TC-090) |
+| FR-017-AC-10 | A row whose status value the module's `traceability.status` classes as nothing is reported on **both** surfaces — as an `undeclared_statuses` entry in `--json` and as a rendered line in the default human census — carrying the authored value verbatim. `--strict` does not gate on it: the exit code for a report whose only finding is an undeclared status is the same with and without the flag (CR-083) | Test (IT-107) |
+| FR-017-AC-11 | A module-declared `traceability.source_exclude` glob reaches the source walk: a tagged file matching one contributes no symbol, a tagged file outside every glob still does, and a scope whose module declares none behaves exactly as before (CR-085) | Test (IT-108) |
 
 > **CR note (authored after the fact, 2026-08-16):** this document did not
 > exist while the command shipped, changed its default root (PR #27) and
@@ -90,3 +92,27 @@ states (quire-rs FR-050-AC-14, CR-035).
 
 - **Upstream**: [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md) thin boundary over quire-rs; quire-rs [FR-050](ix://agent-ix/quire-rs/FR-050) (declarative coverage computation), [FR-051](ix://agent-ix/quire-rs/FR-051) (source-symbol extraction).
 - **Downstream**: the `gap-analysis` workflow, which consumes the `--json` payload as data and owns the verdict policy.
+
+> **CR-011 note (2026-08-20):** AC-10 and AC-11 are new — the CLI carries the
+> two capabilities quire-rs v0.41.0 added, in the same release rather than the
+> next one.
+>
+> Both are pure reachability. `undeclared_statuses` (quire-rs CR-083) and
+> `source_exclude` (CR-085) are **inert** until this crate renders the one and
+> passes the other: an engine field nothing prints is a finding nobody reads,
+> and a manifest key nothing forwards is a declaration with no effect whatsoever.
+>
+> That is the defect the previous programme phase kept finding — `quire-cli` five
+> releases behind, so FR-057..061 were unreachable from any command line;
+> `vocabulary_coverage` shipped and declared by no module. The mechanical tell it
+> recommends is **grep for the symbol from the surface a user actually invokes**,
+> and IT-107/IT-108 are that grep written down.
+>
+> `--strict` deliberately does **not** gate on an undeclared status. Shipping it
+> as a gate would flip repositories red on an engine bump for a condition nobody
+> has been told about; promotion is a separate, measured, user-gated decision
+> once the corpus is clean. IT-107 asserts the exit code is unchanged, over a
+> fixture whose rows are all backed so the undeclared status is the only finding
+> — otherwise the assertion would pass on unbacked rows, which `--strict` gates
+> on legitimately.
+

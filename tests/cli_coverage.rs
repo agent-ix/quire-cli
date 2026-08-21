@@ -643,3 +643,201 @@ fn it092_strict_fails_on_an_unbacked_row_and_default_does_not() {
         "the failure must say what it found: {err}"
     );
 }
+
+// IT-107, FR-017-AC-10 (upstream quire-rs FR-050-AC-21, CR-083): an undeclared
+// status value reaches BOTH surfaces.
+//
+// The engine class is inert until the CLI carries it. That is the failure the
+// last programme phase kept finding — a capability shipped and unreachable —
+// and the tell it recommends is exactly this: invoke the surface a user
+// actually invokes, and grep for the thing.
+#[test]
+fn it107_an_undeclared_status_reaches_both_surfaces() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = dir.path().to_string_lossy().into_owned();
+
+    let m = dir.path().join("m");
+    fs::create_dir_all(&m).expect("mkdir");
+    fs::write(
+        m.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: TestMatrix\n\
+         traceability:\n  trace_targets:\n  - name: test-case\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+         \x20   id_column: Test ID\n\
+         \x20 document_references:\n  - name: traces-to\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+         \x20   column: Traces To\n    row_id_column: Test ID\n\
+         \x20   pattern: '((?:TC|FR)-\\d+)'\n    targets: [test-case]\n\
+         \x20 status:\n    column: Status\n\
+         \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
+         \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
+         \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
+         \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n",
+    )
+    .expect("write manifest");
+    let m = m.to_string_lossy().into_owned();
+
+    fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+    // `🟡` is classed by no list above, so `class_of` returns Unknown. The
+    // classification runs per REFERENCE ROW, which is why the module above must
+    // declare a `document_references` entry — a matrix with trace targets alone
+    // mints ids and scans no rows.
+    fs::write(
+        dir.path().join("spec/tests.md"),
+        "---\nid: TM-001\ntype: TestMatrix\n---\n# matrix\n\n\
+         ## Test Case Summary\n\n\
+         | Test ID | Title | Traces To | Status |\n|---------|-------|-----------|--------|\n\
+         | TC-001 | a case | TC-001 | 🚧 |\n\
+         | TC-002 | drifted | TC-002 | 🟡 review-open |\n",
+    )
+    .expect("write matrix");
+
+    // Both rows BACKED, so the undeclared status is the only finding in the
+    // report. Without this the `--strict` assertion below would pass for the
+    // wrong reason — on unbacked rows, which `--strict` gates on legitimately.
+    fs::create_dir_all(dir.path().join("src")).expect("mkdir src");
+    fs::write(
+        dir.path().join("src/real.rs"),
+        "// TC-001\n#[test]\nfn tc001_one() {}\n\
+         // TC-002\n#[test]\nfn tc002_two() {}\n",
+    )
+    .expect("write source");
+
+    // Machine surface.
+    let out = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m, "--json"])
+        .output()
+        .expect("run");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout).expect("coverage json");
+    let drifted = report["undeclared_statuses"].as_array().expect("array");
+    assert_eq!(drifted.len(), 1, "report: {report}");
+    assert_eq!(drifted[0]["row_id"].as_str(), Some("TC-002"));
+    assert_eq!(drifted[0]["status"].as_str(), Some("🟡 review-open"));
+
+    // Human surface — the one a person runs.
+    let human = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m])
+        .output()
+        .expect("run");
+    let rendered = String::from_utf8_lossy(&human.stderr).into_owned()
+        + &String::from_utf8_lossy(&human.stdout);
+    assert!(
+        rendered.contains("🟡 review-open") && rendered.contains("classes as nothing"),
+        "the finding must be rendered, not only serialized: {rendered}"
+    );
+
+    // FR-017-AC-7 is unchanged: `--strict` does not gate on this class. Shipping
+    // it as a gate would flip repositories red on an engine bump for a condition
+    // nobody has been told about. A gate deferred, never lowered.
+    let strict = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m, "--strict"])
+        .output()
+        .expect("run");
+    let plain = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m])
+        .output()
+        .expect("run");
+    assert_eq!(
+        strict.status.code(),
+        plain.status.code(),
+        "--strict must not change the exit code for an undeclared status alone"
+    );
+}
+
+// IT-108, FR-017-AC-11 (upstream quire-rs FR-050-AC-22, CR-085): a declared
+// `source_exclude` glob reaches the source walk.
+//
+// Same reachability argument as IT-107. The engine grew the key; without this
+// line passing `model.source_exclude`, every module declaring it would be
+// declaring something with no effect whatsoever.
+#[test]
+fn it108_a_declared_source_exclude_scopes_the_code_walk() {
+    let manifest = |extra: &str| {
+        format!(
+            "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+             - name: TestMatrix\n\
+             traceability:\n{extra}  trace_targets:\n  - name: test-case\n\
+             \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+             \x20   id_column: Test ID\n  status:\n    column: Status\n\
+             \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
+             \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
+             \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
+             \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n"
+        )
+    };
+
+    let build = |globs: &str| {
+        let dir = TempDir::new().expect("tempdir");
+        let m = dir.path().join("m");
+        fs::create_dir_all(&m).expect("mkdir");
+        fs::write(m.join("manifest.yaml"), manifest(globs)).expect("write manifest");
+        fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+        fs::create_dir_all(dir.path().join("tests/fixtures")).expect("mkdir fixtures");
+        fs::create_dir_all(dir.path().join("src")).expect("mkdir src");
+        fs::write(
+            dir.path().join("spec/tests.md"),
+            matrix_doc("TM-001", "TC-001"),
+        )
+        .expect("write matrix");
+        // A fixture whose whole purpose is to hold a tag nothing declares.
+        fs::write(
+            dir.path().join("tests/fixtures/sample.rs"),
+            "// TC-999\n#[test]\nfn tc999_covers_nothing() {}\n",
+        )
+        .expect("write fixture");
+        // Real source, which must survive either way.
+        fs::write(
+            dir.path().join("src/real.rs"),
+            "// TC-998\n#[test]\nfn tc998_real() {}\n",
+        )
+        .expect("write source");
+        dir
+    };
+
+    let ids = |dir: &TempDir| -> Vec<String> {
+        let scope = dir.path().to_string_lossy().into_owned();
+        let m = dir.path().join("m").to_string_lossy().into_owned();
+        let out = quire()
+            .args(["coverage", "--scope", &scope, "--module", &m, "--json"])
+            .output()
+            .expect("run");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let report: serde_json::Value = serde_json::from_slice(&out.stdout).expect("json");
+        report["untracked_symbols"]
+            .as_array()
+            .expect("array")
+            .iter()
+            .filter_map(|s| s["trace_id"].as_str().map(str::to_string))
+            .collect()
+    };
+
+    // Undeclared: the fixture's tag is reported, which is the status quo and the
+    // reason #199 exists.
+    let before = ids(&build(""));
+    assert!(
+        before.contains(&"TC-999".to_string()),
+        "without the glob the fixture tag must be reported, or this test proves \
+         nothing: {before:?}"
+    );
+
+    // Declared: it is gone, and real source is untouched.
+    let after = ids(&build("  source_exclude: ['tests/fixtures/**']\n"));
+    assert!(
+        !after.contains(&"TC-999".to_string()),
+        "a declared source_exclude glob did not reach the walk: {after:?}"
+    );
+    assert!(
+        after.contains(&"TC-998".to_string()),
+        "the glob removed real source: {after:?}"
+    );
+}
