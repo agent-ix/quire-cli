@@ -9,6 +9,23 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.30.1] — 2026-08-22
+
+### Fixed
+
+- **Engine bumped to `quire-rs` v0.44.1**, which corrects two checks v0.44.0
+  shipped that were each measured against one corpus
+  (`agent-ix/quire-rs#235`, `#229`).
+  - `coverage` no longer reports `vacuous-under-guard` against TypeScript
+    arrow functions. On `agent-ix/quoin` that was **549 suspicions from 551
+    candidates**; it is now 0, and the genuine Rust positives are unchanged.
+  - `coverage` no longer reports `hollow-denominator` for a count-shaped
+    metric reading an honest zero. This repository's own
+    `coverage.implements` reads 0 of 214 and was flagged as arithmetic over
+    nothing.
+  - Every metric in the `coverage --json` payload now carries a required
+    `shape` (`ratio` | `count`), declared in `coverage-v1.schema.json`.
+
 ## [0.30.0] — 2026-08-22
 
 Output-contract release. Part of the metric-integrity programme
