@@ -9,6 +9,48 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.30.0] — 2026-08-22
+
+Output-contract release. Part of the metric-integrity programme
+(agent-ix/quoin#197).
+
+### Changed
+
+- **BREAKING (human surface): results go to stdout, diagnostics to stderr**
+  (#59, #60, CR-012, FR-006-AC-5, FR-017-AC-1 amended). `quire coverage > out.txt`
+  produced a **0-byte file** while 90,462 bytes went to stderr, and
+  `Coverage: 1238/2390 rows backed (51%)` — a census — rendered in the same red
+  as every finding.
+
+  This corrects a contradiction rather than introducing a contract: FR-006 has
+  required *primary result on stdout* since v0.1, and FR-017-AC-1 said the
+  opposite. **`--json` and `--format tsv` are unaffected** — the census is
+  emitted only in the human branch, so `| jq` is untouched and the #51 WONTFIX
+  stands.
+
+### Added
+
+- **`properties --criteria`** (#59, FR-018-AC-10) renders one block per
+  criterion — row id, `document:line`, shape, and the extraction spans. Those
+  fields were `--json`-only, and `--json` on the pass-2 corpus is 597,636 bytes
+  against an 869-byte census, so quoin's `spec-correctness` could not be driven
+  from the compact surface at all. Defaults to the actionable set; `--all`
+  includes `example` and `unclassified`.
+- **The properties census carries the specific-shape split** (quire-rs CR-095),
+  so `54%` no longer travels without the `8%` beside it.
+- **Row ids in `validate`'s assert findings** (#58, engine CR-097). Was 15 of
+  496 findings carrying an id, with one distinct line per document; now every
+  row-scoped failure carries its own line and its declared `id_column` cell.
+- **`suspicions` in the coverage payload** (engine FR-064): a property suite
+  whose assertions may never run, and an oracle that copies the code it judges.
+
+### Engine
+
+- quire-rs **v0.44.0** (from v0.42.0): the metric provenance envelope, the
+  binding census, the honest properties headline, the skeptic layer, the corpus
+  benchmark and the cross-corpus overfit check.
+
+
 ## [0.29.0] — 2026-08-21
 
 The first npm publish since 0.12.0. `release.yml` now asserts the built
