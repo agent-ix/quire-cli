@@ -9,7 +9,13 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
-## [0.30.1] — 2026-08-22
+## [0.30.2] — 2026-08-22
+
+**First release since 0.27.0 that actually publishes.** `Cargo.toml` sat at
+0.29.0 while v0.28.0, v0.29.0, v0.30.0 and v0.30.1 were tagged, and the
+release workflow is `workflow_dispatch`-only — so no tag ran it, and the one
+dispatch that did run refused to publish a binary reporting a stale version.
+Those four tags shipped nothing.
 
 ### Fixed
 
