@@ -71,9 +71,11 @@ fn it093_human_census_renders_and_exits_zero() {
         "classification is a report, never a verdict: {}",
         String::from_utf8_lossy(&out.stderr)
     );
+    // CR-012: the census is a result, so it renders on stdout.
+    let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
-        !String::from_utf8_lossy(&out.stderr).trim().is_empty(),
-        "the census must render something"
+        stdout.contains("criteria extractable"),
+        "the census must render something, on stdout: {stdout}"
     );
 }
 

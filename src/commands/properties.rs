@@ -54,6 +54,26 @@ pub struct Args {
     /// JSON is the stable interface; the human form may change.
     #[arg(long)]
     pub json: bool,
+
+    /// Render one block per criterion — id, locus, shape, and the extraction
+    /// spans — after the census (FR-018-AC-10, CR-012).
+    ///
+    /// The census alone is 869 bytes on a 951-criterion corpus and carries no
+    /// `row_id`, `domain`, `precondition` or `oracle`; `--json` there is
+    /// 597,636 bytes (~149k tokens). quoin's `spec-correctness` skill consumes
+    /// exactly the fields the compact surface omitted, so it could not be
+    /// driven from anything but the JSON.
+    ///
+    /// Defaults to the actionable set — `extractable`, specific-shape,
+    /// non-`example`. The 427 `example` and 5 `unclassified` records are the
+    /// bulk and there is nothing to write for them; `--all` includes them.
+    #[arg(long)]
+    pub criteria: bool,
+
+    /// With `--criteria`, render every classified criterion rather than only
+    /// the actionable set.
+    #[arg(long, requires = "criteria")]
+    pub all: bool,
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
@@ -66,6 +86,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let mut documents: Vec<Value> = Vec::new();
     let mut census = Census::default();
     let mut failures = 0usize;
+    let mut rendered_criteria: Vec<(String, Vec<AcClassification>)> = Vec::new();
 
     for input in inputs {
         let label = input.label();
@@ -115,6 +136,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         let records =
             quire_rs::classify_document_criteria(&registry, archetype, &text, relative.as_deref());
         census.add(&records);
+        if args.criteria {
+            rendered_criteria.push((label.clone(), records.clone()));
+        }
         documents.push(json!({
             "document": label,
             "archetype": archetype_name,
@@ -132,12 +156,57 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         println!("{rendered}");
     } else {
         census.emit(ctx);
+        if args.criteria {
+            emit_criteria(&rendered_criteria, args.all);
+        }
     }
 
     if failures > 0 {
         bail!("{failures} document(s) could not be resolved to an archetype");
     }
     Ok(())
+}
+
+/// One block per criterion on **stdout** (FR-018-AC-10, CR-012).
+///
+/// The shape `coverage` already uses for findings, applied to classification:
+/// lead with the id and a clickable `document:line`, then the fields a
+/// generator needs. A span that was not extracted prints nothing rather than
+/// an empty label — `domain: ` with no value reads as an empty domain, which
+/// is a different claim from "not decomposed".
+fn emit_criteria(documents: &[(String, Vec<AcClassification>)], all: bool) {
+    for (label, records) in documents {
+        for r in records {
+            // The default set is what somebody could sit down and write a
+            // property for. `example` is one scenario by construction and
+            // `unclassified` fired no signal; rendering them is 432 of the 951
+            // lines on the pass-2 corpus and none of the actionable ones.
+            let actionable =
+                matches!(r.extraction, Extraction::Extractable) && r.property.is_specific();
+            if !all && !actionable {
+                continue;
+            }
+            let id = r.row_id.as_deref().unwrap_or("(no id)");
+            let locus = match r.line {
+                Some(line) => format!("{label}:{line}"),
+                None => label.clone(),
+            };
+            io::emit_result(&format!(
+                "{id} ({locus}) {} [{}]",
+                r.property.as_str(),
+                r.extraction.as_str()
+            ));
+            for (field, span) in [
+                ("domain", r.domain.as_ref()),
+                ("precondition", r.precondition.as_ref()),
+                ("oracle", r.oracle.as_ref()),
+            ] {
+                if let Some(span) = span {
+                    io::emit_result(&format!("  {field}: {}", span.text));
+                }
+            }
+        }
+    }
 }
 
 /// Project one record to JSON.
@@ -204,6 +273,9 @@ fn span_json(span: Option<&PropertySpan>) -> Value {
 struct Census {
     criteria: usize,
     extractable: usize,
+    /// Extractable **and** carrying a shape that names what property to write
+    /// — everything but the `universal` catch-all (quire-rs FR-052-AC-18).
+    specific: usize,
     candidate: usize,
     by_property: std::collections::BTreeMap<&'static str, usize>,
 }
@@ -214,25 +286,37 @@ impl Census {
             self.criteria += 1;
             *self.by_property.entry(r.property.as_str()).or_default() += 1;
             match r.extraction {
-                Extraction::Extractable => self.extractable += 1,
+                Extraction::Extractable => {
+                    self.extractable += 1;
+                    if r.property.is_specific() {
+                        self.specific += 1;
+                    }
+                }
                 Extraction::Candidate => self.candidate += 1,
                 Extraction::NotExtractable => {}
             }
         }
     }
 
-    fn emit(&self, ctx: &Ctx) {
-        let pct = (self.extractable * 100)
-            .checked_div(self.criteria)
-            .unwrap_or(0);
-        io::emit_diagnostic(
-            ctx.diagnostics,
-            "Properties",
-            &format!(
-                "{}/{} criteria extractable ({pct}%), {} candidate",
-                self.extractable, self.criteria, self.candidate
-            ),
-        );
+    /// The census, on **stdout** (CR-012) and carrying the specific-shape split
+    /// (quire-rs CR-095).
+    ///
+    /// The bare `extractable` figure reads as "half this specification is
+    /// property-testable" — measured on `agent-ix/filament-ide-rs`, 440 of the
+    /// 515 extractable criteria were the `universal` catch-all and the honest
+    /// figure for "the classifier said what property to write" was 78/951, 8%.
+    /// One clause stops the overread, and it is the clause a reader repeats.
+    fn emit(&self, _ctx: &Ctx) {
+        let pct = |n: usize| (n * 100).checked_div(self.criteria).unwrap_or(0);
+        io::emit_result(&format!(
+            "{}/{} criteria extractable ({}%); {} with a specific shape ({}%), {} candidate",
+            self.extractable,
+            self.criteria,
+            pct(self.extractable),
+            self.specific,
+            pct(self.specific),
+            self.candidate
+        ));
         if self.criteria > 0 {
             let histogram = self
                 .by_property
@@ -240,7 +324,7 @@ impl Census {
                 .map(|(shape, n)| format!("{shape}={n}"))
                 .collect::<Vec<_>>()
                 .join(" ");
-            io::emit_diagnostic(ctx.diagnostics, "PropertyShapes", &histogram);
+            io::emit_result(&histogram);
         }
     }
 }

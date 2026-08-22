@@ -140,6 +140,26 @@ pub fn encode_json<T: Serialize>(value: &T, pretty: bool) -> serde_json::Result<
     }
 }
 
+/// Emit one **result** line — a census figure, a per-row record, anything a
+/// caller redirecting with `>` came for (FR-006-AC-5, CR-012).
+///
+/// Goes to **stdout**, never colorized. This is the other half of
+/// [`emit_diagnostic`], and the split is the contract: results on stdout,
+/// diagnostics on stderr.
+///
+/// Before this existed, `write_diagnostic_human` was `eprintln!` wrapped in
+/// `RED` and every human surface used it for everything. Measured over
+/// `agent-ix/filament-ide-rs`, `quire coverage --scope . > out.txt` produced a
+/// **0-byte file** while 90,462 bytes went to stderr — and
+/// `Coverage: 1238/2390 rows backed (51%)`, a census, rendered in the same red
+/// as every finding.
+///
+/// Never colorized even when color is on: a number is not a severity, and the
+/// whole defect was a census that looked like a failure.
+pub fn emit_result(msg: &str) {
+    println!("{msg}");
+}
+
 /// Write a single diagnostic line to stderr, optionally in red.
 pub fn write_diagnostic_human(msg: &str, color: bool) {
     if color {

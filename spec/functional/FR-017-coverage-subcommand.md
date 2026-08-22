@@ -90,7 +90,7 @@ a consumer needs the whole rollup.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-017-AC-1 | `quire coverage --scope <DIR> --module $M` over a repository whose model matches rows exits **0** and renders a human census on **stderr**, leaving stdout empty so the `--json` payload is the only thing that ever reaches it | Test (IT-089) |
+| FR-017-AC-1 | `quire coverage --scope <DIR> --module $M` over a repository whose model matches rows exits **0** and renders the human **census** — the bundle total and the per-document counts — on **stdout**, uncolorized; findings stay on stderr. `--json` and `--format tsv` are unaffected: the census is emitted only in human mode, so a machine payload is still the only thing on stdout in those modes (amended CR-012) | Test (IT-089, IT-117) |
 | FR-017-AC-2 | `--json` emits the `CoverageReport` payload on stdout, and two runs over identical inputs are byte-identical | Test (TC-740) |
 | FR-017-AC-3 | The document root is `<DIR>/spec`: a perfectly typed matrix at the repository root or under `plan/` mints nothing, and repo-root `README.md`/`CHANGELOG.md` are never read as documents | Test (TC-810) |
 | FR-017-AC-4 | The code walk excludes the document root: a trace-tagged source file under `<DIR>/spec` contributes no symbol, while the same file outside it does | Test (IT-087) |
@@ -104,7 +104,7 @@ a consumer needs the whole rollup.
 | FR-017-AC-12 | Each human-census unbacked-row, status-lie and undeclared-status line leads with the row's own id when the record carries one (the declaration names a `row_id_column`) and keeps the reference kind visible in a bracketed trailer — `TC-123 (doc.md) has no backing symbol [traces-to]` — so two rows in the same document render distinguishable lines; a record without a row id renders the reference kind leading, exactly as before. The `--json` payload is unchanged (#51) | Test (IT-109, IT-107) |
 | FR-017-AC-13 | `--severity coverage:<check>=<level>` (checks: `unbacked-row`, `status-lie`, `untracked-symbol`, `undeclared-status`) rides the FR-048 severity machinery: entries layer over module `grammar_severity`, and a malformed entry — or a `coverage:` entry naming a check outside the pack's four, which FR-048's shape-only key validation would otherwise merge as a silent no-op (#57) — is rejected before any document is read. `off` drops the kind's records from **every** output surface (human, `--json`, `--format tsv`), announcing each non-empty suppression on stderr with its count. **Totals semantics:** `totals` and `groups` always describe the full reconciliation, computed before projection, and `--strict` gates on the full computation — projection changes what is rendered, never what is judged. `error` exits 1 when the kind has findings, without `--strict` (#53) | Test (IT-110) |
 | FR-017-AC-14 | `--format tsv` emits one tab-separated record per line on stdout: a header naming the nine fixed columns (`kind id document reference status method line targets text`), every record carrying every column (empty where the kind has no value), row id leading the data cells, id lists flattened with `,`, tab/newline in free text replaced by spaces, obligation `parameters` omitted. The `line` column carries the record's 1-based document line where the engine provides one (quire-rs v0.42.0, FR-050-AC-26) and stays empty where it does not — the arrival the column was reserved for, needing no format change. Ordering mirrors the JSON arrays; output is byte-identical across runs (#53) | Test (IT-111, TC-812) |
-| FR-017-AC-15 | `--json` honours the global `--pretty`: compact single-line by default ([FR-008](./FR-008-json-output-encoding.md)-AC-1), indented with the flag, the identical parsed value either way. Byte-identity across runs (AC-2) holds in both shapes (#53) | Test (IT-112) |
+| FR-017-AC-15 | `--json` honours the global `--pretty`: compact single-line by default ([FR-008](./FR-008-json-output-encoding.md)-AC-1), indented with the flag, the identical parsed value either way. Byte-identity across runs (AC-2) holds in both shapes (#53) | Test (IT-119) |
 | FR-017-AC-16 | When a finding record carries the engine's 1-based `line` (quire-rs v0.42.0, FR-050-AC-26), the human line's parenthesized locus is the clickable `document:line` form — `TC-123 (spec/tests.md:9) has no backing symbol [traces-to]` — for unbacked-row, status-lie, undeclared-status and no-symbol-row lines; a record without a line renders the bare document exactly as before. The `--json` payload is unchanged (#51 item 3) | Test (IT-113, IT-107) |
 | FR-017-AC-17 | A `no_symbol_rows` record renders in the default human census like every other row-id-carrying kind — row id leading, `document:line` locus, reference kind in the bracketed trailer, naming the exempting test-type value: `TC-123 (doc.md:7) is verified by …, which mints no source symbol [traces-to]`, with the value rendered verbatim in backticks where the ellipsis stands. It was JSON/TSV-only; the record explains an unbacked row the census does print, and an explanation only the machine surface carries is one nobody reads (#51, the CR-083 argument) | Test (IT-114) |
 | FR-017-AC-18 | The subtraction a declared `source_exclude` makes is observable on the human surface: a census line `N source file(s) excluded by source_exclude` renders when N > 0 and nothing renders at zero, and every `SymbolExtraction` diagnostic — a refused glob list (quire-rs FR-050-AC-25), an unreadable source file — reaches stderr instead of being computed and dropped (#51, quire-rs #215) | Test (IT-115) |
@@ -123,6 +123,44 @@ a consumer needs the whole rollup.
 
 - **Upstream**: [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md) thin boundary over quire-rs; quire-rs [FR-050](ix://agent-ix/quire-rs/FR-050) (declarative coverage computation), [FR-051](ix://agent-ix/quire-rs/FR-051) (source-symbol extraction).
 - **Downstream**: the `gap-analysis` workflow, which consumes the `--json` payload as data and owns the verdict policy.
+
+
+> **CR-012 note (2026-08-22):** AC-1 is **amended** — the census moves to
+> stdout. `agent-ix/quire-cli#59`, `agent-ix/quire-cli#60`; epic
+> `agent-ix/quoin#197`.
+>
+> **This corrects a contradiction, it does not introduce a new contract.**
+> [FR-006](./FR-006-io-contract.md) has said since v0.1 that every subcommand
+> puts the *primary result on stdout, all diagnostics on stderr*, and
+> FR-006-AC-2 requires a success case to produce **non-empty stdout** (except
+> `validate`). AC-1 said the opposite for the human surface, and the
+> implementation followed AC-1: `write_diagnostic_human` is `eprintln!` wrapped
+> in `RED`, and every human line went through it.
+>
+> **What that cost, measured** over `agent-ix/filament-ide-rs` under
+> `quire 0.29.0`:
+>
+> ```text
+> quire coverage --scope . > out.txt                  # 0 bytes; 90,462 to stderr
+> quire validate --scope . "spec/**/*.md" > out.txt   # 0 bytes; 62,256 to stderr
+> quire properties --scope . 'spec/**/*.md' > out.txt # 0 bytes
+> ```
+>
+> Three consequences: the obvious command silently produced an empty file; a
+> census — `Coverage: 1238/2390 rows backed (51%)`, `755/797 docs grammar-clean
+> (94%)` — rendered in the **same red as every finding**; and a caller could not
+> pipe findings without the summary interleaved.
+>
+> **The #51 WONTFIX is not overturned.** That decision declined *"findings to
+> stdout"* and routed it to `--format tsv`, on the grounds that stdout should
+> carry only a machine payload so `--json | jq` keeps working. Both halves still
+> hold: **findings stay on stderr**, and the census is emitted only in the human
+> branch — `--json` and `--format tsv` put nothing else on stdout, so `| jq` is
+> untouched. What moves is the census, which is a *result*, and which that
+> decision did not consider.
+>
+> **Never colorized.** A number is not a severity, and a census rendered in
+> error red was half the defect.
 
 > **CR-011 note (2026-08-20):** AC-10 and AC-11 are new — the CLI carries the
 > two capabilities quire-rs v0.41.0 added, in the same release rather than the

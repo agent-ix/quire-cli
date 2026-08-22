@@ -70,6 +70,7 @@ FR-052-CON-4).
 | FR-018-AC-6 | (thin boundary) classification is delegated entirely to quire-rs; the CLI resolves paths, loads the module set, and renders ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) | Inspection (TC-090) |
 | FR-018-AC-8 | The emitted `--json` envelope validates against quire-rs's **published** `schemas/output/properties-v1.schema.json`, read from the resolved dependency checkout rather than a vendored copy. The envelope is assembled here and nowhere else — quire-rs publishes the schema but never constructs one — so this is the only place the shape can be gated. The fixture must exercise the obligation branch, so conformance is not asserted over an empty payload | Test (IT-103) |
 | FR-018-AC-9 | Against a module declaring **no obligation source**, every criterion record carries `obligation: null` and the payload still conforms to the published schema — the shape a corpus that has not adopted obligations sees | Test (IT-104) |
+| FR-018-AC-10 | `--criteria` renders one block per criterion on stdout after the census — the row id, a `document:line` locus, the shape and extraction state, and each extraction span that was decomposed. A span that was not extracted prints nothing rather than an empty label. The default set is the actionable one (`extractable`, specific-shape); `--all` includes `example` and `unclassified`, and `--all` without `--criteria` is rejected by the parser (CR-012) | Test (IT-119) |
 
 > **CR note (authored after the fact, 2026-08-16):** authored alongside
 > [FR-017](./FR-017-coverage-subcommand.md) for the same reason — the command
@@ -82,3 +83,25 @@ FR-052-CON-4).
 
 - **Upstream**: [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md) thin boundary over quire-rs; quire-rs [FR-052](ix://agent-ix/quire-rs/FR-052) (acceptance-criteria property classification), [FR-047](ix://agent-ix/quire-rs/FR-047) (the `ac` binding it shares).
 - **Downstream**: the `spec-correctness` workflow, which turns these records into property tests keyed on `row_id`.
+
+> **CR-012 note (2026-08-22):** AC-10 is new — the compact surface can drive
+> `spec-correctness`. `agent-ix/quire-cli#59`; epic `agent-ix/quoin#197`.
+>
+> The entire default output was two lines — **869 bytes** on a 951-criterion
+> corpus — and carried no `row_id`, `domain`, `precondition`, `oracle` or
+> `signals`. Those fields were `--json`-only, and `--json` over the same corpus
+> was **597,636 bytes (~149k tokens)**. quoin's `spec-correctness` skill
+> consumes exactly the omitted fields, so the compact surface could not drive it
+> at all and the only thing keeping the JSON tractable was the skill's own
+> advice to scope per module.
+>
+> **The default set is the actionable one.** On that corpus 427 records were
+> `example` — one scenario, `not-extractable` by construction — and 5 were
+> `unclassified`. Rendering them is 432 of 951 blocks and none of the ones
+> somebody could sit down and write a property for. `--all` is there for when
+> the question is about the classifier rather than about the specification.
+>
+> **An unextracted span prints nothing**, rather than `domain:` with an empty
+> value: an empty domain and an absent decomposition are different claims, and
+> the second is the common one (quire-rs #241).
+
