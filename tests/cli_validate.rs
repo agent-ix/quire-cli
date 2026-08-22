@@ -476,12 +476,15 @@ fn it_105_ears_grammar_warnings_are_advisory_and_summarized() {
         .arg("--summary")
         .assert()
         .success()
-        .stdout(predicate::str::is_empty())
+        // CR-012: the grammar census is a result (stdout); the findings it
+        // summarizes are diagnostics (stderr).
+        .stdout(
+            predicate::str::contains("docs grammar-clean")
+                .and(predicate::str::contains("vague-response=1")),
+        )
         .stderr(
             predicate::str::contains("[ears:vague-response]")
-                .and(predicate::str::contains("[ears:non-canonical-trigger]"))
-                .and(predicate::str::contains("docs grammar-clean"))
-                .and(predicate::str::contains("vague-response=1")),
+                .and(predicate::str::contains("[ears:non-canonical-trigger]")),
         );
 }
 

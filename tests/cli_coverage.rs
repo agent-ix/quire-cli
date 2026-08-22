@@ -61,7 +61,8 @@ fn tc714_summary_covers_every_grammar() {
         ])
         .output()
         .expect("run");
-    let err = String::from_utf8_lossy(&out.stderr);
+    // CR-012: the grammar summary is a census, so it is on stdout.
+    let err = String::from_utf8_lossy(&out.stdout);
     let summary = err
         .lines()
         .find(|l| l.contains("docs grammar-clean"))
@@ -264,7 +265,8 @@ fn tc797_zero_matched_rows_is_not_full_coverage() {
         .output()
         .expect("run");
     assert!(out.status.success(), "a report is not a verdict");
-    let err = String::from_utf8_lossy(&out.stderr);
+    // CR-012: the headline is a census, so it is on stdout.
+    let err = String::from_utf8_lossy(&out.stdout);
     let headline = err
         .lines()
         .find(|l| l.contains("rows backed"))
@@ -565,17 +567,18 @@ fn it089_human_census_is_printed_and_exits_zero() {
         "a report is not a verdict: {}",
         String::from_utf8_lossy(&out.stderr)
     );
-    // The census renders on stderr; stdout stays clean so that the `--json`
-    // payload is the only thing that ever reaches it.
+    // CR-012: the census is a RESULT, so it renders on stdout — `quire coverage
+    // > out.txt` captures the figures a caller redirected for. It reached only
+    // stderr until FR-017-AC-1 was brought into line with FR-006's own
+    // "primary result on stdout" contract, which it had contradicted.
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stdout.trim().is_empty(),
-        "stdout must stay clean without --json: {stdout}"
+        stdout.contains("rows backed"),
+        "the census must describe the rollup, on stdout: {stdout}"
     );
     assert!(
-        stderr.contains("rows backed"),
-        "the census must describe the rollup: {stderr}"
+        !stdout.contains('\u{1b}'),
+        "a number is not a severity: {stdout}"
     );
 }
 
@@ -1536,11 +1539,13 @@ fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
             "{}",
             String::from_utf8_lossy(&out.stderr)
         );
-        assert!(
-            String::from_utf8_lossy(&out.stdout).trim().is_empty(),
-            "the human census keeps stdout empty (FR-017-AC-1)"
-        );
-        String::from_utf8_lossy(&out.stderr).into_owned()
+        // CR-012: census on stdout, diagnostics on stderr. This test is about
+        // both, so it reads both.
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        )
     };
 
     // Declared and matching one file: the census says so, exactly once.

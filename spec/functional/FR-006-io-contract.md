@@ -48,6 +48,7 @@ This guarantees that downstream pipelines (`quire parse … | jq …`, `quire ex
 | FR-006-AC-2 | For each subcommand, a success case produces non-empty stdout (except `validate`) and empty stderr (except for non-fatal advisories explicitly allowed by upstream `quire-rs` FRs) | Test |
 | FR-006-AC-3 | All structured stderr diagnostics are valid `quire-rs::Diagnostic` JSON when the `--diagnostics-format=json` flag is set (default is human-readable per upstream FR-017) | Test |
 | FR-006-AC-4 | [FR-001](./FR-001-render-subcommand.md) works in bash (positional `-` stdin handling is correct for piped input) | Test |
+| FR-006-AC-5 | A **census** is a result, not a diagnostic: every human-mode summary figure a subcommand computes — coverage totals and per-document counts, the grammar-clean ratio, the criteria-extractable ratio — is written to stdout and carries no ANSI escape, while findings and warnings stay on stderr. `quire <cmd> > out.txt` therefore captures the figures a caller redirected for (CR-012) | Test (IT-117, IT-118) |
 
 ## Dependencies
 

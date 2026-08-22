@@ -275,11 +275,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Emit the EARS requirement-grammar summary (FR-042) on stderr via the shared
-/// diagnostic channel (human or JSON per --diagnostics-format). Advisory: a
-/// one-line histogram + doc-level conformance, never affecting the exit code.
+/// Emit the EARS requirement-grammar summary (FR-042) on **stdout** (CR-012):
+/// it is a census, not a diagnostic. Advisory either way — a one-line histogram
+/// + doc-level conformance, never affecting the exit code.
 fn emit_grammar_summary(
-    ctx: &Ctx,
+    _ctx: &Ctx,
     docs_scanned: usize,
     docs_clean: usize,
     checks: &std::collections::BTreeMap<String, usize>,
@@ -301,7 +301,9 @@ fn emit_grammar_summary(
         "{docs_clean}/{docs_scanned} docs grammar-clean ({pct}%); \
          {total_findings} grammar finding(s): {histogram}"
     );
-    io::emit_diagnostic(ctx.diagnostics, "GrammarSummary", &message);
+    // CR-012: a census on stdout. `755/797 docs grammar-clean (94%)` is a
+    // number, not a failure, and it rendered in the same red as every finding.
+    io::emit_result(&message);
 }
 
 /// Emit the FR-052 property-extractable ratio for `--summary`.
@@ -310,7 +312,7 @@ fn emit_grammar_summary(
 /// specific scenarios, which is a legitimate way to write them. This never
 /// affects the exit code, and it is deliberately *not* a grammar check —
 /// classification has no severity key and no promotion path (FR-052-CON-1).
-fn emit_property_summary(ctx: &Ctx, seen: usize, extractable: usize, candidate: usize) {
+fn emit_property_summary(_ctx: &Ctx, seen: usize, extractable: usize, candidate: usize) {
     if seen == 0 {
         return;
     }
@@ -319,7 +321,7 @@ fn emit_property_summary(ctx: &Ctx, seen: usize, extractable: usize, candidate: 
         "{extractable}/{seen} criteria property-extractable ({pct}%); \
          {candidate} candidate (metamorphic, needs review)"
     );
-    io::emit_diagnostic(ctx.diagnostics, "PropertySummary", &message);
+    io::emit_result(&message);
 }
 
 /// OKF bundle validation (permissive posture). Validates each bundle

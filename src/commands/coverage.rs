@@ -503,43 +503,34 @@ fn finding_identity(
 }
 
 fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
+    // CR-012: the census goes to **stdout**. It is what a caller redirecting
+    // with `>` came for, and it is not a diagnostic — `1238/2390 rows backed
+    // (51%)` rendered in error red was the whole of defect 2 in #59.
     let t = &report.totals;
-    io::emit_diagnostic(
-        ctx.diagnostics,
-        "Coverage",
-        &format!(
-            "{}/{} rows backed ({})",
-            t.backed,
-            t.total,
-            percent_label(t.backed, t.total)
-        ),
-    );
+    io::emit_result(&format!(
+        "Coverage: {}/{} rows backed ({})",
+        t.backed,
+        t.total,
+        percent_label(t.backed, t.total)
+    ));
     for g in &report.groups {
-        io::emit_diagnostic(
-            ctx.diagnostics,
-            "CoverageGroup",
-            &format!(
-                "{}: {}/{} ({})",
-                g.document,
-                g.backed,
-                g.total,
-                percent_label(g.backed, g.total)
-            ),
-        );
+        io::emit_result(&format!(
+            "{}: {}/{} ({})",
+            g.document,
+            g.backed,
+            g.total,
+            percent_label(g.backed, g.total)
+        ));
     }
     // FR-017-AC-18 (#51, quire-rs #215): what `source_exclude` subtracted is
     // part of the census. An over-broad glob otherwise reads exactly like
     // tests that were never written. Zero — the state every conformant repo
     // without the declaration is in — prints nothing.
     if report.excluded_source_files > 0 {
-        io::emit_diagnostic(
-            ctx.diagnostics,
-            "CoverageExclusion",
-            &format!(
-                "{} source file(s) excluded by source_exclude",
-                report.excluded_source_files
-            ),
-        );
+        io::emit_result(&format!(
+            "{} source file(s) excluded by source_exclude",
+            report.excluded_source_files
+        ));
     }
     // #51: each finding line leads with the row's own id when the record
     // carries one, so a reader can act on the line without going to `--json`
