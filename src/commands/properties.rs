@@ -32,7 +32,7 @@ use crate::commands::Ctx;
 #[derive(Debug, Parser)]
 pub struct Args {
     /// Documents to classify: paths, globs, or `-` for stdin. Relative paths
-    /// resolve under `--scope` unless `--module` pins the module set.
+    /// resolve under `--scope`, which defaults to the current directory.
     #[arg(value_name = "DOC_OR_GLOB", required = true)]
     pub documents: Vec<String>,
 
@@ -77,11 +77,10 @@ pub struct Args {
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let scoped = args.module.is_none();
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;
     let registry = load_registry(ctx, &args, &scope)?;
-    let inputs = expand_documents(&args.documents, &scope, scoped)?;
+    let inputs = expand_documents(&args.documents, &scope)?;
 
     let mut documents: Vec<Value> = Vec::new();
     let mut census = Census::default();

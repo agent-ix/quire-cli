@@ -31,8 +31,8 @@ use super::Ctx;
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Markdown document path, glob, or `-` for stdin. Relative globs are
-    /// resolved under --scope when --module is omitted. With --okf, an
-    /// optional bundle directory; omitted, the bundle root is
+    /// resolved under --scope, which defaults to the current directory. With
+    /// --okf, an optional bundle directory; omitted, the bundle root is
     /// <scope>/spec (not --scope itself).
     #[arg(value_name = "DOC_OR_GLOB", required_unless_present = "okf")]
     pub documents: Vec<String>,
@@ -133,7 +133,6 @@ pub(crate) fn apply_severity_overrides(
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let scoped = args.module.is_none();
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;
     let registry = load_registry(ctx, &args, &scope)?;
@@ -143,11 +142,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let registry = apply_severity_overrides(&registry, &args.severity)?;
 
     if args.okf {
-        return run_okf(ctx, &args, &scope, scoped, &registry);
+        return run_okf(ctx, &args, &scope, &registry);
     }
 
     // clap guarantees a non-empty `documents` here (required_unless_present).
-    let inputs = expand_documents(&args.documents, &scope, scoped)?;
+    let inputs = expand_documents(&args.documents, &scope)?;
 
     // FR-044: harvest the scope repo's project Ubiquitous-Language terms (a
     // `Glossary` `## Terms` table or `## Ubiquitous Language` sections) once,
@@ -330,13 +329,7 @@ fn emit_property_summary(_ctx: &Ctx, seen: usize, extractable: usize, candidate:
 /// warnings and errors are surfaced on stderr. Exit 1 only when there are
 /// hard errors (untyped documents) — unknown types / broken links / index
 /// gaps warn.
-fn run_okf(
-    ctx: &Ctx,
-    args: &Args,
-    scope: &Path,
-    scoped: bool,
-    registry: &Registry,
-) -> anyhow::Result<()> {
+fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow::Result<()> {
     // Two roots, one scope (CR-045): with no positional bundle, the document
     // root is `<scope>/spec` — never the scope itself, which is the
     // repository-wide crawl #91 removed — while the module's traceability
@@ -348,7 +341,7 @@ fn run_okf(
         args.documents
             .iter()
             .map(|raw| {
-                let dir = scoped_path(scope, scoped, raw);
+                let dir = scoped_path(scope, raw);
                 (dir.clone(), dir)
             })
             .collect()
@@ -574,7 +567,6 @@ impl DocumentInput {
 pub(crate) fn expand_documents(
     raw_documents: &[String],
     scope: &Path,
-    scoped: bool,
 ) -> anyhow::Result<Vec<DocumentInput>> {
     let mut inputs = Vec::new();
     let mut seen = HashSet::new();
@@ -586,7 +578,7 @@ pub(crate) fn expand_documents(
         }
 
         if contains_glob(raw) {
-            let pattern = scoped_path(scope, scoped, raw);
+            let pattern = scoped_path(scope, raw);
             let pattern_string = pattern.display().to_string();
             let mut matched = 0usize;
             for entry in
@@ -609,7 +601,7 @@ pub(crate) fn expand_documents(
             continue;
         }
 
-        let path = scoped_path(scope, scoped, raw);
+        let path = scoped_path(scope, raw);
         let path = safety::validate_input_path("document", &path.display().to_string())
             .with_context(|| format!("validating document '{}'", path.display()))?;
         if seen.insert(path.clone()) {
@@ -620,9 +612,19 @@ pub(crate) fn expand_documents(
     Ok(inputs)
 }
 
-fn scoped_path(scope: &Path, scoped: bool, raw: &str) -> PathBuf {
+/// A relative document path resolves under `--scope`. Always (CR-011).
+///
+/// This used to be gated on `--module` being absent, which meant passing
+/// `--module` silently moved glob resolution to the process cwd: a run
+/// pointed at a clean two-document corpus reported **seven failures
+/// belonging to a different repository**, exit 1, with nothing saying which
+/// tree it had read (`agent-ix/quire-cli#63`). `--module` pins the MODULE
+/// SET; it has no business choosing DOCUMENTS, and `coverage` never worked
+/// this way. `--scope` defaults to `.`, so the documented
+/// `--module`-without-`--scope` form is unaffected.
+fn scoped_path(scope: &Path, raw: &str) -> PathBuf {
     let path = PathBuf::from(raw);
-    if scoped && path.is_relative() {
+    if path.is_relative() {
         scope.join(path)
     } else {
         path
