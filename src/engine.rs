@@ -65,7 +65,10 @@ pub const CAPABILITIES: &[&str] = &[
 /// Serialized under the `engine` key. Both published schemas
 /// (`coverage-v1.schema.json`, `properties-v1.schema.json`) define it as an
 /// **optional** object with all three members required — optional because an
-/// in-process `CoverageReport::to_json` caller cannot know a CLI version.
+/// in-process `CoverageReport::to_json` caller cannot know a CLI version. That
+/// definition arrives with quire-rs CR-104 / FR-055-AC-8; a build pinned to an
+/// engine predating it emits a payload its own pinned schema rejects, which
+/// `tests/output_contract.rs` fails on rather than discovering in a consumer.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Provenance {
     /// The `quire-cli` crate version.
@@ -93,22 +96,53 @@ impl Default for Provenance {
     }
 }
 
-/// Attach the provenance block to an already-serialized payload.
+/// A payload with its provenance block appended.
 ///
-/// Takes the payload as a [`serde_json::Value`] rather than wrapping it in a
-/// generic envelope struct so the inner shape is emitted **unmodified** — the
-/// FR-008 rule that the CLI adds structure around engine output and never
-/// rewrites it. A non-object payload (an array, a bare string) is returned
-/// untouched: there is nowhere to put the key, and inventing a wrapper would
-/// change a shape consumers pin.
-pub fn attach(mut payload: serde_json::Value) -> serde_json::Value {
-    if let Some(object) = payload.as_object_mut() {
-        object.insert(
-            "engine".to_string(),
-            serde_json::to_value(Provenance::current()).expect("provenance serializes"),
-        );
+/// **`#[serde(flatten)]`, not a `serde_json::Value` round-trip.** The first
+/// draft of this took the payload as a `Value`, inserted the key, and
+/// re-encoded — which silently rewrote **every key at every nesting level into
+/// alphabetical order**, because `serde_json::Map` is a `BTreeMap` unless the
+/// `preserve_order` feature is on, and it is not. Measured on `coverage --json`,
+/// the top level went from
+/// `[unbacked_rows, status_lies, untracked_symbols, groups, criteria, metrics,
+/// totals]` to alphabetical, and so did every nested record. Output stayed
+/// byte-identical *across runs* — so FR-050-AC-7 still passed and no test
+/// noticed — while every checked-in payload in the ecosystem would have shown a
+/// 100%-changed diff carrying no content change, and quire-cli FR-008-AC-4's
+/// "field order SHALL match the public Rust struct declaration order" would
+/// have been quietly false.
+///
+/// Flatten streams the inner value's fields in its own `Serialize` order and
+/// appends `engine` after them, so the engine's output really is emitted
+/// unmodified — which is what FR-008 behaviour rule 5 requires, and what the
+/// round-trip only claimed.
+#[derive(Serialize)]
+pub struct WithProvenance<T: Serialize> {
+    #[serde(flatten)]
+    inner: T,
+    engine: Provenance,
+}
+
+impl<T: Serialize> WithProvenance<T> {
+    /// Wrap `inner` so it serializes with a trailing `engine` block.
+    pub fn new(inner: T) -> Self {
+        Self {
+            inner,
+            engine: Provenance::current(),
+        }
     }
-    payload
+}
+
+/// Wrap a payload so it serializes with a trailing `engine` block.
+///
+/// The one call every emitting surface makes. `serde` requires the inner value
+/// to serialize as a map for `flatten` to work — every payload this is used on
+/// is a struct or a JSON object, and a non-map inner value is a compile-time
+/// shape error at the call site rather than a silent drop (the earlier
+/// `Value`-based version returned a non-object payload untouched, so provenance
+/// vanished with no signal).
+pub fn attach<T: Serialize>(inner: T) -> WithProvenance<T> {
+    WithProvenance::new(inner)
 }
 
 /// The `--version` line: both versions, distinctly.
@@ -117,8 +151,48 @@ pub fn attach(mut payload: serde_json::Value) -> serde_json::Value {
 /// scripts, and a version string that grew a second line would break every
 /// caller doing so. The engine is parenthesised and labelled, so neither
 /// number can be mistaken for the other — which is the whole defect.
-pub fn version_line() -> String {
-    format!("{CLI_VERSION} (engine {ENGINE_VERSION})")
+///
+/// A `const`, not a function, because clap needs a `&'static str` for
+/// `#[command(version = …)]`. The first draft had this as a `format!` helper
+/// AND a separate `concat!` in `main.rs`: two independent assemblies of one
+/// string, with the helper having no production caller and no test binding the
+/// two. Mutating the `main.rs` copy to drop the engine number left the whole
+/// suite green.
+pub const VERSION_LINE: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (engine ",
+    env!("QUIRE_ENGINE_VERSION"),
+    ")"
+);
+
+/// Compile-time witnesses for [`CAPABILITIES`].
+///
+/// Each token claims this build can emit something, and the doc on
+/// `CAPABILITIES` says a build linking an engine without it does not compile.
+/// Nothing enforced that: the tokens were four strings, and adding a fifth
+/// naming a surface this crate never touches would have compiled, passed, and
+/// shipped a payload advertising a capability with no engine call behind it.
+///
+/// Naming each type here is what makes the claim true. Deleting a capability's
+/// production render is still possible — but removing the engine surface it
+/// rests on now fails the build, which is the half a version comparison could
+/// never give.
+/// Each `const _` names the engine surface one token claims. The item is
+/// evaluated at compile time, so an engine that dropped the field, the type or
+/// the method fails the build here — naming the capability that went missing —
+/// rather than shipping a payload that advertises it.
+mod capability_witnesses {
+    use quire_rs::{AcClassification, CoverageReport};
+
+    // `binding_census` (quire-rs FR-050-AC-27, v0.43.0)
+    const _: fn(&CoverageReport) -> &[quire_rs::symbols::trace::BindingCensus] =
+        |r| &r.binding_census;
+    // `metrics_envelope` (FR-063, v0.44.0)
+    const _: fn(&CoverageReport) -> &[quire_rs::metric::Metric] = |r| &r.metrics;
+    // `suspicions` (FR-064)
+    const _: fn(&CoverageReport) -> usize = |r| r.suspicions.len();
+    // `specific_shaped` (CR-095)
+    const _: fn(&AcClassification) -> bool = |c| c.property.is_specific();
 }
 
 #[cfg(test)]
@@ -130,40 +204,78 @@ mod tests {
     // it ships v0.45.0. If this ever reports the manifest number, build.rs has
     // silently started reading the wrong field and every payload is lying
     // again.
+    // The version this build reports must be the one its own lockfile
+    // resolves. Asserted against the lockfile rather than against
+    // `!= CLI_VERSION`: the review pointed out that comparison encodes a
+    // coincidence, and would start failing spuriously the day the CLI reaches
+    // 0.45.0 with nothing wrong.
     #[test]
-    fn the_engine_version_is_resolved_and_is_not_the_cli_version() {
+    fn the_reported_engine_version_is_the_one_the_lockfile_resolves() {
         assert_ne!(ENGINE_VERSION, "", "the engine version must be resolved");
         assert_ne!(
             ENGINE_VERSION, "unknown",
             "the lockfile must be readable at build time",
         );
-        assert_ne!(
-            ENGINE_VERSION, CLI_VERSION,
-            "reporting the CLI version as the engine version is the defect, not the fix",
+
+        let lock = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.lock"))
+            .expect("Cargo.lock");
+        assert_eq!(
+            Some(ENGINE_VERSION.to_string()),
+            crate::lockfile::engine_version(&lock),
+            "the compiled-in engine version disagrees with this crate's lockfile",
         );
     }
 
     #[test]
     fn the_version_line_names_both_distinctly() {
-        let line = version_line();
-        assert!(line.contains(CLI_VERSION), "{line}");
-        assert!(line.contains(ENGINE_VERSION), "{line}");
+        // Checked first: `str::contains("")` is unconditionally true, so an
+        // empty ENGINE_VERSION would make the assertion below decorative —
+        // exactly the vacuity this whole module exists to prevent.
+        assert!(!ENGINE_VERSION.is_empty());
+        assert!(VERSION_LINE.contains(CLI_VERSION), "{VERSION_LINE}");
+        assert!(VERSION_LINE.contains(ENGINE_VERSION), "{VERSION_LINE}");
         assert!(
-            line.contains("engine"),
-            "the engine number must be labelled, or the two are indistinguishable: {line}",
+            VERSION_LINE.contains("engine"),
+            "the engine number must be labelled, or the two are indistinguishable: {VERSION_LINE}",
         );
     }
 
     #[test]
-    fn attach_adds_the_block_and_changes_nothing_else() {
-        let before = serde_json::json!({"documents": [], "totals": {"backed": 1}});
-        let after = super::attach(before.clone());
+    fn attach_appends_the_block_in_order_and_adds_nothing_else() {
+        #[derive(serde::Serialize)]
+        struct Payload {
+            // Deliberately NOT alphabetical: the defect this replaced sorted
+            // every key, and a fixture in sorted order could not have caught it.
+            zebra: u8,
+            alpha: u8,
+        }
 
-        let object = after.as_object().expect("object");
-        assert_eq!(object["documents"], before["documents"]);
-        assert_eq!(object["totals"], before["totals"]);
+        let rendered = serde_json::to_string(&super::attach(Payload { zebra: 1, alpha: 2 }))
+            .expect("serializes");
+        assert_eq!(
+            rendered,
+            format!(
+                r#"{{"zebra":1,"alpha":2,"engine":{{"cli":"{CLI_VERSION}","engine":"{ENGINE_VERSION}","capabilities":{}}}}}"#,
+                serde_json::to_string(CAPABILITIES).expect("capabilities serialize"),
+            ),
+            "provenance must be APPENDED, leaving the inner order untouched",
+        );
 
-        let engine = &object["engine"];
+        // ...and nothing else appears. Asserted on the parsed key set rather
+        // than by naming two survivors: the earlier version checked that two
+        // keys were still there, which a payload that had also grown a
+        // `timestamp` would have passed.
+        let parsed: serde_json::Value = serde_json::from_str(&rendered).expect("valid JSON");
+        let keys: Vec<&String> = parsed.as_object().expect("object").keys().collect();
+        assert_eq!(
+            keys,
+            ["alpha", "engine", "zebra"].iter().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn the_provenance_block_carries_the_capability_the_ticket_is_about() {
+        let engine = serde_json::to_value(Provenance::current()).expect("serializes");
         assert_eq!(engine["cli"], CLI_VERSION);
         assert_eq!(engine["engine"], ENGINE_VERSION);
         assert!(
@@ -172,15 +284,8 @@ mod tests {
                 .expect("capabilities array")
                 .iter()
                 .any(|t| t == "binding_census"),
-            "the token the whole ticket is about must be present: {engine}",
+            "{engine}",
         );
-    }
-
-    #[test]
-    fn a_non_object_payload_is_returned_untouched() {
-        // Nowhere to put the key, and wrapping would change a pinned shape.
-        let array = serde_json::json!([1, 2, 3]);
-        assert_eq!(super::attach(array.clone()), array);
     }
 
     #[test]

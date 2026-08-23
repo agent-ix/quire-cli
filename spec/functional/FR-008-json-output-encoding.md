@@ -82,8 +82,20 @@ Both inner values are emitted unmodified.
 > claim a capability the linked engine does not have.
 >
 > AC-5 is narrowed to the bare-version case it was arguing for; AC-6 gates the
-> provenance block. quire-rs FR-055-CON-2 is narrowed in the same terms, and its
-> two published schemas define the optional `engine` object.
+> provenance block. quire-rs FR-055-CON-2 is narrowed in the same terms by that
+> repository's CR-104, whose two published schemas define the optional `engine`
+> object — a build pinned to an engine predating it emits a payload its own
+> pinned schema rejects, and `IT-128`/`IT-103` fail on exactly that rather than
+> letting a consumer discover it.
+>
+> **AC-4 survives unchanged and is the reason this is not a `Value` round-trip.**
+> "Field order SHALL match the public Rust struct declaration order" — appending
+> through `serde_json::Value` would have sorted every key at every depth, because
+> `serde_json::Map` is a `BTreeMap`. Output stays byte-identical across runs
+> either way, so nothing in the FR-050-AC-7 determinism family would have
+> noticed; `IT-124`/`IT-126` assert the order of the **emitted bytes**, since
+> parsing a payload back into a `Value` sorts it and an assertion over the
+> parsed form measures serde rather than the emitter.
 
 ## Acceptance Criteria
 

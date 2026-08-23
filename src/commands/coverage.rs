@@ -180,17 +180,17 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // and the flag was silently ignored (#53). Whitespace-only — the
         // payload parses identically, and `--pretty` restores the old shape.
         //
-        // `engine::attach` adds the provenance block and nothing else (#68).
-        // A saved payload is the artifact a later reader reasons from, and
-        // without this it carries no way to learn which build produced it —
-        // the defect that let four battletest passes cite figures from a
-        // binary that could not emit `binding_census`.
+        // `engine::attach` appends the provenance block, leaving every key the
+        // engine emitted in the engine's own order (#68) — it flattens rather
+        // than round-tripping through `serde_json::Value`, which would sort
+        // every key at every depth alphabetically. A saved payload is the
+        // artifact a later reader reasons from, and without provenance it
+        // carries no way to learn which build produced it — the defect that let
+        // four battletest passes cite figures from a binary that could not emit
+        // `binding_census`.
         OutputFormat::Json => println!(
             "{}",
-            io::encode_json(
-                &quire_cli::engine::attach(serde_json::to_value(&report)?),
-                ctx.pretty
-            )?
+            io::encode_json(&quire_cli::engine::attach(&report), ctx.pretty)?
         ),
         OutputFormat::Tsv => print!("{}", render_tsv(&report)),
         OutputFormat::Human => emit_human(ctx, &report),

@@ -23,6 +23,21 @@ fn quire() -> Command {
 /// resolved. Reading it from the dependency source rather than vendoring a copy
 /// is the point: a copy is a second artifact that drifts.
 fn properties_schema() -> Value {
+    published_schema("properties-v1.schema.json")
+}
+
+/// The published coverage schema, from the same pinned checkout.
+///
+/// `coverage --json` had **no** conformance test in this crate — quire-rs
+/// gates the payload its own engine produces, but since #68 this crate mutates
+/// it on the way out by appending `engine`, and nothing checked the result
+/// against the contract. The gap was invisible because the payload was
+/// *engine*-shaped right up until the moment the CLI touched it.
+fn coverage_schema() -> Value {
+    published_schema("coverage-v1.schema.json")
+}
+
+fn published_schema(name: &str) -> Value {
     let out = Command::new(env!("CARGO"))
         .args(["metadata", "--format-version", "1"])
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -44,7 +59,8 @@ fn properties_schema() -> Value {
             PathBuf::from(m)
                 .parent()
                 .expect("crate root")
-                .join("schemas/output/properties-v1.schema.json")
+                .join("schemas/output")
+                .join(name)
         })
         .expect("quire-rs in the dependency graph");
     serde_json::from_str(
@@ -191,4 +207,66 @@ fn it_104_absent_obligation_is_null_and_still_conforms() {
         "a module declaring no obligation source must emit null on every \
          record: {payload:#?}",
     );
+}
+
+/// IT-128, FR-008-AC-6: the `coverage --json` payload — the one this crate
+/// mutates by appending `engine` — conforms to the published contract.
+///
+/// The gap this closes: quire-rs gates the payload its **engine** produces, and
+/// this crate's only conformance test covered `properties`. Since #68 the CLI
+/// appends a key to the coverage payload on the way out, and the root schema is
+/// `additionalProperties: false` — so between the emitter landing and the
+/// schema landing, `coverage --json` emitted a payload that violated its own
+/// published contract and no test in either repository would have said so.
+#[test]
+fn it_128_coverage_payload_conforms_to_the_published_schema() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = dir.path();
+    fs::create_dir_all(scope.join("spec")).expect("mkdir spec");
+    fs::write(
+        scope.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n  grammar_ref: iso-spec-core\n\
+         traceability:\n  trace_targets:\n  - name: acceptance-criterion\n\
+         \x20   archetype: FR\n    section: Acceptance Criteria\n    id_column: ID\n",
+    )
+    .expect("write manifest");
+    fs::write(
+        scope.join("spec/FR-001.md"),
+        "---\nid: FR-001\ntype: FR\n---\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | It does the thing. | Test |\n",
+    )
+    .expect("write doc");
+
+    let out = quire()
+        .args(["coverage", "--scope", &scope.to_string_lossy(), "--json"])
+        .output()
+        .expect("run");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let payload: Value =
+        serde_json::from_slice(&out.stdout).expect("the emitted payload is valid JSON");
+    let schema_doc = coverage_schema();
+    if let Err(errors) = compile(&schema_doc).validate(&payload) {
+        let listed: Vec<String> = errors
+            .map(|e| format!("{}: {e}", e.instance_path))
+            .collect();
+        panic!(
+            "the emitted `coverage --json` payload violates the published contract:\n{listed:#?}\n\
+             payload:\n{}",
+            serde_json::to_string_pretty(&payload).unwrap_or_default()
+        );
+    }
+
+    // Non-vacuous on both counts: the payload must carry the key this crate
+    // adds, and the model must have matched a row — validating an empty
+    // report against a schema of optional keys proves nothing.
+    assert!(payload["engine"].is_object(), "{payload}");
+    assert_eq!(payload["totals"]["total"], 1, "{payload}");
 }

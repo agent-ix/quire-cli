@@ -84,6 +84,16 @@ fn it_123_version_reports_the_cli_and_the_engine() {
         line.contains(env!("CARGO_PKG_VERSION")),
         "the CLI version is missing: {line}",
     );
+
+    // The ENGINE version, by value. The first draft asserted only that the
+    // word "engine" appeared — so mutating the format string to
+    // `"(engine )"` left this test green and shipped a `--version` that named
+    // no engine at all. That is the whole defect, passing its own gate.
+    let engine = engine_version_from_lockfile();
+    assert!(
+        line.contains(&engine),
+        "`--version` must name the resolved engine version `{engine}`: {line}",
+    );
     assert!(
         line.contains("engine"),
         "the engine number must be labelled or the two are indistinguishable: {line}",
@@ -94,24 +104,102 @@ fn it_123_version_reports_the_cli_and_the_engine() {
     assert_eq!(line.trim().lines().count(), 1, "{line}");
 }
 
+/// The engine version this crate's lockfile resolves.
+///
+/// Read here, at the process boundary, rather than imported from the library:
+/// the point is that the SHIPPED BINARY reports it, and a test that asked the
+/// library for the expected value and then checked the library's own constant
+/// would be comparing a value to itself.
+fn engine_version_from_lockfile() -> String {
+    let lock = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.lock"))
+        .expect("Cargo.lock");
+    quire_cli::lockfile::engine_version(&lock).expect("quire-rs is a dependency")
+}
+
+/// Run `quire`, require exit 0, and parse stdout as the JSON payload.
+///
+/// The exit check lives here so no caller can omit it — IT-127's first draft
+/// did, which made it vacuous against any failure: a crashed command produces
+/// empty stdout, and "the empty string contains no banned key" is true.
+fn payload_of(command: &mut std::process::Command, surface: &str) -> Value {
+    raw_and_payload(command, surface).1
+}
+
+/// The emitted bytes **and** the parsed payload.
+///
+/// Key order can only be asserted on the bytes. `serde_json::Map` is a
+/// `BTreeMap` unless the `preserve_order` feature is on, so parsing sorts every
+/// object alphabetically — an assertion over a parsed `Value` measures serde's
+/// map type, not what the command wrote, and passes identically whether or not
+/// the emitter reorders anything.
+fn raw_and_payload(command: &mut std::process::Command, surface: &str) -> (String, Value) {
+    let out = command
+        .output()
+        .unwrap_or_else(|e| panic!("{surface}: {e}"));
+    assert!(
+        out.status.success(),
+        "{surface} exited {}: {}",
+        out.status,
+        String::from_utf8_lossy(&out.stderr),
+    );
+    let raw = String::from_utf8(out.stdout).expect("stdout is UTF-8");
+    let parsed = serde_json::from_str(&raw)
+        .unwrap_or_else(|e| panic!("{surface}: stdout is not valid JSON: {e}\n{raw}"));
+    (raw, parsed)
+}
+
+/// Assert `keys` appear in the emitted bytes in exactly this order.
+///
+/// Position-based, for the reason above. Each key is matched with its quotes
+/// and trailing colon so a key name occurring inside a string VALUE cannot be
+/// mistaken for the key.
+fn assert_key_order(raw: &str, keys: &[&str], surface: &str) {
+    let mut previous = 0usize;
+    for key in keys {
+        let needle = format!("\"{key}\":");
+        let at = raw
+            .find(&needle)
+            .unwrap_or_else(|| panic!("{surface}: no `{key}` key in output:\n{raw}"));
+        assert!(
+            at >= previous,
+            "{surface}: `{key}` is out of order — provenance must be APPENDED and \
+             the engine's own key order left untouched:\n{raw}",
+        );
+        previous = at;
+    }
+}
+
+fn extract_payload() -> Value {
+    payload_of(
+        quire()
+            .arg("extract")
+            .arg(extract_sample_doc())
+            .arg("--module")
+            .arg(extract_module()),
+        "extract",
+    )
+}
+
 // IT-124, FR-008-AC-6: the `extract` payload carries provenance.
 #[test]
 fn it_124_extract_payload_carries_provenance() {
-    let out = quire()
-        .arg("extract")
-        .arg(extract_sample_doc())
-        .arg("--module")
-        .arg(extract_module())
-        .output()
-        .expect("extract runs");
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
+    let (raw, payload) = raw_and_payload(
+        quire()
+            .arg("extract")
+            .arg(extract_sample_doc())
+            .arg("--module")
+            .arg(extract_module()),
+        "extract",
     );
-    let payload: Value =
-        serde_json::from_slice(&out.stdout).expect("the emitted payload is valid JSON");
     assert_provenance(&payload, "extract");
+
+    // FR-008-AC-4: the engine's values keep their own declaration order —
+    // provenance is APPENDED. The first implementation round-tripped through
+    // `serde_json::Value`, whose `Map` is a `BTreeMap`, and silently sorted
+    // every key at every depth; output stayed byte-identical across runs, so
+    // nothing failed while every checked-in payload in the ecosystem would
+    // have shown a 100%-changed diff carrying no content change.
+    assert_key_order(&raw, &["extraction", "edges", "engine"], "extract");
 
     // The engine's own values are untouched — provenance rides the envelope
     // (FR-008 behaviour rule 5), it does not annotate records.
@@ -126,41 +214,7 @@ fn it_124_extract_payload_carries_provenance() {
 // unknowable is a classification nobody can re-derive.
 #[test]
 fn it_125_properties_payload_carries_provenance() {
-    let dir = tempfile::TempDir::new().expect("tempdir");
-    let module = dir.path().join("m");
-    std::fs::create_dir_all(&module).expect("mkdir");
-    std::fs::write(
-        module.join("manifest.yaml"),
-        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
-         - name: FR\n  grammar_ref: iso-spec-core\n",
-    )
-    .expect("write manifest");
-    let doc = dir.path().join("FR-001.md");
-    std::fs::write(
-        &doc,
-        "---\nid: FR-001\ntype: FR\n---\n\
-         ## Acceptance Criteria\n\n\
-         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
-         | FR-001-AC-1 | Every finding absent from the merged map defaults to warning. | Test |\n",
-    )
-    .expect("write doc");
-
-    let out = quire()
-        .args([
-            "properties",
-            &doc.to_string_lossy(),
-            "--module",
-            &module.to_string_lossy(),
-            "--json",
-        ])
-        .output()
-        .expect("properties runs");
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let payload: Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
+    let payload = properties_payload();
     assert_provenance(&payload, "properties");
 
     // Non-vacuous: the fixture must actually have classified something, or the
@@ -182,6 +236,74 @@ fn it_125_properties_payload_carries_provenance() {
 // produced it.
 #[test]
 fn it_126_coverage_payload_carries_provenance() {
+    let (raw, payload) = coverage_raw_and_payload();
+    assert_provenance(&payload, "coverage");
+
+    // Non-vacuous: the model must have matched a row, or `totals` is the
+    // 0/0 state and this asserts provenance over a payload about nothing.
+    assert_eq!(payload["totals"]["total"], 1, "{payload}");
+
+    // FR-008-AC-4 on the payload that matters most: `CoverageReport`'s own
+    // declaration order survives and `engine` lands after it. Alphabetically
+    // `engine` would sit between `criteria` and `groups`, and `unbacked_rows`
+    // would be last — so this ordering cannot be produced by a sorted map.
+    assert_key_order(
+        &raw,
+        &["unbacked_rows", "status_lies", "groups", "totals", "engine"],
+        "coverage",
+    );
+}
+
+/// A module + document that classify one criterion, as a payload.
+fn properties_payload() -> Value {
+    let dir = tempfile::TempDir::new().expect("tempdir");
+    let module = dir.path().join("m");
+    std::fs::create_dir_all(&module).expect("mkdir");
+    std::fs::write(
+        module.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n  grammar_ref: iso-spec-core\n",
+    )
+    .expect("write manifest");
+    let doc = dir.path().join("FR-001.md");
+    std::fs::write(
+        &doc,
+        "---\nid: FR-001\ntype: FR\n---\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | Every finding absent from the merged map defaults to warning. | Test |\n",
+    )
+    .expect("write doc");
+
+    let payload = payload_of(
+        quire().args([
+            "properties",
+            &doc.to_string_lossy(),
+            "--module",
+            &module.to_string_lossy(),
+            "--json",
+        ]),
+        "properties",
+    );
+    // Non-vacuous: the fixture must actually have classified something, or
+    // every caller's assertions ride on an empty payload.
+    assert_eq!(
+        payload["documents"][0]["criteria"]
+            .as_array()
+            .expect("criteria")
+            .len(),
+        1,
+        "{payload}",
+    );
+    payload
+}
+
+/// A scope whose declared model matches exactly one row, as a payload.
+fn coverage_payload() -> Value {
+    coverage_raw_and_payload().1
+}
+
+fn coverage_raw_and_payload() -> (String, Value) {
     let dir = tempfile::TempDir::new().expect("tempdir");
     let scope = dir.path();
     std::fs::create_dir_all(scope.join("spec")).expect("mkdir spec");
@@ -202,21 +324,10 @@ fn it_126_coverage_payload_carries_provenance() {
     )
     .expect("write doc");
 
-    let out = quire()
-        .args(["coverage", "--scope", &scope.to_string_lossy(), "--json"])
-        .output()
-        .expect("coverage runs");
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let payload: Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
-    assert_provenance(&payload, "coverage");
-
-    // Non-vacuous: the model must have matched a row, or `totals` is the
-    // 0/0 state and this asserts provenance over a payload about nothing.
-    assert_eq!(payload["totals"]["total"], 1, "{payload}");
+    raw_and_payload(
+        quire().args(["coverage", "--scope", &scope.to_string_lossy(), "--json"]),
+        "coverage",
+    )
 }
 
 // IT-127, FR-008-AC-5 (as narrowed by CR-104): the bare-version ban still
@@ -227,18 +338,42 @@ fn it_126_coverage_payload_carries_provenance() {
 // under a named `engine` object is a different claim.
 #[test]
 fn it_127_no_payload_carries_a_bare_version_key() {
-    let out = quire()
-        .arg("extract")
-        .arg(extract_sample_doc())
-        .arg("--module")
-        .arg(extract_module())
-        .output()
-        .expect("extract runs");
-    let body = String::from_utf8(out.stdout).expect("UTF-8");
-    for banned in ["\"version\"", "\"schema_version\"", "\"$schema\""] {
+    // Every payload, not just `extract`. The first draft ran one command while
+    // the matrix row claimed "no payload" — so a `version` key added to the
+    // coverage envelope would have left this green and the matrix reporting
+    // AC-5 covered.
+    for payload in [extract_payload(), properties_payload(), coverage_payload()] {
+        let mut found = Vec::new();
+        collect_banned_keys(&payload, &mut found);
         assert!(
-            !body.contains(banned),
-            "the payload carries a bare {banned} key: {body}",
+            found.is_empty(),
+            "a payload names the contract revision it claims to conform to \
+             (FR-055-CON-2): {found:?} in {payload}",
         );
+    }
+}
+
+/// Every banned key name appearing anywhere in a payload, at any depth.
+///
+/// A key WALK, not a substring grep over the rendered bytes. The first draft
+/// checked `body.contains("\"version\"")`, which both over- and under-fires: a
+/// record whose extracted *value* is the text `"version"` failed a test it did
+/// not violate, and a key at depth was caught only by luck of quoting.
+fn collect_banned_keys(node: &Value, out: &mut Vec<String>) {
+    match node {
+        Value::Object(map) => {
+            for (key, child) in map {
+                if matches!(key.as_str(), "version" | "schema_version" | "$schema") {
+                    out.push(key.clone());
+                }
+                collect_banned_keys(child, out);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                collect_banned_keys(item, out);
+            }
+        }
+        _ => {}
     }
 }
