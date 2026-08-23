@@ -502,6 +502,67 @@ fn finding_identity(
     }
 }
 
+/// The binding census, one line per language — context, not a finding (#66).
+///
+/// A pure function so it can be asserted. `emit_human` writes to two streams
+/// through a global, and a rendering nothing can read back is a rendering
+/// nothing can test — which is how `report.diagnostics` came to render in the
+/// TSV path and nowhere else.
+fn census_lines(report: &quire_rs::CoverageReport) -> Vec<String> {
+    report
+        .binding_census
+        .iter()
+        .map(|c| {
+            let forms = if c.forms.is_empty() {
+                "none declared".to_string()
+            } else {
+                c.forms.join(", ")
+            };
+            // The example is for the UNREAD case. On a fully-bound language
+            // there is nothing to look at, and naming a symbol anyway would
+            // read as a finding where there is none.
+            let at = match &c.unbound_example {
+                Some(e) if c.bound < c.candidates => {
+                    format!(", e.g. `{}` at {}:{}", e.symbol, e.path, e.line)
+                }
+                _ => String::new(),
+            };
+            format!(
+                "{}: {}/{} evidence symbols bound ({}; forms: {forms}{at})",
+                c.language,
+                c.bound,
+                c.candidates,
+                percent_label(c.bound, c.candidates)
+            )
+        })
+        .collect()
+}
+
+/// The FR-063 envelope of each measured RATIO metric (#66).
+///
+/// Ratios only: a count's value and its `matched` are the same fact, so
+/// enveloping one says the same number twice. A `not_computed` metric already
+/// carries its own `because`, and printing "examined 0" for it would read as a
+/// measurement that ran and found nothing.
+fn metric_lines(report: &quire_rs::CoverageReport) -> Vec<String> {
+    report
+        .metrics
+        .iter()
+        .filter_map(|m| match m.measurement {
+            quire_rs::metric::Measurement::Measured {
+                population,
+                examined,
+                matched,
+                ..
+            } if m.shape == quire_rs::metric::MetricShape::Ratio => Some(format!(
+                "{}: over {} {}(s), examined {}, matched {}",
+                m.name, population, m.unit, examined, matched
+            )),
+            _ => None,
+        })
+        .collect()
+}
+
 fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
     // CR-012: the census goes to **stdout**. It is what a caller redirecting
     // with `>` came for, and it is not a diagnostic — `1238/2390 rows backed
@@ -513,6 +574,9 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
         t.total,
         percent_label(t.backed, t.total)
     ));
+    for line in census_lines(report) {
+        io::emit_result(&line);
+    }
     for g in &report.groups {
         io::emit_result(&format!(
             "{}: {}/{} ({})",
@@ -531,6 +595,39 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
             "{} source file(s) excluded by source_exclude",
             report.excluded_source_files
         ));
+    }
+    for line in metric_lines(report) {
+        io::emit_result(&line);
+    }
+    // Alerts nobody saw. `report.diagnostics` rendered in the TSV path and
+    // nowhere else, so 11 `uncatalogued-verification-method` findings on
+    // `quire-cli` and every `no-symbol-bound` were invisible to anyone who ran
+    // the command the normal way. Same field selection as the TSV row, so the
+    // two surfaces cannot disagree about what a diagnostic says.
+    for d in &report.diagnostics {
+        let locus = match &d.path {
+            Some(path) => format!(" ({path})"),
+            None => String::new(),
+        };
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "CoverageDiagnostic",
+            &format!("[{}] {}{locus}", d.reason, d.message),
+        );
+    }
+    // Suspicions keep their advisory framing (FR-064): a suspicion is a thing
+    // that LOOKS wrong with the measurement that made it look wrong, and the
+    // evidence is not decoration — one a reader cannot check in a glance is one
+    // they learn to scroll past.
+    for s in &report.suspicions {
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "Suspicion",
+            &format!(
+                "[{}] {} in {}:{} — {} ({})",
+                s.kind, s.symbol, s.path, s.line, s.message, s.evidence
+            ),
+        );
     }
     // #51: each finding line leads with the row's own id when the record
     // carries one, so a reader can act on the line without going to `--json`
@@ -614,6 +711,90 @@ fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registr
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // TC-813, FR-017-AC-18 (#66): the census and the metric envelopes reach
+    // the human surface, and the census example appears only where there is
+    // something unread to look at.
+    #[test]
+    fn tc813_the_census_and_metric_envelopes_render_for_a_human() {
+        use quire_rs::metric::{Measurement, Metric, MetricShape};
+        use quire_rs::symbols::trace::{BindingCensus, UnboundSymbol};
+
+        let census = vec![
+            BindingCensus {
+                language: "rust".to_string(),
+                candidates: 1513,
+                bound: 1344,
+                forms: vec!["rust-trace-attribute".to_string()],
+                unbound_example: Some(UnboundSymbol {
+                    path: "crates/a/src/lib.rs".to_string(),
+                    line: 732,
+                    symbol: "tests::covers".to_string(),
+                }),
+            },
+            BindingCensus {
+                language: "typescript".to_string(),
+                candidates: 12,
+                bound: 12,
+                forms: vec!["ts-trace-helper".to_string()],
+                // Fully bound, so nothing to look at even if an example
+                // survived from an earlier run.
+                unbound_example: Some(UnboundSymbol {
+                    path: "ui/x.ts".to_string(),
+                    line: 4,
+                    symbol: "stale".to_string(),
+                }),
+            },
+        ];
+        let mut report = quire_rs::CoverageReport {
+            binding_census: census,
+            ..Default::default()
+        };
+
+        let lines = census_lines(&report);
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        // The number AND the premise it rests on. `1354/2540 (53%)` travelling
+        // without `1344/1513 bound` is the whole defect this renders for.
+        assert_eq!(
+            lines[0],
+            "rust: 1344/1513 evidence symbols bound (88%; forms: rust-trace-attribute, \
+             e.g. `tests::covers` at crates/a/src/lib.rs:732)"
+        );
+        // A fully-bound language names no example: there is nothing unread, and
+        // pointing at a symbol anyway reads as a finding where there is none.
+        assert_eq!(
+            lines[1],
+            "typescript: 12/12 evidence symbols bound (100%; forms: ts-trace-helper)"
+        );
+
+        report.metrics = vec![
+            Metric::measured("coverage.backed", "matrix row", "m", 1354, 2540, 2037, 1363),
+            Metric::not_computed(
+                "coverage.no_symbol_rows",
+                "matrix row",
+                "m",
+                MetricShape::Count,
+                "the module declares no vocabulary",
+            ),
+            // A MEASURED count. The first draft of this test had only the
+            // not-computed one, so removing the ratio filter changed nothing
+            // and the mutation survived — a fixture that cannot distinguish
+            // the two shapes cannot test a rule about them.
+            Metric::counted("coverage.dead_tags", "trace tag", "m", 7, 200, 200),
+        ];
+        let metrics = metric_lines(&report);
+        // The ratio is enveloped; the not-computed count is not — it carries
+        // its own `because`, and "examined 0" would read as a measurement that
+        // ran and found nothing.
+        assert_eq!(
+            metrics,
+            vec!["coverage.backed: over 2540 matrix row(s), examined 2037, matched 1363"]
+        );
+        assert!(matches!(
+            report.metrics[1].measurement,
+            Measurement::NotComputed { .. }
+        ));
+    }
 
     // TC-812, FR-017-AC-14 (#57): the TSV escaping guard, pinned. The #53
     // measurement found 0/1,107 statements carrying a structural character —
