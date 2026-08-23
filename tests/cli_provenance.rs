@@ -377,3 +377,53 @@ fn collect_banned_keys(node: &Value, out: &mut Vec<String>) {
         _ => {}
     }
 }
+
+// IT-129, FR-008-AC-6 (#68 AC-4, extending #60): the envelope SHAPE is pinned
+// by a golden snapshot.
+//
+// #60 established golden snapshots for the stream contract; the envelope had
+// none, so every assertion about it was a hand-written `assert!` that only
+// checks what somebody thought to name. A snapshot fails on anything that
+// moves — a key added, a key reordered, a key silently dropped.
+//
+// **The version VALUES are redacted, the structure is not.** A snapshot
+// carrying `0.45.0` would have to be regenerated on every engine bump, which
+// trains a reader to regenerate it without reading it — and a golden file
+// nobody reads is the gate that let #52 ship four binaries reporting 0.23.0.
+// What must not drift is the shape: which keys, in which order.
+#[test]
+fn it_129_the_envelope_shape_is_pinned_by_a_golden_snapshot() {
+    let (raw, _) = raw_and_payload(
+        quire()
+            .arg("extract")
+            .arg(extract_sample_doc())
+            .arg("--module")
+            .arg(extract_module())
+            .arg("--pretty"),
+        "extract",
+    );
+
+    let redacted = raw
+        .replace(env!("CARGO_PKG_VERSION"), "<cli>")
+        .replace(&engine_version_from_lockfile(), "<engine>");
+    let snapshot = include_str!("snapshots/extract-envelope.json");
+
+    assert_eq!(
+        redacted.trim_end(),
+        snapshot.trim_end(),
+        "the extract envelope drifted from tests/snapshots/extract-envelope.json.\n\
+         Read the diff before regenerating: this file exists so a key that moves, \
+         appears or vanishes cannot land unnoticed.",
+    );
+
+    // Non-vacuous: the snapshot must actually carry the redaction markers, or a
+    // regeneration that baked in literal versions would silently pass forever.
+    assert!(
+        snapshot.contains("<cli>"),
+        "the snapshot lost its redaction"
+    );
+    assert!(
+        snapshot.contains("<engine>"),
+        "the snapshot lost its redaction"
+    );
+}
