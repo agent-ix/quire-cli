@@ -12,10 +12,23 @@ use quire_cli::io::{self, exit, ColorChoice, DiagnosticsFormat};
 
 mod commands;
 
+/// `--version` reports **both** versions (#68).
+///
+/// The engine is a git dependency pinned by tag and no surface reported it, so
+/// a current CLI could link a stale engine and say nothing. Built at compile
+/// time because clap wants a `&'static str`; `engine::version_line()` is the
+/// same two values assembled for anything that needs them at runtime.
+const VERSION: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    " (engine ",
+    env!("QUIRE_ENGINE_VERSION"),
+    ")"
+);
+
 #[derive(Parser, Debug)]
 #[command(
     name = "quire",
-    version,
+    version = VERSION,
     about = "Thin CLI over quire-rs (parse, extract, lookup, edit, validate, schema)"
 )]
 struct Cli {

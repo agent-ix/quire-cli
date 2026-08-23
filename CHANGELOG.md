@@ -9,6 +9,57 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+### Added
+
+- **`--version` reports the engine, and every JSON payload carries provenance
+  (#68, CR-104).** `quire --version` reported this crate's version alone. The
+  engine is a git dependency pinned by tag in `Cargo.toml:20` and **no surface
+  reported it at all**, so a current CLI could link a stale engine and still
+  print a confident number.
+
+  Measured: the installed CLI **0.29.0** pins engine **v0.42.0**, while
+  `binding_census` — the only signal answering "did the trace binder read a
+  single test?" — landed in **v0.43.0**. Four battle-testing passes reported
+  ecosystem figures from a binary that could not emit it, and nothing in the
+  output said so. Same shape as #52, where tags 0.24.0–0.28.0 all shipped
+  binaries reporting 0.23.0.
+
+  ```
+  $ quire --version
+  quire 0.30.2 (engine 0.45.0)
+  ```
+
+  ```json
+  "engine": { "cli": "0.30.2", "engine": "0.45.0",
+              "capabilities": ["binding_census", "metrics_envelope", "…"] }
+  ```
+
+  Carried by `coverage --json`, `properties --json` and `extract`. Upgrading a
+  binary fixes one instance; putting provenance **on the payload** fixes the
+  class, because it survives being saved to disk — and a saved payload is what
+  a later reader actually reasons from.
+
+  The engine version is read from `Cargo.lock` by `build.rs`, not from a
+  constant: `quire-rs`'s own manifest says `0.33.0` while it ships `v0.45.0`, so
+  a constant would report a number nobody runs. A `-<n>-g<sha>` describe suffix
+  travels **verbatim** and is never rounded to the nearest tag.
+
+  `capabilities` is a **token list, not version arithmetic**. A consumer asserts
+  it needs `binding_census`, never that the engine is `>= 0.43.0` — a version
+  comparison in a consumer is a second place the contract lives. Each token
+  names an engine surface this binary calls, so a build linking an engine
+  lacking one does not compile.
+
+### Changed
+
+- **FR-008-AC-5 narrowed (CR-104).** It banned "a CLI version string in JSON
+  output", conflating two claims. A payload must still never carry a bare
+  `version`/`schema_version`/`$schema` naming which contract revision it
+  conforms to — that lets a payload assert its own conformance. Provenance under
+  a named `engine` object is a different claim, and its absence was the defect.
+  quire-rs FR-055-CON-2 is narrowed in the same terms, and its two published
+  schemas define the optional `engine` object.
+
 ## [0.30.2] — 2026-08-22
 
 **First release since 0.27.0 that actually publishes.** `Cargo.toml` sat at

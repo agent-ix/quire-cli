@@ -179,7 +179,19 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // (FR-008-AC-1, FR-017-AC-15): `to_json()` is unconditionally pretty
         // and the flag was silently ignored (#53). Whitespace-only — the
         // payload parses identically, and `--pretty` restores the old shape.
-        OutputFormat::Json => println!("{}", io::encode_json(&report, ctx.pretty)?),
+        //
+        // `engine::attach` adds the provenance block and nothing else (#68).
+        // A saved payload is the artifact a later reader reasons from, and
+        // without this it carries no way to learn which build produced it —
+        // the defect that let four battletest passes cite figures from a
+        // binary that could not emit `binding_census`.
+        OutputFormat::Json => println!(
+            "{}",
+            io::encode_json(
+                &quire_cli::engine::attach(serde_json::to_value(&report)?),
+                ctx.pretty
+            )?
+        ),
         OutputFormat::Tsv => print!("{}", render_tsv(&report)),
         OutputFormat::Human => emit_human(ctx, &report),
     }

@@ -123,6 +123,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         edges,
     };
 
+    // #68: provenance rides the envelope, not the inner values — `extraction`
+    // and `edges` are emitted unmodified, which is the FR-008 rule that this
+    // crate adds structure around engine output and never rewrites it.
+    let envelope = quire_cli::engine::attach(
+        serde_json::to_value(&envelope).context("encoding extract envelope")?,
+    );
     let payload = io::encode_json(&envelope, ctx.pretty).context("encoding extract envelope")?;
     io::write_primary_stdout(payload.as_bytes()).context("writing extract output")?;
     io::write_primary_stdout(b"\n").ok();
