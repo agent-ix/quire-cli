@@ -15,7 +15,9 @@ mod commands;
 #[derive(Parser, Debug)]
 #[command(
     name = "quire",
-    version,
+    // #68: both versions, from the ONE place the string is assembled. It was
+    // built here and again in `engine`, with nothing binding the two.
+    version = quire_cli::engine::VERSION_LINE,
     about = "Thin CLI over quire-rs (parse, extract, lookup, edit, validate, schema)"
 )]
 struct Cli {

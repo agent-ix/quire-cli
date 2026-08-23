@@ -47,9 +47,17 @@ fn it_004_extract_emits_envelope() {
 
 // IT-100, FR-008-AC-2, FR-008-AC-5: the `extract` payload deserializes into the
 // declared envelope — `extraction` an object, `edges` an array whose every
-// element carries string `target` and `type` — and carries no CLI version
+// element carries string `target` and `type` — and carries no BARE version
 // string. `.get("edges").is_some()` (IT-004) passes on an array of nulls, and
 // nothing else asserts the no-version rule at all.
+//
+// CR-104 (#68) narrowed AC-5. What it was protecting is unchanged: a payload
+// must not carry a loose `version` naming which shape it conforms to, because
+// that lets a payload assert its own conformance and puts the contract in two
+// places. Provenance under a named `engine` object is a different claim — which
+// BUILD produced these numbers — and its absence was the measured defect. The
+// assertion below is correspondingly narrowed rather than deleted: the ban on
+// the bare form is exactly what still holds.
 #[test]
 fn it_100_extract_payload_matches_the_declared_envelope_and_omits_version() {
     let out = quire()
@@ -74,11 +82,37 @@ fn it_100_extract_payload_matches_the_declared_envelope_and_omits_version() {
         assert!(e["type"].is_string(), "edge type is not a string: {e}");
     }
 
-    // FR-008-AC-5: no CLI version string in JSON output.
-    let version = env!("CARGO_PKG_VERSION");
+    // FR-008-AC-5 as narrowed by CR-104: no BARE version key at any level.
+    // A `"version"` sitting loose in the payload is the shape that lets a
+    // payload claim its own contract revision; that stays banned.
     assert!(
-        !body.contains(version) && !body.contains("\"version\""),
-        "the payload leaks a version string ({version}): {body}"
+        !body.contains("\"version\"") && !body.contains("\"schema_version\""),
+        "the payload carries a bare version key: {body}"
+    );
+
+    // FR-008-AC-6 (#68): provenance IS carried, under its own name, naming both
+    // versions distinctly. Asserted here rather than only in a unit test
+    // because the defect was always about what a *saved payload* carries — a
+    // reader picking this file up months later must be able to see which build
+    // wrote it.
+    let engine = &v["engine"];
+    assert_eq!(
+        engine["cli"].as_str(),
+        Some(env!("CARGO_PKG_VERSION")),
+        "the CLI version must be reported under `engine.cli`: {v}",
+    );
+    let engine_version = engine["engine"].as_str().expect("engine version");
+    assert!(
+        !engine_version.is_empty() && engine_version != "unknown",
+        "the engine version must resolve: {v}",
+    );
+    assert!(
+        engine["capabilities"]
+            .as_array()
+            .expect("capabilities array")
+            .iter()
+            .any(|t| t == "binding_census"),
+        "the capability token the ticket is about must be present: {v}",
     );
 }
 
