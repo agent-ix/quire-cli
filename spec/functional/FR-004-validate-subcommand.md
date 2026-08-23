@@ -168,6 +168,7 @@ silently ignored the flag.
 | FR-004-AC-18 | A malformed `--severity` entry (no `<grammar>:<check>=<level>` shape, an unknown level, or an empty grammar/check segment) exits non-zero with a usage diagnostic **before any document is read**, never a silently ignored flag | Test |
 | FR-004-AC-19 | A **relative document path** given with `--scope <DIR>` resolves under that scope and validates against the module the scope itself carries — the `--scope`-contains-`manifest.yaml` exact-module branch, not the search-root discovery branch, which is AC-13's — with no `--module` argument: a conformant document exits **0** with empty stdout and empty stderr | Test |
 | FR-004-AC-20 | A **relative glob** given with `--scope <DIR>` expands under that scope, and a matching non-conformant document exits **1** with a line-numbered diagnostic on stderr naming the offending file; stdout stays empty | Test |
+| FR-004-AC-23 | `--scope` decides where a relative path or glob resolves **regardless of `--module`**. Passing `--module` pins the module set and never moves document resolution to the process directory; a run with and without it selects the same documents, and a decoy file of the same relative name in the current directory is not read. | Test (IT-121, IT-122) |
 | FR-004-AC-21 | Requirement-**grammar** findings are advisory, distinct from the `object:` warning of AC-10: a structurally valid document carrying grammar violations exits **0**, and each finding appears on stderr under its `[<grammar>:<check>]` label; stdout stays empty | Test |
 | FR-004-AC-22 | `--strict` escalates grammar findings the same way it escalates the AC-11 `object:` warning — the same document that exits 0 without it exits **1** with it. This is the per-repo promotion lever: a converted repo flips its grammar to blocking in CI without a module change | Test |
 
@@ -175,3 +176,34 @@ silently ignored the flag.
 
 - **Upstream**: [US-003](../usecase/US-003-ci-validates-archetype-conformance.md) CI validates archetype conformance; quire-rs [FR-032](ix://agent-ix/quire-rs/FR-032) (`validate_document_in_registry`), [FR-047](ix://agent-ix/quire-rs/FR-047) (generic requirement-grammar summary), [FR-048](ix://agent-ix/quire-rs/FR-048) (per-check severity overrides), [FR-052](ix://agent-ix/quire-rs/FR-052) (property classification, the `--summary` extractable ratio).
 - **Downstream**: [FR-010](./FR-010-required-section-validation.md) structural-validation surfacing; [FR-014](./FR-014-validate-okf-bundle.md) `--okf` bundle posture.
+
+
+> **CR-011 note (2026-08-22):** `agent-ix/quire-cli#63`. `--module` silently
+> moved relative glob resolution off `--scope` and onto the **process
+> directory**.
+>
+> `run` computed `let scoped = args.module.is_none()` and threaded it into
+> `scoped_path`, so the two flags fought and the undocumented one won.
+> Measured: `quire validate --scope <clean 2-document corpus> --module <m>
+> "spec/*.md"`, run from a repository root, reported **7 failures belonging to
+> that repository** — exit 1, well-formed line-numbered diagnostics, and
+> nothing anywhere saying which tree had been read. The same command without
+> `--module` was silent, correctly.
+>
+> This is the failure class the metric-integrity programme exists to end, in
+> the tool that reports it: a result computed over the wrong population and
+> published with nothing saying so. Any `properties` or `validate` measurement
+> taken with both flags described the caller's cwd, which is also why
+> `agent-ix/quoin#219` could not read a criterion — the runner kept scoring the
+> wrong repository.
+>
+> **`--scope` now always wins**, matching `coverage`, and the `scoped`
+> parameter is gone rather than defaulted — a flag two call sites can disagree
+> about is one that will disagree again. `--scope` defaults to `.`, so the
+> documented `--module`-without-`--scope` form in the READMEs is byte-for-byte
+> unaffected; a sweep of `~/dev` found no executable caller passing `--scope`,
+> `--module` and a relative glob together.
+>
+> The AC text and both `--scope` help strings previously *documented* the
+> footgun ("resolved under --scope when --module is omitted"). Documenting a
+> silent wrong answer does not make it a contract.

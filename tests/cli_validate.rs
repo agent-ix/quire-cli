@@ -503,3 +503,71 @@ fn it_106_ears_grammar_warnings_fail_under_strict() {
         .failure()
         .code(1);
 }
+
+// IT-121, FR-004-AC-19 (CR-011, #63): `--scope` decides where a relative glob
+// resolves, and `--module` does NOT change that.
+//
+// This gated on `args.module.is_none()`, so passing `--module` silently moved
+// resolution to the process cwd. Run from a repository root against a corpus
+// elsewhere, `validate` reported **failures belonging to the caller's own
+// repo** — exit 1, plausible diagnostics, wrong tree, nothing saying so. The
+// two invocations below must agree; before the fix the second one read
+// whatever `spec/` happened to sit in the cwd.
+#[test]
+fn it_121_module_does_not_move_glob_resolution_off_scope() {
+    let expected = quire()
+        .arg("validate")
+        .arg("docs/valid-fr.md")
+        .arg("--scope")
+        .arg(validate_module())
+        .assert()
+        .success();
+    let without = String::from_utf8_lossy(&expected.get_output().stderr).to_string();
+
+    // Same scope, same document, now with the module pinned explicitly.
+    let with_module = quire()
+        .arg("validate")
+        .arg("docs/valid-fr.md")
+        .arg("--scope")
+        .arg(validate_module())
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .success();
+    let with = String::from_utf8_lossy(&with_module.get_output().stderr).to_string();
+
+    assert_eq!(
+        without, with,
+        "--module must not change which documents --scope selects"
+    );
+}
+
+// IT-122, FR-004-AC-20 (CR-011, #63): the glob form of the same guard, run
+// with the process cwd deliberately elsewhere.
+//
+// A glob is the case that bit: `--scope <corpus> --module <m> "docs/*.md"`
+// expanded against the cwd, so the run graded a repository nobody named.
+#[test]
+fn it_122_scoped_glob_ignores_the_process_directory() {
+    let elsewhere = tempfile::tempdir().expect("temp cwd");
+    std::fs::create_dir_all(elsewhere.path().join("docs")).expect("decoy docs dir");
+    // A decoy the run must NOT read: if resolution slips to the cwd, this
+    // invalid document is what gets validated and the assertion below fails.
+    std::fs::write(
+        elsewhere.path().join("docs").join("valid-fr.md"),
+        "---\ntype: FR\n---\n\n# not the corpus\n",
+    )
+    .expect("decoy document");
+
+    quire()
+        .current_dir(elsewhere.path())
+        .arg("validate")
+        .arg("docs/valid-fr.md")
+        .arg("--scope")
+        .arg(validate_module())
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .success()
+        .stderr(predicate::str::is_empty());
+}
