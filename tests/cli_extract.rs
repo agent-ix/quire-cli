@@ -114,6 +114,14 @@ fn it_100_extract_payload_matches_the_declared_envelope_and_omits_version() {
             .any(|t| t == "binding_census"),
         "the capability token the ticket is about must be present: {v}",
     );
+    assert!(
+        engine["capabilities"]
+            .as_array()
+            .expect("capabilities array")
+            .iter()
+            .any(|t| t == "binding_census.tagged"),
+        "the tagged-versus-read census capability must be present: {v}",
+    );
 }
 
 // IT-020, FR-003-AC-4: an `extract` rerun produces byte-identical stdout.

@@ -50,6 +50,9 @@ pub const CAPABILITIES: &[&str] = &[
     // `CoverageReport.binding_census` — what the trace binder examined and what
     // bound, per language (quire-rs FR-050-AC-27, v0.43.0).
     "binding_census",
+    // `BindingCensus.tagged` and `unmatched_example` — authored absence is
+    // distinct from a tag the declared grammar missed (quire-rs #271).
+    "binding_census.tagged",
     // `CoverageReport.metrics` — every headline ratio with its unit,
     // population, `examined` and `matched` (quire-rs FR-063, v0.44.0).
     "metrics_envelope",
@@ -284,6 +287,14 @@ mod tests {
                 .expect("capabilities array")
                 .iter()
                 .any(|t| t == "binding_census"),
+            "{engine}",
+        );
+        assert!(
+            engine["capabilities"]
+                .as_array()
+                .expect("capabilities array")
+                .iter()
+                .any(|t| t == "binding_census.tagged"),
             "{engine}",
         );
     }

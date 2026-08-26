@@ -22,6 +22,7 @@
     "engine": "<engine>",
     "capabilities": [
       "binding_census",
+      "binding_census.tagged",
       "metrics_envelope",
       "suspicions",
       "specific_shaped"

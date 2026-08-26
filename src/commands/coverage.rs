@@ -530,21 +530,17 @@ fn census_lines(report: &quire_rs::CoverageReport) -> Vec<String> {
             } else {
                 c.forms.join(", ")
             };
-            // The example is for the UNREAD case. On a fully-bound language
-            // there is nothing to look at, and naming a symbol anyway would
-            // read as a finding where there is none.
-            let at = match &c.unbound_example {
-                Some(e) if c.bound < c.candidates => {
-                    format!(", e.g. `{}` at {}:{}", e.symbol, e.path, e.line)
-                }
-                _ => String::new(),
-            };
+            let unmatched = c.unmatched_example.as_ref().map_or_else(String::new, |e| {
+                format!(", unread tag `{}` at {}:{}", e.symbol, e.path, e.line)
+            });
             format!(
-                "{}: {}/{} evidence symbols bound ({}; forms: {forms}{at})",
+                "{}: {}/{}/{} bound/tagged/candidates ({} read; {} authored; forms: {forms}{unmatched})",
                 c.language,
                 c.bound,
+                c.tagged,
                 c.candidates,
-                percent_label(c.bound, c.candidates)
+                percent_label(c.bound, c.candidates),
+                percent_label(c.tagged, c.candidates)
             )
         })
         .collect()
@@ -751,6 +747,7 @@ mod tests {
             BindingCensus {
                 language: "rust".to_string(),
                 candidates: 1513,
+                tagged: 1400,
                 bound: 1344,
                 forms: vec!["rust-trace-attribute".to_string()],
                 unbound_example: Some(UnboundSymbol {
@@ -758,10 +755,16 @@ mod tests {
                     line: 732,
                     symbol: "tests::covers".to_string(),
                 }),
+                unmatched_example: Some(UnboundSymbol {
+                    path: "crates/a/src/lib.rs".to_string(),
+                    line: 700,
+                    symbol: "tests::misspelled".to_string(),
+                }),
             },
             BindingCensus {
                 language: "typescript".to_string(),
                 candidates: 12,
+                tagged: 12,
                 bound: 12,
                 forms: vec!["ts-trace-helper".to_string()],
                 // Fully bound, so nothing to look at even if an example
@@ -771,6 +774,7 @@ mod tests {
                     line: 4,
                     symbol: "stale".to_string(),
                 }),
+                unmatched_example: None,
             },
         ];
         let mut report = quire_rs::CoverageReport {
@@ -784,14 +788,16 @@ mod tests {
         // without `1344/1513 bound` is the whole defect this renders for.
         assert_eq!(
             lines[0],
-            "rust: 1344/1513 evidence symbols bound (88%; forms: rust-trace-attribute, \
-             e.g. `tests::covers` at crates/a/src/lib.rs:732)"
+            "rust: 1344/1400/1513 bound/tagged/candidates (88% read; 92% authored; \
+             forms: rust-trace-attribute, unread tag `tests::misspelled` at \
+             crates/a/src/lib.rs:700)"
         );
         // A fully-bound language names no example: there is nothing unread, and
         // pointing at a symbol anyway reads as a finding where there is none.
         assert_eq!(
             lines[1],
-            "typescript: 12/12 evidence symbols bound (100%; forms: ts-trace-helper)"
+            "typescript: 12/12/12 bound/tagged/candidates (100% read; 100% authored; \
+             forms: ts-trace-helper)"
         );
 
         report.metrics = vec![

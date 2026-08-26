@@ -52,6 +52,10 @@ fn assert_provenance(payload: &Value, surface: &str) {
         "{surface}: `binding_census` is the token this whole ticket is about: {engine}",
     );
     assert!(
+        capabilities.iter().any(|t| t == "binding_census.tagged"),
+        "{surface}: tagged-versus-read census capability is missing: {engine}",
+    );
+    assert!(
         capabilities.iter().all(|t| t.is_string()),
         "{surface}: every capability must be a string token: {engine}",
     );
