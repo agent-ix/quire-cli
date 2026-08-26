@@ -9,6 +9,7 @@ Commands:
   edit        Edit one section/block of a document in place via byte-exact writeback
   validate    Validate a markdown document against its archetype structure
   coverage    AC→TC→code coverage rollup (FR-050). Reports; does not judge
+  symbols     Report the extracted symbol table, as the engine built it (#309)
   properties  Per-criterion property-shape classification (FR-052). Reports; never a finding
   schema      Emit an archetype's input contract (frontmatter schema + asserts) as JSON
   lint        Evaluate the module's advisory lint rules against a document

@@ -52,6 +52,8 @@ enum Command {
     Validate(commands::validate::Args),
     /// AC→TC→code coverage rollup (FR-050). Reports; does not judge.
     Coverage(commands::coverage::Args),
+    /// Report the extracted symbol table, as the engine built it (#309).
+    Symbols(commands::symbols::Args),
     /// Per-criterion property-shape classification (FR-052). Reports; never a finding.
     Properties(commands::properties::Args),
     /// Emit an archetype's input contract (frontmatter schema + asserts) as JSON.
@@ -76,6 +78,7 @@ fn main() {
         Command::Lookup(a) => commands::lookup::run(&ctx, a),
         Command::Edit(a) => commands::edit::run(&ctx, a),
         Command::Coverage(a) => commands::coverage::run(&ctx, a),
+        Command::Symbols(a) => commands::symbols::run(&ctx, a),
         Command::Validate(a) => commands::validate::run(&ctx, a),
         Command::Properties(a) => commands::properties::run(&ctx, a),
         Command::Schema(a) => commands::schema::run(&ctx, a),

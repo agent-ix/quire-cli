@@ -11,6 +11,7 @@ pub mod lookup;
 pub mod parse;
 pub mod properties;
 pub mod schema;
+pub mod symbols;
 pub mod update;
 pub mod validate;
 

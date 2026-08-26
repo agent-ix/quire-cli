@@ -707,7 +707,22 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
 /// Same module resolution as `validate`: an explicit `--module`, else a
 /// `manifest.yaml` at the scope root, else scoped discovery.
 fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
-    if let Some(raw) = &args.module {
+    load_registry_for(ctx, &args.module, scope)
+}
+
+/// The module-resolution `coverage` performs, taking the flag rather than the
+/// whole `Args` so a sibling command resolves modules identically.
+///
+/// Shared rather than restated: `quire symbols` reports over the same walk and
+/// the same declaration, and two resolution orders would let the two commands
+/// disagree about which module is in scope for the same invocation — which is
+/// the class of drift this repository keeps finding one list at a time.
+pub(super) fn load_registry_for(
+    ctx: &Ctx,
+    module: &Option<String>,
+    scope: &Path,
+) -> anyhow::Result<Registry> {
+    if let Some(raw) = module {
         let module = safety::validate_module_path(raw)
             .with_context(|| format!("validating --module '{raw}'"))?;
         return super::load_module_registry(ctx, &module);
