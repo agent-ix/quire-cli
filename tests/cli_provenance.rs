@@ -60,6 +60,10 @@ fn assert_provenance(payload: &Value, surface: &str) {
         "{surface}: minted-target row capability is missing: {engine}",
     );
     assert!(
+        capabilities.iter().any(|t| t == "reference_only_targets"),
+        "{surface}: reference-only target capability is missing: {engine}",
+    );
+    assert!(
         capabilities.iter().any(|t| t == "unmatched_tags"),
         "{surface}: unmatched authored-tag capability is missing: {engine}",
     );

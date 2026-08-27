@@ -135,6 +135,14 @@ fn it_100_extract_payload_matches_the_declared_envelope_and_omits_version() {
             .as_array()
             .expect("capabilities array")
             .iter()
+            .any(|t| t == "reference_only_targets"),
+        "the reference-only target capability must be present: {v}",
+    );
+    assert!(
+        engine["capabilities"]
+            .as_array()
+            .expect("capabilities array")
+            .iter()
             .any(|t| t == "unmatched_tags"),
         "the unmatched authored-tag capability must be present: {v}",
     );

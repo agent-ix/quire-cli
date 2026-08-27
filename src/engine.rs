@@ -59,6 +59,9 @@ pub const CAPABILITIES: &[&str] = &[
     // `CoverageReport.minted_targets` — row identity and backed state behind
     // aggregate coverage totals (quire-rs FR-050-AC-38, #361).
     "minted_targets",
+    // `TraceTarget.evidence` — reference registries resolve ids without
+    // entering source-evidence totals (quire-rs FR-050-AC-40, #363).
+    "reference_only_targets",
     // `CoverageReport.unmatched_tags` — row-addressable generic ids from the
     // engine-owned annotation scan (quire-rs FR-050-AC-39, #362).
     "unmatched_tags",
@@ -202,6 +205,10 @@ mod capability_witnesses {
     const _: fn(&CoverageReport) -> &[quire_rs::metric::Metric] = |r| &r.metrics;
     // `minted_targets` (FR-050-AC-38, #361)
     const _: fn(&CoverageReport) -> usize = |r| r.minted_targets.len();
+    // `reference_only_targets` (FR-050-AC-40, #363)
+    const _: fn(
+        &quire_rs::traceability::TraceTarget,
+    ) -> quire_rs::traceability::TraceTargetEvidence = |target| target.evidence;
     // `unmatched_tags` (FR-050-AC-39, #362)
     const _: fn(&CoverageReport) -> &[quire_rs::symbols::trace::UnmatchedTag] =
         |r| &r.unmatched_tags;
@@ -316,6 +323,14 @@ mod tests {
                 .expect("capabilities array")
                 .iter()
                 .any(|t| t == "minted_targets"),
+            "{engine}",
+        );
+        assert!(
+            engine["capabilities"]
+                .as_array()
+                .expect("capabilities array")
+                .iter()
+                .any(|t| t == "reference_only_targets"),
             "{engine}",
         );
         assert!(
