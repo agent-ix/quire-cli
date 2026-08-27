@@ -56,6 +56,9 @@ pub const CAPABILITIES: &[&str] = &[
     // `CoverageReport.metrics` — every headline ratio with its unit,
     // population, `examined` and `matched` (quire-rs FR-063, v0.44.0).
     "metrics_envelope",
+    // `CoverageReport.minted_targets` — row identity and backed state behind
+    // aggregate coverage totals (quire-rs FR-050-AC-38, #361).
+    "minted_targets",
     // `CoverageReport.suspicions` — advisory shape findings (quire-rs FR-064).
     "suspicions",
     // `AcClassification::property.is_specific()` — the catch-all split out of
@@ -295,6 +298,14 @@ mod tests {
                 .expect("capabilities array")
                 .iter()
                 .any(|t| t == "binding_census.tagged"),
+            "{engine}",
+        );
+        assert!(
+            engine["capabilities"]
+                .as_array()
+                .expect("capabilities array")
+                .iter()
+                .any(|t| t == "minted_targets"),
             "{engine}",
         );
     }

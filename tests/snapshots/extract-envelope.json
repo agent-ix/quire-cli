@@ -24,6 +24,7 @@
       "binding_census",
       "binding_census.tagged",
       "metrics_envelope",
+      "minted_targets",
       "suspicions",
       "specific_shaped"
     ]

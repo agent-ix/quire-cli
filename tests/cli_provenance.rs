@@ -56,6 +56,10 @@ fn assert_provenance(payload: &Value, surface: &str) {
         "{surface}: tagged-versus-read census capability is missing: {engine}",
     );
     assert!(
+        capabilities.iter().any(|t| t == "minted_targets"),
+        "{surface}: minted-target row capability is missing: {engine}",
+    );
+    assert!(
         capabilities.iter().all(|t| t.is_string()),
         "{surface}: every capability must be a string token: {engine}",
     );
