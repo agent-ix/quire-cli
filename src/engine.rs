@@ -59,6 +59,9 @@ pub const CAPABILITIES: &[&str] = &[
     // `CoverageReport.minted_targets` — row identity and backed state behind
     // aggregate coverage totals (quire-rs FR-050-AC-38, #361).
     "minted_targets",
+    // `CoverageReport.unmatched_tags` — row-addressable generic ids from the
+    // engine-owned annotation scan (quire-rs FR-050-AC-39, #362).
+    "unmatched_tags",
     // `CoverageReport.suspicions` — advisory shape findings (quire-rs FR-064).
     "suspicions",
     // `AcClassification::property.is_specific()` — the catch-all split out of
@@ -193,8 +196,15 @@ mod capability_witnesses {
     // `binding_census` (quire-rs FR-050-AC-27, v0.43.0)
     const _: fn(&CoverageReport) -> &[quire_rs::symbols::trace::BindingCensus] =
         |r| &r.binding_census;
+    // `binding_census.tagged` (#271)
+    const _: fn(&CoverageReport) -> usize = |r| r.binding_census.iter().map(|c| c.tagged).sum();
     // `metrics_envelope` (FR-063, v0.44.0)
     const _: fn(&CoverageReport) -> &[quire_rs::metric::Metric] = |r| &r.metrics;
+    // `minted_targets` (FR-050-AC-38, #361)
+    const _: fn(&CoverageReport) -> usize = |r| r.minted_targets.len();
+    // `unmatched_tags` (FR-050-AC-39, #362)
+    const _: fn(&CoverageReport) -> &[quire_rs::symbols::trace::UnmatchedTag] =
+        |r| &r.unmatched_tags;
     // `suspicions` (FR-064)
     const _: fn(&CoverageReport) -> usize = |r| r.suspicions.len();
     // `specific_shaped` (CR-095)
@@ -306,6 +316,14 @@ mod tests {
                 .expect("capabilities array")
                 .iter()
                 .any(|t| t == "minted_targets"),
+            "{engine}",
+        );
+        assert!(
+            engine["capabilities"]
+                .as_array()
+                .expect("capabilities array")
+                .iter()
+                .any(|t| t == "unmatched_tags"),
             "{engine}",
         );
     }
