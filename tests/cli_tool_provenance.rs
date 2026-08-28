@@ -29,6 +29,7 @@ fn provenance_reports_the_full_engine_revision_and_sorted_capabilities() {
     assert_eq!(*capabilities, sorted);
     for required in [
         "action_guidance.structured",
+        "binding_census.self_named",
         "declaration_origins",
         "property_spans.safe_refusal",
     ] {

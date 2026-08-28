@@ -119,6 +119,14 @@ fn it_100_extract_payload_matches_the_declared_envelope_and_omits_version() {
             .as_array()
             .expect("capabilities array")
             .iter()
+            .any(|t| t == "binding_census.self_named"),
+        "the mixed-channel self-name census capability must be present: {v}",
+    );
+    assert!(
+        engine["capabilities"]
+            .as_array()
+            .expect("capabilities array")
+            .iter()
             .any(|t| t == "binding_census.tagged"),
         "the tagged-versus-read census capability must be present: {v}",
     );

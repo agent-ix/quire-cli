@@ -56,6 +56,9 @@ pub const CAPABILITIES: &[&str] = &[
     // `CoverageReport.binding_census` — what the trace binder examined and what
     // bound, per language (quire-rs FR-050-AC-27, v0.43.0).
     "binding_census",
+    // A self-named evidence-symbol subpopulation that comment/attribute
+    // bindings cannot mask (quire-rs FR-050-AC-44, #367).
+    "binding_census.self_named",
     // `BindingCensus.tagged` and `unmatched_example` — authored absence is
     // distinct from a tag the declared grammar missed (quire-rs #271).
     "binding_census.tagged",
@@ -280,6 +283,8 @@ mod capability_witnesses {
     // `binding_census` (quire-rs FR-050-AC-27, v0.43.0)
     const _: fn(&CoverageReport) -> &[quire_rs::symbols::trace::BindingCensus] =
         |r| &r.binding_census;
+    // `binding_census.self_named` (quire-rs FR-050-AC-44, #367)
+    const _: fn(&CoverageReport) -> usize = |r| r.binding_census.iter().map(|c| c.self_named).sum();
     // `binding_census.tagged` (#271)
     const _: fn(&CoverageReport) -> usize = |r| r.binding_census.iter().map(|c| c.tagged).sum();
     // `metrics_envelope` (FR-063, v0.44.0)
@@ -400,6 +405,14 @@ mod tests {
                 .expect("capabilities array")
                 .iter()
                 .any(|t| t == "binding_census"),
+            "{engine}",
+        );
+        assert!(
+            engine["capabilities"]
+                .as_array()
+                .expect("capabilities array")
+                .iter()
+                .any(|t| t == "binding_census.self_named"),
             "{engine}",
         );
         assert!(

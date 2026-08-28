@@ -52,6 +52,12 @@ fn assert_provenance(payload: &Value, surface: &str) {
         "{surface}: `binding_census` is the token this whole ticket is about: {engine}",
     );
     assert!(
+        capabilities
+            .iter()
+            .any(|t| t == "binding_census.self_named"),
+        "{surface}: mixed-channel self-name census capability is missing: {engine}",
+    );
+    assert!(
         capabilities.iter().any(|t| t == "binding_census.tagged"),
         "{surface}: tagged-versus-read census capability is missing: {engine}",
     );
