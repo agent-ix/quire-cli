@@ -29,6 +29,10 @@ pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// to [`CLI_VERSION`]: a plausible-looking substitute is the failure this
 /// module exists to end.
 pub const ENGINE_VERSION: &str = env!("QUIRE_ENGINE_VERSION");
+pub const ENGINE_MANIFEST_VERSION: &str = env!("QUIRE_ENGINE_MANIFEST_VERSION");
+pub const ENGINE_SOURCE_REVISION: &str = env!("QUIRE_ENGINE_SOURCE_REVISION");
+pub const CLI_SOURCE_REVISION: &str = env!("QUIRE_CLI_SOURCE_REVISION");
+pub const TOOL_PROVENANCE_SCHEMA: &str = "quire-tool-provenance-v1";
 
 /// What this build can emit, as tokens.
 ///
@@ -47,30 +51,100 @@ pub const ENGINE_VERSION: &str = env!("QUIRE_ENGINE_VERSION");
 /// written against an older list, which is why the published schemas do not
 /// enumerate it.
 pub const CAPABILITIES: &[&str] = &[
+    // Structured subject/change-target/exclusive next move on findings (#364).
+    "action_guidance.structured",
     // `CoverageReport.binding_census` — what the trace binder examined and what
     // bound, per language (quire-rs FR-050-AC-27, v0.43.0).
     "binding_census",
     // `BindingCensus.tagged` and `unmatched_example` — authored absence is
     // distinct from a tag the declared grammar missed (quire-rs #271).
     "binding_census.tagged",
+    // Declaration diagnostics retain the exact authored path and line (#365).
+    "declaration_origins",
     // `CoverageReport.metrics` — every headline ratio with its unit,
     // population, `examined` and `matched` (quire-rs FR-063, v0.44.0).
     "metrics_envelope",
     // `CoverageReport.minted_targets` — row identity and backed state behind
     // aggregate coverage totals (quire-rs FR-050-AC-38, #361).
     "minted_targets",
+    // A specific property classification carries exact spans or a named safe refusal (#241).
+    "property_spans.safe_refusal",
     // `TraceTarget.evidence` — reference registries resolve ids without
     // entering source-evidence totals (quire-rs FR-050-AC-40, #363).
     "reference_only_targets",
     // `CoverageReport.unmatched_tags` — row-addressable generic ids from the
     // engine-owned annotation scan (quire-rs FR-050-AC-39, #362).
-    "unmatched_tags",
-    // `CoverageReport.suspicions` — advisory shape findings (quire-rs FR-064).
-    "suspicions",
     // `AcClassification::property.is_specific()` — the catch-all split out of
     // the extractable headline (quire-rs CR-095).
     "specific_shaped",
+    // `CoverageReport.suspicions` — advisory shape findings (quire-rs FR-064).
+    "suspicions",
+    "unmatched_tags",
 ];
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SourceState {
+    Clean,
+    Dirty,
+    Unknown,
+}
+
+impl SourceState {
+    fn from_build(value: &str) -> Self {
+        match value {
+            "clean" => Self::Clean,
+            "dirty" => Self::Dirty,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentProvenance {
+    pub version: &'static str,
+    pub source_revision: Option<&'static str>,
+    pub source_state: SourceState,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolProvenance {
+    pub schema_version: &'static str,
+    pub cli: ComponentProvenance,
+    pub engine: ComponentProvenance,
+    pub capabilities: Vec<&'static str>,
+}
+
+fn known_revision(value: &'static str) -> Option<&'static str> {
+    (value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit())).then_some(value)
+}
+
+impl ToolProvenance {
+    pub fn current() -> Self {
+        let mut capabilities = CAPABILITIES.to_vec();
+        capabilities.sort_unstable();
+        Self {
+            schema_version: TOOL_PROVENANCE_SCHEMA,
+            cli: ComponentProvenance {
+                version: CLI_VERSION,
+                source_revision: known_revision(CLI_SOURCE_REVISION),
+                source_state: SourceState::from_build(env!("QUIRE_CLI_SOURCE_STATE")),
+            },
+            engine: ComponentProvenance {
+                version: ENGINE_MANIFEST_VERSION,
+                source_revision: known_revision(ENGINE_SOURCE_REVISION),
+                source_state: if known_revision(ENGINE_SOURCE_REVISION).is_some() {
+                    SourceState::Clean
+                } else {
+                    SourceState::Unknown
+                },
+            },
+            capabilities,
+        }
+    }
+}
 
 /// The provenance block carried by every JSON payload.
 ///
@@ -172,8 +246,12 @@ pub fn attach<T: Serialize>(inner: T) -> WithProvenance<T> {
 /// suite green.
 pub const VERSION_LINE: &str = concat!(
     env!("CARGO_PKG_VERSION"),
-    " (engine ",
-    env!("QUIRE_ENGINE_VERSION"),
+    " (cli ",
+    env!("QUIRE_CLI_SOURCE_SHORT"),
+    ", engine ",
+    env!("QUIRE_ENGINE_MANIFEST_VERSION"),
+    "@",
+    env!("QUIRE_ENGINE_SOURCE_SHORT"),
     ")"
 );
 
@@ -196,6 +274,9 @@ pub const VERSION_LINE: &str = concat!(
 mod capability_witnesses {
     use quire_rs::{AcClassification, CoverageReport};
 
+    // `action_guidance.structured` (#364)
+    const _: fn(&quire_rs::coverage::CoverageDiagnostic) -> bool = |d| d.guidance.is_some();
+
     // `binding_census` (quire-rs FR-050-AC-27, v0.43.0)
     const _: fn(&CoverageReport) -> &[quire_rs::symbols::trace::BindingCensus] =
         |r| &r.binding_census;
@@ -205,6 +286,11 @@ mod capability_witnesses {
     const _: fn(&CoverageReport) -> &[quire_rs::metric::Metric] = |r| &r.metrics;
     // `minted_targets` (FR-050-AC-38, #361)
     const _: fn(&CoverageReport) -> usize = |r| r.minted_targets.len();
+    // `declaration_origins` (#365)
+    const _: fn(&quire_rs::Registry) -> bool = |r| r.traceability_origin().is_some();
+    // `property_spans.safe_refusal` (#241)
+    const _: fn(&AcClassification) -> bool =
+        |c| c.domain.is_some() || c.signals.iter().any(|s| s.starts_with("span:refused-"));
     // `reference_only_targets` (FR-050-AC-40, #363)
     const _: fn(
         &quire_rs::traceability::TraceTarget,
@@ -256,7 +342,14 @@ mod tests {
         // exactly the vacuity this whole module exists to prevent.
         assert!(!ENGINE_VERSION.is_empty());
         assert!(VERSION_LINE.contains(CLI_VERSION), "{VERSION_LINE}");
-        assert!(VERSION_LINE.contains(ENGINE_VERSION), "{VERSION_LINE}");
+        assert!(
+            VERSION_LINE.contains(ENGINE_MANIFEST_VERSION),
+            "{VERSION_LINE}"
+        );
+        assert!(
+            VERSION_LINE.contains(env!("QUIRE_ENGINE_SOURCE_SHORT")),
+            "{VERSION_LINE}"
+        );
         assert!(
             VERSION_LINE.contains("engine"),
             "the engine number must be labelled, or the two are indistinguishable: {VERSION_LINE}",
@@ -352,5 +445,22 @@ mod tests {
         assert_eq!(before, sorted.len(), "duplicate capability token");
         assert!(!CAPABILITIES.is_empty());
         assert!(CAPABILITIES.iter().all(|t| !t.is_empty()));
+        assert_eq!(
+            CAPABILITIES, sorted,
+            "capabilities must be published sorted"
+        );
+    }
+
+    #[test]
+    fn machine_provenance_is_versioned_complete_and_deterministic() {
+        let first = serde_json::to_string(&ToolProvenance::current()).expect("serializes");
+        let second = serde_json::to_string(&ToolProvenance::current()).expect("serializes");
+        assert_eq!(first, second);
+        let parsed: serde_json::Value = serde_json::from_str(&first).expect("valid JSON");
+        assert_eq!(parsed["schemaVersion"], TOOL_PROVENANCE_SCHEMA);
+        assert_eq!(parsed["cli"]["version"], CLI_VERSION);
+        assert_eq!(parsed["engine"]["version"], ENGINE_MANIFEST_VERSION);
+        assert_eq!(parsed["engine"]["sourceRevision"], ENGINE_SOURCE_REVISION);
+        assert_eq!(parsed["engine"]["sourceState"], "clean");
     }
 }

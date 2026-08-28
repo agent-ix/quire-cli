@@ -32,15 +32,15 @@ fmt-check:
 
 .PHONY: lint
 lint:
-	$(CARGO) clippy --all-targets -- -D warnings
+	$(CARGO) clippy --locked --all-targets -- -D warnings
 
 .PHONY: test
 test:
-	$(CARGO) test
+	$(CARGO) test --locked
 
 .PHONY: build
 build:
-	$(CARGO) build --release
+	$(CARGO) build --locked --release
 
 .PHONY: clean
 clean:
@@ -86,7 +86,7 @@ BENCH_P95_MS ?= 50
 
 .PHONY: bench
 bench:
-	$(CARGO) build --release
+	$(CARGO) build --locked --release
 	hyperfine --shell=none --warmup 5 --runs 50 --export-json /tmp/quire-cli-bench.json \
 		'$(CURDIR)/target/release/quire validate $(CURDIR)/tests/fixtures/iso-docs/FR-valid.md --module $(CURDIR)/tests/fixtures/iso'
 	@python3 -c "import json; \
@@ -116,5 +116,9 @@ refresh-fixtures:
 # Composite
 # =============================================================================
 
+.PHONY: audit-tool-drift
+audit-tool-drift:
+	bash scripts/check_tool_drift.sh
+
 .PHONY: ci
-ci: fmt-check lint test deny deny-bans audit-unsafe audit-thin-boundary
+ci: fmt-check lint test deny deny-bans audit-unsafe audit-thin-boundary audit-tool-drift

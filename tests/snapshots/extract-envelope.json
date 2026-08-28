@@ -21,14 +21,17 @@
     "cli": "<cli>",
     "engine": "<engine>",
     "capabilities": [
+      "action_guidance.structured",
       "binding_census",
       "binding_census.tagged",
+      "declaration_origins",
       "metrics_envelope",
       "minted_targets",
+      "property_spans.safe_refusal",
       "reference_only_targets",
-      "unmatched_tags",
+      "specific_shaped",
       "suspicions",
-      "specific_shaped"
+      "unmatched_tags"
     ]
   }
 }

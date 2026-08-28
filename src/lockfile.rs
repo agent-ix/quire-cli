@@ -23,6 +23,22 @@
 /// engine is a fact a caller must be able to see, and substituting something
 /// plausible is the confident-but-wrong claim this file exists to prevent.
 pub fn engine_version(lock: &str) -> Option<String> {
+    selected_engine(lock).and_then(|resolved| resolved.version())
+}
+
+/// The engine crate's semantic version from the selected Cargo package.
+pub fn engine_manifest_version(lock: &str) -> Option<String> {
+    selected_engine(lock).and_then(|resolved| resolved.manifest_version)
+}
+
+/// The full immutable engine source revision Cargo resolved.
+pub fn engine_source_revision(lock: &str) -> Option<String> {
+    selected_engine(lock)
+        .and_then(|resolved| resolved.source.as_deref().and_then(git_sha))
+        .filter(|revision| revision.len() == 40 && revision.bytes().all(|b| b.is_ascii_hexdigit()))
+}
+
+fn selected_engine(lock: &str) -> Option<Resolved> {
     // Every `[[package]]` stanza named `quire-rs`, in file order. Collected
     // rather than short-circuited on the first, because a lockfile can carry
     // more than one — `deny.toml` sets `multiple-versions = "allow"`, and Cargo
@@ -73,11 +89,11 @@ pub fn engine_version(lock: &str) -> Option<String> {
         .iter()
         .find(|c| c.source.as_deref().is_some_and(|s| s.starts_with("git+")))
         .or_else(|| candidates.first())
-        .and_then(Resolved::version)
+        .cloned()
 }
 
 /// One `[[package]]` stanza named `quire-rs`.
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct Resolved {
     manifest_version: Option<String>,
     source: Option<String>,
@@ -300,5 +316,14 @@ version = "0.3.0"
             "the CLI version must never be reported as the engine version",
         );
         assert!(!resolved.is_empty());
+    }
+
+    #[test]
+    fn machine_provenance_separates_semantic_version_from_full_source_revision() {
+        assert_eq!(engine_manifest_version(LOCK).as_deref(), Some("0.33.0"));
+        assert_eq!(
+            engine_source_revision(LOCK).as_deref(),
+            Some("99e97f013d858ff678b7c0783c1998703c268d71")
+        );
     }
 }

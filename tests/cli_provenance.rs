@@ -105,10 +105,10 @@ fn it_123_version_reports_the_cli_and_the_engine() {
     // word "engine" appeared — so mutating the format string to
     // `"(engine )"` left this test green and shipped a `--version` that named
     // no engine at all. That is the whole defect, passing its own gate.
-    let engine = engine_version_from_lockfile();
+    let engine = engine_revision_from_lockfile();
     assert!(
-        line.contains(&engine),
-        "`--version` must name the resolved engine version `{engine}`: {line}",
+        line.contains(&engine[..8]),
+        "`--version` must name the resolved engine revision `{engine}`: {line}",
     );
     assert!(
         line.contains("engine"),
@@ -126,6 +126,12 @@ fn it_123_version_reports_the_cli_and_the_engine() {
 /// the point is that the SHIPPED BINARY reports it, and a test that asked the
 /// library for the expected value and then checked the library's own constant
 /// would be comparing a value to itself.
+fn engine_revision_from_lockfile() -> String {
+    let lock = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.lock"))
+        .expect("Cargo.lock");
+    quire_cli::lockfile::engine_source_revision(&lock).expect("quire-rs is a dependency")
+}
+
 fn engine_version_from_lockfile() -> String {
     let lock = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.lock"))
         .expect("Cargo.lock");

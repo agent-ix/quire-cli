@@ -11,6 +11,7 @@ Commands:
   coverage    AC→TC→code coverage rollup (FR-050). Reports; does not judge
   symbols     Report the extracted symbol table, as the engine built it (#309)
   properties  Per-criterion property-shape classification (FR-052). Reports; never a finding
+  provenance  Report exact CLI/engine source identity and capabilities as JSON
   schema      Emit an archetype's input contract (frontmatter schema + asserts) as JSON
   lint        Evaluate the module's advisory lint rules against a document
   fix         Surface (and with --write, apply) internal relative-path link fixes
