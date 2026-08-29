@@ -17,7 +17,7 @@ name = "quire"
 path = "src/main.rs"
 
 [dependencies]
-quire-rs = { git = "https://github.com/agent-ix/quire-rs", rev = "26397156f8676911bcd311d42538c1f6b49eb111" }
+quire-rs = { git = "https://github.com/agent-ix/quire-rs", rev = "ca7362d4dacecb96f01d74d1d971327118c25917" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
