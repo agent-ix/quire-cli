@@ -19,6 +19,10 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use assert_cmd::cargo::CommandCargoExt;
+use quire_rs::clauses::{
+    Clause, ClauseForce, ClauseSet, ClauseSetRights, StructureRights, TextRights,
+};
+use tempfile::TempDir;
 
 fn iso_module() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/iso")
@@ -61,6 +65,52 @@ fn run_under_strace(args: &[&str]) -> String {
     }
     let out = cmd.output().expect("strace failed to launch");
     String::from_utf8_lossy(&out.stderr).into_owned()
+}
+
+fn clause_module(dir: &TempDir) -> PathBuf {
+    let root = dir.path().join("clause-module");
+    std::fs::create_dir_all(root.join("clauses")).expect("create clause directory");
+    std::fs::write(
+        root.join("manifest.yaml"),
+        "name: synthetic-clause-module\nclause_sets:\n  - clauses/widget.json\n",
+    )
+    .expect("write manifest");
+    let mut set = ClauseSet {
+        schema_version: "clause-set-v1".into(),
+        authority: "example.test".into(),
+        id: "widget-assurance".into(),
+        title: "Synthetic widget assurance rules".into(),
+        version: "1.0.0".into(),
+        digest: String::new(),
+        rights: ClauseSetRights {
+            structure: StructureRights::Original,
+            text: TextRights::None,
+            clearance_ref: None,
+        },
+        source: None,
+        classification_dimensions: Default::default(),
+        output_catalog: Default::default(),
+        clauses: vec![Clause {
+            id: "W-1".into(),
+            force: ClauseForce::Mandatory,
+            title: Some("Inspect widgets".into()),
+            text: None,
+            subjects: vec!["widget".into()],
+            obligated_actors: vec!["reviewer".into()],
+            approval_roles: Vec::new(),
+            styles: Default::default(),
+            applicability: None,
+            expected_outputs: Vec::new(),
+        }],
+        crosswalks: Vec::new(),
+    };
+    set.digest = set.computed_digest();
+    std::fs::write(
+        root.join("clauses/widget.json"),
+        serde_json::to_vec_pretty(&set).expect("serialize clause set"),
+    )
+    .expect("write clause set");
+    root
 }
 
 /// Assert no socket(AF_INET..) syscall appears in `strace` output.
@@ -150,6 +200,32 @@ fn lookup_does_not_open_inet_socket() {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/extract-mod/sample.md");
     let trace = run_under_strace(&["lookup", doc.to_str().unwrap(), "--heading", "Purpose"]);
     assert_no_inet_socket(&trace, "lookup");
+}
+
+// IT-008, FR-020-AC-7, NFR-004-AC-2: clause evaluation is wholly local.
+#[test]
+fn clauses_does_not_open_inet_socket() {
+    if !strace_available() {
+        eprintln!("skipping: strace not on PATH");
+        return;
+    }
+    let dir = TempDir::new().expect("tempdir");
+    let module = clause_module(&dir);
+    let trace = run_under_strace(&[
+        "clauses",
+        "evaluate",
+        "--module",
+        module.to_str().unwrap(),
+        "--authority",
+        "example.test",
+        "--set",
+        "widget-assurance",
+        "--version",
+        "1.0.0",
+        "--format",
+        "json",
+    ]);
+    assert_no_inet_socket(&trace, "clauses evaluate");
 }
 
 // IT-083, FR-016-AC-2, NFR-004-AC-2: `update --check` on the Unknown install

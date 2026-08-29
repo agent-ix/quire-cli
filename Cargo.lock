@@ -1019,7 +1019,7 @@ dependencies = [
 [[package]]
 name = "quire-rs"
 version = "0.46.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=da0cf8a029aa99ad79a2f52c8e3e42b9fae9c887#da0cf8a029aa99ad79a2f52c8e3e42b9fae9c887"
+source = "git+https://github.com/agent-ix/quire-rs?rev=c625e2f99a113fb284e63a0ec04a68bbf6f00ca9#c625e2f99a113fb284e63a0ec04a68bbf6f00ca9"
 dependencies = [
  "globset",
  "ignore",

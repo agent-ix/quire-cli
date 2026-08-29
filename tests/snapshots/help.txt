@@ -1,8 +1,9 @@
-Thin CLI over quire-rs (parse, extract, lookup, edit, validate, schema)
+Thin CLI over quire-rs (documents, contracts, and clause sets)
 
 Usage: quire [OPTIONS] <COMMAND>
 
 Commands:
+  clauses     Evaluate or compare rights-aware module clause sets
   parse       Parse a markdown document to JSON
   extract     Extract structured records + edges from a document
   lookup      Look up one parsed section by heading, id, or block id

@@ -2,6 +2,7 @@
 //! The quire-rs-backed verbs stay thin wrappers over the engine; `update` is a
 //! thin wrapper over the package-agnostic `self_update` engine instead.
 
+pub mod clauses;
 pub mod coverage;
 pub mod edit;
 pub mod extract;
