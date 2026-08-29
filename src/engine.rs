@@ -62,6 +62,9 @@ pub const CAPABILITIES: &[&str] = &[
     // `BindingCensus.tagged` and `unmatched_example` — authored absence is
     // distinct from a tag the declared grammar missed (quire-rs #271).
     "binding_census.tagged",
+    // Rights-aware module clause sets, three-valued applicability, and
+    // exact-version diff reports (quire-rs FR-067).
+    "clause_sets",
     // Declaration diagnostics retain the exact authored path and line (#365).
     "declaration_origins",
     // `CoverageReport.metrics` — every headline ratio with its unit,

@@ -18,7 +18,7 @@ mod commands;
     // #68: both versions, from the ONE place the string is assembled. It was
     // built here and again in `engine`, with nothing binding the two.
     version = quire_cli::engine::VERSION_LINE,
-    about = "Thin CLI over quire-rs (parse, extract, lookup, edit, validate, schema)"
+    about = "Thin CLI over quire-rs (documents, contracts, and clause sets)"
 )]
 struct Cli {
     /// Diagnostic stream format on stderr.
@@ -40,6 +40,8 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /// Evaluate or compare rights-aware module clause sets.
+    Clauses(commands::clauses::Args),
     /// Parse a markdown document to JSON.
     Parse(commands::parse::Args),
     /// Extract structured records + edges from a document.
@@ -75,6 +77,7 @@ fn main() {
         pretty: cli.pretty,
     };
     let result = match cli.command {
+        Command::Clauses(a) => commands::clauses::run(&ctx, a),
         Command::Parse(a) => commands::parse::run(&ctx, a),
         Command::Extract(a) => commands::extract::run(&ctx, a),
         Command::Lookup(a) => commands::lookup::run(&ctx, a),

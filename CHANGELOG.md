@@ -20,6 +20,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ### Added
 
+- **Generic clause-set evaluation and diff.** `quire clauses evaluate` applies
+  module-supplied context without collapsing missing or incomparable values to
+  false; `quire clauses diff` compares two exact versions. Both provide human,
+  JSON, and TSV output, and JSON carries the `clause_sets` capability. The CLI
+  embeds no external publication content.
+
 - **`--version` reports the engine, and every JSON payload carries provenance
   (#68, CR-104).** `quire --version` reported this crate's version alone. The
   engine is a git dependency pinned by tag in `Cargo.toml:20` and **no surface

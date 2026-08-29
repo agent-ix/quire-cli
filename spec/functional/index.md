@@ -25,3 +25,5 @@ description: "Index of artifacts in this directory."
 * [FR-016: quire update subcommand (install-source-aware self-update)](./FR-016-update-subcommand.md)
 * [FR-017: quire coverage subcommand](./FR-017-coverage-subcommand.md)
 * [FR-018: quire properties subcommand](./FR-018-properties-subcommand.md)
+* [FR-019: quire symbols subcommand](./FR-019-symbols-subcommand.md)
+* [FR-020: quire clauses subcommand](./FR-020-clauses-subcommand.md)
