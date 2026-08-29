@@ -11,7 +11,10 @@ description: "Chronological log of structural changes to this bundle."
   test, lint, license and bans surfaces, and the executable drift audit rejects
   any future unlocked resolver line. CI names a missing `REGISTRY_TOKEN` before
   private-engine fetch, and the engine pin advances to Quire's corresponding
-  all-surface drift guard. #71; agent-ix/quire-rs#379.
+  all-surface drift guard. The final pin also includes the governed benchmark's
+  full-SHA corpus/module checks and schema-v2 exporter's consumer, toolchain,
+  and executable-digest checks, so this workspace is itself the exact consumer
+  the producer attests. #71; agent-ix/quire-rs#379.
 
 * **2026-06-15** — Adopted OKF-compatible bundle structure with directory indexes.
 * **2026-06-16** — Added [FR-014](./functional/FR-014-validate-okf-bundle.md) (`quire validate --okf` permissive OKF bundle posture: `type` required, unknown-type/broken-link/index-incompleteness warn). Added [FR-003-AC-5](./functional/FR-003-extract-subcommand.md) (extract emits shared `[frontmatter]` untyped-document diagnostic). Backsynced the `artifact_type` → `type` discriminator rename across [FR-003](./functional/FR-003-extract-subcommand.md)/004/007/013 and spec.md via CR notes. Mapped IT-069..072 (`tests/cli_okf.rs`) + IT-026 reuse in tests.md.
