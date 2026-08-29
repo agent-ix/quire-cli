@@ -175,6 +175,7 @@ fn parse_context(entries: &[String]) -> anyhow::Result<BTreeMap<String, String>>
         if key.trim().is_empty() || value.trim().is_empty() {
             bail!("--context {entry:?} must have a non-empty key and value");
         }
+        let (key, value) = (key.trim(), value.trim());
         if context.insert(key.to_string(), value.to_string()).is_some() {
             bail!("--context declares {key:?} more than once");
         }
@@ -343,6 +344,10 @@ mod tests {
         assert!(parse_context(&["impact=high".into(), "impact=low".into()]).is_err());
         assert!(parse_context(&["impact".into()]).is_err());
         assert!(parse_context(&["=high".into()]).is_err());
+        assert_eq!(
+            parse_context(&[" impact = high ".into()]).unwrap(),
+            BTreeMap::from([("impact".into(), "high".into())])
+        );
     }
 
     #[test]
