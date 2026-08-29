@@ -94,7 +94,7 @@ it does not disable schema checking.
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at revision `616a7e97c0e8c84aedda71dc198e94e3de3d9da6` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
+| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at revision `42326bbdf8f6641203eebf7a5faaa2b22bc19b0f` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
 | FR-020-CON-2 | The command SHALL execute no test, proof, solver, consumer, package-manager, Git, or network command. It performs parsing and static source extraction only. | Responsibility | Test |
 | FR-020-CON-3 | The CLI SHALL add no verdict, execution result, evidence freshness claim, generic evidence envelope, or tool-provenance field to the closed upstream payload. | Responsibility | Inspection |
 | FR-020-CON-4 | Unknown or malformed module versions, schema premises, source revisions, and incomplete module loads SHALL fail closed before any stdout byte. | Integrity | Test |
@@ -119,7 +119,7 @@ it does not disable schema checking.
   [FR-068](ix://agent-ix/quire-rs/FR-068), implemented by
   `agent-ix/quire-rs#389` at merge
   `e3352a0644abcfd5f0ebad348bc7aca235925ecc`; current compatible engine pin
-  `616a7e97c0e8c84aedda71dc198e94e3de3d9da6` (crate version 0.46.0).
+  `42326bbdf8f6641203eebf7a5faaa2b22bc19b0f` (crate version 0.46.0).
 - **Ownership gate**: `agent-ix/engineering-assurance#5`, accepted before this
   command was specified.
 - **Downstream**: `agent-ix/quoin#322` and the common compatibility fixtures in
