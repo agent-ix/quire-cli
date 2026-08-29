@@ -24,7 +24,7 @@ use glob::glob;
 
 use quire_cli::io;
 use quire_cli::safety;
-use quire_rs::{BundlePosture, BundleReport, Registry, ValidationResult};
+use quire_rs::{BundlePosture, BundleReport, Registry, ValidationReason, ValidationResult};
 
 use super::Ctx;
 
@@ -647,10 +647,22 @@ pub(crate) fn archetype_from_frontmatter(text: &str) -> Option<String> {
 /// line-numbered shape as a `quire_rs::ValidationError` with reason
 /// `frontmatter`, so callers see one consistent diagnostic vocabulary.
 pub(crate) fn emit_frontmatter_failure(ctx: &Ctx, label: &str, message: &str) {
-    io::emit_diagnostic(
+    let subject = format!("document frontmatter for {label}");
+    let fields = io::DiagnosticFields {
+        reason: Some("frontmatter"),
+        path: Some(label),
+        subject: Some(&subject),
+        change_target: Some(label),
+        remedy: Some(
+            "add or correct the document's `type` frontmatter value so it names a registered archetype",
+        ),
+        ..Default::default()
+    };
+    io::emit_diagnostic_with_fields(
         ctx.diagnostics,
         "ValidationError",
         &format!("{label}: {message} [frontmatter]"),
+        &fields,
     );
 }
 
@@ -673,7 +685,18 @@ fn surface_result(ctx: &Ctx, label: &str, result: &ValidationResult) -> SurfaceO
             error.message,
             error.reason.as_str()
         );
-        io::emit_diagnostic(ctx.diagnostics, "ValidationError", &message);
+        let subject = format!("document validation of {label}");
+        let change_target = change_target(label, error.line);
+        let fields = io::DiagnosticFields {
+            reason: Some(error.reason.as_str()),
+            path: Some(label),
+            line: error.line,
+            subject: Some(&subject),
+            change_target: Some(&change_target),
+            remedy: Some(validation_remedy(error.reason)),
+            ..Default::default()
+        };
+        io::emit_diagnostic_with_fields(ctx.diagnostics, "ValidationError", &message, &fields);
     }
     for warning in &result.warnings {
         let line = line_prefix(warning.line);
@@ -682,11 +705,62 @@ fn surface_result(ctx: &Ctx, label: &str, result: &ValidationResult) -> SurfaceO
             warning.message,
             warning.reason.as_str()
         );
-        io::emit_warning(ctx.diagnostics, &message);
+        let subject = format!("document validation of {label}");
+        let change_target = change_target(label, warning.line);
+        let fields = io::DiagnosticFields {
+            reason: Some(warning.reason.as_str()),
+            path: Some(label),
+            line: warning.line,
+            subject: Some(&subject),
+            change_target: Some(&change_target),
+            remedy: Some(validation_remedy(warning.reason)),
+            ..Default::default()
+        };
+        io::emit_warning_with_fields(ctx.diagnostics, &message, &fields);
     }
     SurfaceOutcome {
         had_errors: !result.errors.is_empty(),
         had_warnings: !result.warnings.is_empty(),
+    }
+}
+
+fn change_target(label: &str, line: Option<usize>) -> String {
+    match line {
+        Some(line) => format!("{label}:{line}"),
+        None => label.to_string(),
+    }
+}
+
+/// One safe corrective move for every validation reason. This is deliberately
+/// keyed on the engine's typed reason rather than inferred from message prose.
+fn validation_remedy(reason: ValidationReason) -> &'static str {
+    match reason {
+        ValidationReason::Missing => "add the required section or declaration named by the diagnostic",
+        ValidationReason::Empty => "fill the required section or declaration with substantive content",
+        ValidationReason::Placeholder => {
+            "replace the placeholder with substantive content that satisfies the declared structure"
+        }
+        ValidationReason::Assert => {
+            "change the cited value or structure so it satisfies the named archetype assertion"
+        }
+        ValidationReason::Frontmatter => {
+            "correct the cited frontmatter field so it satisfies the archetype schema"
+        }
+        ValidationReason::DuplicateHeading => {
+            "rename or consolidate the duplicate heading at the reported level"
+        }
+        ValidationReason::UnresolvedField => {
+            "define the referenced frontmatter field or correct the assertion's field name"
+        }
+        ValidationReason::UnknownObjectType => {
+            "correct the `object` value or register the intended object archetype"
+        }
+        ValidationReason::DisallowedEdgeType => {
+            "use an allowed relationship type or declare the intended type in the archetype vocabulary"
+        }
+        ValidationReason::Grammar => {
+            "revise the cited requirement wording to address the named grammar check"
+        }
     }
 }
 

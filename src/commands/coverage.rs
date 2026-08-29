@@ -179,7 +179,19 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // (FR-008-AC-1, FR-017-AC-15): `to_json()` is unconditionally pretty
         // and the flag was silently ignored (#53). Whitespace-only — the
         // payload parses identically, and `--pretty` restores the old shape.
-        OutputFormat::Json => println!("{}", io::encode_json(&report, ctx.pretty)?),
+        //
+        // `engine::attach` appends the provenance block, leaving every key the
+        // engine emitted in the engine's own order (#68) — it flattens rather
+        // than round-tripping through `serde_json::Value`, which would sort
+        // every key at every depth alphabetically. A saved payload is the
+        // artifact a later reader reasons from, and without provenance it
+        // carries no way to learn which build produced it — the defect that let
+        // four battletest passes cite figures from a binary that could not emit
+        // `binding_census`.
+        OutputFormat::Json => println!(
+            "{}",
+            io::encode_json(&quire_cli::engine::attach(&report), ctx.pretty)?
+        ),
         OutputFormat::Tsv => print!("{}", render_tsv(&report)),
         OutputFormat::Human => emit_human(ctx, &report),
     }
@@ -518,21 +530,17 @@ fn census_lines(report: &quire_rs::CoverageReport) -> Vec<String> {
             } else {
                 c.forms.join(", ")
             };
-            // The example is for the UNREAD case. On a fully-bound language
-            // there is nothing to look at, and naming a symbol anyway would
-            // read as a finding where there is none.
-            let at = match &c.unbound_example {
-                Some(e) if c.bound < c.candidates => {
-                    format!(", e.g. `{}` at {}:{}", e.symbol, e.path, e.line)
-                }
-                _ => String::new(),
-            };
+            let unmatched = c.unmatched_example.as_ref().map_or_else(String::new, |e| {
+                format!(", unread tag `{}` at {}:{}", e.symbol, e.path, e.line)
+            });
             format!(
-                "{}: {}/{} evidence symbols bound ({}; forms: {forms}{at})",
+                "{}: {}/{}/{} bound/tagged/candidates ({} read; {} authored; forms: {forms}{unmatched})",
                 c.language,
                 c.bound,
+                c.tagged,
                 c.candidates,
-                percent_label(c.bound, c.candidates)
+                percent_label(c.bound, c.candidates),
+                percent_label(c.tagged, c.candidates)
             )
         })
         .collect()
@@ -695,7 +703,22 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
 /// Same module resolution as `validate`: an explicit `--module`, else a
 /// `manifest.yaml` at the scope root, else scoped discovery.
 fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
-    if let Some(raw) = &args.module {
+    load_registry_for(ctx, &args.module, scope)
+}
+
+/// The module-resolution `coverage` performs, taking the flag rather than the
+/// whole `Args` so a sibling command resolves modules identically.
+///
+/// Shared rather than restated: `quire symbols` reports over the same walk and
+/// the same declaration, and two resolution orders would let the two commands
+/// disagree about which module is in scope for the same invocation — which is
+/// the class of drift this repository keeps finding one list at a time.
+pub(super) fn load_registry_for(
+    ctx: &Ctx,
+    module: &Option<String>,
+    scope: &Path,
+) -> anyhow::Result<Registry> {
+    if let Some(raw) = module {
         let module = safety::validate_module_path(raw)
             .with_context(|| format!("validating --module '{raw}'"))?;
         return super::load_module_registry(ctx, &module);
@@ -724,18 +747,30 @@ mod tests {
             BindingCensus {
                 language: "rust".to_string(),
                 candidates: 1513,
+                tagged: 1400,
                 bound: 1344,
+                self_named: 0,
+                self_named_bound: 0,
                 forms: vec!["rust-trace-attribute".to_string()],
                 unbound_example: Some(UnboundSymbol {
                     path: "crates/a/src/lib.rs".to_string(),
                     line: 732,
                     symbol: "tests::covers".to_string(),
                 }),
+                unmatched_example: Some(UnboundSymbol {
+                    path: "crates/a/src/lib.rs".to_string(),
+                    line: 700,
+                    symbol: "tests::misspelled".to_string(),
+                }),
+                self_named_unbound_example: None,
             },
             BindingCensus {
                 language: "typescript".to_string(),
                 candidates: 12,
+                tagged: 12,
                 bound: 12,
+                self_named: 0,
+                self_named_bound: 0,
                 forms: vec!["ts-trace-helper".to_string()],
                 // Fully bound, so nothing to look at even if an example
                 // survived from an earlier run.
@@ -744,6 +779,8 @@ mod tests {
                     line: 4,
                     symbol: "stale".to_string(),
                 }),
+                unmatched_example: None,
+                self_named_unbound_example: None,
             },
         ];
         let mut report = quire_rs::CoverageReport {
@@ -757,14 +794,16 @@ mod tests {
         // without `1344/1513 bound` is the whole defect this renders for.
         assert_eq!(
             lines[0],
-            "rust: 1344/1513 evidence symbols bound (88%; forms: rust-trace-attribute, \
-             e.g. `tests::covers` at crates/a/src/lib.rs:732)"
+            "rust: 1344/1400/1513 bound/tagged/candidates (88% read; 92% authored; \
+             forms: rust-trace-attribute, unread tag `tests::misspelled` at \
+             crates/a/src/lib.rs:700)"
         );
         // A fully-bound language names no example: there is nothing unread, and
         // pointing at a symbol anyway reads as a finding where there is none.
         assert_eq!(
             lines[1],
-            "typescript: 12/12 evidence symbols bound (100%; forms: ts-trace-helper)"
+            "typescript: 12/12/12 bound/tagged/candidates (100% read; 100% authored; \
+             forms: ts-trace-helper)"
         );
 
         report.metrics = vec![

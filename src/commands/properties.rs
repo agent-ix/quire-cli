@@ -146,7 +146,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     if args.json {
-        let payload = json!({ "documents": documents });
+        // #68: the envelope carries which build classified these criteria.
+        // This payload is what quoin's `spec-correctness` skill reads and what
+        // a generated property test is derived from; a record whose classifier
+        // version is unknowable is a record nobody can re-derive.
+        let payload = quire_cli::engine::attach(json!({ "documents": documents }));
         let rendered = if ctx.pretty {
             serde_json::to_string_pretty(&payload)?
         } else {

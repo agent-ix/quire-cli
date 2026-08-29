@@ -171,12 +171,64 @@ pub fn write_diagnostic_human(msg: &str, color: bool) {
 
 /// Write a diagnostic as a JSON line on stderr.
 pub fn write_diagnostic_json(kind: &str, message: &str) {
-    let line = serde_json::json!({
-        "kind": kind,
-        "message": message,
-        "severity": "error",
-    });
-    eprintln!("{line}");
+    write_diagnostic_json_with_fields(kind, message, &DiagnosticFields::default());
+}
+
+/// Optional typed fields carried by a machine-readable diagnostic.
+///
+/// Human diagnostics continue to render from `message`; these fields are the
+/// stable interface for consumers that must locate or act on a finding without
+/// parsing that prose.
+#[derive(Debug, Default, Serialize)]
+pub struct DiagnosticFields<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archetype: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declaration: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub row_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subject: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub change_target: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remedy: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_diagnostic_step: Option<&'a str>,
+}
+
+#[derive(Serialize)]
+struct JsonDiagnostic<'a> {
+    kind: &'a str,
+    message: &'a str,
+    severity: &'a str,
+    #[serde(flatten)]
+    fields: &'a DiagnosticFields<'a>,
+}
+
+fn write_json_diagnostic(kind: &str, message: &str, severity: &str, fields: &DiagnosticFields<'_>) {
+    let line = JsonDiagnostic {
+        kind,
+        message,
+        severity,
+        fields,
+    };
+    eprintln!(
+        "{}",
+        serde_json::to_string(&line).expect("diagnostic fields serialize")
+    );
+}
+
+/// Write a diagnostic JSON line with stable typed fields alongside the
+/// backwards-compatible human message.
+pub fn write_diagnostic_json_with_fields(kind: &str, message: &str, fields: &DiagnosticFields<'_>) {
+    write_json_diagnostic(kind, message, "error", fields);
 }
 
 /// Emit a diagnostic according to the configured format. Errors carry
@@ -184,9 +236,20 @@ pub fn write_diagnostic_json(kind: &str, message: &str) {
 /// warning counterpart). Human errors are printed red when color is on;
 /// the JSON shape is never colorized.
 pub fn emit_diagnostic(out: Diagnostics, kind: &str, message: &str) {
+    emit_diagnostic_with_fields(out, kind, message, &DiagnosticFields::default());
+}
+
+/// Emit an error with typed machine fields. Human output remains byte-for-byte
+/// the supplied `message`.
+pub fn emit_diagnostic_with_fields(
+    out: Diagnostics,
+    kind: &str,
+    message: &str,
+    fields: &DiagnosticFields<'_>,
+) {
     match out.format {
         DiagnosticsFormat::Human => write_diagnostic_human(message, out.color),
-        DiagnosticsFormat::Json => write_diagnostic_json(kind, message),
+        DiagnosticsFormat::Json => write_diagnostic_json_with_fields(kind, message, fields),
     }
 }
 
@@ -197,18 +260,18 @@ pub fn emit_diagnostic(out: Diagnostics, kind: &str, message: &str) {
 /// carrying `severity: "warning"` and `kind: "ValidationWarning"`, so
 /// machine consumers can separate warnings from errors (FR-004-AC-10/12).
 pub fn emit_warning(out: Diagnostics, message: &str) {
+    emit_warning_with_fields(out, message, &DiagnosticFields::default());
+}
+
+/// Emit an advisory warning with typed machine fields.
+pub fn emit_warning_with_fields(out: Diagnostics, message: &str, fields: &DiagnosticFields<'_>) {
     match out.format {
         DiagnosticsFormat::Human if out.color => {
             eprintln!("{BOLD_YELLOW}warning:{RESET} {message}")
         }
         DiagnosticsFormat::Human => eprintln!("warning: {message}"),
         DiagnosticsFormat::Json => {
-            let line = serde_json::json!({
-                "kind": "ValidationWarning",
-                "message": message,
-                "severity": "warning",
-            });
-            eprintln!("{line}");
+            write_json_diagnostic("ValidationWarning", message, "warning", fields)
         }
     }
 }

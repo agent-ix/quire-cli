@@ -10,7 +10,9 @@ pub mod lint;
 pub mod lookup;
 pub mod parse;
 pub mod properties;
+pub mod provenance;
 pub mod schema;
+pub mod symbols;
 pub mod update;
 pub mod validate;
 

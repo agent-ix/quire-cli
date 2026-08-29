@@ -51,6 +51,54 @@ fn it_048_broken_markdown_exits_1_with_line_numbered_diagnostic() {
         );
 }
 
+// IT-136, quire-cli#65: JSON diagnostics expose validation facts and the
+// corrective move as fields. Consumers must not have to regex `message` to
+// locate or act on a finding; the human message remains present for backwards
+// compatibility.
+#[test]
+fn it_136_json_validation_error_is_locatable_and_actionable() {
+    let output = quire()
+        .arg("--diagnostics-format")
+        .arg("json")
+        .arg("validate")
+        .arg(validate_doc("broken-fr.md"))
+        .arg("--module")
+        .arg(validate_module())
+        .output()
+        .expect("run quire validate");
+
+    assert_eq!(output.status.code(), Some(1));
+    let stderr = String::from_utf8(output.stderr).expect("utf-8 stderr");
+    let finding = stderr
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .find(|record| {
+            record["kind"] == "ValidationError"
+                && record["reason"] == "assert"
+                && record["line"].is_number()
+        })
+        .unwrap_or_else(|| panic!("no structured assert finding in: {stderr}"));
+
+    assert_eq!(finding["severity"], "error");
+    assert_eq!(
+        finding["path"],
+        validate_doc("broken-fr.md").display().to_string()
+    );
+    assert!(finding["message"]
+        .as_str()
+        .is_some_and(|value| value.contains("[assert]")));
+    assert!(finding["subject"]
+        .as_str()
+        .is_some_and(|value| !value.trim().is_empty()));
+    assert!(finding["change_target"]
+        .as_str()
+        .is_some_and(|value| value.ends_with(&format!(":{}", finding["line"]))));
+    assert!(finding["remedy"]
+        .as_str()
+        .is_some_and(|value| !value.trim().is_empty()));
+    assert!(finding.get("next_diagnostic_step").is_none());
+}
+
 // IT-049, FR-004-AC-3: `--archetype` overrides frontmatter resolution.
 // The document has no `type`, so default resolution fails; the
 // override lets it resolve to FR and validate clean.

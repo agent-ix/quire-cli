@@ -1,0 +1,38 @@
+{
+  "extraction": {
+    "records": [
+      {
+        "id": "EX-001",
+        "purpose": "Exercise the extract command end-to-end."
+      }
+    ]
+  },
+  "edges": [
+    {
+      "target": "StR-001",
+      "type": "implements"
+    },
+    {
+      "target": "StR-001",
+      "type": "references"
+    }
+  ],
+  "engine": {
+    "cli": "<cli>",
+    "engine": "<engine>",
+    "capabilities": [
+      "action_guidance.structured",
+      "binding_census",
+      "binding_census.self_named",
+      "binding_census.tagged",
+      "declaration_origins",
+      "metrics_envelope",
+      "minted_targets",
+      "property_spans.safe_refusal",
+      "reference_only_targets",
+      "specific_shaped",
+      "suspicions",
+      "unmatched_tags"
+    ]
+  }
+}

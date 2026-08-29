@@ -15,7 +15,9 @@ mod commands;
 #[derive(Parser, Debug)]
 #[command(
     name = "quire",
-    version,
+    // #68: both versions, from the ONE place the string is assembled. It was
+    // built here and again in `engine`, with nothing binding the two.
+    version = quire_cli::engine::VERSION_LINE,
     about = "Thin CLI over quire-rs (parse, extract, lookup, edit, validate, schema)"
 )]
 struct Cli {
@@ -50,8 +52,12 @@ enum Command {
     Validate(commands::validate::Args),
     /// AC→TC→code coverage rollup (FR-050). Reports; does not judge.
     Coverage(commands::coverage::Args),
+    /// Report the extracted symbol table, as the engine built it (#309).
+    Symbols(commands::symbols::Args),
     /// Per-criterion property-shape classification (FR-052). Reports; never a finding.
     Properties(commands::properties::Args),
+    /// Report exact CLI/engine source identity and capabilities as JSON.
+    Provenance(commands::provenance::Args),
     /// Emit an archetype's input contract (frontmatter schema + asserts) as JSON.
     Schema(commands::schema::Args),
     /// Evaluate the module's advisory lint rules against a document.
@@ -74,8 +80,10 @@ fn main() {
         Command::Lookup(a) => commands::lookup::run(&ctx, a),
         Command::Edit(a) => commands::edit::run(&ctx, a),
         Command::Coverage(a) => commands::coverage::run(&ctx, a),
+        Command::Symbols(a) => commands::symbols::run(&ctx, a),
         Command::Validate(a) => commands::validate::run(&ctx, a),
         Command::Properties(a) => commands::properties::run(&ctx, a),
+        Command::Provenance(a) => commands::provenance::run(&ctx, a),
         Command::Schema(a) => commands::schema::run(&ctx, a),
         Command::Lint(a) => commands::lint::run(&ctx, a),
         Command::Fix(a) => commands::fix::run(&ctx, a),
