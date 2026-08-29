@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The public contract under SemVer is the subcommand surface, exit codes, and JSON
 output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
+## [Unreleased]
+
+### Added
+
+- **`quire clauses` (FR-021, #72).** `clauses evaluate` resolves one exact
+  authority/id/version clause set and returns its binding decision with the
+  supplied context; `clauses diff` compares two exact versions and reports
+  added, removed and changed clauses by stable id. Both are wholly local —
+  no network socket is opened and no command is executed (IT-158). TSV output
+  carries a stable five-column header. IT-154..IT-157.
+
+### Changed
+
+- **Engine pin advances to `42326bbdf8f6641203eebf7a5faaa2b22bc19b0f`**
+  (quire-rs#381), which adds `Registry::clause_sets()` / `clause_set()` and the
+  rights-aware `ClauseSet` types this command consumes. FR-020-CON-1 advances
+  with it, so IT-145's six surfaces still agree. The `assurance_export.v1`
+  capability and the engine-owned assurance schema are unchanged.
+
 ## [0.32.0] - 2026-09-06
 
 ### Added
