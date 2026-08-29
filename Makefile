@@ -52,7 +52,7 @@ clean:
 
 .PHONY: deny
 deny:
-	$(CARGO) deny check licenses
+	$(CARGO) deny --locked check licenses
 
 .PHONY: cargo-audit
 cargo-audit:
@@ -72,7 +72,7 @@ audit-thin-boundary:
 
 .PHONY: deny-bans
 deny-bans:
-	$(CARGO) deny check bans
+	$(CARGO) deny --locked check bans
 
 # =============================================================================
 # Latency budget (NFR-001)

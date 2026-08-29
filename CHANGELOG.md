@@ -9,6 +9,15 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Cargo and private-dependency drift now fails at the point of cause.** Every
+  canonical `cargo-deny` invocation asserts the committed lock, the drift
+  audit covers all resolver commands instead of build alone, and CI requires
+  `REGISTRY_TOKEN` by name before configuring private Quire access. The engine
+  pin advances to the Quire revision whose own workflows apply the same
+  all-surface policy.
+
 ### Added
 
 - **`--version` reports the engine, and every JSON payload carries provenance

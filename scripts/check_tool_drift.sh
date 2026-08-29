@@ -19,6 +19,8 @@ for workflow in sorted((root / ".github/workflows").glob("*.yml")):
     text = workflow.read_text()
     lines = text.splitlines()
     for number, line in enumerate(lines, 1):
+        if line.lstrip().startswith("#") or re.match(r"\s*-\s+name:", line):
+            continue
         use = re.search(r"\buses:\s*[^\s@]+@([^\s#]+)", line)
         if use and not re.fullmatch(r"[0-9a-f]{40}", use.group(1)):
             errors.append(f"{workflow.relative_to(root)}:{number}: action is not a full SHA")
@@ -32,13 +34,17 @@ for workflow in sorted((root / ".github/workflows").glob("*.yml")):
             errors.append(f"{workflow.relative_to(root)}:{number}: installed utility is not exact")
         if "npm install -g npm@latest" in line:
             errors.append(f"{workflow.relative_to(root)}:{number}: npm is mutable")
-        if re.search(r"cargo build\b", line) and "--locked" not in line:
-            errors.append(f"{workflow.relative_to(root)}:{number}: release build is not --locked")
+        if re.search(r"cargo (?:bench|build|check|clippy|test)\b", line) and "--locked" not in line:
+            errors.append(f"{workflow.relative_to(root)}:{number}: Cargo resolution is not --locked")
+        if re.search(r"cargo deny\b", line) and "--locked" not in line:
+            errors.append(f"{workflow.relative_to(root)}:{number}: cargo-deny resolution is not --locked")
 
 makefile = (root / "Makefile").read_text()
 for number, line in enumerate(makefile.splitlines(), 1):
-    if re.search(r"\$\(CARGO\)\s+(?:build|clippy|test)\b", line) and "--locked" not in line:
+    if re.search(r"\$\(CARGO\)\s+(?:bench|build|check|clippy|test)\b", line) and "--locked" not in line:
         errors.append(f"Makefile:{number}: canonical Cargo command is not --locked")
+    if re.search(r"\$\(CARGO\)\s+deny\b", line) and "--locked" not in line:
+        errors.append(f"Makefile:{number}: cargo-deny resolution is not --locked")
 
 if errors:
     print("tool-drift audit failed:", file=sys.stderr)

@@ -12,6 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
+      - name: Require private dependency token
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: test -n "$REGISTRY_TOKEN" || { echo "::error::REGISTRY_TOKEN must read private quire-rs dependencies"; exit 1; }
       - name: Authenticate cargo git fetch (private quire-rs)
         run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
@@ -46,6 +50,10 @@ jobs:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Require private dependency token
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: test -n "$REGISTRY_TOKEN" || { echo "::error::REGISTRY_TOKEN must read private quire-rs dependencies"; exit 1; }
       - name: Authenticate cargo git fetch (private quire-rs)
         run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
@@ -70,6 +78,10 @@ jobs:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Require private dependency token
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: test -n "$REGISTRY_TOKEN" || { echo "::error::REGISTRY_TOKEN must read private quire-rs dependencies"; exit 1; }
       - name: Authenticate cargo git fetch (private quire-rs)
         run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - name: Install Rust toolchain
