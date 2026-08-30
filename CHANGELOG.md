@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The public contract under SemVer is the subcommand surface, exit codes, and JSON
 output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
-## [Unreleased]
+## [0.31.0] - 2026-08-29
 
 ### Fixed
 
