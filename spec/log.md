@@ -7,6 +7,15 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-01** — Specified [FR-020](./functional/FR-020-assurance-export-subcommand.md)
+  and [US-006](./usecase/US-006-export-assurance-facts.md): a deterministic,
+  non-executing `quire assurance` boundary over quire-rs `assurance-v1`.
+  Source and module premises are explicit, expected module/schema premises are
+  exact and fail closed, JSON remains the unmodified upstream envelope, and
+  all failures leave stdout empty. The compatibility boundary pins quire-rs
+  0.46.0 merge `e3352a0644abcfd5f0ebad348bc7aca235925ecc`. #74;
+  agent-ix/quire-rs#389; agent-ix/engineering-assurance#7.
+
 * **2026-08-29** — Canonical Cargo resolution is now locked across build,
   test, lint, license and bans surfaces, and the executable drift audit rejects
   any future unlocked resolver line. CI names a missing `REGISTRY_TOKEN` before

@@ -53,6 +53,9 @@ pub const TOOL_PROVENANCE_SCHEMA: &str = "quire-tool-provenance-v1";
 pub const CAPABILITIES: &[&str] = &[
     // Structured subject/change-target/exclusive next move on findings (#364).
     "action_guidance.structured",
+    // `build_assurance_export` / `read_assurance_export` and the closed
+    // assurance-v1 schema (quire-rs FR-067/FR-068, quire-cli FR-020).
+    "assurance_export.v1",
     // `CoverageReport.binding_census` — what the trace binder examined and what
     // bound, per language (quire-rs FR-050-AC-27, v0.43.0).
     "binding_census",

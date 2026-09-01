@@ -30,7 +30,8 @@ fn run_script(rel: &str) -> (bool, String) {
     (out.status.success(), combined)
 }
 
-// TC-090, StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6, FR-017-AC-9:
+// Trace: TC-090, TC-814, StR-004-VC-2, StR-004-VC-3, FR-004-AC-9,
+// FR-014-AC-9, FR-015-AC-6, FR-017-AC-9, FR-020-AC-6
 // `src/` is a
 // thin process boundary — no markdown parsing, no structural-validation logic,
 // no render/template code outside the documented dispatch sites.

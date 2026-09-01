@@ -13,6 +13,75 @@
 > The live surface and contract are defined by `spec/spec.md` (BASELINED) and the
 > per-FR artifacts, not by this plan. Kept for traceability of the initial build.
 
+## Live Change Plan — issue #74 assurance export (2026-09-01)
+
+This section is the active plan for [FR-020](../spec/functional/FR-020-assurance-export-subcommand.md)
+and supersedes the historical-plan warning above only for issue #74. The
+preimplementation specification and scope review are committed at `2502617`.
+
+### Dependency order
+
+1. **T-021 — Pin the authoritative export owner (complete).** Advance the exact
+   `quire-rs` revision to merge `e3352a0644abcfd5f0ebad348bc7aca235925ecc`
+   (manifest 0.46.0), regenerate `Cargo.lock`, and add the compile-checked
+   `assurance_export.v1` capability token. No schema is copied into this repo.
+2. **T-022 — Add the thin command (complete).** Add `commands::assurance`, wire clap, and
+   reuse the existing scope/module path guards. Construct the bounded `Spec`,
+   scoped symbol extraction, and binding through quire-rs, then call
+   `build_assurance_export` and `read_assurance_export`. Parse
+   `NAME@VERSION`/`MODULE/ARCHETYPE@SHA256` only as CLI premises; compare the
+   complete expected and emitted premise sets before writing stdout.
+3. **T-023 — Prove the process boundary (complete).** Add a non-vacuous fixture and golden
+   plus IT-136..144/TC-814: complete records and all availability states,
+   schema conformance, compact/pretty determinism, every premise refusal,
+   empty/unknown/unavailable distinction, stderr diagnostics, static
+   thin-boundary audit, and Linux network/process tracing. Cross-language
+   checks consume the exact same checked-in bytes and fail closed if a required
+   local runtime is unavailable.
+4. **T-024 — Publish the contract in-tree (complete).** Update the help snapshot, README,
+   changelog, command/module documentation, and matrix statuses only after the
+   backing tests have recorded passing runs. IT-145 checks documentation,
+   capability, manifest, and lockfile agreement.
+5. **T-025 — Review and PR gate (complete).** Run all local gates, create tracked
+   `/code-review` and `/gap-analysis` artifacts, open the PR, read every GitHub
+   review/comment, fix and re-run findings, and add closing review artifacts.
+   Hosted CI remains manual-only and is not dispatched. Administrative merge
+   is permitted only after the reviewer-cleared state and local gates are
+   recorded.
+
+### Load-bearing implementation rules
+
+- Build every payload completely in memory; stdout receives bytes only after
+  build, upstream schema read, and exact-premise comparison all succeed.
+- Compact stdout before its final newline must equal
+  `AssuranceExport::to_json_bytes()`. `--pretty` may alter whitespace only.
+- Do not attach `engine` provenance to the closed assurance envelope. The
+  binary capability and exact dependency pin state compatibility separately.
+- Do not call module discovery, lazy installation, Git, a package manager, a
+  test/proof/solver, or any downstream consumer.
+- Do not add a parallel graph, schema, availability calculation, freshness
+  judgment, evidence envelope, or execution result.
+
+### Local gates
+
+| Gate | Evidence | Initial state |
+|------|----------|---------------|
+| G9 Specification baseline | Targeted Quire validation; SR-009; commit `2502617` | complete |
+| G10 Implementation contract | IT-136..142 and TC-814 | complete (SR-010/SR-011) |
+| G11 Non-execution and portability | IT-143..145 | complete (SR-010/SR-011) |
+| G12 Repository quality | `make ci`, release build, targeted Quire validation | complete (SR-010/SR-011) |
+| G13 External review | PR comments/reviews read; all required findings fixed | complete (SR-012..SR-015; PR #75) |
+
+### Risks and controls
+
+| Risk | Control |
+|------|---------|
+| A permissive accepted-premise superset hides drift | Sort/deduplicate, reject duplicate CLI premises, and require exact structural equality in addition to the upstream reader. |
+| A diagnostic or error leaks a partial JSON prefix | Serialize into memory and perform every fallible check before the single stdout write. |
+| Fixture passes while exercising empty branches | Assert non-empty artifacts/obligations/symbols/relations, both binding variants, a dangling edge, and all observation states before accepting the golden. |
+| Missing language or tracing runtimes turn a claimed probe into a silent pass | Treat Python, Node, and Linux `strace` as required gate dependencies and fail closed when any is absent. |
+| Existing global `--pretty` changes the semantic contract | Compare parsed values and independently require byte identity for each mode. |
+
 Generated from `~/dev/quire-cli/spec/` via `/spec-to-plan`. Derived from 4 StR + 4 US + 8 FR + 6 NFR + 32 IT/BENCH/AUDIT cases (see `spec/tests.md` — 100 % AC coverage).
 
 This is a **thin process boundary** over `quire-rs`. The plan is correspondingly small: argv parsing, sandbox guards, I/O wiring, packaging — every parse/render/extract/validate behavior delegates to the upstream crate.

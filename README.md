@@ -9,7 +9,8 @@
 `quire-cli` is a static command-line wrapper around
 [`quire-rs`](https://github.com/agent-ix/quire-rs). It gives agents and
 humans one fast binary for parsing, extracting, looking up, editing,
-validating, and inspecting the input contract of Markdown artifacts.
+validating, inspecting the input contract of Markdown artifacts, and exporting
+source-grounded assurance facts.
 
 The crate is intentionally a thin process boundary: Markdown parsing,
 extraction, and structural validation live in `quire-rs`.
@@ -17,6 +18,9 @@ extraction, and structural validation live in `quire-rs`.
 ## Commands
 
 ```bash
+quire assurance --scope <DIR> --module <PATH> --repository <IDENTITY> \
+  --revision <FULL_SHA> --expect-module <NAME@VERSION> \
+  [--expect-schema <MODULE/ARCHETYPE@SHA256>]...
 quire parse <DOC|->
 quire lookup <DOC|-> (--heading <TEXT> [--level <1..6>] | --id <ID> | --block-id <BLOCK_ID>) [--content]
 quire edit <DOC|-> (--heading <TEXT> | --block-id <BLOCK_ID>) --content <FILE|-> [--out <PATH>]
@@ -31,7 +35,7 @@ Global flags:
 | Flag | Default | Purpose |
 |------|---------|---------|
 | `--diagnostics-format <human\|json>` | `human` | stderr diagnostic encoding |
-| `--pretty` | off | indented JSON output for `parse`, `lookup`, and `extract` |
+| `--pretty` | off | indented JSON output for JSON-emitting commands, including `assurance` |
 
 Exit codes:
 
@@ -171,6 +175,34 @@ quire extract EX-001.md --module ./extract-mod | jq '.edges'
 
 `extract` does not auto-validate. Run `validate` separately for context
 JSON schema checks.
+
+### Export Source-Grounded Assurance Facts
+
+Emit quire-rs's closed `quire-assurance` v1 envelope over a bounded repository:
+
+```bash
+quire assurance \
+  --scope . \
+  --module ./.ix/modules/spec-artifacts-process \
+  --repository agent-ix/example \
+  --revision 0123456789abcdef0123456789abcdef01234567 \
+  --expect-module spec-artifacts-process@0.1.0 \
+  --expect-schema spec-artifacts-process/FR@<64-lowercase-hex-digest>
+```
+
+Documents come only from `<scope>/spec`; source symbols come from `<scope>`
+with `spec/` and module-declared source exclusions omitted. The module path,
+repository identity, full revision, module version, and complete active-schema
+digest set are explicit. A missing, extra, or mismatched premise exits non-zero
+before stdout. A successful corpus may contain empty arrays; an unreadable
+document remains explicit as an `unknown` observation with a reason.
+
+The command performs static parsing and extraction only. It invokes no Git,
+test, proof, solver, package manager, consumer, or network operation, adds no
+verdict, and does not append the CLI's ordinary provenance object to the closed
+upstream payload. Compact JSON is deterministic; global `--pretty` re-indents
+the already validated compact bytes and changes whitespace only. Diagnostics
+always use stderr.
 
 ### Validate A Markdown Document
 

@@ -65,6 +65,9 @@ This specification governs:
 - JSON encoding of `QuireDocument`, `ExtractionResult`, `HarvestedEdge[]` on stdout
 - Process-level performance budgets (cold-start validate / parse / extract)
 - Distribution and installation surface (`cargo install`, release binary tarballs)
+- A deterministic `assurance` process boundary over quire-rs's published
+  source-grounded assurance export, including explicit source/module/schema
+  premises and fail-closed drift checks
 
 ### 2.2 Out of Scope
 
@@ -74,6 +77,9 @@ This specification does not govern:
 - Python bindings (owned by `quire-py`) or WASM bindings (owned by `quire-wasm`).
 - Server-side validation in `filament-core-service` (uses `quire-py`, not this CLI).
 - Editor live preview (uses `quire-wasm`).
+- Test/proof/solver execution, evidence retention, audit verdicts, proof
+  attestations, and verification receipts; those remain native-runner and
+  Quoin responsibilities.
 
 ---
 
@@ -149,6 +155,11 @@ removed — see §2bis):
 - `quire validate <doc.md|glob|->... [--scope <dir>] [--module <path>] [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. In scoped mode, relative globs are resolved under `--scope` and frontmatter `type` selects the archetype. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032). A `--okf` flag ([FR-014](./functional/FR-014-validate-okf-bundle.md)) validates a directory as an OKF bundle under the permissive posture (unknown types / broken `ix://` links / index-completeness gaps warn; untyped docs are hard errors) via `quire_rs::validate_bundle_at`.
 - `quire schema <archetype> --module <path>` — emit the asserts-based input contract (FR-029) as JSON.
 - `quire lookup` / `quire edit` — read / byte-splice a section or stable block (consumer of `quire-rs` query + `update_section`/`update_block`).
+- `quire assurance --scope <dir> --module <path> --repository <identity>
+  --revision <full-sha> --expect-module <name@version>
+  [--expect-schema <module/archetype@sha256>]...` — emit quire-rs's closed
+  `assurance-v1` static projection after exact premise validation; executes no
+  test, proof, solver, consumer, package-manager, Git, or network command.
 
 The positional document argument accepts `-` for stdin. The binary statically links `quire-rs` and ships as a single platform-specific executable.
 

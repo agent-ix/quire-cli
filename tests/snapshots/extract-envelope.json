@@ -22,6 +22,7 @@
     "engine": "<engine>",
     "capabilities": [
       "action_guidance.structured",
+      "assurance_export.v1",
       "binding_census",
       "binding_census.self_named",
       "binding_census.tagged",
