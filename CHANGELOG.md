@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The public contract under SemVer is the subcommand surface, exit codes, and JSON
 output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
+## [Unreleased]
+
+### Added
+
+- **Deterministic source-grounded assurance export (`quire assurance`, #74).**
+  The new command exposes quire-rs's existing `assurance-v1` graph/export API
+  without adding a second graph, schema, evidence envelope, execution path, or
+  verdict. Repository/revision, exact module version, and the complete active
+  schema-digest set are explicit and fail closed before stdout on drift.
+  Compact output is the upstream byte sequence plus a newline; `--pretty`
+  changes whitespace only. Diagnostics stay on stderr, empty success remains
+  distinct from inability, and unreadable bounded inputs retain upstream's
+  explicit `unknown` observation.
+
+### Changed
+
+- Pinned quire-rs **0.46.0** at assurance-export merge
+  `e3352a0644abcfd5f0ebad348bc7aca235925ecc` and added the compile-checked
+  `assurance_export.v1` capability token. The assurance payload itself remains
+  the closed upstream contract and therefore receives no added CLI provenance
+  field. Version publication remains owned by the shared release/pin gate in
+  `agent-ix/engineering-assurance#8`; this change records compatibility without
+  publishing or dispatching hosted CI.
+
 ## [0.31.0] - 2026-08-29
 
 ### Fixed

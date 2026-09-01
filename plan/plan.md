@@ -34,9 +34,10 @@ preimplementation specification and scope review are committed at `2502617`.
 3. **T-023 — Prove the process boundary.** Add a non-vacuous fixture and golden
    plus IT-136..144/TC-814: complete records and all availability states,
    schema conformance, compact/pretty determinism, every premise refusal,
-   empty-success distinction, stderr diagnostics, static thin-boundary audit,
-   and Linux network/process tracing. Cross-language checks consume the exact
-   same checked-in bytes and name an unavailable local validator as a skip.
+   empty/unknown/unavailable distinction, stderr diagnostics, static
+   thin-boundary audit, and Linux network/process tracing. Cross-language
+   checks consume the exact same checked-in bytes and name an unavailable
+   local runtime as a skip.
 4. **T-024 — Publish the contract in-tree.** Update the help snapshot, README,
    changelog, command/module documentation, and matrix statuses only after the
    backing tests have recorded passing runs. IT-145 checks documentation,

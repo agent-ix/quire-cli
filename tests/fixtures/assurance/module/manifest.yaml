@@ -1,0 +1,41 @@
+manifest_version: 1.0.0
+name: assurance-fixture
+version: 1.2.3
+artifact_types:
+- name: FR
+- name: StR
+- name: NFR
+traceability:
+  trace_targets:
+  - name: acceptance-criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  obligations:
+  - name: acceptance-criterion
+    target: acceptance-criterion
+    statement_column: Criteria
+    method_column: Verification
+  required_relations:
+  - name: fr-has-need
+    from: FR
+    edges: [satisfies]
+    to: [StR]
+    direction: outgoing
+    check: orphan-fr
+  - name: nfr-has-owner
+    from: NFR
+    edges: [owned_by]
+    direction: outgoing
+    check: orphan-nfr
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(([^)]*)\)\]'
+      template: '#[trace({ids})]'
+    implements:
+    - name: rust-implements-attribute
+      language: rust
+      pattern: '#\[implements\("([^"]+)"\)\]'
+      template: '#[implements("{ids}")]'

@@ -1,8 +1,9 @@
-Thin CLI over quire-rs (parse, extract, lookup, edit, validate, schema)
+Thin CLI over quire-rs (parse, extract, validate, and assurance export)
 
 Usage: quire [OPTIONS] <COMMAND>
 
 Commands:
+  assurance   Emit source-grounded assurance facts through quire-rs assurance-v1
   parse       Parse a markdown document to JSON
   extract     Extract structured records + edges from a document
   lookup      Look up one parsed section by heading, id, or block id
