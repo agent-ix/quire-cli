@@ -134,6 +134,7 @@ fn assert_refused(output: &Output, expected: &str) {
 }
 
 #[test]
+// IT-136, FR-020-AC-1, US-006-AC-1.
 fn it_136_complete_fixture_exercises_every_assurance_record_family() {
     let fixture = fixture(true);
     let (_, value) = success(&fixture);
@@ -185,6 +186,7 @@ fn it_136_complete_fixture_exercises_every_assurance_record_family() {
 }
 
 #[test]
+// IT-137, FR-020-AC-1.
 fn it_137_output_is_the_upstream_type_and_schema() {
     let fixture = fixture(true);
     let (output, value) = success(&fixture);
@@ -207,6 +209,7 @@ fn it_137_output_is_the_upstream_type_and_schema() {
 }
 
 #[test]
+// IT-138, FR-020-AC-2, US-006-AC-3.
 fn it_138_compact_pretty_and_golden_bytes_are_deterministic() {
     let fixture = fixture(true);
     let first = output(&fixture);
@@ -243,6 +246,7 @@ fn it_138_compact_pretty_and_golden_bytes_are_deterministic() {
 }
 
 #[test]
+// IT-139, FR-020-AC-3, US-006-AC-2.
 fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     let fixture = fixture(false);
     let cases: Vec<(&str, Vec<&str>, &str)> = vec![
@@ -286,6 +290,7 @@ fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
 }
 
 #[test]
+// IT-140, FR-020-AC-3.
 fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
     let base = fixture(false);
     let malformed = quire()
@@ -330,6 +335,7 @@ fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
 }
 
 #[test]
+// IT-141, FR-020-AC-4.
 fn it_141_empty_unknown_and_unavailable_are_three_distinct_outcomes() {
     let empty = fixture(false);
     fs::remove_dir_all(empty.scope.join("spec")).expect("remove populated spec");
@@ -360,6 +366,7 @@ fn it_141_empty_unknown_and_unavailable_are_three_distinct_outcomes() {
 }
 
 #[test]
+// IT-142, FR-020-AC-5.
 fn it_142_diagnostics_stay_on_stderr_in_human_and_json_modes() {
     let fixture = fixture(true);
     let human = output(&fixture);

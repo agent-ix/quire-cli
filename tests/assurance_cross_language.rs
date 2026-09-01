@@ -10,6 +10,7 @@ use serde_json::Value;
 const GOLDEN: &[u8] = include_bytes!("fixtures/assurance/v1.json");
 
 #[test]
+// IT-144, FR-020-AC-8.
 fn it_144_rust_python_and_node_consume_the_exact_golden_bytes() {
     let payload: Value = serde_json::from_slice(GOLDEN).expect("golden JSON");
     let schema: Value = serde_json::from_str(ASSURANCE_V1_SCHEMA).expect("upstream schema");

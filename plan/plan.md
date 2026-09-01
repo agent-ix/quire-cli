@@ -21,28 +21,28 @@ preimplementation specification and scope review are committed at `2502617`.
 
 ### Dependency order
 
-1. **T-021 — Pin the authoritative export owner.** Advance the exact
+1. **T-021 — Pin the authoritative export owner (complete).** Advance the exact
    `quire-rs` revision to merge `e3352a0644abcfd5f0ebad348bc7aca235925ecc`
    (manifest 0.46.0), regenerate `Cargo.lock`, and add the compile-checked
    `assurance_export.v1` capability token. No schema is copied into this repo.
-2. **T-022 — Add the thin command.** Add `commands::assurance`, wire clap, and
+2. **T-022 — Add the thin command (complete).** Add `commands::assurance`, wire clap, and
    reuse the existing scope/module path guards. Construct the bounded `Spec`,
    scoped symbol extraction, and binding through quire-rs, then call
    `build_assurance_export` and `read_assurance_export`. Parse
    `NAME@VERSION`/`MODULE/ARCHETYPE@SHA256` only as CLI premises; compare the
    complete expected and emitted premise sets before writing stdout.
-3. **T-023 — Prove the process boundary.** Add a non-vacuous fixture and golden
+3. **T-023 — Prove the process boundary (complete).** Add a non-vacuous fixture and golden
    plus IT-136..144/TC-814: complete records and all availability states,
    schema conformance, compact/pretty determinism, every premise refusal,
    empty/unknown/unavailable distinction, stderr diagnostics, static
    thin-boundary audit, and Linux network/process tracing. Cross-language
    checks consume the exact same checked-in bytes and name an unavailable
    local runtime as a skip.
-4. **T-024 — Publish the contract in-tree.** Update the help snapshot, README,
+4. **T-024 — Publish the contract in-tree (complete).** Update the help snapshot, README,
    changelog, command/module documentation, and matrix statuses only after the
    backing tests have recorded passing runs. IT-145 checks documentation,
    capability, manifest, and lockfile agreement.
-5. **T-025 — Review and PR gate.** Run all local gates, create tracked
+5. **T-025 — Review and PR gate (in progress).** Run all local gates, create tracked
    `/code-review` and `/gap-analysis` artifacts, open the PR, read every GitHub
    review/comment, fix and re-run findings, and add closing review artifacts.
    Hosted CI remains manual-only and is not dispatched. Administrative merge
@@ -67,9 +67,9 @@ preimplementation specification and scope review are committed at `2502617`.
 | Gate | Evidence | Initial state |
 |------|----------|---------------|
 | G9 Specification baseline | Targeted Quire validation; SR-009; commit `2502617` | complete |
-| G10 Implementation contract | IT-136..142 and TC-814 | pending |
-| G11 Non-execution and portability | IT-143..145 | pending |
-| G12 Repository quality | `make ci`, release build, targeted Quire validation | pending |
+| G10 Implementation contract | IT-136..142 and TC-814 | complete (SR-010/SR-011) |
+| G11 Non-execution and portability | IT-143..145 | complete (SR-010/SR-011) |
+| G12 Repository quality | `make ci`, release build, targeted Quire validation | complete (SR-010/SR-011) |
 | G13 External review | PR comments/reviews read; all required findings fixed | pending |
 
 ### Risks and controls
