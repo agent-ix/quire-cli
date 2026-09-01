@@ -64,9 +64,9 @@ instrument now reports FR-020 9/9 and none of IT-136..145 or TC-814 in
 - Branch coverage export after the binding fix → no IT-136..145/TC-814 row
   in `unbacked_rows`; `status_lies: []`.
 
-## Remaining gate
+## Closing gate
 
-G13 is intentionally open. The branch must be pushed and a PR opened for the
-external reviewer; every GitHub comment and review must be read, required
-findings fixed, and local gates re-run before any administrative merge. Hosted
-CI remains manual-only and was not dispatched.
+G13 completed through the independent SR-012/SR-013 review and the SR-014/SR-015
+remediation pass. Every GitHub finding was read and dispositioned, exact-head
+local gates were rerun, and the bounded administrative-merge exception can now
+be recorded. Hosted CI remains manual-only and was not dispatched.

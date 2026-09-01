@@ -42,7 +42,7 @@ preimplementation specification and scope review are committed at `2502617`.
    changelog, command/module documentation, and matrix statuses only after the
    backing tests have recorded passing runs. IT-145 checks documentation,
    capability, manifest, and lockfile agreement.
-5. **T-025 — Review and PR gate (in progress).** Run all local gates, create tracked
+5. **T-025 — Review and PR gate (complete).** Run all local gates, create tracked
    `/code-review` and `/gap-analysis` artifacts, open the PR, read every GitHub
    review/comment, fix and re-run findings, and add closing review artifacts.
    Hosted CI remains manual-only and is not dispatched. Administrative merge
@@ -70,7 +70,7 @@ preimplementation specification and scope review are committed at `2502617`.
 | G10 Implementation contract | IT-136..142 and TC-814 | complete (SR-010/SR-011) |
 | G11 Non-execution and portability | IT-143..145 | complete (SR-010/SR-011) |
 | G12 Repository quality | `make ci`, release build, targeted Quire validation | complete (SR-010/SR-011) |
-| G13 External review | PR comments/reviews read; all required findings fixed | pending |
+| G13 External review | PR comments/reviews read; all required findings fixed | complete (SR-012..SR-015; PR #75) |
 
 ### Risks and controls
 
