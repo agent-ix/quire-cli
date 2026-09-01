@@ -35,7 +35,7 @@ Global flags:
 | Flag | Default | Purpose |
 |------|---------|---------|
 | `--diagnostics-format <human\|json>` | `human` | stderr diagnostic encoding |
-| `--pretty` | off | indented JSON output for `parse`, `lookup`, and `extract` |
+| `--pretty` | off | indented JSON output for JSON-emitting commands, including `assurance` |
 
 Exit codes:
 
@@ -200,8 +200,9 @@ document remains explicit as an `unknown` observation with a reason.
 The command performs static parsing and extraction only. It invokes no Git,
 test, proof, solver, package manager, consumer, or network operation, adds no
 verdict, and does not append the CLI's ordinary provenance object to the closed
-upstream payload. Compact JSON is deterministic; global `--pretty` changes
-whitespace only. Diagnostics always use stderr.
+upstream payload. Compact JSON is deterministic; global `--pretty` re-indents
+the already validated compact bytes and changes whitespace only. Diagnostics
+always use stderr.
 
 ### Validate A Markdown Document
 

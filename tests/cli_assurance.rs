@@ -133,8 +133,32 @@ fn assert_refused(output: &Output, expected: &str) {
     );
 }
 
+fn remove_insignificant_json_whitespace(bytes: &[u8]) -> Vec<u8> {
+    let mut compact = Vec::with_capacity(bytes.len());
+    let mut in_string = false;
+    let mut escaped = false;
+    for &byte in bytes {
+        if in_string {
+            compact.push(byte);
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                in_string = false;
+            }
+        } else if byte == b'"' {
+            in_string = true;
+            compact.push(byte);
+        } else if !byte.is_ascii_whitespace() {
+            compact.push(byte);
+        }
+    }
+    compact
+}
+
+// Trace: IT-136, FR-020-AC-1
 #[test]
-// IT-136, FR-020-AC-1, US-006-AC-1.
 fn it_136_complete_fixture_exercises_every_assurance_record_family() {
     let fixture = fixture(true);
     let (_, value) = success(&fixture);
@@ -185,8 +209,8 @@ fn it_136_complete_fixture_exercises_every_assurance_record_family() {
             .is_some_and(|reason| !reason.is_empty())));
 }
 
+// Trace: IT-137, FR-020-AC-1
 #[test]
-// IT-137, FR-020-AC-1.
 fn it_137_output_is_the_upstream_type_and_schema() {
     let fixture = fixture(true);
     let (output, value) = success(&fixture);
@@ -208,8 +232,8 @@ fn it_137_output_is_the_upstream_type_and_schema() {
     );
 }
 
+// Trace: IT-138, FR-020-AC-2
 #[test]
-// IT-138, FR-020-AC-2, US-006-AC-3.
 fn it_138_compact_pretty_and_golden_bytes_are_deterministic() {
     let fixture = fixture(true);
     let first = output(&fixture);
@@ -240,13 +264,18 @@ fn it_138_compact_pretty_and_golden_bytes_are_deterministic() {
     assert_eq!(pretty_one.stdout, pretty_two.stdout);
     assert_ne!(pretty_one.stdout, first.stdout);
     assert_eq!(
+        remove_insignificant_json_whitespace(&pretty_one.stdout),
+        remove_insignificant_json_whitespace(&first.stdout),
+        "pretty output must preserve every non-whitespace byte and key order"
+    );
+    assert_eq!(
         serde_json::from_slice::<Value>(&pretty_one.stdout).expect("pretty JSON"),
         serde_json::from_slice::<Value>(&first.stdout).expect("compact JSON")
     );
 }
 
+// Trace: IT-139, FR-020-AC-3
 #[test]
-// IT-139, FR-020-AC-3, US-006-AC-2.
 fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     let fixture = fixture(false);
     let cases: Vec<(&str, Vec<&str>, &str)> = vec![
@@ -289,8 +318,8 @@ fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     }
 }
 
+// Trace: IT-140, FR-020-AC-3
 #[test]
-// IT-140, FR-020-AC-3.
 fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
     let base = fixture(false);
     let malformed = quire()
@@ -334,8 +363,8 @@ fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
     }
 }
 
+// Trace: IT-141, FR-020-AC-4
 #[test]
-// IT-141, FR-020-AC-4.
 fn it_141_empty_unknown_and_unavailable_are_three_distinct_outcomes() {
     let empty = fixture(false);
     fs::remove_dir_all(empty.scope.join("spec")).expect("remove populated spec");
@@ -363,10 +392,31 @@ fn it_141_empty_unknown_and_unavailable_are_three_distinct_outcomes() {
         .output()
         .expect("empty repository run");
     assert_refused(&refused, "repository is empty");
+
+    let no_model = fixture(false);
+    let manifest_path = no_model.module.join("manifest.yaml");
+    let manifest = fs::read_to_string(&manifest_path).expect("manifest");
+    let manifest = manifest
+        .split_once("traceability:\n")
+        .map(|(prefix, _)| prefix)
+        .expect("fixture traceability section");
+    write(&manifest_path, manifest);
+    let (_, value) = success(&no_model);
+    assert!(!value["artifacts"].as_array().expect("artifacts").is_empty());
+    assert!(!value["symbols"].as_array().expect("symbols").is_empty());
+    assert!(value["obligations"]
+        .as_array()
+        .expect("obligations")
+        .is_empty());
+    assert!(value["relations"]
+        .as_array()
+        .expect("relations")
+        .iter()
+        .all(|relation| relation["kind"] != "verifies" && relation["kind"] != "implements"));
 }
 
+// Trace: IT-142, FR-020-AC-5
 #[test]
-// IT-142, FR-020-AC-5.
 fn it_142_diagnostics_stay_on_stderr_in_human_and_json_modes() {
     let fixture = fixture(true);
     let human = output(&fixture);

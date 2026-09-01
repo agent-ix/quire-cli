@@ -9,8 +9,8 @@ use serde_json::Value;
 
 const GOLDEN: &[u8] = include_bytes!("fixtures/assurance/v1.json");
 
+// Trace: IT-144, FR-020-AC-8
 #[test]
-// IT-144, FR-020-AC-8.
 fn it_144_rust_python_and_node_consume_the_exact_golden_bytes() {
     let payload: Value = serde_json::from_slice(GOLDEN).expect("golden JSON");
     let schema: Value = serde_json::from_str(ASSURANCE_V1_SCHEMA).expect("upstream schema");
@@ -39,7 +39,7 @@ fn it_144_rust_python_and_node_consume_the_exact_golden_bytes() {
         Ok(output) if output.status.success() => {}
         Ok(output) => panic!("Python compatibility probe failed: {}", String::from_utf8_lossy(&output.stderr)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            eprintln!("skipping Python compatibility probe: python3 unavailable");
+            panic!("IT-144 requires python3 and jsonschema: {error}");
         }
         Err(error) => panic!("Python compatibility probe: {error}"),
     }
@@ -53,7 +53,7 @@ fn it_144_rust_python_and_node_consume_the_exact_golden_bytes() {
         Ok(output) if output.status.success() => {}
         Ok(output) => panic!("Node compatibility probe failed: {}", String::from_utf8_lossy(&output.stderr)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            eprintln!("skipping Node compatibility probe: node unavailable");
+            panic!("IT-144 requires Node: {error}");
         }
         Err(error) => panic!("Node compatibility probe: {error}"),
     }

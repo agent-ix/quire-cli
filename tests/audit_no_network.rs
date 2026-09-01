@@ -10,8 +10,8 @@
 //! Trace ids sit on the tests, not in this header — a `//!` block attaches to
 //! the file and binds to no symbol (agent-ix/quire-cli#43).
 //!
-//! `strace` is Linux-only. We additionally skip if strace isn't on PATH
-//! so the test stays no-op on minimal containers.
+//! `strace` is Linux-only. The assurance audit fails closed if it is absent;
+//! older general-purpose probes retain their historical minimal-host skip.
 
 #![cfg(target_os = "linux")]
 
@@ -82,10 +82,10 @@ fn assert_no_inet_socket(trace: &str, subcommand: &str) {
 /// a second would be Git, a package manager, runner, solver, or consumer.
 #[test]
 fn assurance_does_not_open_inet_socket_or_execute_a_child() {
-    if !strace_available() {
-        eprintln!("skipping: strace not on PATH");
-        return;
-    }
+    assert!(
+        strace_available(),
+        "IT-143 requires strace; absence cannot verify FR-020-AC-7"
+    );
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let scope = root.join("tests/fixtures/assurance/scope");
     let module = root.join("tests/fixtures/assurance/module");

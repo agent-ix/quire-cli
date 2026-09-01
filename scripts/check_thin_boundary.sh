@@ -77,6 +77,14 @@ for forbidden in \
   fi
 done
 
+# StR-004-VC-3: make the upstream-ownership review question an executable
+# repository invariant rather than an unverified process claim.
+REVIEW_CHECKLIST='Does any new logic belong upstream in `quire-rs`?'
+if ! grep -Fqx -- "- $REVIEW_CHECKLIST" CONTRIBUTING.md; then
+  echo "TC-814 violation: CONTRIBUTING.md lacks the thin-boundary review question" >&2
+  fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "thin-boundary audit failed; see violations above" >&2
   exit 1

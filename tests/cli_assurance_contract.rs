@@ -8,8 +8,8 @@ use common::quire;
 
 const ENGINE_REVISION: &str = "e3352a0644abcfd5f0ebad348bc7aca235925ecc";
 
+// Trace: IT-145, FR-020-AC-9
 #[test]
-// IT-145, FR-020-AC-9.
 fn it_145_help_docs_capability_and_dependency_pin_agree() {
     let help = quire().arg("--help").output().expect("help");
     assert!(help.status.success());

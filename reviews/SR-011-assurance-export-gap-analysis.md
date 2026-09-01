@@ -18,11 +18,13 @@ ownership into this CLI.
 
 ## Verdict
 
-**PASS — no issue-#74 implementation gap remains.** Every FR-020 and US-006
-criterion has a recorded passing run or static inspection. Quire's coverage
-instrument initially exposed nine missing source bindings; those were fixed,
-and none of IT-136..145 or TC-814 remains in `unbacked_rows`. Existing unrelated
-repository gaps remain unchanged and `status_lies` is empty.
+**PASS after external-review remediation — no issue-#74 implementation gap
+remains.** Every FR-020 criterion has a recorded passing run or static
+inspection; US-006 carries illustrative examples and delegates binding
+acceptance to FR-020 as the authoritative module requires. Quire's coverage
+instrument now reports FR-020 9/9 and none of IT-136..145 or TC-814 in
+`unbacked_rows`. Existing unrelated repository gaps remain unchanged and
+`status_lies` is empty.
 
 ## Findings
 
@@ -55,7 +57,8 @@ repository gaps remain unchanged and `status_lies` is empty.
 - Full Linux audit suite → `9 passed; 0 failed`, including IT-143 with strace.
 - Static audit suite → `4 passed; 0 failed`; direct thin-boundary script →
   `thin-boundary audit ok`.
-- Exact `make ci` gate → 197 tests, 0 failures, all policy audits green.
+- Exact `make ci` gate → 214 tests, 0 failures, all policy and specification
+  traceability audits green.
 - Locked release build → exit 0.
 - Targeted specification validation → 5/5 grammar-clean, exit 0.
 - Branch coverage export after the binding fix → no IT-136..145/TC-814 row

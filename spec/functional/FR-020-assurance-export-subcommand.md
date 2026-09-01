@@ -56,14 +56,17 @@ it does not disable schema checking.
 2. It constructs `Spec`, `SymbolExtraction`, and `SymbolGraph` only through the
    authoritative quire-rs loaders and binder. It then calls
    `build_assurance_export`; no CLI-owned artifact, obligation, symbol,
-   relation, availability, or freshness logic is permitted.
+   relation, availability, or freshness logic is permitted. A module without a
+   `traceability:` model is valid: static artifacts and symbols are exported,
+   while obligations and `verifies`/`implements` relations are empty.
 3. It validates the completed bytes with `read_assurance_export` and the
    caller's accepted module/schema premises, and separately requires the
    accepted set to equal the emitted set so an unused extra premise cannot pass.
 4. Only after construction, upstream schema validation, and exact-premise
    comparison succeed does it write JSON to stdout. Compact output is the exact
    `AssuranceExport::to_json_bytes()` value plus one newline. Global `--pretty`
-   changes whitespace only and remains deterministic.
+   parses and re-indents those validated compact bytes, changes whitespace only,
+   and remains deterministic.
 5. Registry, corpus, and symbol-extraction diagnostics use the established
    stderr channel. An error exits non-zero with empty stdout; a successful
    export may legitimately contain empty record arrays and still exits zero
@@ -85,11 +88,11 @@ it does not disable schema checking.
 | FR-020-AC-1 | A pinned fixture containing artifacts, obligations, symbols, resolved and dangling corpus relations, `verifies` and `implements` bindings, locators, relation-kind capabilities, and `available`, `missing`, `not_applicable`, and `unknown` observations emits a complete `quire-assurance` v1 document that validates against `quire_rs::assurance::ASSURANCE_V1_SCHEMA`. | Test (IT-136, IT-137) |
 | FR-020-AC-2 | Two compact runs over identical fixture bytes and arguments produce byte-identical stdout; `--pretty` changes only whitespace and is independently byte-identical across runs. | Test (IT-138) |
 | FR-020-AC-3 | A mismatched module name/version, missing or extra schema premise, wrong schema digest, malformed premise syntax, unnamed/unversioned module, or unsupported source revision exits non-zero with empty stdout and a diagnostic naming the refused premise. | Test (IT-139, IT-140) |
-| FR-020-AC-4 | A valid corpus with zero artifacts, obligations, symbols, or relations still emits the complete successful envelope and exits zero. A document the corpus walker cannot read remains a successful export with an `unknown` relation observation and non-empty reason as quire-rs FR-068 requires; a missing root, invalid module/source premise, or export-wide upstream error exits non-zero with empty stdout. | Test (IT-141) |
+| FR-020-AC-4 | A valid corpus with zero artifacts, obligations, symbols, or relations still emits the complete successful envelope and exits zero. A module without a `traceability:` model exports its static artifacts and symbols with empty obligations and no `verifies`/`implements` relations. A document the corpus walker cannot read remains a successful export with an `unknown` relation observation and non-empty reason as quire-rs FR-068 requires; a missing root, invalid module/source premise, or export-wide upstream error exits non-zero with empty stdout. | Test (IT-141) |
 | FR-020-AC-5 | Module-loader and symbol-extraction diagnostics are emitted on stderr in human or JSON diagnostic form and never enter the assurance payload. | Test (IT-142) |
 | FR-020-AC-6 | The command delegates construction to `build_assurance_export`, validation to `read_assurance_export`, corpus loading to `Spec`, extraction to `extract_tree_scoped`, and binding to `trace::bind`; a static boundary audit rejects a second graph, schema, or direct parser in the CLI. | Inspection (TC-814) |
 | FR-020-AC-7 | The command opens no network socket and spawns no child process on success or refusal paths. | Test (IT-143) |
-| FR-020-AC-8 | A checked-in golden JSON fixture validates against the upstream schema in Rust, is consumed from the exact same bytes by Node/TypeScript and Python compatibility probes without normalization, and pins every v1 field and state token. | Test (IT-144) |
+| FR-020-AC-8 | A checked-in golden JSON fixture validates against the upstream schema in Rust, is consumed from the exact same bytes by required Node/TypeScript and Python compatibility probes without normalization, and pins every v1 field and state token. A missing probe runtime fails the gate. | Test (IT-144) |
 | FR-020-AC-9 | `--help`, README, changelog, linked-engine capability reporting, and the exact Cargo revision pin consistently describe the assurance command and quire-rs compatibility boundary. | Test (IT-145) |
 
 ## Dependencies

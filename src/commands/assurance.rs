@@ -58,7 +58,7 @@ impl FromStr for ExpectedSchema {
             .rsplit_once('@')
             .ok_or_else(|| "expected MODULE/ARCHETYPE@SHA256".to_string())?;
         let (module, archetype) = identity
-            .split_once('/')
+            .rsplit_once('/')
             .ok_or_else(|| "expected MODULE/ARCHETYPE@SHA256".to_string())?;
         if module.is_empty() || archetype.is_empty() {
             return Err("expected non-empty MODULE/ARCHETYPE@SHA256".to_string());
@@ -169,7 +169,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     let mut output = if ctx.pretty {
-        io::encode_json(&export, true)?.into_bytes()
+        io::pretty_validated_json_bytes(&compact)
     } else {
         compact
     };
@@ -226,6 +226,10 @@ mod tests {
 
         let digest = "a".repeat(64);
         assert!(ExpectedSchema::from_str(&format!("module/FR@{digest}")).is_ok());
+        let scoped = ExpectedSchema::from_str(&format!("scope/module/FR@{digest}"))
+            .expect("rightmost slash separates archetype");
+        assert_eq!(scoped.module, "scope/module");
+        assert_eq!(scoped.archetype, "FR");
         assert!(ExpectedSchema::from_str("module/FR@ABC").is_err());
         assert!(ExpectedSchema::from_str(&format!("module@FR@{digest}")).is_err());
     }

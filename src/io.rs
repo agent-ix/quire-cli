@@ -140,6 +140,69 @@ pub fn encode_json<T: Serialize>(value: &T, pretty: bool) -> serde_json::Result<
     }
 }
 
+/// Indent compact JSON without changing any non-whitespace byte or key order.
+///
+/// The caller must first validate `compact` as JSON. This is deliberately a
+/// lexical formatter, not another object serialization path: whitespace inside
+/// strings is copied verbatim and only insignificant whitespace is inserted.
+pub fn pretty_validated_json_bytes(compact: &[u8]) -> Vec<u8> {
+    let mut output = Vec::with_capacity(compact.len() + compact.len() / 4);
+    let mut depth = 0usize;
+    let mut in_string = false;
+    let mut escaped = false;
+
+    for (index, &byte) in compact.iter().enumerate() {
+        if in_string {
+            output.push(byte);
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        match byte {
+            b'"' => {
+                in_string = true;
+                output.push(byte);
+            }
+            b'{' | b'[' => {
+                output.push(byte);
+                depth += 1;
+                let matching_close = if byte == b'{' { b'}' } else { b']' };
+                if compact.get(index + 1) != Some(&matching_close) {
+                    output.push(b'\n');
+                    output.extend(std::iter::repeat(b' ').take(depth * 2));
+                }
+            }
+            b'}' | b']' => {
+                depth = depth.saturating_sub(1);
+                let matching_open = if byte == b'}' { b'{' } else { b'[' };
+                if index > 0 && compact[index - 1] != matching_open {
+                    output.push(b'\n');
+                    output.extend(std::iter::repeat(b' ').take(depth * 2));
+                }
+                output.push(byte);
+            }
+            b',' => {
+                output.push(byte);
+                output.push(b'\n');
+                output.extend(std::iter::repeat(b' ').take(depth * 2));
+            }
+            b':' => {
+                output.push(byte);
+                output.push(b' ');
+            }
+            _ => output.push(byte),
+        }
+    }
+
+    output
+}
+
 /// Emit one **result** line — a census figure, a per-row record, anything a
 /// caller redirecting with `>` came for (FR-006-AC-5, CR-012).
 ///
@@ -350,6 +413,40 @@ mod tests {
         let v = serde_json::json!({"a": 1});
         let s = encode_json(&v, true).unwrap();
         assert!(s.contains('\n'));
+    }
+
+    #[test]
+    fn validated_json_pretty_print_preserves_non_whitespace_bytes() {
+        let compact = br#"{"z":"spaces, braces { } and an escaped quote: \"","a":[{},[],true]}"#;
+        let pretty = pretty_validated_json_bytes(compact);
+        assert_eq!(
+            String::from_utf8(pretty.clone()).unwrap(),
+            "{\n  \"z\": \"spaces, braces { } and an escaped quote: \\\"\",\n  \"a\": [\n    {},\n    [],\n    true\n  ]\n}"
+        );
+
+        let mut in_string = false;
+        let mut escaped = false;
+        let restored: Vec<u8> = pretty
+            .into_iter()
+            .filter(|&byte| {
+                if in_string {
+                    if escaped {
+                        escaped = false;
+                    } else if byte == b'\\' {
+                        escaped = true;
+                    } else if byte == b'"' {
+                        in_string = false;
+                    }
+                    true
+                } else if byte == b'"' {
+                    in_string = true;
+                    true
+                } else {
+                    !byte.is_ascii_whitespace()
+                }
+            })
+            .collect();
+        assert_eq!(restored, compact);
     }
 
     #[test]

@@ -20,12 +20,12 @@ validation to the upstream assurance API.
 
 ## Verdict
 
-**PASS after fixes.** No open correctness, safety, compatibility, or ownership
-finding remains. Three integration findings were fixed locally before the PR:
-the capability snapshot, direct source-symbol trace bindings, and fixture/golden
-EOF normalization. Both deliberate mutations were caught by the intended tests
-and then reverted. The exact repository `make ci` gate passes with 197 tests and
-zero failures.
+**PASS after fixes and external-review remediation.** No open correctness,
+safety, compatibility, or ownership finding remains. The capability snapshot,
+canonical source-symbol trace bindings, fixture/golden EOF normalization,
+fail-closed compatibility probes, and validated-byte pretty path are fixed.
+Both deliberate mutations were caught by the intended tests and then reverted.
+The exact repository `make ci` gate passes with 214 tests and zero failures.
 
 ## Assurance Context
 
@@ -51,9 +51,9 @@ zero failures.
 | ID | Severity | Summary | Refs |
 |----|----------|---------|------|
 | FND-001 | medium | **FIXED.** Adding `assurance_export.v1` changed the shared engine capability envelope, but the extract snapshot initially retained the old list. The full suite caught IT-129; the snapshot now includes the sorted token and all six provenance tests pass. | tests/snapshots/extract-envelope.json; tests/cli_provenance.rs |
-| FND-002 | medium | **FIXED.** The new IT-137..142, IT-144, IT-145, and TC-814 evidence ran but was not bound to source symbols because the IDs appeared only in file-level prose or the shell script. Each ID is now attached directly to its Rust test symbol; the coverage export reports none of IT-136..145/TC-814 unbacked. | tests/cli_assurance.rs; tests/assurance_cross_language.rs; tests/cli_assurance_contract.rs; tests/audit_static.rs; SR-011 |
+| FND-002 | medium | **FIXED.** The new IT-137..142, IT-144, IT-145, and TC-814 evidence ran but was not bound to source symbols. The first repair retained a trailing period that the trace grammar absorbed into the last ID; external review exposed the remaining gap. Canonical `// Trace:` lines now bind all of IT-136..145, TC-814, and FR-020-AC-1..9. | tests/cli_assurance.rs; tests/assurance_cross_language.rs; tests/cli_assurance_contract.rs; tests/audit_static.rs; SR-014 |
 | FND-003 | low | **FIXED.** Five new text fixtures carried duplicate EOF blank lines; removing them changed the four source digests embedded in the golden. EOFs are normalized, the golden diff was reviewed as digest-only, and IT-137/IT-138 revalidate the exact bytes. | tests/fixtures/assurance/; IT-137; IT-138 |
-| FND-004 | low | **ACCEPTED.** Python and Node probes skip with a named message if a local runtime is absent. Rust always validates the exact golden against the upstream Draft 2020-12 schema; on this review host both Python/jsonschema and Node were present and passed. | tests/assurance_cross_language.rs; IT-144 |
+| FND-004 | low | **FIXED.** Python and Node are required compatibility probes; a missing runtime now fails the gate. Linux IT-143 likewise requires `strace` instead of silently passing. | tests/assurance_cross_language.rs; tests/audit_no_network.rs; IT-143; IT-144 |
 
 ## Mutation checks
 
@@ -84,8 +84,8 @@ source restored before the final gate.
 ## Recorded gates (2026-09-01)
 
 - `env CARGO_TARGET_DIR=/tmp/quire-cli-74-target make ci` → exit 0: fmt,
-  clippy `-D warnings`, 197 tests / 0 failures, licenses, bans, unsafe audit,
-  thin-boundary audit, and tool-drift audit.
+  clippy `-D warnings`, 214 tests / 0 failures, licenses, bans, unsafe audit,
+  thin-boundary audit, tool-drift audit, and specification traceability gate.
 - `env CARGO_TARGET_DIR=/tmp/quire-cli-74-target cargo build --locked --release`
   → exit 0.
 - Targeted Quire validation over SR-009, FR-020, US-006, StR-004, and the test

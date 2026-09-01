@@ -16,15 +16,17 @@ relations, so that I can pass static specification facts to a consumer without
 reimplementing Quire's graph or confusing an unavailable export with an empty
 successful one.
 
-## Acceptance
+## Acceptance Examples (Illustrative)
 
-- **US-006-AC-1**: A producer supplies a bounded repository scope, one exact
+- A producer supplies a bounded repository scope, one exact
   module, a repository identity, and a full immutable revision and receives a
   `quire-assurance` v1 JSON document on stdout.
-- **US-006-AC-2**: A producer can pin the expected module version and complete
+- A producer can pin the expected module version and complete
   active-archetype schema-digest set; any mismatch fails before stdout.
-- **US-006-AC-3**: Repeating the command over byte-identical inputs emits
+- Repeating the command over byte-identical inputs emits
   byte-identical compact JSON.
-- **US-006-AC-4**: The command reads documents and source statically and never
+- The command reads documents and source statically and never
   executes a test, proof, solver, consumer, package manager, or Git command.
 
+These examples are non-normative. FR-020 owns the binding acceptance criteria
+and their verification evidence.

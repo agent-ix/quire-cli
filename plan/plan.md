@@ -36,8 +36,8 @@ preimplementation specification and scope review are committed at `2502617`.
    schema conformance, compact/pretty determinism, every premise refusal,
    empty/unknown/unavailable distinction, stderr diagnostics, static
    thin-boundary audit, and Linux network/process tracing. Cross-language
-   checks consume the exact same checked-in bytes and name an unavailable
-   local runtime as a skip.
+   checks consume the exact same checked-in bytes and fail closed if a required
+   local runtime is unavailable.
 4. **T-024 — Publish the contract in-tree (complete).** Update the help snapshot, README,
    changelog, command/module documentation, and matrix statuses only after the
    backing tests have recorded passing runs. IT-145 checks documentation,
@@ -79,7 +79,7 @@ preimplementation specification and scope review are committed at `2502617`.
 | A permissive accepted-premise superset hides drift | Sort/deduplicate, reject duplicate CLI premises, and require exact structural equality in addition to the upstream reader. |
 | A diagnostic or error leaks a partial JSON prefix | Serialize into memory and perform every fallible check before the single stdout write. |
 | Fixture passes while exercising empty branches | Assert non-empty artifacts/obligations/symbols/relations, both binding variants, a dangling edge, and all observation states before accepting the golden. |
-| Optional language runtimes turn a claimed parity test into a silent pass | Always gate the bytes in Rust; cross-language probes explicitly report pass or named local skip, and retained review evidence states which ran. |
+| Missing language or tracing runtimes turn a claimed probe into a silent pass | Treat Python, Node, and Linux `strace` as required gate dependencies and fail closed when any is absent. |
 | Existing global `--pretty` changes the semantic contract | Compare parsed values and independently require byte identity for each mode. |
 
 Generated from `~/dev/quire-cli/spec/` via `/spec-to-plan`. Derived from 4 StR + 4 US + 8 FR + 6 NFR + 32 IT/BENCH/AUDIT cases (see `spec/tests.md` — 100 % AC coverage).
