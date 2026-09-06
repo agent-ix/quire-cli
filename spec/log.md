@@ -7,6 +7,13 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-06** — The #409 consumer join specifies FR-017-AC-21 and banks
+  native IT-152/153 before advancing the engine pin to
+  `616a7e97c0e8c84aedda71dc198e94e3de3d9da6`. Two selected tables exercise
+  exact global/override headers and default-versus-strict missing-header
+  behavior. FR-020-CON-1 and IT-145 retain exact source agreement; no CLI
+  production logic or engine-owned assurance schema changes.
+
 * **2026-09-06** — IR51-02: FR-017-AC-22 makes strict coverage fail on the
   engine's structured unread-status and hollow-denominator diagnostics. The
   policy reads the full report, retains report output and default reporting,

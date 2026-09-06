@@ -1,5 +1,5 @@
 //! Native consumer controls for quire-rs#409. The module fixture is copied
-//! byte-for-byte from engineering-qa QA7442f2770880a4ade303fb23d725804bdef454db,
+//! byte-for-byte from agent-ix/qa-corpus 7442f2770880a4ade303fb23d725804bdef454db,
 //! modules/variants/reference-status-column-explicit/manifest.yaml.
 mod common;
 
@@ -58,12 +58,14 @@ fn run(dir: &TempDir, strict: bool) -> (Output, Value) {
 fn assert_backed(report: &Value) {
     assert_eq!(report["totals"]["total"], 2, "{report}");
     assert_eq!(report["totals"]["backed"], 2, "{report}");
-    for field in ["unbacked_rows", "status_lies", "undeclared_statuses"] {
+    for field in ["unbacked_rows", "status_lies"] {
         assert!(
             report[field].as_array().unwrap().is_empty(),
             "{field}: {report}"
         );
     }
+    // The engine omits this advisory list when empty (FR-017-AC-10).
+    assert!(report.get("undeclared_statuses").is_none(), "{report}");
 }
 
 // Trace: IT-152, FR-017-AC-21
@@ -73,12 +75,8 @@ fn it152_native_default_and_override_are_independently_readable() {
     let (default, report) = run(&dir, false);
     assert_eq!(default.status.code(), Some(0), "{report}");
     assert_backed(&report);
-    assert!(
-        !report["diagnostics"].as_array().unwrap().iter().any(|d| {
-            d["reason"] == "status-column-matches-nothing" || d["reason"] == "hollow-denominator"
-        }),
-        "{report}"
-    );
+    // The fully readable fixture has no diagnostics; empty lists are omitted.
+    assert!(report.get("diagnostics").is_none(), "{report}");
     let (strict, strict_report) = run(&dir, true);
     assert_eq!(strict.status.code(), Some(0), "{strict_report}");
     assert_eq!(strict_report, report);
@@ -105,6 +103,11 @@ fn it153_each_missing_header_reports_then_fails_strict_without_fallback() {
         let (default, report) = run(&dir, false);
         assert_eq!(default.status.code(), Some(0), "{report}");
         assert_backed(&report);
+        assert_eq!(
+            report["diagnostics"].as_array().unwrap().len(),
+            1,
+            "{report}"
+        );
         let missing = report["diagnostics"]
             .as_array()
             .unwrap()
@@ -114,7 +117,7 @@ fn it153_each_missing_header_reports_then_fails_strict_without_fallback() {
         assert_eq!(missing.len(), 1, "{report}");
         assert_eq!(missing[0]["declaration"], declaration);
         assert!(missing[0]["message"].as_str().unwrap().contains(setting));
-        assert_eq!(missing[0]["document"], "spec/tests.md");
+        assert_eq!(missing[0]["path"], "spec/tests.md");
         assert!(missing[0]["line"].as_u64().unwrap() > 0);
         let (strict, strict_report) = run(&dir, true);
         assert_eq!(strict.status.code(), Some(1), "{strict_report}");

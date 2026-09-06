@@ -53,6 +53,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ### Changed
 
+- Advanced the engine pin to `616a7e97c0e8c84aedda71dc198e94e3de3d9da6`
+  for explicit per-reference `status_column` selection (quire-rs #409).
+  Global fallback on omission, the declared vocabulary, report-only defaults,
+  strict unread-measurement gating, and the assurance schema remain unchanged.
+
+
 - `coverage --strict` now rejects structured `status-column-matches-nothing`
   and `hollow-denominator` diagnostics, retaining JSON output and default
   report-only behavior (contract-core IR51-02).
