@@ -52,9 +52,9 @@ pub struct Args {
     #[arg(long, value_enum, value_name = "FORMAT")]
     pub format: Option<OutputFormat>,
 
-    /// Exit 1 when any row is unbacked or any status is contradicted. Off by
-    /// default: the rollup is a report, and whether a gap blocks is the
-    /// consuming workflow's policy, not this command's.
+    /// Exit 1 for unbacked rows, contradicted statuses, no matched rows, or
+    /// unread status columns / hollow measurements. Off by default: the
+    /// consuming workflow opts into this strict report policy.
     #[arg(long)]
     pub strict: bool,
 
@@ -171,6 +171,22 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         ("untracked-symbol", report.untracked_symbols.len()),
         ("undeclared-status", report.undeclared_statuses.len()),
     ];
+    // FR-017-AC-22: these engine-owned reasons invalidate a measurement even
+    // when the row-failure lists are empty. Read the full structured report,
+    // never rendered prose or the severity-projected finding lists.
+    let mut unread_measurements: Vec<String> = report
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| {
+            matches!(
+                diagnostic.reason.as_str(),
+                "status-column-matches-nothing" | "hollow-denominator"
+            )
+        })
+        .map(|diagnostic| diagnostic.reason.clone())
+        .collect();
+    unread_measurements.sort();
+    unread_measurements.dedup();
     let report = project_by_severity(ctx, report, &severity);
 
     let format = match args.format {
@@ -213,6 +229,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     if args.strict {
+        if !unread_measurements.is_empty() {
+            bail!(
+                "coverage could not evaluate its declared input: {} (--strict)",
+                unread_measurements.join(", ")
+            );
+        }
         // FR-050-AC-14 (CR-035): a model that matched nothing is the one state
         // where the two lists below are empty for the *wrong* reason. Checked
         // first, and reported as itself — a gate told "0 unbacked rows" learns

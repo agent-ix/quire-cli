@@ -10,6 +10,15 @@ relationships:
 
 ## Description
 
+> **CR note (strict unread measurements, contract core IR51-02, 2026-09-06):**
+> `--strict` also fails when the full engine report carries
+> `status-column-matches-nothing` or `hollow-denominator`. These structured
+> reasons mean configured status evaluation or a published measurement could
+> not read its input; empty unbacked/status-lie lists are not evidence of success.
+> The complete report is emitted before the nonzero exit. Severity projection
+> cannot weaken this gate. Default report-only behavior and other advisory
+> reasons, including undeclared status values, remain unchanged.
+
 The CLI SHALL provide a `coverage` subcommand that surfaces the quire-rs
 declarative coverage rollup (upstream [FR-050](ix://agent-ix/quire-rs/FR-050))
 over a repository, reconciling the trace ids a module's `traceability:` model
@@ -130,6 +139,7 @@ a consumer needs the whole rollup.
 | FR-017-AC-19 | The v0.42.0 advisory report lists pass through `--json` unmodified: `shared_trace_ids` (quire-rs FR-050-AC-23) carries every status-carrying row id bound by more than one distinct symbol, and `vocabulary_coverage` (FR-059-AC-9) serializes through the same wholesale report encoding — both absent when empty, preserving AC-2 byte-identity for conformant corpora. Neither has a human rendering in this release; that is a deliberate deferral, not an omission (#51 batch note) | Test (IT-116); Inspection (`vocabulary_coverage` — the CLI serializes the whole `CoverageReport`, and the severity projection does not touch either list) |
 | FR-017-AC-20 | `--module` is repeatable and the declared set is closed and ordered: `quire coverage --scope $R --module $A --module $B` reconciles against the union of the two modules' `traceability:` models, in that order, and a module reachable only from `IX_FILAMENT_MODULES_PATH` or `~/.ix/filament/modules/` is not consulted. A module named once emits no `DuplicateModuleName`/`DuplicateArchetype` diagnostic even when a same-named copy is installed ambiently. | Test (IT-146) |
 | FR-017-AC-21 | `quire coverage --help` states the resolution order for `--module` — that the roots are used in the order given and replace ambient discovery rather than adding to it — so a caller can tell an adding flag from a replacing one without running an experiment. | Test (IT-147) |
+| FR-017-AC-22 | A full report containing `status-column-matches-nothing` or `hollow-denominator` makes `--strict` exit 1 after emitting the structured report, including when severity projection hides findings; the same scope without strict remains report-only, and a repaired control succeeds. | Test (IT-150, IT-151) |
 
 > **CR note (authored after the fact, 2026-08-16):** this document did not
 > exist while the command shipped, changed its default root (PR #27) and

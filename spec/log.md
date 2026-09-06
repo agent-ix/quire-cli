@@ -7,6 +7,11 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-06** — IR51-02: FR-017-AC-22 makes strict coverage fail on the
+  engine's structured unread-status and hollow-denominator diagnostics. The
+  policy reads the full report, retains report output and default reporting,
+  and does not promote unrelated advisories. IT-150/IT-151 precede code.
+
 * **2026-09-01** — Specified [FR-020](./functional/FR-020-assurance-export-subcommand.md)
   and [US-006](./usecase/US-006-export-assurance-facts.md): a deterministic,
   non-executing `quire assurance` boundary over quire-rs `assurance-v1`.
