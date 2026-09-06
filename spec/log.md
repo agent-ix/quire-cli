@@ -7,6 +7,12 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-06** — The #409 integration followup advances FR-020-CON-1 and
+  IT-145 to canonical-CI-qualified engine
+  `616a7e97c0e8c84aedda71dc198e94e3de3d9da6`. Its four seeded validation-stack
+  test pins now match the reviewed module lock; CLI logic, engine runtime
+  behavior, the assurance schema, and QA7442 are unchanged.
+
 * **2026-09-06** — The #409 consumer join specifies FR-017-AC-21 and banks
   native IT-152/153 before advancing the engine pin to
   `616a7e97c0e8c84aedda71dc198e94e3de3d9da6`. Two selected tables exercise

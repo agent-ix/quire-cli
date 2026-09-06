@@ -87,6 +87,11 @@ it does not disable schema checking.
 
 ## Constraints
 
+> **CR-409 followup (2026-09-06):** advance the compatible engine identity to
+> the canonical-CI-qualified validation-fixture pin repair. The four upstream
+> test literals change; runtime semantics, the assurance schema, and QA7442
+> remain unchanged. IT-145 continues to require exact manifest/lock agreement.
+
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
 | FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at revision `616a7e97c0e8c84aedda71dc198e94e3de3d9da6` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |

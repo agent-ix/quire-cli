@@ -68,14 +68,11 @@ This is native reachability of the engine's additive selector and existing
 strict policy, not an aggregate assurance verdict, a Quoin verification-lock
 promotion, or approval of a broad declaration/template migration.
 
-## Final selected engine
+## Previously selected engine
 
-The reviewed engine revision was `11969b707382203fe8df1c92e8a2fb2fa7e0bbbc`,
-fetched from the canonical HTTPS repository. That revision was a pre-merge
-commit on `contract-agent-core/reference-status-column` and is no longer
-reachable: the branch was rebased onto main and squash-merged as
-agent-ix/quire-rs#410. The reviewed content landed unchanged at
-`616a7e97c0e8c84aedda71dc198e94e3de3d9da6`, and that is the published pin. Relative to the initial `b44178d` qualification, the engine
+The prior consumer pin was published
+`11969b707382203fe8df1c92e8a2fb2fa7e0bbbc`, fetched from the canonical
+HTTPS repository. Relative to the initial `b44178d` qualification, the engine
 adds only its exact ISO/process validation-stack pins and associated CI/audit
 declarations and quality record; the implementing Rust source and QA gitlink
 remain unchanged. Cargo.toml, Cargo.lock, FR-020-CON-1, its IT-145 constant,
@@ -87,3 +84,42 @@ At this final engine pin, the complete native suite passes (223 tests across
 network-audit controls. All-target Clippy passes. The only Cargo.lock delta
 from the original CLI base is the engine source identity. No path or registry
 substitute is selected.
+
+## Canonical-CI integration followup
+
+The final selected engine is published
+`616a7e97c0e8c84aedda71dc198e94e3de3d9da6`, fetched from the canonical HTTPS
+repository with `cargo update -p quire-rs --precise` at that exact revision.
+Its only change after `11969b7` is four seeded validation-stack test literals:
+the process/ISO fixture pins and the matching negative mutation targets now
+agree with the already-reviewed module lock. The healthy control and one
+mutation setup failed before that repair (16 passed, 2 failed); all 18 pass
+afterward, with no negative assertion weakened.
+
+The engine's canonical `make ci`, including exact process/ISO validation roots
+and the real CLI capability build, passed before the followup was committed.
+Its log is `/tmp/quire-409-engine-repaired-ci.log`, SHA-256
+`c95b87ef88658648526d532a8422f7cd629ae97645d765e37813ed78713d61e0`.
+The coordinator independently reviewed the four-line diff, reran all 18
+controls, and published the commit before this CLI dependency was fetched.
+
+```sh
+CARGO_TARGET_DIR=/tmp/contract-core-cli409-target make ci
+```
+
+Canonical CLI CI passed at the final dependency pin: 223 native tests across
+32 executable test targets, zero doc tests, all-target Clippy, formatting,
+licenses/bans, unsafe/thin-boundary/tool-drift audits, specification validation,
+and assurance traceability (22/22 required targets backed). All nine real
+network-audit tests ran and passed; none was disabled for tracing restrictions.
+Specification commands used the canonical target's module discovery and emitted
+ambient duplicate-declaration warnings, not a new exact-stack qualification.
+Log: `/tmp/quire-cli-409-final-ci.log`, SHA-256
+`bdaed3d262c96aef3485f63dcb08d9a6a5b9791badbc0b79eb5328ca5d46213a`.
+
+Cargo.lock changes only the engine source identity. The final engine still
+selects QA `7442f2770880a4ade303fb23d725804bdef454db`; the unchanged local
+selector fixture remains blob `530fb86a7dca36fa02a50fbf3bd0e97ce4c794e8`.
+The CLI has no Git submodule to repin. No production source, runtime semantics,
+schema, fixture oracle, or other dependency changed. These local diagnostic
+logs are not published assurance receipts or human release approval.
