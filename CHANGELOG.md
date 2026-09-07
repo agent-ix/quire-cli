@@ -53,6 +53,15 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ### Changed
 
+- **Engine pin advances to `616a7e97c0e8c84aedda71dc198e94e3de3d9da6`** for
+  explicit per-reference `status_column` selection (quire-rs#409, merged as
+  quire-rs#410), which also carries the canonical integration repair of four
+  stale seeded validation-stack test pins. Global fallback on omission, the
+  declared vocabulary, report-only defaults, strict unread-measurement gating,
+  the assurance schema, and the QA7442 selector fixture are all unchanged.
+  FR-020-CON-1 advances with it, so IT-145's six surfaces still agree.
+
+
 - `coverage --strict` now rejects structured `status-column-matches-nothing`
   and `hollow-denominator` diagnostics, retaining JSON output and default
   report-only behavior (contract-core IR51-02).

@@ -10,6 +10,14 @@ relationships:
 
 ## Description
 
+> **CR note (explicit reference status selection, quire-rs#409, 2026-09-06):**
+> A document reference may select its exact status header with `status_column`;
+> omission retains the global `traceability.status.column`. Both use the same
+> declared global vocabulary. The CLI delegates selection to the engine; it
+> neither guesses aliases nor falls back when an explicitly selected header is
+> absent. Existing report-only and strict unread-measurement policy applies to
+> each selected reference independently, even when another table is readable.
+
 > **CR note (strict unread measurements, contract core IR51-02, 2026-09-06):**
 > `--strict` also fails when the full engine report carries
 > `status-column-matches-nothing` or `hollow-denominator`. These structured
@@ -140,6 +148,7 @@ a consumer needs the whole rollup.
 | FR-017-AC-20 | `--module` is repeatable and the declared set is closed and ordered: `quire coverage --scope $R --module $A --module $B` reconciles against the union of the two modules' `traceability:` models, in that order, and a module reachable only from `IX_FILAMENT_MODULES_PATH` or `~/.ix/filament/modules/` is not consulted. A module named once emits no `DuplicateModuleName`/`DuplicateArchetype` diagnostic even when a same-named copy is installed ambiently. | Test (IT-146) |
 | FR-017-AC-21 | `quire coverage --help` states the resolution order for `--module` — that the roots are used in the order given and replace ambient discovery rather than adding to it — so a caller can tell an adding flag from a replacing one without running an experiment. | Test (IT-147) |
 | FR-017-AC-22 | A full report containing `status-column-matches-nothing` or `hollow-denominator` makes `--strict` exit 1 after emitting the structured report, including when severity projection hides findings; the same scope without strict remains report-only, and a repaired control succeeds. | Test (IT-150, IT-151) |
+| FR-017-AC-23 | When two selected reference tables use the global status header and an explicit per-reference override, the native CLI evaluates both under the declared vocabulary. With backed complete rows and both exact headers present, strict succeeds; removing either selected header retains its located `status-column-matches-nothing` diagnostic in JSON, reports with exit 0 by default, and exits 1 under strict without guessing or borrowing the other table's readable header. | Test (IT-152, IT-153) |
 
 > **CR note (authored after the fact, 2026-08-16):** this document did not
 > exist while the command shipped, changed its default root (PR #27) and

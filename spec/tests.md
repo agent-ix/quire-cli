@@ -138,6 +138,8 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-147 | `quire coverage --help` states the `--module` resolution order — roots used in the order given, replacing ambient discovery rather than adding to it (`cli_coverage::it147_*`) | Integration | P1 | FR-017-AC-21 | ✅ |
 | IT-150 | Strict coverage rejects an unread status column while preserving JSON, projection independence, default reporting, and a repaired control | Integration | P0 | FR-017-AC-22 | ✅ |
 | IT-151 | Strict coverage rejects a hollow denominator even with no reference-row failures; default reporting and readable control remain valid | Integration | P0 | FR-017-AC-22 | ✅ |
+| IT-152 | Native coverage independently selects global and explicit reference status headers over two backed complete tables | Integration | P0 | FR-017-AC-23 | ✅ |
+| IT-153 | Each missing selected header preserves located JSON and default exit 0 versus strict exit 1, without fallback to another readable table | Integration | P0 | FR-017-AC-23 | ✅ |
 | IT-099 | `extract` on a document whose `type` resolves to no DSL-carrying archetype exits 1 with a diagnostic naming it; no partial extraction reaches stdout (`cli_extract::extract_no_dsl_archetype_errors_cleanly`) | Integration | P1 | FR-003-AC-2, US-004-AC-3 | ✅ |
 | IT-015 | Edge dedup by (source, type, target) — a twice-declared relationship and a twice-linked body target each harvest once (`cli_extract::it_015_*`) | Integration | P1 | US-004-AC-2 | ✅ |
 | IT-016 | ⊘ RETIRED (FR-003 CR, 2026-08-20) — Frontmatter sugar field `dependencies:` harvested (no engine ever harvested sugar fields) | Integration | P1 | FR-003-AC-3 | ⛔ |

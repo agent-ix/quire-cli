@@ -1,0 +1,59 @@
+name: reference-status-column-explicit
+version: 0.1.0
+description: Explicit per-reference selection with unchanged global vocabulary
+artifact_types:
+- name: Matrix409
+traceability:
+  trace_targets:
+  - name: test-case
+    archetype: Matrix409
+    section: [Default, Alternate]
+    id_column: ID
+  document_references:
+  - name: default-status
+    archetype: Matrix409
+    section: Default
+    column: Tests
+    row_id_column: ID
+    pattern: '(TC-[0-9]+)'
+    targets: [test-case]
+  - name: alternate-status
+    archetype: Matrix409
+    section: Alternate
+    column: Tests
+    row_id_column: ID
+    pattern: '(TC-[0-9]+)'
+    targets: [test-case]
+    status_column: Coverage Status
+  status:
+    column: Status
+    complete: [done]
+    pending: [planned]
+    failed: [failed]
+  trace_tags:
+    markers:
+    - name: rust-marker
+      language: rust
+      pattern: '#\[trace\("([^"]+)"\)\]'
+      template: '#[trace({ids})]'
+    - name: python-marker
+      language: python
+      pattern: '@pytest\.mark\.trace\("([^"]+)"\)'
+      template: '@pytest.mark.trace({ids})'
+    - name: typescript-marker
+      language: typescript
+      pattern: 'trace\("([^"]+)"\)'
+      template: 'trace({ids})'
+    legacy:
+    - name: rust-comment
+      language: rust
+      pattern: 'Trace:\s*(TC-[0-9]+)'
+      rewrite_to: rust-marker
+    - name: python-comment
+      language: python
+      pattern: 'Trace:\s*(TC-[0-9]+)'
+      rewrite_to: python-marker
+    - name: typescript-comment
+      language: typescript
+      pattern: 'Trace:\s*(TC-[0-9]+)'
+      rewrite_to: typescript-marker
