@@ -31,10 +31,14 @@ pub struct Args {
     #[arg(long, default_value = ".")]
     pub scope: String,
 
-    /// Module directory supplying the `traceability:` model. When omitted the
-    /// module set is discovered exactly as `quire validate` discovers it.
-    #[arg(long)]
-    pub module: Option<String>,
+    /// Module directory supplying the `traceability:` model. Repeatable: the
+    /// roots are used in the order given and REPLACE ambient discovery rather
+    /// than adding to it — neither IX_FILAMENT_MODULES_PATH nor the default
+    /// install root (~/.ix/filament/modules) is consulted, so the report is
+    /// attributable to exactly the modules named. When omitted the module set
+    /// is discovered exactly as `quire validate` discovers it.
+    #[arg(long, value_name = "PATH")]
+    pub module: Vec<String>,
 
     /// Emit the report as JSON on stdout instead of the human summary.
     /// The JSON is the stable interface; the human form may change.
@@ -715,13 +719,11 @@ fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registr
 /// the class of drift this repository keeps finding one list at a time.
 pub(super) fn load_registry_for(
     ctx: &Ctx,
-    module: &Option<String>,
+    modules: &[String],
     scope: &Path,
 ) -> anyhow::Result<Registry> {
-    if let Some(raw) = module {
-        let module = safety::validate_module_path(raw)
-            .with_context(|| format!("validating --module '{raw}'"))?;
-        return super::load_module_registry(ctx, &module);
+    if !modules.is_empty() {
+        return super::load_module_set_registry(ctx, modules);
     }
     if scope.join("manifest.yaml").is_file() {
         return super::load_module_registry(ctx, scope);

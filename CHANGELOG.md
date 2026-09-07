@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 The public contract under SemVer is the subcommand surface, exit codes, and JSON
 output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
+## [0.32.0] - 2026-09-06
+
+### Added
+
+- **`--module` is repeatable, and the set it declares is closed
+  (agent-ix/quire-rs#405, FR-017-AC-20/AC-21).** The flag took a single value.
+  A repository whose `traceability:` model spans several modules could not name
+  them all, so it fell back to discovery — and discovery re-admits the ambient
+  install root.
+
+  That fallback is the defect. `IX_FILAMENT_MODULES_PATH` **adds** roots to
+  `~/.ix/filament/modules` rather than replacing them, so a module materialized
+  at its pinned commit and also installed ambiently is loaded twice. Resolution
+  is first-wins, so which copy answered a given document is not decided by the
+  pin, and the ~90 `DuplicateModuleName` / `DuplicateArchetype` lines saying so
+  precede every batch and read as noise. The run produces a verdict it cannot
+  attribute to a contract revision.
+
+  ```
+  quire coverage --scope . --module ./spec-artifacts-iso --module ./spec-domain
+  ```
+
+  The roots are used **in the order given** and **replace** ambient discovery
+  entirely: with any `--module` present, neither `IX_FILAMENT_MODULES_PATH` nor
+  the default install root is consulted. `--help` states that order, because a
+  caller cannot tell an adding flag from a replacing one by watching it succeed.
+
+  `validate`, `properties` and `symbols` resolve module sets through the same
+  helper and take the same flag shape — two resolution orders would let the
+  commands disagree about which module is in scope for one invocation.
+
+  Additive: a single `--module` behaves exactly as before, and omitting it still
+  discovers.
+
+### Changed
+
+- **Engine pin advances to `a874fb6`**, which adds
+  `Registry::load_module_set` — the closed constructor the flag above is built
+  on — along with the semantic-extraction surface (quire-rs FR-072). A
+  `semantic` validation reason now renders with a corrective remedy like every
+  other typed reason rather than being unhandled.
+
 ## [0.31.0] - 2026-08-29
 
 ### Fixed

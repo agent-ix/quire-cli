@@ -37,10 +37,13 @@ pub struct Args {
     #[arg(value_name = "DOC_OR_GLOB", required_unless_present = "okf")]
     pub documents: Vec<String>,
 
-    /// Path to one exact module directory (containing `manifest.yaml`).
-    /// Kept for explicit single-module validation and stdin use.
+    /// Path to an exact module directory (containing `manifest.yaml`).
+    /// Repeatable: the roots are used in the order given and REPLACE the
+    /// scoped discovery described under --scope rather than adding to it, so
+    /// neither IX_FILAMENT_MODULES_PATH nor the default install root is
+    /// consulted when any --module is given.
     #[arg(long, value_name = "PATH")]
-    pub module: Option<String>,
+    pub module: Vec<String>,
 
     /// Directory that bounds relative document globs and repo-local module
     /// discovery. Scoped mode also searches the default install root
@@ -397,10 +400,8 @@ fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
 }
 
 pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
-    if let Some(raw) = &args.module {
-        let module = safety::validate_module_path(raw)
-            .with_context(|| format!("validating --module '{raw}'"))?;
-        return super::load_module_registry(ctx, &module);
+    if !args.module.is_empty() {
+        return super::load_module_set_registry(ctx, &args.module);
     }
 
     if scope.join("manifest.yaml").is_file() {
@@ -760,6 +761,12 @@ fn validation_remedy(reason: ValidationReason) -> &'static str {
         }
         ValidationReason::Grammar => {
             "revise the cited requirement wording to address the named grammar check"
+        }
+        // quire-rs FR-072. The message carries the `semantic.*` code, which
+        // names the declaration at fault; the remedy cannot be more specific
+        // than that without restating the engine's own catalog here.
+        ValidationReason::Semantic => {
+            "correct the declaration named by the cited `semantic.*` diagnostic"
         }
     }
 }

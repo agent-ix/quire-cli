@@ -46,9 +46,11 @@ pub struct Args {
 
     /// Module directory supplying the `traceability:` model. Without it the
     /// report says what was EXTRACTED and no record carries a bound id; with
-    /// it, each record also carries what it bound.
-    #[arg(long)]
-    pub module: Option<String>,
+    /// it, each record also carries what it bound. Repeatable, and resolved
+    /// exactly as `coverage` resolves it: the roots are used in the order
+    /// given and REPLACE ambient discovery rather than adding to it.
+    #[arg(long, value_name = "PATH")]
+    pub module: Vec<String>,
 
     /// Emit JSON on stdout instead of the human summary. The JSON is the
     /// stable interface; the human form may change.
@@ -81,13 +83,14 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // The distinction is deliberate: `coverage` reconciles against a declared
     // model and has nothing to say without it, while "what did the scanner
     // find" is a question about the walk alone.
-    let registry = match &args.module {
-        Some(_) => Some(super::coverage::load_registry_for(
+    let registry = if args.module.is_empty() {
+        None
+    } else {
+        Some(super::coverage::load_registry_for(
             ctx,
             &args.module,
             &scope,
-        )?),
-        None => None,
+        )?)
     };
     let model = registry.as_ref().and_then(|r| r.traceability());
 

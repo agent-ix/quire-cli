@@ -1635,3 +1635,125 @@ fn it116_shared_trace_ids_pass_through_json() {
         "an empty vocabulary_coverage must stay off the wire: {report}"
     );
 }
+
+/// Build a module directory declaring one trace target over `archetype`,
+/// with the section and id column the matrix documents below use.
+fn trace_module(root: &std::path::Path, name: &str, archetype: &str, target: &str) -> String {
+    fs::create_dir_all(root).expect("mkdir module");
+    fs::write(
+        root.join("manifest.yaml"),
+        format!(
+            "name: {name}\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+             - name: {archetype}\ntraceability:\n  trace_targets:\n  - name: {target}\n\
+             \x20   archetype: {archetype}\n    section: Test Case Summary\n\
+             \x20   id_column: Test ID\n"
+        ),
+    )
+    .expect("write manifest");
+    root.to_string_lossy().into_owned()
+}
+
+/// A matrix document of `archetype` minting exactly one row id.
+fn closed_set_matrix_doc(spec: &std::path::Path, file: &str, archetype: &str, row: &str) {
+    fs::write(
+        spec.join(file),
+        format!(
+            "---\nid: TM-{row}\ntype: {archetype}\n---\n\
+             ## Test Case Summary\n\n| Test ID | Status |\n|---------|--------|\n| {row} | ✅ |\n"
+        ),
+    )
+    .expect("write matrix");
+}
+
+// IT-136, FR-017-AC-20 (upstream quire-rs FR-013-AC-15/16/17, #405): `--module`
+// is repeatable, and the set it declares is CLOSED. Two modules named on one
+// invocation both contribute their `traceability:` model; a third module
+// reachable only through `IX_FILAMENT_MODULES_PATH` contributes nothing; and a
+// module named once collides with nothing even though the ambient root holds a
+// copy under the same name.
+//
+// The failing shape this covers is not a crash. The flag took ONE value, so a
+// repository whose model spans several modules could not name them all and fell
+// back to discovery — which re-admits the ambient install root, loads pinned
+// modules twice, resolves first-wins, and reports a rate that cannot be
+// attributed to the revisions the caller pinned.
+#[test]
+fn it136_repeatable_module_declares_a_closed_ordered_set() {
+    let dir = TempDir::new().expect("tempdir");
+    let spec = dir.path().join("spec");
+    fs::create_dir_all(&spec).expect("mkdir spec");
+
+    let m1 = trace_module(&dir.path().join("m1"), "m1", "TestMatrix", "test-case");
+    let m2 = trace_module(&dir.path().join("m2"), "m2", "EvalMatrix", "eval-case");
+    closed_set_matrix_doc(&spec, "tests.md", "TestMatrix", "TC-001");
+    closed_set_matrix_doc(&spec, "evals.md", "EvalMatrix", "EC-001");
+
+    // The ambient install root: a same-named copy of `m1` (the double-load the
+    // duplicate diagnostics came from) plus a module named nowhere on the
+    // command line, whose target must not appear in the report.
+    let ambient = dir.path().join("ambient");
+    trace_module(&ambient.join("m1"), "m1", "TestMatrix", "test-case");
+    trace_module(&ambient.join("m3"), "m3", "GhostMatrix", "ghost-case");
+    closed_set_matrix_doc(&spec, "ghosts.md", "GhostMatrix", "GH-001");
+
+    let out = quire()
+        .args([
+            "coverage",
+            "--scope",
+            &dir.path().to_string_lossy(),
+            "--module",
+            &m1,
+            "--module",
+            &m2,
+            "--json",
+        ])
+        .env("IX_FILAMENT_MODULES_PATH", &ambient)
+        .output()
+        .expect("run");
+    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+    let report: serde_json::Value =
+        serde_json::from_slice(&out.stdout).unwrap_or_else(|e| panic!("json: {e}: {stderr}"));
+
+    let ids: Vec<String> = report["minted_targets"]
+        .as_array()
+        .unwrap_or_else(|| panic!("minted_targets array: {report}"))
+        .iter()
+        .filter_map(|r| r["id"].as_str().map(str::to_string))
+        .collect();
+    assert!(ids.contains(&"TC-001".to_string()), "{ids:?} / {report}");
+    assert!(
+        ids.contains(&"EC-001".to_string()),
+        "the second --module contributes its model too: {ids:?}"
+    );
+    assert!(
+        !ids.contains(&"GH-001".to_string()),
+        "a module reachable only from IX_FILAMENT_MODULES_PATH is not consulted: {ids:?}"
+    );
+    assert!(
+        !stderr.contains("DuplicateModuleName") && !stderr.contains("DuplicateArchetype"),
+        "a module named once collides with nothing: {stderr}"
+    );
+}
+
+// IT-137, FR-017-AC-21 (#405): `--help` states the resolution order. A caller
+// cannot tell an adding flag from a replacing one by watching it succeed, and
+// the whole defect upstream was an env var that added where every caller
+// assumed it replaced — so the order is documented where it is read, not left
+// to be discovered by experiment.
+#[test]
+fn it137_help_states_the_module_resolution_order() {
+    let out = quire()
+        .args(["coverage", "--help"])
+        .output()
+        .expect("run --help");
+    let help = String::from_utf8_lossy(&out.stdout).to_string();
+    assert!(help.contains("--module"), "{help}");
+    assert!(
+        help.to_lowercase().contains("replace"),
+        "--help must say the declared roots replace ambient discovery: {help}"
+    );
+    assert!(
+        help.contains("order"),
+        "--help must say the roots are used in the order given: {help}"
+    );
+}
