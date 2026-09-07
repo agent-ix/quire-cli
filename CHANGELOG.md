@@ -62,7 +62,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   `agent-ix/engineering-assurance#8`; this change records compatibility without
   publishing or dispatching hosted CI.
 
-- **Engine pin advances to `a874fb6`**, which adds
+- **Engine pin advances to `a874fb641cb70da83c8c8b23f9fea0a44255b88a`** (still quire-rs 0.46.0, a descendant of
+  the assurance-export merge above, so FR-020-CON-1 advances with it), which adds
   `Registry::load_module_set` — the closed constructor the flag above is built
   on — along with the semantic-extraction surface (quire-rs FR-072). A
   `semantic` validation reason now renders with a corrective remedy like every

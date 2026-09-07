@@ -72,11 +72,24 @@ it does not disable schema checking.
    export may legitimately contain empty record arrays and still exits zero
    with a complete envelope.
 
+> **CR note (engine pin advances, 2026-09-06, agent-ix/quire-rs#405):**
+> CON-1 named merge `e3352a0644abcfd5f0ebad348bc7aca235925ecc` —
+> the commit that implemented the upstream assurance FRs. The pin advances to
+> `a874fb641cb70da83c8c8b23f9fea0a44255b88a`, still quire-rs 0.46.0 and a
+> descendant of that merge, which carries `Registry::load_module_set` for the
+> repeatable `--module` in [FR-017](./FR-017-coverage-subcommand.md)-AC-20. The
+> assurance contract is unchanged: the same owned `assurance-v1` schema, the
+> same closed payload, nothing vendored. CON-1 names the pin the CLI ACTUALLY
+> carries, not the commit that introduced the feature — a constraint that
+> lagged the manifest would make IT-145, whose whole job is to catch
+> disagreement between the two, agree with a number nobody runs. The
+> Dependencies section still names the implementing merge, which stays true.
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at merge `e3352a0644abcfd5f0ebad348bc7aca235925ecc` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
+| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at merge `a874fb641cb70da83c8c8b23f9fea0a44255b88a` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
 | FR-020-CON-2 | The command SHALL execute no test, proof, solver, consumer, package-manager, Git, or network command. It performs parsing and static source extraction only. | Responsibility | Test |
 | FR-020-CON-3 | The CLI SHALL add no verdict, execution result, evidence freshness claim, generic evidence envelope, or tool-provenance field to the closed upstream payload. | Responsibility | Inspection |
 | FR-020-CON-4 | Unknown or malformed module versions, schema premises, source revisions, and incomplete module loads SHALL fail closed before any stdout byte. | Integrity | Test |
