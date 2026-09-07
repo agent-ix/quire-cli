@@ -53,6 +53,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ### Changed
 
+- `coverage --strict` now rejects structured `status-column-matches-nothing`
+  and `hollow-denominator` diagnostics, retaining JSON output and default
+  report-only behavior (contract-core IR51-02).
+
 - Pinned quire-rs **0.46.0** at assurance-export merge
   `e3352a0644abcfd5f0ebad348bc7aca235925ecc` (advanced again below, in the
   same release, to `a874fb6`) and added the compile-checked
