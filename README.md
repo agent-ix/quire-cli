@@ -11,6 +11,8 @@
 humans one fast binary for parsing, extracting, looking up, editing,
 validating, inspecting the input contract of Markdown artifacts, and exporting
 source-grounded assurance facts.
+validating, inspecting Markdown contracts, and evaluating module-supplied
+clause sets.
 
 The crate is intentionally a thin process boundary: Markdown parsing,
 extraction, and structural validation live in `quire-rs`.
@@ -28,6 +30,8 @@ quire extract <DOC|-> --module <PATH> [--archetype <NAME>]
 quire validate <DOC|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype <NAME>]
 quire validate --okf <BUNDLE_DIR> [--scope <DIR>] [--module <PATH>]
 quire schema <ARCHETYPE> --module <PATH>
+quire clauses evaluate --module <PATH> --authority <ID> --set <ID> --version <VERSION> [--context KEY=VALUE]...
+quire clauses diff --module <PATH> --authority <ID> --set <ID> --before-version <VERSION> --after-version <VERSION>
 ```
 
 Global flags:

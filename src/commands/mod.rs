@@ -3,6 +3,7 @@
 //! thin wrapper over the package-agnostic `self_update` engine instead.
 
 pub mod assurance;
+pub mod clauses;
 pub mod coverage;
 pub mod edit;
 pub mod extract;
