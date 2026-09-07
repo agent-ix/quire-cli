@@ -41,10 +41,11 @@ pub struct Args {
     pub scope: String,
 
     /// Module directory supplying the archetypes and the `property_idioms`
-    /// registry. When omitted the module set is discovered exactly as
-    /// `quire validate` discovers it.
+    /// registry. Repeatable: the roots are used in the order given and
+    /// REPLACE ambient discovery rather than adding to it. When omitted the
+    /// module set is discovered exactly as `quire validate` discovers it.
     #[arg(long, value_name = "PATH")]
-    pub module: Option<String>,
+    pub module: Vec<String>,
 
     /// Override the archetype instead of reading frontmatter `type`.
     #[arg(long, value_name = "NAME")]
@@ -335,10 +336,8 @@ impl Census {
 /// Same module resolution as `validate` and `coverage`: an explicit
 /// `--module`, else a `manifest.yaml` at the scope root, else discovery.
 fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
-    if let Some(raw) = &args.module {
-        let module = safety::validate_module_path(raw)
-            .with_context(|| format!("validating --module '{raw}'"))?;
-        return super::load_module_registry(ctx, &module);
+    if !args.module.is_empty() {
+        return super::load_module_set_registry(ctx, &args.module);
     }
     if scope.join("manifest.yaml").is_file() {
         return super::load_module_registry(ctx, scope);

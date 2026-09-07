@@ -16,7 +16,7 @@ over a repository, reconciling the trace ids a module's `traceability:` model
 declares against the source symbols that carry trace tags.
 
 ```
-quire coverage [--scope <DIR>] [--module <PATH>] [--json | --format <human|json|tsv>]
+quire coverage [--scope <DIR>] [--module <PATH>]... [--json | --format <human|json|tsv>]
                [--strict] [--severity coverage:<check>=<level>]...
 ```
 
@@ -48,6 +48,25 @@ The `traceability:` model comes from the discovered module set, or from
 `--module`. With no model in scope the command **refuses**, naming the missing
 declaration — it does not guess, since guessing is exactly the agent-grep
 behavior the command replaces.
+
+`--module` is **repeatable**, and the set it declares is **closed**: the roots
+are used in the order given and REPLACE ambient discovery rather than adding to
+it. Neither `IX_FILAMENT_MODULES_PATH` nor the default install root
+`~/.ix/filament/modules/` is consulted when any `--module` is given (upstream
+[FR-013](ix://agent-ix/quire-rs/FR-013) closed module set). A repository whose
+model spans several modules can therefore be measured against exactly the
+revisions it pinned, and the report is attributable to them.
+
+This matters because the ambient roots are otherwise **additive**: a module
+materialized at a pinned revision and also installed in the default root is
+loaded twice, resolution is first-wins, and the ~90 `DuplicateModuleName` /
+`DuplicateArchetype` lines that say so precede every batch and read as noise.
+The run still produces a verdict; it cannot say which contract revision
+produced it.
+
+Because a caller cannot tell an adding flag from a replacing one by watching it
+succeed, the resolution order is stated in `--help` rather than left to be
+discovered by experiment.
 
 ### §C — Report, not verdict
 
@@ -109,6 +128,8 @@ a consumer needs the whole rollup.
 | FR-017-AC-17 | A `no_symbol_rows` record renders in the default human census like every other row-id-carrying kind — row id leading, `document:line` locus, reference kind in the bracketed trailer, naming the exempting test-type value: `TC-123 (doc.md:7) is verified by …, which mints no source symbol [traces-to]`, with the value rendered verbatim in backticks where the ellipsis stands. It was JSON/TSV-only; the record explains an unbacked row the census does print, and an explanation only the machine surface carries is one nobody reads (#51, the CR-083 argument) | Test (IT-114) |
 | FR-017-AC-18 | The subtraction a declared `source_exclude` makes is observable on the human surface: a census line `N source file(s) excluded by source_exclude` renders when N > 0 and nothing renders at zero, and every `SymbolExtraction` diagnostic — a refused glob list (quire-rs FR-050-AC-25), an unreadable source file — reaches stderr instead of being computed and dropped (#51, quire-rs #215) | Test (IT-115) |
 | FR-017-AC-19 | The v0.42.0 advisory report lists pass through `--json` unmodified: `shared_trace_ids` (quire-rs FR-050-AC-23) carries every status-carrying row id bound by more than one distinct symbol, and `vocabulary_coverage` (FR-059-AC-9) serializes through the same wholesale report encoding — both absent when empty, preserving AC-2 byte-identity for conformant corpora. Neither has a human rendering in this release; that is a deliberate deferral, not an omission (#51 batch note) | Test (IT-116); Inspection (`vocabulary_coverage` — the CLI serializes the whole `CoverageReport`, and the severity projection does not touch either list) |
+| FR-017-AC-20 | `--module` is repeatable and the declared set is closed and ordered: `quire coverage --scope $R --module $A --module $B` reconciles against the union of the two modules' `traceability:` models, in that order, and a module reachable only from `IX_FILAMENT_MODULES_PATH` or `~/.ix/filament/modules/` is not consulted. A module named once emits no `DuplicateModuleName`/`DuplicateArchetype` diagnostic even when a same-named copy is installed ambiently. | Test (IT-146) |
+| FR-017-AC-21 | `quire coverage --help` states the resolution order for `--module` — that the roots are used in the order given and replace ambient discovery rather than adding to it — so a caller can tell an adding flag from a replacing one without running an experiment. | Test (IT-147) |
 
 > **CR note (authored after the fact, 2026-08-16):** this document did not
 > exist while the command shipped, changed its default root (PR #27) and
@@ -231,6 +252,19 @@ a consumer needs the whole rollup.
 > pinning test (TC-812): the #53 measurement found 0/1,107 statements
 > carrying a structural character, so no corpus fixture could exercise the
 > guard and mutating it to the identity left the suite green.
+
+> **CR note (closed module set, 2026-09-06, agent-ix/quire-rs#405):** `--module`
+> becomes **repeatable** and the declared set becomes **closed** — the roots are
+> used in the order given and replace ambient discovery rather than adding to
+> it. AC-20/AC-21 are new (§B). The flag took a single value, so a repository
+> whose `traceability:` model spans several modules could not name them all and
+> fell back to discovery, which re-admits the ambient install root; that is the
+> upstream defect quire-rs#405 records, and this is its CLI half. `validate`,
+> `properties` and `symbols` resolve module sets through the same helper and
+> take the same flag shape for the same reason — one resolution order, or the
+> commands disagree about which module is in scope for the same invocation.
+> Additive: a single `--module` behaves exactly as before, and omitting it still
+> discovers.
 
 > **CR note (agent-first output, 2026-08-21, #53):** AC-13..15 are new (§D).
 > One deliberate change to an existing surface rides with them: the `--json`

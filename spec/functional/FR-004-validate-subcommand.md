@@ -21,6 +21,16 @@ relationships:
 > consumed-[FR-002](./FR-002-parse-subcommand.md) relationship is dropped from this FR's frontmatter for that reason.
 > The CLI remains a thin wrapper ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) — no validation logic lives here.
 
+> **CR note (closed module set, 2026-09-06, agent-ix/quire-rs#405):** `--module`
+> becomes **repeatable**, resolving through the same closed-set helper
+> [FR-017](./FR-017-coverage-subcommand.md)-AC-20 states: the roots are used in
+> the order given and replace discovery rather than adding to it. The existing
+> criteria are unaffected — a single `--module` behaves exactly as before, and
+> omitting it still discovers — so no AC changes here; the flag's shape is
+> shared rather than restated, because two resolution orders would let
+> `validate` and `coverage` disagree about which module is in scope for the
+> same invocation.
+
 > **CR note (`--module` is REQUIRED):** Markdown validation always needs a module
 > registry to resolve the archetype and its `body_extraction` asserts, so `--module`
 > is mandatory (not bracketed/optional) in the implementation.
@@ -88,7 +98,7 @@ specified below.
 The CLI SHALL expose a single-mode (markdown-only) `validate` subcommand:
 
 ```
-quire validate <DOC.md|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype <NAME>] [--strict]
+quire validate <DOC.md|GLOB|->... [--scope <DIR>] [--module <PATH>]... [--archetype <NAME>] [--strict]
                                   [--summary] [--severity <GRAMMAR>:<CHECK>=<LEVEL>]...
 ```
 
@@ -109,8 +119,10 @@ lazy-installs the default module set by shelling out once to
 this child performs network I/O (the [NFR-004](../non-functional/NFR-004-no-network.md)
 exception, [ADR-0001](../assets/adr/0001-validate-lazy-init-module-bootstrap.md)).
 When the set is still empty (e.g. `quoin` not installed), it exits 1 with an
-actionable diagnostic. `--module` remains the exact single-module compatibility
-path and never triggers discovery or lazy-init.
+actionable diagnostic. `--module` remains the exact-module path and never
+triggers discovery or lazy-init; it is **repeatable**, and the roots it declares
+are used in the order given and REPLACE discovery rather than adding to it
+(upstream [FR-013](ix://agent-ix/quire-rs/FR-013) closed module set).
 
 **Archetype-resolution failure paths** (all exit 1, structured diagnostic on
 stderr, no stdout):

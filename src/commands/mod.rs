@@ -103,6 +103,41 @@ pub fn spec_root_of(scope: &Path) -> anyhow::Result<PathBuf> {
 /// EMPTY registry; commands that ignored `failures()` then died later
 /// with a misleading `UnknownArchetype`. When the load produced zero
 /// modules and at least one failure, fail fast with the real reason.
+/// Load a **closed** registry for a repeatable `--module <PATH>` argument
+/// (upstream FR-013 closed module set, agent-ix/quire-rs#405).
+///
+/// The roots are used in the order given and REPLACE ambient discovery rather
+/// than adding to it: neither `IX_FILAMENT_MODULES_PATH` nor the default
+/// `~/.ix/filament/modules/` is consulted. That is the whole point of naming
+/// them. Both are additive in the engine's other constructors, so a module
+/// materialized at a pinned revision and also installed in the ambient root
+/// was loaded twice, resolved first-wins, and the report could not say which
+/// copy answered — a rate attributable to nothing in particular.
+///
+/// Load problems surface eagerly for the same reason as
+/// [`load_module_registry`]: the tolerant engine load reports an unloadable
+/// manifest as an `ArchetypeLoadFailure` while returning an EMPTY registry,
+/// and a caller that ignored `failures()` then died later with a misleading
+/// `UnknownArchetype`.
+pub fn load_module_set_registry(ctx: &Ctx, modules: &[String]) -> anyhow::Result<Registry> {
+    let roots: Vec<PathBuf> = modules
+        .iter()
+        .map(|raw| {
+            quire_cli::safety::validate_module_path(raw)
+                .with_context(|| format!("validating --module '{raw}'"))
+        })
+        .collect::<anyhow::Result<_>>()?;
+    let refs: Vec<&Path> = roots.iter().map(|p| p.as_path()).collect();
+    let registry = Registry::load_module_set(&refs).context("loading module set")?;
+    emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
+    if registry.module_names().count() == 0 {
+        if let Some(f) = registry.failures().first() {
+            bail!("module load failed: {} ({})", f.reason, f.path.display());
+        }
+    }
+    Ok(registry)
+}
+
 pub fn load_module_registry(ctx: &Ctx, module: &Path) -> anyhow::Result<Registry> {
     let registry = Registry::load_module(module).context("loading module registry")?;
     emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
