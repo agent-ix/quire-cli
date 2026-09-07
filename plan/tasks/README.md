@@ -24,6 +24,11 @@ See `../plan.md` for the full plan, dependency graph, and quality gates.
 | T-018 | D | README + usage docs | T-005..008 | completed |
 | T-019 | D | CI workflow updates | T-014, T-015, T-016 | completed |
 | T-020 | D | Release tag + publish | G1..G7 | completed |
+| T-021 | E | Pin quire-rs assurance-v1 owner + capability | SR-009 | pending |
+| T-022 | E | Thin `assurance` command + exact premise gate | T-021 | pending |
+| T-023 | E | Golden, refusal, boundary, and cross-language tests | T-022 | pending |
+| T-024 | E | Help/README/changelog/matrix contract | T-023 | pending |
+| T-025 | E | Local reviews, PR feedback, closing gate | T-024 | pending |
 
 ## Coordination Rules
 
@@ -33,3 +38,6 @@ See `../plan.md` for the full plan, dependency graph, and quality gates.
 4. **Track D is final** — release-time only.
 5. **Quality gates G1..G8** must be advanced in order in `plan.md`.
 6. Every commit cites the IDs it advances: `Implements T-005, advances FR-001-AC-1`.
+7. **Issue #74 is sequential through T-021..025.** The upstream pin establishes
+   the API before the command compiles; tests prove the command before status
+   flips; external review occurs only after local code-review and gap-analysis.

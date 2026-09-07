@@ -10,8 +10,8 @@
 //! Trace ids sit on the tests, not in this header — a `//!` block attaches to
 //! the file and binds to no symbol (agent-ix/quire-cli#43).
 //!
-//! `strace` is Linux-only. We additionally skip if strace isn't on PATH
-//! so the test stays no-op on minimal containers.
+//! `strace` is Linux-only. The assurance audit fails closed if it is absent;
+//! older general-purpose probes retain their historical minimal-host skip.
 
 #![cfg(target_os = "linux")]
 
@@ -74,6 +74,72 @@ fn assert_no_inet_socket(trace: &str, subcommand: &str) {
                 "IT-008 violation: {subcommand} opened an inet socket:\n  {line}\nfull trace:\n{trace}"
             );
         }
+    }
+}
+
+/// IT-143, FR-020-AC-7: `assurance` opens no network socket and executes no
+/// child command. The one `execve` is strace starting the quire process itself;
+/// a second would be Git, a package manager, runner, solver, or consumer.
+#[test]
+fn assurance_does_not_open_inet_socket_or_execute_a_child() {
+    assert!(
+        strace_available(),
+        "IT-143 requires strace; absence cannot verify FR-020-AC-7"
+    );
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let scope = root.join("tests/fixtures/assurance/scope");
+    let module = root.join("tests/fixtures/assurance/module");
+    let run = |expected_module: &str| {
+        let bin = quire_bin();
+        let mut command = Command::new("strace");
+        command
+            .arg("-f")
+            .arg("-e")
+            .arg("trace=network,execve")
+            .arg("-o")
+            .arg("/dev/stderr")
+            .arg(&bin)
+            .arg("assurance")
+            .arg("--scope")
+            .arg(&scope)
+            .arg("--module")
+            .arg(&module)
+            .arg("--repository")
+            .arg("agent-ix/fixture")
+            .arg("--revision")
+            .arg("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+            .arg("--expect-module")
+            .arg(expected_module);
+        for archetype in ["FR", "NFR", "StR"] {
+            command
+                .arg("--expect-schema")
+                .arg(format!("assurance-fixture/{archetype}@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"));
+        }
+        command.output().expect("strace assurance")
+    };
+
+    for (expected_module, success) in [
+        ("assurance-fixture@1.2.3", true),
+        ("assurance-fixture@9.9.9", false),
+    ] {
+        let output = run(expected_module);
+        assert_eq!(
+            output.status.success(),
+            success,
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let trace = String::from_utf8_lossy(&output.stderr);
+        assert_no_inet_socket(&trace, "assurance");
+        let execs: Vec<&str> = trace
+            .lines()
+            .filter(|line| line.contains("execve("))
+            .collect();
+        assert_eq!(
+            execs.len(),
+            1,
+            "assurance must execute only its own initial process, got {execs:?}\n{trace}"
+        );
     }
 }
 

@@ -11,12 +11,13 @@ help:
 	@echo "  make fmt-check        - Verify formatting (CI gate)"
 	@echo "  make lint             - Clippy with -D warnings"
 	@echo "  make test             - cargo test"
+	@echo "  make spec             - Validate changed assurance specs and traceability"
 	@echo "  make build            - Release build"
 	@echo "  make clean            - cargo clean"
 	@echo "  make deny             - cargo deny check licenses"
 	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
 	@echo "  make bench            - Latency budget (NFR-001): p95 of a quire invocation ≤ 50 ms (needs hyperfine)"
-	@echo "  make ci               - All CI gates locally (fmt-check + lint + test + deny + audit-unsafe)"
+	@echo "  make ci               - All CI gates locally, including specification traceability"
 
 # =============================================================================
 # Format / Lint / Test
@@ -61,6 +62,29 @@ cargo-audit:
 .PHONY: audit-unsafe
 audit-unsafe:
 	bash scripts/check_unsafe_comments.sh
+
+# =============================================================================
+# Specification and traceability
+# =============================================================================
+
+ASSURANCE_SPEC_DOCS := \
+	spec/functional/FR-020-assurance-export-subcommand.md \
+	spec/stakeholder/StR-004-thin-boundary-over-quire-rs.md \
+	spec/usecase/US-006-export-assurance-facts.md \
+	spec/tests.md \
+	reviews/SR-009-assurance-export-spec-review.md \
+	reviews/SR-010-assurance-export-code-review.md \
+	reviews/SR-011-assurance-export-gap-analysis.md \
+	reviews/SR-012-assurance-export-independent-code-review.md \
+	reviews/SR-013-assurance-export-independent-gap-analysis.md \
+	reviews/SR-014-assurance-export-review-remediation.md \
+	reviews/SR-015-assurance-export-remediation-gap-analysis.md
+
+.PHONY: spec
+spec:
+	$(CARGO) run --locked -- validate --scope . $(ASSURANCE_SPEC_DOCS) --summary
+	$(CARGO) run --locked -- coverage --scope . --json > /tmp/quire-cli-assurance-coverage.json
+	python3 scripts/check_assurance_traceability.py /tmp/quire-cli-assurance-coverage.json
 
 # =============================================================================
 # Composite
@@ -121,4 +145,4 @@ audit-tool-drift:
 	bash scripts/check_tool_drift.sh
 
 .PHONY: ci
-ci: fmt-check lint test deny deny-bans audit-unsafe audit-thin-boundary audit-tool-drift
+ci: fmt-check lint test deny deny-bans audit-unsafe audit-thin-boundary audit-tool-drift spec

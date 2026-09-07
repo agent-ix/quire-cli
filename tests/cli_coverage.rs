@@ -1665,7 +1665,7 @@ fn closed_set_matrix_doc(spec: &std::path::Path, file: &str, archetype: &str, ro
     .expect("write matrix");
 }
 
-// IT-136, FR-017-AC-20 (upstream quire-rs FR-013-AC-15/16/17, #405): `--module`
+// IT-146, FR-017-AC-20 (upstream quire-rs FR-013-AC-15/16/17, #405): `--module`
 // is repeatable, and the set it declares is CLOSED. Two modules named on one
 // invocation both contribute their `traceability:` model; a third module
 // reachable only through `IX_FILAMENT_MODULES_PATH` contributes nothing; and a
@@ -1678,7 +1678,7 @@ fn closed_set_matrix_doc(spec: &std::path::Path, file: &str, archetype: &str, ro
 // modules twice, resolves first-wins, and reports a rate that cannot be
 // attributed to the revisions the caller pinned.
 #[test]
-fn it136_repeatable_module_declares_a_closed_ordered_set() {
+fn it146_repeatable_module_declares_a_closed_ordered_set() {
     let dir = TempDir::new().expect("tempdir");
     let spec = dir.path().join("spec");
     fs::create_dir_all(&spec).expect("mkdir spec");
@@ -1735,13 +1735,13 @@ fn it136_repeatable_module_declares_a_closed_ordered_set() {
     );
 }
 
-// IT-137, FR-017-AC-21 (#405): `--help` states the resolution order. A caller
+// IT-147, FR-017-AC-21 (#405): `--help` states the resolution order. A caller
 // cannot tell an adding flag from a replacing one by watching it succeed, and
 // the whole defect upstream was an env var that added where every caller
 // assumed it replaced — so the order is documented where it is read, not left
 // to be discovered by experiment.
 #[test]
-fn it137_help_states_the_module_resolution_order() {
+fn it147_help_states_the_module_resolution_order() {
     let out = quire()
         .args(["coverage", "--help"])
         .output()
