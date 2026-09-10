@@ -137,6 +137,7 @@ fn cargo_command_needs_lock(line: &str) -> bool {
         "cargo build",
         "cargo check",
         "cargo clippy",
+        "cargo run",
         "cargo test",
     ]
     .iter()
@@ -144,7 +145,7 @@ fn cargo_command_needs_lock(line: &str) -> bool {
 }
 
 fn make_cargo_command_needs_lock(line: &str) -> bool {
-    ["bench", "build", "check", "clippy", "test"]
+    ["bench", "build", "check", "clippy", "run", "test"]
         .iter()
         .any(|command| line.contains(&format!("$(CARGO) {command}")))
 }
@@ -288,6 +289,13 @@ fn audit(root: &Path) -> Vec<Finding> {
     );
     require_assignment(
         root,
+        Path::new("tools/quire-dist/Cargo.toml"),
+        "rust-version",
+        QUALIFIED_RUST,
+        &mut findings,
+    );
+    require_assignment(
+        root,
         Path::new("rust-toolchain.toml"),
         "channel",
         QUALIFIED_RUST,
@@ -314,11 +322,16 @@ fn audit(root: &Path) -> Vec<Finding> {
 fn copy_policy_tree(source: &Path, destination: &Path) {
     for relative in [
         "Cargo.toml",
+        "tools/quire-dist/Cargo.toml",
         "rust-toolchain.toml",
         "clippy.toml",
         "Makefile",
     ] {
-        fs::copy(source.join(relative), destination.join(relative)).expect("copy policy file");
+        let target = destination.join(relative);
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).expect("create policy parent");
+        }
+        fs::copy(source.join(relative), target).expect("copy policy file");
     }
     fs::create_dir_all(destination.join(".github/workflows")).expect("create workflows");
     for relative in workflow_paths(source, &mut Vec::new()) {
@@ -329,6 +342,7 @@ fn copy_policy_tree(source: &Path, destination: &Path) {
 fn governed_lines(root: &Path) -> Vec<(PathBuf, usize)> {
     let mut paths = vec![
         PathBuf::from("Cargo.toml"),
+        PathBuf::from("tools/quire-dist/Cargo.toml"),
         PathBuf::from("rust-toolchain.toml"),
         PathBuf::from("clippy.toml"),
     ];
@@ -415,7 +429,7 @@ fn tc142_every_compiler_declaration_is_exact_and_mutation_sensitive() {
     let declarations = governed_lines(root);
     assert_eq!(
         declarations.len(),
-        7,
+        9,
         "the governed declaration census changed"
     );
     for (relative, line) in declarations {
@@ -424,7 +438,9 @@ fn tc142_every_compiler_declaration_is_exact_and_mutation_sensitive() {
         replace_line(
             &fixture.path().join(&relative),
             line,
-            if relative == Path::new("Cargo.toml") {
+            if relative == Path::new("Cargo.toml")
+                || relative == Path::new("tools/quire-dist/Cargo.toml")
+            {
                 "rust-version = \"1.94.1\""
             } else if relative == Path::new("rust-toolchain.toml") {
                 "channel = \"stable\""
@@ -503,7 +519,7 @@ fn tc143_makefile_locking_policy_is_mutation_sensitive() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     assert_eq!(audit(root), Vec::new(), "production tool policy drifted");
     let mutations = makefile_mutations(root);
-    assert_eq!(mutations.len(), 8, "the Makefile mutation census changed");
+    assert_eq!(mutations.len(), 14, "the Makefile mutation census changed");
 
     for mutation in mutations {
         let fixture = tempfile::tempdir().expect("tempdir");

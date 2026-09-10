@@ -7,26 +7,27 @@
 
 const { spawnSync } = require("node:child_process");
 const fs = require("node:fs");
+const packageJson = require("../package.json");
 
 const PLATFORM = process.platform; // 'linux' | 'darwin' | 'win32' | ...
 const ARCH = process.arch; // 'x64' | 'arm64' | ...
-const SUPPORTED = [
-  "linux-x64",
-  "linux-arm64",
-  "darwin-arm64",
-  "win32-x64",
-];
+const PACKAGE_PREFIX = "@agent-ix/quire-cli-";
+const OPTIONAL_DEPENDENCIES = packageJson.optionalDependencies || {};
 
 function resolveBinary() {
   const key = `${PLATFORM}-${ARCH}`;
-  if (!SUPPORTED.includes(key)) {
+  const pkg = `${PACKAGE_PREFIX}${key}`;
+  if (!Object.prototype.hasOwnProperty.call(OPTIONAL_DEPENDENCIES, pkg)) {
+    const supported = Object.keys(OPTIONAL_DEPENDENCIES)
+      .filter((name) => name.startsWith(PACKAGE_PREFIX))
+      .map((name) => name.slice(PACKAGE_PREFIX.length))
+      .sort();
     throw new Error(
       `quire-cli: unsupported platform "${key}".\n` +
-        `Prebuilt binaries exist for: ${SUPPORTED.join(", ")}.\n` +
+        `Prebuilt binaries exist for: ${supported.join(", ")}.\n` +
         `Build from source instead: https://github.com/agent-ix/quire-cli`
     );
   }
-  const pkg = `@agent-ix/quire-cli-${key}`;
   const binName = PLATFORM === "win32" ? "quire.exe" : "quire";
   try {
     return require.resolve(`${pkg}/bin/${binName}`);

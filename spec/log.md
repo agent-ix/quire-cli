@@ -34,6 +34,14 @@ description: "Chronological log of structural changes to this bundle."
   installed compatible host versions instead of falsely claiming they are the
   same environment.
 
+* **2026-09-09** — Implemented and locally qualified the #61 Rust npm
+  distribution port. SR-063 records the exact `rust-review` gate: 222 product
+  tests and 14 distribution tests pass under the two-job cap; offline npm
+  install/pack, target-format mutations, launcher process behavior, dependency
+  policy, RustSec, strict docs, release linkage, and static containment all
+  pass. IT-159..164 and TC-815..821 are backed and complete. No hosted workflow
+  or publication ran.
+
 * **2026-09-09** — Implemented and locally qualified
   [NFR-007](./non-functional/NFR-007-exact-qualified-rust-toolchain.md). The
   manifest, repository toolchain, Clippy policy, and four manual workflow

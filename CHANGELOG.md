@@ -11,6 +11,14 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ### Added
 
+- **Rust-owned npm distribution tooling (FR-022..024, NFR-008, #61).** A
+  non-published workspace tool now owns the four-target package catalog,
+  binary-format checks, deterministic package generation, Cargo/npm version
+  synchronization, and release assertions. Rust tests exercise a clean offline
+  npm install plus missing, wrong-target, unsupported-host, chmod, spawn,
+  stream, exit-status, and signal paths. The cross-platform npm package remains;
+  its sole Node file is the owner-approved minimal host in ADR-0002.
+
 - **`quire clauses` (FR-021, #72).** `clauses evaluate` resolves one exact
   authority/id/version clause set and returns its binding decision with the
   supplied context; `clauses diff` compares two exact versions and reports
@@ -19,6 +27,11 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   carries a stable five-column header. IT-154..IT-157.
 
 ### Changed
+
+- `npm/build-packages.mjs`, `scripts/set_version.sh`, embedded Node/Perl
+  mutators, and duplicated launcher target metadata are removed. The manually
+  dispatched release workflow invokes `quire-dist`; it was not dispatched and
+  no package was published by this change.
 
 - **Engine pin advances to `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f`**
   (quire-rs#422), which qualifies the engine on exact Rust 1.98.1 and contains

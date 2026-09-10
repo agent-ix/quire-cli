@@ -1,7 +1,17 @@
 {
-  "name": "@agent-ix/quire-cli",
-  "version": "0.31.0",
+  "author": "Agent IX <kreneskyp@gmail.com>",
+  "bin": {
+    "quire": "bin/quire.js"
+  },
   "description": "Static CLI over quire-rs (parse, extract, lookup, edit, validate, schema, lint) for Markdown artifacts.",
+  "engines": {
+    "node": ">=16"
+  },
+  "files": [
+    "bin/",
+    "LICENSE"
+  ],
+  "homepage": "https://github.com/agent-ix/quire-cli#readme",
   "keywords": [
     "quire",
     "cli",
@@ -10,32 +20,22 @@
     "filament",
     "agent-ix"
   ],
-  "homepage": "https://github.com/agent-ix/quire-cli#readme",
+  "license": "AGPL-3.0-or-later",
+  "name": "@agent-ix/quire-cli",
+  "optionalDependencies": {
+    "@agent-ix/quire-cli-darwin-arm64": "0.32.0",
+    "@agent-ix/quire-cli-linux-arm64": "0.32.0",
+    "@agent-ix/quire-cli-linux-x64": "0.32.0",
+    "@agent-ix/quire-cli-win32-x64": "0.32.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/agent-ix/quire-cli.git"
   },
-  "license": "AGPL-3.0-or-later",
-  "author": "Agent IX <kreneskyp@gmail.com>",
   "type": "commonjs",
-  "bin": {
-    "quire": "bin/quire.js"
-  },
-  "files": [
-    "bin/",
-    "LICENSE"
-  ],
-  "engines": {
-    "node": ">=16"
-  },
-  "optionalDependencies": {
-    "@agent-ix/quire-cli-linux-x64": "0.31.0",
-    "@agent-ix/quire-cli-linux-arm64": "0.31.0",
-    "@agent-ix/quire-cli-darwin-arm64": "0.31.0",
-    "@agent-ix/quire-cli-win32-x64": "0.31.0"
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/",
-    "access": "public"
-  }
+  "version": "0.32.0"
 }
