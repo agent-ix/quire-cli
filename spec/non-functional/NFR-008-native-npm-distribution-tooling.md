@@ -15,7 +15,7 @@ relationships:
 
 The repository-local distribution tool SHALL implement first-party npm
 distribution decisions, generators, validators, and test assertions in Rust
-1.98.1. The only proposed executable foreign-language production file is the
+1.98.1. The only approved executable foreign-language production file is the
 minimal Node npm-bin host bounded by ADR-0002; all other foreign execution is an
 explicitly named external package manager or release host.
 
@@ -43,7 +43,7 @@ explicitly named external package manager or release host.
 
 | Existing path | Classification | #61 disposition |
 |---|---|---|
-| `npm/quire-cli/bin/quire.js` | Shipped npm executable host | Retain only if ADR-0002 is owner-approved; reduce to its exact bounded seam. |
+| `npm/quire-cli/bin/quire.js` | Shipped npm executable host | Retain under the owner-approved ADR-0002 exact bounded seam. |
 | `npm/build-packages.mjs` | First-party package generator and manifest mutator | Replace with the Rust distribution tool and remove. |
 | `scripts/set_version.sh` | First-party SemVer validator plus Perl/Node mutator | Replace with the Rust distribution tool and remove. |
 | npm target/version assertions inside `.github/workflows/release.yml` | Executable inline decision and validation logic | Replace with calls to the Rust distribution tool. |

@@ -6,7 +6,7 @@ type: ADR
 
 # ADR 0002: Retain a minimal Node host for the cross-platform npm launcher
 
-**Status**: proposed — owner disposition required before implementation
+**Status**: decided (v1) — owner-approved 2026-09-09
 **Date**: 2026-09-09
 **Decision authority**: repository owner
 
@@ -23,7 +23,7 @@ The current Node file also duplicates a target allowlist. Separate MJS, shell,
 Perl, embedded Node, and workflow fragments own generation and validation.
 Those are avoidable first-party logic and violate the required Rust containment.
 
-## Proposed Decision
+## Decision
 
 Retain exactly one Node production file, `npm/quire-cli/bin/quire.js`, solely as
 the npm executable host. Its complete permitted behavior is:
@@ -61,13 +61,15 @@ qualification.
 - Any future expansion of the shim requires a new owner disposition and spec
   review.
 
-## Alternative requiring owner choice
+## Alternative rejected
 
 Remove the cross-platform meta-package and require consumers to install a
 platform-specific package such as `@agent-ix/quire-cli-linux-x64` directly.
 This eliminates the Node launcher but changes the public package name and makes
 users or higher-level installers select the target. No compatibility migration
-is required, but the installation experience is materially worse.
+is required, but the installation experience is materially worse. The owner
+approved retaining the npm distribution package and therefore rejected this
+alternative on 2026-09-09.
 
 ## Alternatives rejected by this proposal
 

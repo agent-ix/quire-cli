@@ -25,6 +25,10 @@ description: "Chronological log of structural changes to this bundle."
   is conditional only on the ADR-0002 owner choice; implementation has not
   started.
 
+* **2026-09-09** — The owner approved ADR-0002's bounded Node host for the
+  cross-platform npm distribution package. SR-062 FND-004 is closed and the
+  reviewed #61 implementation scope is admitted.
+
 * **2026-09-09** — Implemented and locally qualified
   [NFR-007](./non-functional/NFR-007-exact-qualified-rust-toolchain.md). The
   manifest, repository toolchain, Clippy policy, and four manual workflow
