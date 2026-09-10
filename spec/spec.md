@@ -64,7 +64,9 @@ This specification governs:
 - Path-safety checks on user-supplied `--module` and positional document arguments (and `edit` write targets)
 - JSON encoding of `QuireDocument`, `ExtractionResult`, `HarvestedEdge[]` on stdout
 - Process-level performance budgets (cold-start validate / parse / extract)
-- Distribution and installation surface (`cargo install`, release binary tarballs)
+- Distribution and installation surface (`cargo install`, release binary
+  tarballs, and the Rust-generated npm packages governed by FR-022..024 and
+  ADR-0002)
 - A deterministic `assurance` process boundary over quire-rs's published
   source-grounded assurance export, including explicit source/module/schema
   premises and fail-closed drift checks
@@ -80,6 +82,10 @@ This specification does not govern:
 - Test/proof/solver execution, evidence retention, audit verdicts, proof
   attestations, and verification receipts; those remain native-runner and
   Quoin responsibilities.
+- WASM/browser parity and remediation (explicitly deferred by the owner).
+- Native Quire language/profile design, formal-clause grammar, temporal or
+  protocol semantics, and extraction/source-semantics redesign. Distribution
+  treats the native executable as opaque.
 
 ---
 
