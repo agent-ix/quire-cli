@@ -38,6 +38,7 @@ ADR-0002 on 2026-09-09.
 | FND-003 | medium | **Closed.** The required executable inventory originally appeared only as scattered scope prose and did not disposition release-host shell or the deferred WASM surface. NFR-008 now classifies every discovered executable path, routes generic archive/checksum remediation to #63, and preserves external host orchestration without treating it as product semantics. | NFR-008 Executable-Path Inventory and Disposition | missing-requirement |
 | FND-004 | medium | **Closed by owner disposition.** npm cannot make one `bin` entry select four optional native packages without a host executable. The owner approved retaining the npm distribution package with the exact bounded Node file in ADR-0002; the direct platform-package alternative is rejected. | ADR-0002; FR-022 Dependency; NFR-008 Dependency | correct-requirement-no-evidence |
 | FND-005 | low | **Closed.** The issue requires license review, but the first draft covered emitted license files without the Rust dependency or Node-import surfaces. NFR-008-AC-6 and TC-821 now cover all three. | NFR-008-AC-6; IT-163; TC-821 | missing-requirement |
+| FND-006 | low | **Closed during implementation preflight.** “Exact Node/npm” incorrectly implied that local qualification must equal the separately pinned release-host versions. The ADR and NFR now require exact release pins plus recorded, compatible local host versions; Rust remains exact 1.98.1 in both. | ADR-0002; NFR-008 Verification; TC-821 | wrong-requirement |
 
 ## Base Checklist Result
 

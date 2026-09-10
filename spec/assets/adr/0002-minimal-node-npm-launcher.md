@@ -45,9 +45,11 @@ extraction, clause grammar, profile rules, or source semantics. One Rust target
 catalog generates its optional dependencies, packages, and supported-set data.
 
 The production npm path therefore continues to require Node, as npm itself
-does. Qualification invokes exact Node/npm only as external hosts for local
-pack, offline install, resolution, and launcher probes; `ix-trace-rs`-marked
-Rust tests make every assertion. No hosted CI or publication is part of that
+does. The manual release host pins Node and npm exactly; local qualification
+records the installed versions and verifies they meet the declared engine and
+pack/install protocol. Both use Node/npm only as external hosts for pack,
+offline install, resolution, and launcher probes; `ix-trace-rs`-marked Rust
+tests make every assertion. No hosted CI or publication is part of local
 qualification.
 
 ## Consequences

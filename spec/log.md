@@ -29,6 +29,11 @@ description: "Chronological log of structural changes to this bundle."
   cross-platform npm distribution package. SR-062 FND-004 is closed and the
   reviewed #61 implementation scope is admitted.
 
+* **2026-09-09** — SR-062 preflight closed FND-006: release Node/npm remain
+  exactly pinned, while local offline qualification records and checks its
+  installed compatible host versions instead of falsely claiming they are the
+  same environment.
+
 * **2026-09-09** — Implemented and locally qualified
   [NFR-007](./non-functional/NFR-007-exact-qualified-rust-toolchain.md). The
   manifest, repository toolchain, Clippy policy, and four manual workflow

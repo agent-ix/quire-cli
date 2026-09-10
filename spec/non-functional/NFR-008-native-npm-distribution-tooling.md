@@ -62,8 +62,8 @@ explicitly named external package manager or release host.
 
 ## Verification
 
-`ix-trace-rs`-marked Rust tests SHALL exercise the generated packages, invoke
-the exact Node/npm host tools where the npm protocol requires them, and assert
+`ix-trace-rs`-marked Rust tests SHALL exercise the generated packages, record
+the Node/npm host versions used where the npm protocol requires them, and assert
 all results. A production-derived static audit SHALL enumerate the executable
 paths and fail when foreign decision logic, an additional launcher, an
 undeclared target catalog, or Quire semantic dependencies appear.
