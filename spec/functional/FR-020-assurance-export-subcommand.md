@@ -92,9 +92,16 @@ it does not disable schema checking.
 > test literals change; runtime semantics, the assurance schema, and QA7442
 > remain unchanged. IT-145 continues to require exact manifest/lock agreement.
 
+> **CR-82 followup (2026-09-09):** advance the compatible engine identity to
+> `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f`, the merge of quire-rs #422.
+> That revision qualifies the unchanged 0.46.0 engine on exact Rust 1.98.1.
+> The assurance schema and command semantics remain unchanged; IT-145 keeps the
+> manifest, lockfile, specification, changelog, and executable provenance in
+> exact agreement.
+
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at revision `42326bbdf8f6641203eebf7a5faaa2b22bc19b0f` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
+| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at revision `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
 | FR-020-CON-2 | The command SHALL execute no test, proof, solver, consumer, package-manager, Git, or network command. It performs parsing and static source extraction only. | Responsibility | Test |
 | FR-020-CON-3 | The CLI SHALL add no verdict, execution result, evidence freshness claim, generic evidence envelope, or tool-provenance field to the closed upstream payload. | Responsibility | Inspection |
 | FR-020-CON-4 | Unknown or malformed module versions, schema premises, source revisions, and incomplete module loads SHALL fail closed before any stdout byte. | Integrity | Test |
@@ -119,7 +126,8 @@ it does not disable schema checking.
   [FR-068](ix://agent-ix/quire-rs/FR-068), implemented by
   `agent-ix/quire-rs#389` at merge
   `e3352a0644abcfd5f0ebad348bc7aca235925ecc`; current compatible engine pin
-  `42326bbdf8f6641203eebf7a5faaa2b22bc19b0f` (crate version 0.46.0).
+  `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f` (crate version 0.46.0), which
+  contains the exact-Rust-1.98.1 qualification merged by quire-rs #422.
 - **Ownership gate**: `agent-ix/engineering-assurance#5`, accepted before this
   command was specified.
 - **Downstream**: `agent-ix/quoin#322` and the common compatibility fixtures in

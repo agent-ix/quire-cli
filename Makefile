@@ -14,7 +14,7 @@ help:
 	@echo "  make spec             - Validate changed assurance specs and traceability"
 	@echo "  make build            - Release build"
 	@echo "  make clean            - cargo clean"
-	@echo "  make deny             - cargo deny check licenses"
+	@echo "  make deny             - cargo deny check (advisories, bans, licenses, sources)"
 	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
 	@echo "  make bench            - Latency budget (NFR-001): p95 of a quire invocation ≤ 50 ms (needs hyperfine)"
 	@echo "  make ci               - All CI gates locally, including specification traceability"
@@ -33,11 +33,11 @@ fmt-check:
 
 .PHONY: lint
 lint:
-	$(CARGO) clippy --locked --all-targets -- -D warnings
+	$(CARGO) clippy --locked --all-targets --all-features -- -D warnings
 
 .PHONY: test
 test:
-	$(CARGO) test --locked
+	$(CARGO) test --locked --all-targets --all-features
 
 .PHONY: build
 build:
@@ -53,7 +53,7 @@ clean:
 
 .PHONY: deny
 deny:
-	$(CARGO) deny --locked check licenses
+	$(CARGO) deny --locked check
 
 .PHONY: cargo-audit
 cargo-audit:
@@ -142,7 +142,7 @@ refresh-fixtures:
 
 .PHONY: audit-tool-drift
 audit-tool-drift:
-	bash scripts/check_tool_drift.sh
+	$(CARGO) test --locked --test toolchain_policy
 
 .PHONY: ci
-ci: fmt-check lint test deny deny-bans audit-unsafe audit-thin-boundary audit-tool-drift spec
+ci: fmt-check lint test deny cargo-audit audit-unsafe audit-thin-boundary audit-tool-drift spec

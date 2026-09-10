@@ -13,3 +13,4 @@ description: "Index of artifacts in this directory."
 * [NFR-004: No network dependencies, no network calls](./NFR-004-no-network.md)
 * [NFR-005: Diagnostics inherit quire-rs [FR-017](ix://agent-ix/quire-rs/FR-017) format](./NFR-005-diagnostic-format.md)
 * [NFR-006: CLI surface stability under SemVer](./NFR-006-cli-stability.md)
+* [NFR-007: Exact qualified Rust toolchain](./NFR-007-exact-qualified-rust-toolchain.md)

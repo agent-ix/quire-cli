@@ -7,6 +7,25 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-09** — Implemented and locally qualified
+  [NFR-007](./non-functional/NFR-007-exact-qualified-rust-toolchain.md). The
+  manifest, repository toolchain, Clippy policy, and four manual workflow
+  selectors now name Rust 1.98.1; the engine pin is quire-rs #422 merge
+  `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f`. TC-142 is a native Rust,
+  `ix-trace-rs`-marked audit that kills changes and removals across all seven
+  declarations plus a `.yaml` escape. Qualification repaired the new Clippy
+  and rustdoc findings, removed unsupported nightly rustfmt options, upgraded
+  advisory-affected `anyhow` and `crossbeam-epoch`, and made full cargo-deny
+  plus cargo-audit recurring local gates. SR-059 records all results; no hosted
+  CI or release ran.
+
+* **2026-09-09** — Specified
+  [NFR-007](./non-functional/NFR-007-exact-qualified-rust-toolchain.md): one
+  exact Rust 1.98.1 policy across the manifest, repository toolchain, Clippy
+  policy, and all manual CI/release selections, with a mutation-sensitive
+  exhaustive audit and local qualification against the already-qualified
+  `quire-rs` revision. SR-057 established the preimplementation gate for #82.
+
 * **2026-09-06** — The #409 integration followup advances FR-020-CON-1 and
   IT-145 to canonical-CI-qualified engine
   `616a7e97c0e8c84aedda71dc198e94e3de3d9da6`. Its four seeded validation-stack

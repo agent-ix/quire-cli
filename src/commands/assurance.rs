@@ -80,8 +80,8 @@ impl FromStr for ExpectedSchema {
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    /// Repository root. Documents are read from <scope>/spec and source from
-    /// <scope> excluding spec/ and module-declared source exclusions.
+    /// Repository root. Documents are read from `<scope>/spec` and source from
+    /// `<scope>` excluding spec/ and module-declared source exclusions.
     #[arg(long, default_value = ".")]
     pub scope: String,
 
