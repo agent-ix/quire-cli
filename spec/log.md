@@ -7,6 +7,25 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-09** — Implemented and locally qualified
+  [NFR-007](./non-functional/NFR-007-exact-qualified-rust-toolchain.md). The
+  manifest, repository toolchain, Clippy policy, and four manual workflow
+  selectors now name Rust 1.98.1; the engine pin is quire-rs #422 merge
+  `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f`. TC-142 is a native Rust,
+  `ix-trace-rs`-marked audit that kills changes and removals across all seven
+  declarations plus a `.yaml` escape. Qualification repaired the new Clippy
+  and rustdoc findings, removed unsupported nightly rustfmt options, upgraded
+  advisory-affected `anyhow` and `crossbeam-epoch`, and made full cargo-deny
+  plus cargo-audit recurring local gates. SR-059 records all results; no hosted
+  CI or release ran.
+
+* **2026-09-09** — Specified
+  [NFR-007](./non-functional/NFR-007-exact-qualified-rust-toolchain.md): one
+  exact Rust 1.98.1 policy across the manifest, repository toolchain, Clippy
+  policy, and all manual CI/release selections, with a mutation-sensitive
+  exhaustive audit and local qualification against the already-qualified
+  `quire-rs` revision. SR-057 established the preimplementation gate for #82.
+
 * **2026-09-06** — The #409 integration followup advances FR-020-CON-1 and
   IT-145 to canonical-CI-qualified engine
   `616a7e97c0e8c84aedda71dc198e94e3de3d9da6`. Its four seeded validation-stack
@@ -52,4 +71,3 @@ description: "Chronological log of structural changes to this bundle."
 * **2026-08-15** — **Two roots from one scope, recorded after the fact.** PR #27 changed two documented acceptance criteria's behavior without touching a single spec file. [FR-014](./functional/FR-014-validate-okf-bundle.md)-AC-6 ("validates the `--scope` directory as the bundle root") and [FR-015](./functional/FR-015-fix-subcommand.md)-AC-5 ("uses `--scope` as the bundle root") both now derive `<scope>/spec` through the shared `spec_root_of` helper, and a scope with no `spec/` is a named error rather than a silent repository-wide crawl. Both artifacts gain a CR note; `--help`, `README.md` and the two missing CHANGELOG releases (0.16.0, 0.17.0) are corrected in the same pass, since a **breaking traversal change** that can newly fail `coverage`/`validate --okf`/`fix` on an existing repository was unexplained anywhere — against this repo's own SemVer contract in [NFR-006](./non-functional/NFR-006-cli-stability.md). Stale `validate_bundle_at` references corrected to the two-root `validate_bundle` in the `run_okf` doc comment, FR-014's body and TC-090's matrix row; the two `--okf` root tests gain IT tags; and `spec_root_of`'s doc comment, which had been inserted *inside* `load_module_registry`'s `///` block so rustdoc attached it to the wrong item and left `load_module_registry` undocumented, is split back apart. Closes agent-ix/quire-cli#30 (umbrella agent-ix/quire-rs#106, from SR-006).
 
 * **2026-08-16** — **`coverage` and `properties` gain owning requirements**, and the two-root test gaps close. [FR-017](./functional/FR-017-coverage-subcommand.md) and [FR-018](./functional/FR-018-properties-subcommand.md) are authored for commands that shipped in v0.13.0 and had **no FR, no acceptance criteria and no matrix rows at all** — the most behavior-visible surface added in three releases, changing its default root in PR #27 and what it parses in PR #29 with nothing to be measured against. The criteria are read off working code rather than proposed (the quire-rs CR-042 backfill pattern), and writing them down corrected two claims: the human census renders on **stderr**, not stdout, so `--json` owns stdout alone; and the `properties` payload is a `{documents: [{document, archetype, criteria}]}` envelope, not a bare record array. Test gaps from agent-ix/quire-cli#31: `fix`'s default-root change had **zero** coverage (IT-080 now asserts both that `<scope>/spec` is the root and that a repo-root file is never walked); the missing-root tests asserted only `contains("spec")`, which the unrelated "install spec-artifacts-process" refusal also satisfies (now the interpolated path, plus IT-086 for the typed `MissingDocumentRoot` kind); nothing asserted the *second* half of the derivation, that the code walk excludes `spec/` (IT-087, which a regression to `extract_tree` fails); the extract edge test asserted only that `edges` is an array while the fixture declares a real relationship, so an empty harvest passed both it and the determinism test (now asserts the target and type); and the positional `--okf` form's deliberately different path resolution is stated in FR-014 and the README rather than left implicit. IT-088 covers the machine-surface half of agent-ix/quire-rs#110 end to end: a non-fatal bundle warning now carries `severity: "warning"`, where it used to be emitted through the error path with `severity: "error"` while the exit code correctly said otherwise. Engine bumped to **quire-rs v0.26.0**; `spec_root_of` canonicalizes, `coverage` applies the same path-safety guard `validate` always did, and the exclusion is derived from one `DOCUMENT_ROOT_DIR` constant instead of a second `"spec"` literal (agent-ix/quire-rs#113). Closes agent-ix/quire-cli#31 and the CLI halves of agent-ix/quire-rs#110 and #113 (umbrella agent-ix/quire-rs#106, from SR-006).
-* **2026-09-09** — Added [NFR-007](./non-functional/NFR-007-exact-qualified-rust-toolchain.md): one exact Rust 1.98.1 policy across the manifest, repository toolchain, Clippy policy, and all manual CI/release selections, with a mutation-sensitive exhaustive audit and local qualification against the already-qualified `quire-rs` revision. This is the specification gate for issue #82; implementation has not started.

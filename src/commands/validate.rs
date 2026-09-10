@@ -33,7 +33,7 @@ pub struct Args {
     /// Markdown document path, glob, or `-` for stdin. Relative globs are
     /// resolved under --scope, which defaults to the current directory. With
     /// --okf, an optional bundle directory; omitted, the bundle root is
-    /// <scope>/spec (not --scope itself).
+    /// `<scope>/spec` (not --scope itself).
     #[arg(value_name = "DOC_OR_GLOB", required_unless_present = "okf")]
     pub documents: Vec<String>,
 
@@ -62,7 +62,7 @@ pub struct Args {
     /// `type` is still required, but unknown types, broken `ix://` links,
     /// and `index.md` completeness gaps are warnings, not errors. Operates
     /// on the positional bundle directory; with none given the bundle root
-    /// is <scope>/spec, and a scope with no spec/ is an error rather than a
+    /// is `<scope>/spec`, and a scope with no spec/ is an error rather than a
     /// silent repository-wide crawl.
     #[arg(long)]
     pub okf: bool,

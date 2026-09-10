@@ -7,24 +7,25 @@ Static binary CLI wrapping quire-rs (render, parse, extract, validate).
 ```bash
 make fmt            # format with rustfmt
 make fmt-check      # verify formatting (CI gate)
-make lint           # clippy with -D warnings
-make test           # cargo test
+make lint           # all-target/all-feature clippy with -D warnings
+make test           # all-target/all-feature cargo test
 make build          # release build
 make clean          # cargo clean
-make deny           # cargo deny check licenses
+make deny           # cargo deny check (advisories, bans, licenses, sources)
 make audit-unsafe   # check that every unsafe block has a // SAFETY: comment
-make ci             # fmt-check + lint + test + deny + audit-unsafe
+make ci             # local format/lint/test/dependency/static/spec gates
 ```
 
 ## Safety scaffolding
 
 Backported from `agent-ix/ecaz`:
 
-- `clippy.toml` pins MSRV to `1.75` and caps cognitive complexity / arg count
+- `clippy.toml` pins MSRV to `1.98.1` and caps cognitive complexity / arg count
 - `deny.toml` allow-lists licenses and denies unknown registries/git sources
 - `scripts/check_unsafe_comments.sh` runs in CI and locally via `make audit-unsafe`. Every `unsafe {` block must have a `// SAFETY:` comment within the 3 preceding lines, or be listed in `scripts/unsafe_comment_baseline.txt`. Update the baseline with `bash scripts/check_unsafe_comments.sh --update-baseline`.
-- `rustfmt.toml` uses 100-char width and `StdExternalCrate` import grouping. CI fails on drift.
-- `rust-toolchain.toml` pins to stable + rustfmt + clippy.
+- `rustfmt.toml` uses 100-char width with stable-channel options only. The local
+  formatting gate fails on drift.
+- `rust-toolchain.toml` pins exact Rust 1.98.1 + rustfmt + clippy.
 
 ## Layout
 

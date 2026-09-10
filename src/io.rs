@@ -175,7 +175,7 @@ pub fn pretty_validated_json_bytes(compact: &[u8]) -> Vec<u8> {
                 let matching_close = if byte == b'{' { b'}' } else { b']' };
                 if compact.get(index + 1) != Some(&matching_close) {
                     output.push(b'\n');
-                    output.extend(std::iter::repeat(b' ').take(depth * 2));
+                    output.extend(std::iter::repeat_n(b' ', depth * 2));
                 }
             }
             b'}' | b']' => {
@@ -183,14 +183,14 @@ pub fn pretty_validated_json_bytes(compact: &[u8]) -> Vec<u8> {
                 let matching_open = if byte == b'}' { b'{' } else { b'[' };
                 if index > 0 && compact[index - 1] != matching_open {
                     output.push(b'\n');
-                    output.extend(std::iter::repeat(b' ').take(depth * 2));
+                    output.extend(std::iter::repeat_n(b' ', depth * 2));
                 }
                 output.push(byte);
             }
             b',' => {
                 output.push(byte);
                 output.push(b'\n');
-                output.extend(std::iter::repeat(b' ').take(depth * 2));
+                output.extend(std::iter::repeat_n(b' ', depth * 2));
             }
             b':' => {
                 output.push(byte);

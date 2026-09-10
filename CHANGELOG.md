@@ -20,11 +20,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ### Changed
 
-- **Engine pin advances to `42326bbdf8f6641203eebf7a5faaa2b22bc19b0f`**
-  (quire-rs#381), which adds `Registry::clause_sets()` / `clause_set()` and the
-  rights-aware `ClauseSet` types this command consumes. FR-020-CON-1 advances
-  with it, so IT-145's six surfaces still agree. The `assurance_export.v1`
-  capability and the engine-owned assurance schema are unchanged.
+- **Engine pin advances to `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f`**
+  (quire-rs#422), which qualifies the engine on exact Rust 1.98.1 and contains
+  quire-rs#381's `Registry::clause_sets()` / `clause_set()` API and rights-aware
+  `ClauseSet` types. FR-020-CON-1 advances with it, so IT-145's six surfaces
+  still agree. The `assurance_export.v1` capability and engine-owned assurance
+  schema are unchanged.
 
 ## [0.32.0] - 2026-09-06
 
