@@ -20,17 +20,18 @@ permitted; it is the upstream crates' responsibility to justify their own usage.
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| `unsafe` blocks in `src/` + `tests/` | 0 | 0 | `scripts/check_unsafe_comments.sh` static audit |
+| Undocumented `unsafe` blocks in first-party Rust source and tests | 0 | 0 | `quire-qualify unsafe-comments` AST-backed static audit |
 
 ## Verification
 
-`scripts/check_unsafe_comments.sh` (inherited from rust-lib-cookiecutter) runs in
-CI and locally, asserting zero `unsafe` blocks in `src/` and `tests/` and failing
-the build on any `unsafe` block lacking a `// SAFETY:` comment.
+The repository-local Rust qualification package runs locally and parses
+first-party Rust source and tests, asserting that every `unsafe` block has a
+nearby `// SAFETY:` comment or an exact reviewed baseline locus. It rejects
+stale baseline entries as well as new undocumented blocks.
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-003-AC-1 | `scripts/check_unsafe_comments.sh` (inherited from rust-lib-cookiecutter) reports zero `unsafe` blocks in `src/` and `tests/` | Inspection |
-| NFR-003-AC-2 | CI fails the build if any `unsafe` block appears without a `// SAFETY:` comment (script defaults) | Inspection |
+| NFR-003-AC-1 | The native AST-backed gate reports zero undocumented `unsafe` blocks in first-party Rust source and tests | Inspection (TC-092, TC-837) |
+| NFR-003-AC-2 | Local qualification fails if an `unsafe` block lacks a nearby `// SAFETY:` comment and its exact locus is not in the reviewed baseline | Mutation test (TC-092, TC-837) |

@@ -22,7 +22,11 @@ Backported from `agent-ix/ecaz`:
 
 - `clippy.toml` pins MSRV to `1.98.1` and caps cognitive complexity / arg count
 - `deny.toml` allow-lists licenses and denies unknown registries/git sources
-- `scripts/check_unsafe_comments.sh` runs in CI and locally via `make audit-unsafe`. Every `unsafe {` block must have a `// SAFETY:` comment within the 3 preceding lines, or be listed in `scripts/unsafe_comment_baseline.txt`. Update the baseline with `bash scripts/check_unsafe_comments.sh --update-baseline`.
+- The Rust `quire-qualify` tool runs locally via `make audit-unsafe`. Every
+  parsed `unsafe {` block must have a `// SAFETY:` comment within the three
+  preceding lines or be listed in `scripts/unsafe_comment_baseline.txt`.
+  Update the baseline explicitly with
+  `cargo run --locked -p quire-qualify -- unsafe-comments --update-baseline`.
 - `rustfmt.toml` uses 100-char width with stable-channel options only. The local
   formatting gate fails on drift.
 - `rust-toolchain.toml` pins exact Rust 1.98.1 + rustfmt + clippy.

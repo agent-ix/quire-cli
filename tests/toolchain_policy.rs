@@ -137,6 +137,7 @@ fn cargo_command_needs_lock(line: &str) -> bool {
         "cargo build",
         "cargo check",
         "cargo clippy",
+        "cargo doc",
         "cargo run",
         "cargo test",
     ]
@@ -145,7 +146,7 @@ fn cargo_command_needs_lock(line: &str) -> bool {
 }
 
 fn make_cargo_command_needs_lock(line: &str) -> bool {
-    ["bench", "build", "check", "clippy", "run", "test"]
+    ["bench", "build", "check", "clippy", "doc", "run", "test"]
         .iter()
         .any(|command| line.contains(&format!("$(CARGO) {command}")))
 }
@@ -519,7 +520,7 @@ fn tc143_makefile_locking_policy_is_mutation_sensitive() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     assert_eq!(audit(root), Vec::new(), "production tool policy drifted");
     let mutations = makefile_mutations(root);
-    assert_eq!(mutations.len(), 14, "the Makefile mutation census changed");
+    assert_eq!(mutations.len(), 19, "the Makefile mutation census changed");
 
     for mutation in mutations {
         let fixture = tempfile::tempdir().expect("tempdir");
