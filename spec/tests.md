@@ -52,6 +52,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | US-004 Extract for graph ingest | AC-1..3 | IT-004 (envelope), IT-015 (edge dedup), IT-020 (determinism), IT-099 (unknown archetype) — IT-016 (sugar field harvest) retired, FR-003 CR 2026-08-20 | ✅ |
 | US-005 Machine addresses section | AC-1..5 | IT-033, IT-034, IT-035, IT-036, IT-038 | ✅ |
 | US-006 Evidence producer exports assurance facts | Illustrative examples; binding acceptance is FR-020 AC-1..9 | IT-136..145, TC-814 | ✅ via FR-020 |
+| US-007 Consumer installs native Quire through npm | AC-1..4 | IT-159..163, TC-816 | ✅ Complete |
 
 ## Functional Requirement Coverage
 
@@ -78,6 +79,9 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-019 symbols subcommand (the extracted symbol table) | AC-1..6 | IT-130 (human census, stdout clean), IT-131 (JSON record fields + byte-stability), IT-132 (NOT ASKED vs not tagged), IT-133 (both denominators), IT-134 (diagnostics on stderr in JSON mode), IT-135 (a language filter narrows records AND census) | ✅ Complete |
 | FR-020 assurance subcommand (source-grounded assurance-v1 export) | AC-1..9 | IT-136 (complete export), IT-137 (upstream schema), IT-138 (compact/pretty determinism), IT-139/IT-140 (premise/load refusal), IT-141 (empty success vs failure), IT-142 (diagnostic channels), TC-814 (thin boundary), IT-143 (no child/network execution), IT-144 (cross-language golden), IT-145 (docs/help/pin) | ✅ |
 | FR-021 clauses subcommand (generic module clause sets) | AC-1..7 | IT-154 (evaluate + three-valued JSON + provenance/schema), IT-155 (exact-version diff + schema), IT-156 (deterministic TSV), IT-157 (fail-closed inputs and version selection), TC-141 (TSV structural escaping) | ✅ Complete |
+| FR-022 npm launcher process contract | AC-1..7 | IT-159 (offline install + transparent process), IT-160 (unsupported/missing), IT-161 (chmod refusal + spawn error), IT-162 (signal), TC-815 (minimal shim and single catalog), TC-820 (semantic containment) | ✅ Complete |
+| FR-023 Rust-owned npm package assembly | AC-1..8 | TC-815 (catalog), TC-816 (complete deterministic packages), TC-817 (missing/wrong/extra input and atomic refusal), IT-159 (offline installation), IT-163 (`npm pack` membership) | ✅ Complete |
+| FR-024 Rust-owned npm release version contract | AC-1..6 | TC-818 (transactional version contract), IT-164 (binary/version disagreement), TC-819 (manual workflow and native tooling audit) | ✅ Complete |
 
 ## Non-Functional Requirement Coverage
 
@@ -90,6 +94,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | NFR-005 Diagnostic format | unit + IT | IT-031 (each error class parses as Diagnostic JSON) | ✅ |
 | NFR-006 CLI stability | snapshot | IT-032 (`quire --help` snapshot pinned) | ✅ |
 | NFR-007 Exact qualified Rust toolchain | static audit + locked local qualification | TC-142 (all compiler declarations exact, exhaustive workflow scan, mutation-sensitive), TC-143 (qualified engine pin + exact local gate record in SR-059) | ✅ |
+| NFR-008 Native npm distribution tooling boundary | Rust source/mutation audit + local host-seam qualification | TC-815, TC-819, TC-820, TC-821, IT-159, IT-163 | ✅ Complete |
 
 ---
 
@@ -150,6 +155,19 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | TC-141 | TSV escapes tabs, newlines, carriage returns, and backslashes in a cell, preserving one logical clause per physical row (`commands::clauses::tests::tsv_cells_keep_one_record_per_line`) | Unit | P1 | FR-020-AC-5 | ✅ |
 | TC-142 | The tool-drift audit enumerates manifest, toolchain, Clippy, and every manual CI/release Rust selector as exact 1.98.1; each governed declaration and an added `.yaml` workflow mutant independently fail the audit | Static | P0 | NFR-007-AC-1, NFR-007-AC-4 | ✅ |
 | TC-143 | The qualification record names a pinned `quire-rs` revision containing PR #422 and records passing results for every NFR-007 command on Rust 1.98.1 without a hosted-CI dispatch | Inspection | P0 | NFR-007-AC-2, NFR-007-AC-3 | ✅ |
+| IT-159 | Rust assembles all five local npm tarballs, npm installs the meta-package and matching optional package into a clean offline prefix, and the installed launcher runs a native probe that demonstrates unchanged argument strings, stdin/stdout/stderr, and normal exit status | Integration | P0 | US-007-AC-1, US-007-AC-2, FR-022-AC-1, FR-022-AC-2, FR-023-AC-8, NFR-008-AC-5 | ✅ |
+| IT-160 | On the actual host, a generated manifest omitting the host pair produces the unsupported-host refusal and a manifest admitting the pair without its package produces the missing-package refusal; both launch nothing and name the exact repair/source-build path | Integration | P0 | US-007-AC-3, FR-022-AC-4, FR-022-AC-5 | ✅ |
+| IT-161 | A resolved executable whose mode cannot be changed still launches, while a resolved non-executable directory produces the deterministic launch-failure diagnostic and exit 1 | Integration | P1 | FR-022-AC-6 | ✅ |
+| IT-162 | A launcher child terminated by a host signal causes the launcher to terminate with the identical signal | Integration | P0 | US-007-AC-2, FR-022-AC-3 | ✅ |
+| IT-163 | Rust assertions over `npm pack --json --dry-run` and the produced tarballs prove exact declared members, matching license bytes, public package metadata, and same-version optional dependencies without registry access or publication | Integration | P0 | US-007-AC-4, FR-023-AC-8, NFR-008-AC-5 | ✅ |
+| IT-164 | Release verification accepts the matching built `quire --version` and rejects a requested, Cargo, launcher, optional-dependency, or executable version mismatch before package assembly | Integration | P0 | FR-024-AC-4 | ✅ |
+| TC-815 | An `ix-trace-rs` Rust audit proves the typed target catalog has exactly four unique rows, the generated launcher dependencies are its exact projection, and the Node host contains no second allowlist or behavior beyond ADR-0002; production-derived mutations must fail | Static | P0 | FR-022-AC-1, FR-022-AC-7, FR-023-AC-1, NFR-008-AC-1 | ✅ |
+| TC-816 | Rust package-generator tests prove exact target directories, filenames, executable modes, manifest fields, license bytes, launcher synchronization, stale-output removal, and byte-identical reruns | Unit | P0 | US-007-AC-4, FR-023-AC-4, FR-023-AC-5, FR-023-AC-6, FR-023-AC-7 | ✅ |
+| TC-817 | Production-derived missing, extra, wrong-name, wrong-format, and cross-target binary mutations are each rejected before any existing output or launcher byte changes | Unit | P0 | FR-023-AC-2, FR-023-AC-3, FR-023-AC-7 | ✅ |
+| TC-818 | Rust version-contract tests accept complete SemVer, validate the complete proposed state before replacement, update only the governed Cargo/npm fields, and kill malformed-version, malformed-manifest, missing/extra-dependency, and mismatch mutations without partial preflight writes | Unit | P0 | FR-024-AC-1, FR-024-AC-2, FR-024-AC-3, FR-024-AC-4 | ✅ |
+| TC-819 | A production-derived Rust audit enumerates every `.yml`/`.yaml` release workflow and npm executable path, requires manual dispatch and Rust package/version commands, and rejects executable MJS, Perl, embedded Node mutation, npm target/version assertions, automatic publication, or a second JavaScript entry | Static | P0 | FR-024-AC-5, FR-024-AC-6, NFR-008-AC-1 | ✅ |
+| TC-820 | Every new distribution test carries an `ix-trace-rs` marker, the Rust tool has no `quire-rs` dependency, and source audits reject document/extraction/clause/profile/grammar/temporal/protocol/source-semantic implementation in the tool or launcher | Static | P0 | FR-022-AC-7, NFR-008-AC-2, NFR-008-AC-3 | ✅ |
+| TC-821 | The Rust review records exact Rust 1.98.1, `CARGO_BUILD_JOBS=2`, the observed local Node/npm host versions and exact release pins, Rust dependency and emitted-package license results, and proof that no hosted workflow or publication ran | Static | P0 | NFR-008-AC-4, NFR-008-AC-5, NFR-008-AC-6 | ✅ |
 | IT-099 | `extract` on a document whose `type` resolves to no DSL-carrying archetype exits 1 with a diagnostic naming it; no partial extraction reaches stdout (`cli_extract::extract_no_dsl_archetype_errors_cleanly`) | Integration | P1 | FR-003-AC-2, US-004-AC-3 | ✅ |
 | IT-015 | Edge dedup by (source, type, target) — a twice-declared relationship and a twice-linked body target each harvest once (`cli_extract::it_015_*`) | Integration | P1 | US-004-AC-2 | ✅ |
 | IT-016 | ⊘ RETIRED (FR-003 CR, 2026-08-20) — Frontmatter sugar field `dependencies:` harvested (no engine ever harvested sugar fields) | Integration | P1 | FR-003-AC-3 | ⛔ |

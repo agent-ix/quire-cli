@@ -7,6 +7,41 @@ description: "Chronological log of structural changes to this bundle."
 
 ## History
 
+* **2026-09-09** — Specified the scoped LR05 npm distribution Rust port in
+  [US-007](./usecase/US-007-install-quire-through-npm.md),
+  [FR-022](./functional/FR-022-npm-launcher-process-contract.md),
+  [FR-023](./functional/FR-023-rust-npm-package-assembly.md),
+  [FR-024](./functional/FR-024-rust-release-version-contract.md), and
+  [NFR-008](./non-functional/NFR-008-native-npm-distribution-tooling.md).
+  [ADR-0002](./assets/adr/0002-minimal-node-npm-launcher.md) proposes the
+  exact minimal Node host seam and awaits owner disposition. Package decisions,
+  generation, version validation, and assertions move to Rust; WASM, Quire
+  language/profile semantics, extraction redesign, and generic GitHub release
+  archive/checksum cleanup remain out of this change.
+
+* **2026-09-09** — Base `/spec-review`
+  [SR-062](./reviews/SR-062-npm-distribution-rust-port-base-review.md) closed
+  four drafting gaps and found no scope expansion. The reviewed specification
+  is conditional only on the ADR-0002 owner choice; implementation has not
+  started.
+
+* **2026-09-09** — The owner approved ADR-0002's bounded Node host for the
+  cross-platform npm distribution package. SR-062 FND-004 is closed and the
+  reviewed #61 implementation scope is admitted.
+
+* **2026-09-09** — SR-062 preflight closed FND-006: release Node/npm remain
+  exactly pinned, while local offline qualification records and checks its
+  installed compatible host versions instead of falsely claiming they are the
+  same environment.
+
+* **2026-09-09** — Implemented and locally qualified the #61 Rust npm
+  distribution port. SR-063 records the exact `rust-review` gate: 222 product
+  tests and 14 distribution tests pass under the two-job cap; offline npm
+  install/pack, target-format mutations, launcher process behavior, dependency
+  policy, RustSec, strict docs, release linkage, and static containment all
+  pass. IT-159..164 and TC-815..821 are backed and complete. No hosted workflow
+  or publication ran.
+
 * **2026-09-09** — Implemented and locally qualified
   [NFR-007](./non-functional/NFR-007-exact-qualified-rust-toolchain.md). The
   manifest, repository toolchain, Clippy policy, and four manual workflow

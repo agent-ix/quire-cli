@@ -337,6 +337,10 @@ make deny                # cargo deny check licenses
 make deny-bans           # cargo deny check bans
 make audit-unsafe        # every unsafe block carries a // SAFETY: comment
 make audit-thin-boundary # src/ stays a thin wrapper over quire-rs
+make dist-test           # Rust package/launcher tests, including offline npm
+make dist-verify VERSION=0.32.0 # check Cargo/npm release-version agreement
+make set-version VERSION=0.33.0 # update Cargo/npm versions in lockstep
+make dist-package VERSION=0.32.0 # generate npm/dist from artifacts/
 make refresh-fixtures    # re-sync tests/fixtures/iso from ../quire-rs
 make ci                  # local CI gauntlet
 ```

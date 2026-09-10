@@ -16,6 +16,10 @@ help:
 	@echo "  make clean            - cargo clean"
 	@echo "  make deny             - cargo deny check (advisories, bans, licenses, sources)"
 	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
+	@echo "  make dist-test        - Test native npm distribution tooling"
+	@echo "  make dist-verify      - Verify committed Cargo/npm release versions"
+	@echo "  make dist-package     - Build npm packages from artifacts/"
+	@echo "  make set-version VERSION=X.Y.Z - Update Cargo/npm versions"
 	@echo "  make bench            - Latency budget (NFR-001): p95 of a quire invocation ≤ 50 ms (needs hyperfine)"
 	@echo "  make ci               - All CI gates locally, including specification traceability"
 
@@ -33,7 +37,7 @@ fmt-check:
 
 .PHONY: lint
 lint:
-	$(CARGO) clippy --locked --all-targets --all-features -- -D warnings
+	$(CARGO) clippy --workspace --locked --all-targets --all-features -- -D warnings
 
 .PHONY: test
 test:
@@ -58,6 +62,22 @@ deny:
 .PHONY: cargo-audit
 cargo-audit:
 	$(CARGO) audit
+
+.PHONY: dist-test
+dist-test:
+	$(CARGO) test --locked -p quire-dist
+
+.PHONY: dist-verify
+dist-verify:
+	$(CARGO) run --locked -p quire-dist -- verify-release --version $(VERSION)
+
+.PHONY: dist-package
+dist-package:
+	$(CARGO) run --locked -p quire-dist -- package-npm --version $(VERSION)
+
+.PHONY: set-version
+set-version:
+	$(CARGO) run --locked -p quire-dist -- set-version --version $(VERSION)
 
 .PHONY: audit-unsafe
 audit-unsafe:
@@ -145,4 +165,4 @@ audit-tool-drift:
 	$(CARGO) test --locked --test toolchain_policy
 
 .PHONY: ci
-ci: fmt-check lint test deny cargo-audit audit-unsafe audit-thin-boundary audit-tool-drift spec
+ci: fmt-check lint test dist-test deny cargo-audit audit-unsafe audit-thin-boundary audit-tool-drift spec

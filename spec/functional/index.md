@@ -28,3 +28,6 @@ description: "Index of artifacts in this directory."
 * [FR-019: quire symbols subcommand](./FR-019-symbols-subcommand.md)
 * [FR-020: quire assurance subcommand](./FR-020-assurance-export-subcommand.md)
 * [FR-021: quire clauses subcommand](./FR-021-clauses-subcommand.md)
+* [FR-022: npm launcher process contract](./FR-022-npm-launcher-process-contract.md)
+* [FR-023: Rust-owned npm package assembly](./FR-023-rust-npm-package-assembly.md)
+* [FR-024: Rust-owned npm release version contract](./FR-024-rust-release-version-contract.md)
