@@ -123,9 +123,8 @@ fn workflow_paths(root: &Path, findings: &mut Vec<Finding>) -> Vec<PathBuf> {
     paths
 }
 
-fn action_revision(line: &str) -> Option<&str> {
-    let action = line.split_once("uses:")?.1.split_whitespace().next()?;
-    action.rsplit_once('@').map(|(_, revision)| revision)
+fn action_reference(line: &str) -> Option<&str> {
+    line.split_once("uses:")?.1.split_whitespace().next()
 }
 
 fn is_full_sha(value: &str) -> bool {
@@ -159,8 +158,9 @@ fn audit_workflow(relative: &Path, text: &str, findings: &mut Vec<Finding>) {
             continue;
         }
 
-        if let Some(revision) = action_revision(line) {
-            if !is_full_sha(revision) {
+        if let Some(action) = action_reference(line) {
+            let revision = action.rsplit_once('@').map(|(_, revision)| revision);
+            if !revision.is_some_and(is_full_sha) {
                 findings.push(Finding::new(
                     relative,
                     number,
@@ -367,6 +367,45 @@ fn remove_line(path: &Path, line_number: usize) {
     fs::write(path, format!("{}\n", lines.join("\n"))).expect("write mutant");
 }
 
+#[derive(Debug)]
+struct MakefileMutation {
+    line: usize,
+    replacement: String,
+    expected_reason: &'static str,
+}
+
+fn makefile_mutations(root: &Path) -> Vec<MakefileMutation> {
+    let text = fs::read_to_string(root.join("Makefile")).expect("read Makefile mutations");
+    text.lines()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            let (replacement, expected_reason) = if make_cargo_command_needs_lock(line) {
+                (
+                    line.replacen("--locked", "", 1),
+                    "canonical Cargo command is not --locked",
+                )
+            } else if line.contains("$(CARGO) deny") {
+                (
+                    line.replacen("--locked", "", 1),
+                    "cargo-deny resolution is not --locked",
+                )
+            } else if line.starts_with("ci:") && line.contains("cargo-audit") {
+                (
+                    line.replacen("cargo-audit", "", 1),
+                    "ci aggregate does not run cargo-audit",
+                )
+            } else {
+                return None;
+            };
+            Some(MakefileMutation {
+                line: index + 1,
+                replacement,
+                expected_reason,
+            })
+        })
+        .collect()
+}
+
 #[trace("TC-142", "NFR-007-AC-1", "NFR-007-AC-4")]
 #[test]
 fn tc142_every_compiler_declaration_is_exact_and_mutation_sensitive() {
@@ -415,6 +454,33 @@ fn tc142_every_compiler_declaration_is_exact_and_mutation_sensitive() {
         }
     }
 
+    let workflow = Path::new(".github/workflows/ci.yml");
+    let workflow_text = fs::read_to_string(root.join(workflow)).expect("read action mutation");
+    let (line, original, action) = workflow_text
+        .lines()
+        .enumerate()
+        .find_map(|(index, line)| action_reference(line).map(|action| (index + 1, line, action)))
+        .expect("at least one governed action");
+    let (_, revision) = action
+        .rsplit_once('@')
+        .expect("production action has a revision");
+    let fixture = tempfile::tempdir().expect("tempdir");
+    copy_policy_tree(root, fixture.path());
+    replace_line(
+        &fixture.path().join(workflow),
+        line,
+        &original.replacen(&format!("@{revision}"), "", 1),
+    );
+    let findings = audit(fixture.path());
+    assert!(
+        findings.iter().any(|finding| {
+            finding.path == workflow
+                && finding.line == line
+                && finding.reason == "action is not pinned to a full commit SHA"
+        }),
+        "removing an action revision escaped the audit: {findings:?}"
+    );
+
     let fixture = tempfile::tempdir().expect("tempdir");
     copy_policy_tree(root, fixture.path());
     fs::write(
@@ -429,4 +495,31 @@ fn tc142_every_compiler_declaration_is_exact_and_mutation_sensitive() {
             .any(|finding| finding.path == Path::new(".github/workflows/escape.yaml")),
         "a .yaml workflow escaped the audit: {findings:?}"
     );
+}
+
+#[trace("TC-143", "NFR-007-AC-3")]
+#[test]
+fn tc143_makefile_locking_policy_is_mutation_sensitive() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert_eq!(audit(root), Vec::new(), "production tool policy drifted");
+    let mutations = makefile_mutations(root);
+    assert_eq!(mutations.len(), 8, "the Makefile mutation census changed");
+
+    for mutation in mutations {
+        let fixture = tempfile::tempdir().expect("tempdir");
+        copy_policy_tree(root, fixture.path());
+        replace_line(
+            &fixture.path().join("Makefile"),
+            mutation.line,
+            &mutation.replacement,
+        );
+        let findings = audit(fixture.path());
+        assert!(
+            findings.iter().any(|finding| {
+                finding.path == Path::new("Makefile") && finding.reason == mutation.expected_reason
+            }),
+            "mutating Makefile:{} escaped the audit: {findings:?}",
+            mutation.line
+        );
+    }
 }

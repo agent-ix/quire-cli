@@ -31,6 +31,9 @@ dynamic-link inspection pass locally. Hosted CI was not dispatched.
 | FND-002 | high | **FIXED.** The newly activated advisory gate found `anyhow` 1.0.102 affected by RUSTSEC-2026-0190 and `crossbeam-epoch` 0.9.18 affected by RUSTSEC-2026-0204. The lock now selects fixed 1.0.103 and 0.9.20; cargo-deny and cargo-audit both pass. | `Cargo.lock:79`; `Cargo.lock:246` | correct-requirement-no-evidence |
 | FND-003 | medium | **FIXED before commit.** The first Rust audit could retry a failed file read, silently drop an unreadable workflow-directory entry, or associate a missing selector with the following action block. Reads are now single-shot typed findings, entry errors fail the production assertion, and selector search stops at the next action. | `tests/toolchain_policy.rs:47`; `tests/toolchain_policy.rs:76`; `tests/toolchain_policy.rs:171` | implementation-bug-despite-evidence |
 | FND-004 | low | **FIXED.** Exact 1.98.1 qualification surfaced three `manual_repeat_n` lints, four invalid rustdoc HTML placeholders, and two nightly-only rustfmt keys. The equivalent stable APIs/docs are repaired and the unsupported keys removed without formatting drift. | `src/io.rs:178`; `src/commands/assurance.rs:83`; `src/commands/validate.rs:33`; `rustfmt.toml:1` | correct-requirement-no-evidence |
+| FND-005 | medium | **FIXED after SR-060.** An action without `@revision` returned `None` and escaped the full-SHA rule. The audit now distinguishes an absent action line from an action with an absent revision, and a production-derived mutant deleting `@<sha>` fails at the exact line. | `tests/toolchain_policy.rs:126`; `tests/toolchain_policy.rs:163`; `tests/toolchain_policy.rs:457` | implementation-bug-despite-evidence |
+| FND-006 | medium | **FIXED after SR-060.** Makefile locking rules had no mutation evidence. Eight production-derived mutations now remove each governed `--locked` or `cargo-audit` token and assert the rule-specific finding after first proving the production policy clean. | `tests/toolchain_policy.rs:377`; `tests/toolchain_policy.rs:502` | correct-requirement-no-evidence |
+| FND-007 | low | **FIXED after SR-060.** The ix-trace-rs dev dependency used a movable tag while its lock already resolved a fixed commit. The manifest and lock now name the exact existing revision `2ce4ebf`. | `Cargo.toml:28`; `Cargo.lock:673` | correct-requirement-no-evidence |
 
 ## Gate results
 
@@ -38,7 +41,7 @@ dynamic-link inspection pass locally. Hosted CI was not dispatched.
 |------|--------|
 | `cargo +1.98.1 fmt --all -- --check` | PASS; zero nightly-option warnings |
 | `cargo +1.98.1 clippy --locked --all-targets --all-features -- -D warnings` | PASS |
-| `cargo +1.98.1 test --locked --all-targets --all-features` | PASS; every unit/integration target passed, including 10/10 strace network/process tests with ptrace enabled |
+| `cargo +1.98.1 test --locked --all-targets --all-features` | PASS; every unit/integration target passed, including 10/10 strace network/process tests with ptrace enabled and both tool-policy mutation tests |
 | `RUSTDOCFLAGS="-D warnings" cargo +1.98.1 doc --locked --all-features --no-deps` | PASS |
 | `cargo +1.98.1 build --locked --release` | PASS |
 | `ldd target/release/quire` | PASS; only linux-vdso, libgcc_s, libm, libc, and ld-linux |
