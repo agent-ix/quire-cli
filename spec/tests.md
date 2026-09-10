@@ -82,6 +82,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-022 npm launcher process contract | AC-1..7 | IT-159 (offline install + transparent process), IT-160 (unsupported/missing), IT-161 (chmod refusal + spawn error), IT-162 (signal), TC-815 (minimal shim and single catalog), TC-820 (semantic containment) | ✅ Complete |
 | FR-023 Rust-owned npm package assembly | AC-1..8 | TC-815 (catalog), TC-816 (complete deterministic packages), TC-817 (missing/wrong/extra input and atomic refusal), IT-159 (offline installation), IT-163 (`npm pack` membership) | ✅ Complete |
 | FR-024 Rust-owned npm release version contract | AC-1..6 | TC-818 (transactional version contract), IT-164 (binary/version disagreement), TC-819 (manual workflow and native tooling audit) | ✅ Complete |
+| FR-025 Rust-owned CLI qualification tooling | AC-1..7 | TC-828..839 | ✅ Complete |
 
 ## Non-Functional Requirement Coverage
 
@@ -89,12 +90,13 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 |-----|--------------|-------|--------|
 | NFR-001 render p95 ≤ 50 ms | ⛔ RETIRED (§2bis) | TC-088 (render bench removed) | ⛔ |
 | NFR-002 Static binary | static audit | TC-089 (`ldd` IT verifies no project .so) | ✅ |
-| NFR-003 Zero unsafe | static audit | TC-092 (`scripts/check_unsafe_comments.sh` CI gate) | ✅ |
+| NFR-003 Zero unsafe | Rust AST-backed static audit | TC-092, TC-837 (`quire-qualify unsafe-comments`) | ✅ |
 | NFR-004 No network (own process; scoped lazy-init via quoin is the ADR-0001 exception) | static + runtime | TC-091 (`cargo deny bans`), IT-008 (strace zero socket(), happy path), IT-081 (scoped discovery network-free), IT-143 (`assurance` no socket/child process) | ✅ |
 | NFR-005 Diagnostic format | unit + IT | IT-031 (each error class parses as Diagnostic JSON) | ✅ |
 | NFR-006 CLI stability | snapshot | IT-032 (`quire --help` snapshot pinned) | ✅ |
 | NFR-007 Exact qualified Rust toolchain | static audit + locked local qualification | TC-142 (all compiler declarations exact, exhaustive workflow scan, mutation-sensitive), TC-143 (qualified engine pin + exact local gate record in SR-059) | ✅ |
 | NFR-008 Native npm distribution tooling boundary | Rust source/mutation audit + local host-seam qualification | TC-815, TC-819, TC-820, TC-821, IT-159, IT-163 | ✅ Complete |
+| NFR-009 Native qualification boundary | Rust source/mutation audit + locked local qualification | TC-828..840, TC-092, TC-814 | ✅ Complete |
 
 ---
 
@@ -137,7 +139,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-140 | Malformed premise syntax, invalid revision, unnamed/unversioned module, and archetype load failure are refused before stdout (`cli_assurance::it_140_*`) | Integration | P0 | FR-020-AC-3 | ✅ |
 | IT-141 | A valid empty bounded corpus returns a complete successful envelope and exit 0; a module without a traceability model exports static artifacts/symbols with empty obligations and no verifies/implements relations; one unreadable document remains explicit as an `unknown` observation with a reason; a missing document root, invalid module/source premise, or export-wide upstream error returns exit 1 and empty stdout, so empty, unknown, and unavailable cannot alias (`cli_assurance::it_141_*`) | Integration | P0 | FR-020-AC-4 | ✅ |
 | IT-142 | Registry and extraction diagnostics use stderr in human and JSON diagnostic modes and never appear in the assurance JSON (`cli_assurance::it_142_*`) | Integration | P1 | FR-020-AC-5 | ✅ |
-| TC-814 | Static source audit permits only calls to upstream `Spec`, `extract_tree_scoped`, `trace::bind`, `build_assurance_export`, and `read_assurance_export`, rejects a CLI-owned assurance schema, graph, or parser, and requires the upstream-ownership review question in `CONTRIBUTING.md` (`scripts/check_thin_boundary.sh`) | Static | P0 | FR-020-AC-6, StR-004-VC-2, StR-004-VC-3 | ✅ |
+| TC-814 | The native Rust AST audit permits only calls to upstream `Spec`, `extract_tree_scoped`, `trace::bind`, `build_assurance_export`, and `read_assurance_export`, rejects a CLI-owned assurance schema, graph, or parser, and requires the upstream-ownership review question in `CONTRIBUTING.md` | Static | P0 | FR-020-AC-6, StR-004-VC-2, StR-004-VC-3 | ✅ |
 | IT-143 | Linux `strace -fe network,process` observes neither network syscalls nor spawned commands for successful and premise-refused assurance invocations; missing `strace` fails closed (`audit_no_network.rs`) | Integration | P0 | FR-020-AC-7, FR-020-CON-2, NFR-004-AC-2 | ✅ |
 | IT-144 | Rust `jsonschema` validates the exact checked-in assurance golden against the upstream schema; required Node and Python compatibility probes consume those same bytes, preserve the closed envelope/state tokens, and perform no normalization. A missing runtime fails the gate (`tests/assurance_cross_language.rs`) | Integration | P0 | FR-020-AC-8 | ✅ |
 | IT-145 | The help snapshot, README command synopsis, changelog, Cargo exact revision, lockfile source, and `assurance_export.v1` capability token agree on the quire-rs 0.46.0/85dfe9d compatibility boundary (`cli_assurance_contract.rs`) | Integration | P0 | FR-020-AC-9 | ✅ |
@@ -258,7 +260,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | TC-089 | `ldd` shows only libc + loader (no project .so) | Static | P0 | NFR-002-AC-1 | ✅ |
 | TC-090 | `src/` grep finds no markdown parsing, no structural-validation logic, and **no render/template code** (validation delegated to quire-rs `validate_document` / `validate_bundle`; render removed per §2bis) | Static | P1 | StR-004-AC-2, FR-004-AC-9, FR-014-AC-9, FR-015-AC-6, FR-017-AC-9 | ✅ |
 | TC-091 | `cargo deny check bans` rejects HTTP client crates; `deny.toml` still bans each one and `Cargo.lock` links none (`audit_static::tc091_*`) | Static | P0 | NFR-004-AC-1, NFR-004-AC-3 | ✅ |
-| TC-092 | `scripts/check_unsafe_comments.sh` reports zero undocumented `unsafe` in src/, AND refuses a synthetic undocumented block — the gate is proven to catch, not merely to pass (`audit_static::tc092_*`) | Static | P0 | NFR-003-AC-1, NFR-003-AC-2 | ✅ |
+| TC-092 | The native AST-backed gate reports zero undocumented `unsafe` in first-party Rust source and tests, AND refuses a synthetic undocumented block — the gate is proven to catch, not merely to pass (`audit_static::tc092_*`) | Static | P0 | NFR-003-AC-1, NFR-003-AC-2 | ✅ |
 | TC-093 | `src/self_update/` imports nothing from `quire`'s `io`/command context (engine is package-agnostic, config-struct driven); `commands/update.rs` is the only quire-specific glue and carries no parser/renderer/validator logic | Static | P1 | FR-016-AC-5, FR-016-AC-6, StR-004-AC-2 | ✅ |
 | IT-101 | A **relative document path** with `--scope` and no `--module` resolves under the scope and validates against the module that scope carries (exact-module branch — the fixture root holds `manifest.yaml`; discovery is IT-081's): exit 0, empty stdout, empty stderr (`cli_validate::it_101_*`) | Integration | P1 | FR-004-AC-19 | ✅ |
 | IT-102 | A **relative glob** with `--scope` expands under the scope; a matching non-conformant document exits 1 with a line-numbered stderr diagnostic naming the offending file, stdout empty (`cli_validate::it_102_*`) | Integration | P0 | FR-004-AC-20 | ✅ |
@@ -284,19 +286,19 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-116 | One status-carrying row id bound by two distinct symbols surfaces as a `shared_trace_ids` record in `--json` with both binders listed; an empty `vocabulary_coverage` stays off the wire (`cli_coverage::it116_*`) | Integration | P1 | FR-017-AC-19 | ✅ |
 | TC-812 | A TSV cell carrying tab/newline/CR still yields exactly one nine-column record — the AC-14 escaping guard pinned, which no corpus fixture can exercise (0/1,107 statements carry a structural character) (`commands::coverage::tests::tc812_*`, #57) | Unit | P1 | FR-017-AC-14 | ✅ |
 | TC-813 | The binding census renders one line per language directly under the coverage headline — the number and the premise it rests on read together — carrying the forms consulted and an unbound example ONLY where something is unread; measured ratio metrics render their FR-063 envelope and counts do not, a count's value and its `matched` being the same fact (`commands::coverage::tests::tc813_*`, #66) | Unit | P0 | FR-017-AC-18 | ✅ |
-| TC-815 | A typed complete assurance report containing every required backed target passes | Unit | P0 | FR-025-AC-1 | 🚧 |
-| TC-816 | Missing and unbacked required assurance targets fail with the exact target ids | Unit | P0 | FR-025-AC-1 | 🚧 |
-| TC-817 | Promoted US-006 examples, relevant unmatched tags, status lies, and untracked symbols each fail independently | Unit | P0 | FR-025-AC-1 | 🚧 |
-| TC-818 | Malformed coverage JSON and every absent or wrongly typed required field fail before evaluation | Unit | P0 | FR-025-AC-2 | 🚧 |
-| TC-819 | Nearest-rank p95 selects `ceil(0.95 × n) - 1` from sorted seconds and reports milliseconds deterministically | Unit | P1 | FR-025-AC-3 | 🚧 |
-| TC-820 | Malformed benchmark JSON, empty results/times, and non-finite or negative thresholds fail without a measurement | Unit | P0 | FR-025-AC-2 | 🚧 |
-| TC-821 | Samples immediately at and above the threshold produce pass and fail verdicts respectively | Unit | P0 | FR-025-AC-3 | 🚧 |
-| TC-822 | Rust syntax parsing recognizes direct, aliased, and nested-group imports without grep, regex-only classification, or a hand-written lexer | Unit | P0 | FR-025-AC-4, FR-025-CON-1 | 🚧 |
-| TC-823 | Thin-boundary mutations adding forbidden calls or CLI-owned assurance types fail with file and locus while admitted dispatch passes | Static | P0 | FR-025-AC-4 | 🚧 |
-| TC-824 | Unsafe-comment mutations prove documented, undocumented, exact-baseline, stale-baseline, and explicit-update behavior | Static | P0 | FR-025-AC-5 | 🚧 |
-| TC-825 | Make contains only Rust gate orchestration and no report/source interpretation | Static | P1 | FR-025-AC-6, FR-025-CON-2, FR-025-CON-3 | 🚧 |
-| TC-826 | Executable `.py`/`.sh` qualification paths are absent and the npm launcher remains a semantics-free distribution host | Static | P0 | FR-025-AC-7, FR-025-CON-4, FR-025-CON-5 | 🚧 |
-| TC-827 | Exact Rust 1.98.1, locked local gates, canonical `ix-trace-rs`, no shell-spawned qualification, and no hosted-CI change are evidenced | Static | P0 | NFR-009 | 🚧 |
+| TC-828 | A typed complete assurance report containing every required backed target passes | Unit | P0 | FR-025-AC-1 | ✅ |
+| TC-829 | Missing and unbacked required assurance targets fail with the exact target ids | Unit | P0 | FR-025-AC-1 | ✅ |
+| TC-830 | Promoted US-006 examples, relevant unmatched tags, status lies, and untracked symbols each fail independently | Unit | P0 | FR-025-AC-1 | ✅ |
+| TC-831 | Malformed coverage JSON and every absent or wrongly typed required field fail before evaluation | Unit | P0 | FR-025-AC-2 | ✅ |
+| TC-832 | Nearest-rank p95 selects `ceil(0.95 × n) - 1` from sorted seconds and reports milliseconds deterministically | Unit | P1 | FR-025-AC-3 | ✅ |
+| TC-833 | Malformed benchmark JSON, empty results/times, and non-finite or negative thresholds fail without a measurement | Unit | P0 | FR-025-AC-2 | ✅ |
+| TC-834 | Samples immediately at and above the threshold produce pass and fail verdicts respectively | Unit | P0 | FR-025-AC-3 | ✅ |
+| TC-835 | Rust syntax parsing recognizes direct, aliased, and nested-group imports without grep, regex-only classification, or a hand-written lexer | Unit | P0 | FR-025-AC-4, FR-025-CON-1 | ✅ |
+| TC-836 | Thin-boundary mutations adding forbidden calls or CLI-owned assurance types fail with file and locus while admitted dispatch passes | Static | P0 | FR-025-AC-4 | ✅ |
+| TC-837 | Unsafe-comment mutations prove documented, undocumented, exact-baseline, stale-baseline, and explicit-update behavior | Static | P0 | FR-025-AC-5 | ✅ |
+| TC-838 | Make contains only Rust gate orchestration and no report/source interpretation | Static | P1 | FR-025-AC-6, FR-025-CON-2, FR-025-CON-3 | ✅ |
+| TC-839 | Executable `.py`/`.sh` qualification paths are absent and the npm launcher remains a semantics-free distribution host | Static | P0 | FR-025-AC-7, FR-025-CON-4, FR-025-CON-5 | ✅ |
+| TC-840 | Exact Rust 1.98.1, locked local gates, canonical `ix-trace-rs`, no shell-spawned qualification, and no hosted-CI change are evidenced | Static | P0 | NFR-009 | ✅ |
 
 ---
 

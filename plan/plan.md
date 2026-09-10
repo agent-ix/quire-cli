@@ -115,9 +115,9 @@ This is a **thin process boundary** over `quire-rs`. The plan is correspondingly
 - [x] **FR-008** JSON output encoding (compact default + `--pretty`; stable field order).
 
 ### Non-Functional Requirements
-- [x] **NFR-001** p95 ≤ 50 ms (hyperfine harness in `make bench`, CI-gated).
+- [x] **NFR-001** p95 ≤ 50 ms (hyperfine harness in `make bench`, local composite gate).
 - [x] **NFR-002** Static binary (`ldd` lists only libc + loader).
-- [x] **NFR-003** Zero unsafe in this crate (`check_unsafe_comments.sh`).
+- [x] **NFR-003** Zero unsafe in this crate (`quire-qualify unsafe-comments`).
 - [x] **NFR-004** No network deps (`cargo deny bans` HTTP clients; strace IT-008 on Linux).
 - [x] **NFR-005** Stderr diagnostics expressible as `quire-rs::Diagnostic`.
 - [x] **NFR-006** SemVer on subcommand surface, exit codes, JSON output schemas.
@@ -172,7 +172,7 @@ Sequential. Every other task depends on these.
    - JSON output encoder (compact / `--pretty`).
 4. **T-004 Cargo.deny + unsafe baseline**:
    - Confirm `deny.toml` bans HTTP client crates.
-   - Run `scripts/check_unsafe_comments.sh`; baseline empty.
+   - Run the native `quire-qualify unsafe-comments` gate; baseline empty.
 
 ### Track B — Subcommand implementations (parallel after Track A)
 
@@ -216,9 +216,11 @@ Each IT/BENCH/AUDIT in `spec/tests.md` becomes one entry in `tests/` or `benches
     - `tests/cli_io.rs`. Stdin handling, no-interleave, `--pretty`, field-order snapshot.
 14. **T-014 Static audits**:
     - **AUDIT-001** (`ldd` shape): `tests/audit_ldd.rs` — Linux-only, gated by `#[cfg(target_os = "linux")]`.
-    - **AUDIT-002** (no parser/render logic in `src/`): a small shell script in `scripts/check_thin_boundary.sh` greps for `parse_document(`, `render(`, `validate(` outside `commands/` dispatch sites.
+    - **AUDIT-002** (no parser/render logic in `src/`): the native
+      `quire-qualify thin-boundary` gate parses Rust syntax and rejects engine
+      primitives outside admitted `commands/` dispatch sites.
     - **AUDIT-003** wired through `deny.toml`.
-    - **AUDIT-004** wired through `check_unsafe_comments.sh`.
+    - **AUDIT-004** wired through the native unsafe-comment gate.
 15. **T-015 Network audit** (IT-008): `tests/audit_no_network.rs` — `strace -fe network` wrapper, `#[cfg(target_os = "linux")]` per review F-3.
 16. **T-016 Benchmarks**:
     - **BENCH-001** in `benches/render.rs` (criterion) AND a `make bench` target invoking `hyperfine` against the release binary.

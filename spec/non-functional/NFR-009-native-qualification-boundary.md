@@ -34,10 +34,10 @@ becoming an unreviewed language implementation.
 
 | Metric | Target | Threshold | Method |
 |--------|--------|-----------|--------|
-| Executable Python or shell qualification files outside fixture data | 0 | 0 | Static inventory (TC-826) |
-| Shell processes spawned by Rust qualification tests | 0 | 0 | Process/static audit (TC-827) |
-| Implemented FR-025 matrix rows lacking canonical `ix-trace-rs` bindings | 0 | 0 | Traceability audit (TC-827) |
-| Hosted CI runs dispatched by this slice | 0 | 0 | Change inspection (TC-827) |
+| Executable Python or shell qualification files outside fixture data | 0 | 0 | Static inventory (TC-839) |
+| Shell processes spawned by Rust qualification tests | 0 | 0 | Process/static audit (TC-840) |
+| Implemented FR-025 matrix rows lacking canonical `ix-trace-rs` bindings | 0 | 0 | Traceability audit (TC-840) |
+| Hosted CI runs dispatched by this slice | 0 | 0 | Change inspection (TC-840) |
 
 ## Verification
 

@@ -11,6 +11,7 @@ help:
 	@echo "  make fmt-check        - Verify formatting (CI gate)"
 	@echo "  make lint             - Clippy with -D warnings"
 	@echo "  make test             - cargo test"
+	@echo "  make docs             - strict workspace rustdoc"
 	@echo "  make spec             - Validate changed assurance specs and traceability"
 	@echo "  make build            - Release build"
 	@echo "  make clean            - cargo clean"
@@ -41,7 +42,11 @@ lint:
 
 .PHONY: test
 test:
-	$(CARGO) test --locked --all-targets --all-features
+	$(CARGO) test --workspace --locked --all-targets --all-features
+
+.PHONY: docs
+docs:
+	RUSTDOCFLAGS="-D warnings" $(CARGO) doc --workspace --locked --no-deps --all-features
 
 .PHONY: build
 build:
@@ -81,7 +86,7 @@ set-version:
 
 .PHONY: audit-unsafe
 audit-unsafe:
-	bash scripts/check_unsafe_comments.sh
+	$(CARGO) run --locked -p quire-qualify -- unsafe-comments
 
 # =============================================================================
 # Specification and traceability
@@ -104,7 +109,7 @@ ASSURANCE_SPEC_DOCS := \
 spec:
 	$(CARGO) run --locked -- validate --scope . $(ASSURANCE_SPEC_DOCS) --summary
 	$(CARGO) run --locked -- coverage --scope . --json > /tmp/quire-cli-assurance-coverage.json
-	python3 scripts/check_assurance_traceability.py /tmp/quire-cli-assurance-coverage.json
+	$(CARGO) run --locked -p quire-qualify -- assurance-traceability /tmp/quire-cli-assurance-coverage.json
 
 # =============================================================================
 # Composite
@@ -112,7 +117,7 @@ spec:
 
 .PHONY: audit-thin-boundary
 audit-thin-boundary:
-	bash scripts/check_thin_boundary.sh
+	$(CARGO) run --locked -p quire-qualify -- thin-boundary
 
 .PHONY: deny-bans
 deny-bans:
@@ -133,12 +138,7 @@ bench:
 	$(CARGO) build --locked --release
 	hyperfine --shell=none --warmup 5 --runs 50 --export-json /tmp/quire-cli-bench.json \
 		'$(CURDIR)/target/release/quire validate $(CURDIR)/tests/fixtures/iso-docs/FR-valid.md --module $(CURDIR)/tests/fixtures/iso'
-	@python3 -c "import json; \
-r=json.load(open('/tmp/quire-cli-bench.json'))['results'][0]['times']; \
-r.sort(); \
-p95=r[max(0,int(len(r)*0.95)-1)]*1000.0; \
-print(f'p95={p95:.2f}ms (budget {$(BENCH_P95_MS)}ms, n={len(r)})'); \
-exit(0 if p95 <= $(BENCH_P95_MS) else 1)"
+	$(CARGO) run --locked -p quire-qualify -- bench-p95 /tmp/quire-cli-bench.json $(BENCH_P95_MS)
 
 # =============================================================================
 # Fixtures
@@ -165,4 +165,4 @@ audit-tool-drift:
 	$(CARGO) test --locked --test toolchain_policy
 
 .PHONY: ci
-ci: fmt-check lint test dist-test deny cargo-audit audit-unsafe audit-thin-boundary audit-tool-drift spec
+ci: fmt-check lint test docs dist-test deny cargo-audit audit-unsafe audit-thin-boundary audit-tool-drift spec

@@ -65,23 +65,23 @@ the baseline only through an explicit update operation.
 
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-025-CON-1 | The Rust-source gates SHALL NOT classify syntax with grep, regular expressions alone, or a hand-written lexer | Maintainability | Inspection + mutation (TC-822) |
-| FR-025-CON-2 | Make targets SHALL contain orchestration only | Boundary | Static test (TC-825) |
-| FR-025-CON-3 | Make targets SHALL NOT interpret coverage, benchmark, or Rust-source content | Boundary | Static test (TC-825) |
-| FR-025-CON-4 | `npm/quire-cli/bin/quire.js` SHALL remain the admitted npm distribution launcher | Boundary | Static test (TC-826) |
-| FR-025-CON-5 | `npm/quire-cli/bin/quire.js` SHALL NOT acquire qualification semantics | Boundary | Static test (TC-826) |
+| FR-025-CON-1 | The Rust-source gates SHALL NOT classify syntax with grep, regular expressions alone, or a hand-written lexer | Maintainability | Inspection + mutation (TC-835) |
+| FR-025-CON-2 | Make targets SHALL contain orchestration only | Boundary | Static test (TC-838) |
+| FR-025-CON-3 | Make targets SHALL NOT interpret coverage, benchmark, or Rust-source content | Boundary | Static test (TC-838) |
+| FR-025-CON-4 | `npm/quire-cli/bin/quire.js` SHALL remain the admitted npm distribution launcher | Boundary | Static test (TC-839) |
+| FR-025-CON-5 | `npm/quire-cli/bin/quire.js` SHALL NOT acquire qualification semantics | Boundary | Static test (TC-839) |
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-025-AC-1 | A complete backed assurance report passes, while each missing, unbacked, wrongly promoted, unmatched, lying, or untracked case fails naming the condition | Test (TC-815, TC-816, TC-817) |
-| FR-025-AC-2 | Missing fields, wrong field types, malformed JSON, empty benchmark results, and non-finite or negative thresholds fail before a success observation is emitted | Test (TC-818, TC-820) |
-| FR-025-AC-3 | Nearest-rank p95 is computed deterministically and values on either side of the configured threshold produce opposite verdicts | Test (TC-819, TC-821) |
-| FR-025-AC-4 | The thin-boundary gate accepts admitted dispatch and rejects forbidden direct, aliased, and nested-group references with a file and syntax locus | Test (TC-822, TC-823) |
-| FR-025-AC-5 | The unsafe gate accepts a documented block, rejects an undocumented block, honours only exact baseline loci, rejects stale exemptions, and changes the baseline only through the explicit update operation | Test (TC-824) |
-| FR-025-AC-6 | Repository Make targets invoke Rust-owned gates without inline report parsing or source classification | Test (TC-825) |
-| FR-025-AC-7 | No executable Python or shell qualification file remains, while the npm launcher and non-executable fixture/data formats remain | Test (TC-826) |
+| FR-025-AC-1 | A complete backed assurance report passes, while each missing, unbacked, wrongly promoted, unmatched, lying, or untracked case fails naming the condition | Test (TC-828, TC-829, TC-830) |
+| FR-025-AC-2 | Missing fields, wrong field types, malformed JSON, empty benchmark results, and non-finite or negative thresholds fail before a success observation is emitted | Test (TC-831, TC-833) |
+| FR-025-AC-3 | Nearest-rank p95 is computed deterministically and values on either side of the configured threshold produce opposite verdicts | Test (TC-832, TC-834) |
+| FR-025-AC-4 | The thin-boundary gate accepts admitted dispatch and rejects forbidden direct, aliased, and nested-group references with a file and syntax locus | Test (TC-835, TC-836) |
+| FR-025-AC-5 | The unsafe gate accepts a documented block, rejects an undocumented block, honours only exact baseline loci, rejects stale exemptions, and changes the baseline only through the explicit update operation | Test (TC-837) |
+| FR-025-AC-6 | Repository Make targets invoke Rust-owned gates without inline report parsing or source classification | Test (TC-838) |
+| FR-025-AC-7 | No executable Python or shell qualification file remains, while the npm launcher and non-executable fixture/data formats remain | Test (TC-839) |
 
 ## Dependencies
 
