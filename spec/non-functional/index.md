@@ -15,3 +15,4 @@ description: "Index of artifacts in this directory."
 * [NFR-006: CLI surface stability under SemVer](./NFR-006-cli-stability.md)
 * [NFR-007: Exact qualified Rust toolchain](./NFR-007-exact-qualified-rust-toolchain.md)
 * [NFR-008: Native npm distribution tooling boundary](./NFR-008-native-npm-distribution-tooling.md)
+* [NFR-009: Native qualification boundary](./NFR-009-native-qualification-boundary.md)

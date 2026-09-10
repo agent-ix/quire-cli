@@ -284,6 +284,19 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-116 | One status-carrying row id bound by two distinct symbols surfaces as a `shared_trace_ids` record in `--json` with both binders listed; an empty `vocabulary_coverage` stays off the wire (`cli_coverage::it116_*`) | Integration | P1 | FR-017-AC-19 | ✅ |
 | TC-812 | A TSV cell carrying tab/newline/CR still yields exactly one nine-column record — the AC-14 escaping guard pinned, which no corpus fixture can exercise (0/1,107 statements carry a structural character) (`commands::coverage::tests::tc812_*`, #57) | Unit | P1 | FR-017-AC-14 | ✅ |
 | TC-813 | The binding census renders one line per language directly under the coverage headline — the number and the premise it rests on read together — carrying the forms consulted and an unbound example ONLY where something is unread; measured ratio metrics render their FR-063 envelope and counts do not, a count's value and its `matched` being the same fact (`commands::coverage::tests::tc813_*`, #66) | Unit | P0 | FR-017-AC-18 | ✅ |
+| TC-815 | A typed complete assurance report containing every required backed target passes | Unit | P0 | FR-025-AC-1 | 🚧 |
+| TC-816 | Missing and unbacked required assurance targets fail with the exact target ids | Unit | P0 | FR-025-AC-1 | 🚧 |
+| TC-817 | Promoted US-006 examples, relevant unmatched tags, status lies, and untracked symbols each fail independently | Unit | P0 | FR-025-AC-1 | 🚧 |
+| TC-818 | Malformed coverage JSON and every absent or wrongly typed required field fail before evaluation | Unit | P0 | FR-025-AC-2 | 🚧 |
+| TC-819 | Nearest-rank p95 selects `ceil(0.95 × n) - 1` from sorted seconds and reports milliseconds deterministically | Unit | P1 | FR-025-AC-3 | 🚧 |
+| TC-820 | Malformed benchmark JSON, empty results/times, and non-finite or negative thresholds fail without a measurement | Unit | P0 | FR-025-AC-2 | 🚧 |
+| TC-821 | Samples immediately at and above the threshold produce pass and fail verdicts respectively | Unit | P0 | FR-025-AC-3 | 🚧 |
+| TC-822 | Rust syntax parsing recognizes direct, aliased, and nested-group imports without grep, regex-only classification, or a hand-written lexer | Unit | P0 | FR-025-AC-4, FR-025-CON-1 | 🚧 |
+| TC-823 | Thin-boundary mutations adding forbidden calls or CLI-owned assurance types fail with file and locus while admitted dispatch passes | Static | P0 | FR-025-AC-4 | 🚧 |
+| TC-824 | Unsafe-comment mutations prove documented, undocumented, exact-baseline, stale-baseline, and explicit-update behavior | Static | P0 | FR-025-AC-5 | 🚧 |
+| TC-825 | Make contains only Rust gate orchestration and no report/source interpretation | Static | P1 | FR-025-AC-6, FR-025-CON-2, FR-025-CON-3 | 🚧 |
+| TC-826 | Executable `.py`/`.sh` qualification paths are absent and the npm launcher remains a semantics-free distribution host | Static | P0 | FR-025-AC-7, FR-025-CON-4, FR-025-CON-5 | 🚧 |
+| TC-827 | Exact Rust 1.98.1, locked local gates, canonical `ix-trace-rs`, no shell-spawned qualification, and no hosted-CI change are evidenced | Static | P0 | NFR-009 | 🚧 |
 
 ---
 
