@@ -23,10 +23,10 @@
   "license": "AGPL-3.0-or-later",
   "name": "@agent-ix/quire-cli",
   "optionalDependencies": {
-    "@agent-ix/quire-cli-darwin-arm64": "0.32.0",
-    "@agent-ix/quire-cli-linux-arm64": "0.32.0",
-    "@agent-ix/quire-cli-linux-x64": "0.32.0",
-    "@agent-ix/quire-cli-win32-x64": "0.32.0"
+    "@agent-ix/quire-cli-darwin-arm64": "0.33.0",
+    "@agent-ix/quire-cli-linux-arm64": "0.33.0",
+    "@agent-ix/quire-cli-linux-x64": "0.33.0",
+    "@agent-ix/quire-cli-win32-x64": "0.33.0"
   },
   "publishConfig": {
     "access": "public",
@@ -37,5 +37,5 @@
     "url": "git+https://github.com/agent-ix/quire-cli.git"
   },
   "type": "commonjs",
-  "version": "0.32.0"
+  "version": "0.33.0"
 }
