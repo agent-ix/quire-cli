@@ -9,6 +9,18 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The 0.32.0 entry below claims an engine pin that release did not ship.** It
+  records the pin advancing to `616a7e97` for explicit per-reference
+  `status_column` selection (quire-rs#409/#410). The `v0.32.0` tag pins
+  `a874fb64`, which predates that commit, so the published 0.32.0 binary
+  rejects `status_column` as an unknown field. Downstream work stalled for a
+  week against a capability the changelog said was available. The engine pin
+  now at HEAD (`85dfe9d5`, #83) does carry it; the claim becomes true whenever
+  the next release ships. The historical entry is left in place and corrected
+  here rather than rewritten.
+
 ### Added
 
 - **Rust-owned npm distribution tooling (FR-022..024, NFR-008, #61).** A
