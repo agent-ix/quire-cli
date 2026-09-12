@@ -9,6 +9,18 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The 0.32.0 entry below claims an engine pin that release did not ship.** It
+  records the pin advancing to `616a7e97` for explicit per-reference
+  `status_column` selection (quire-rs#409/#410). The `v0.32.0` tag pins
+  `a874fb64`, which predates that commit, so the published 0.32.0 binary
+  rejects `status_column` as an unknown field. Downstream work stalled for a
+  week against a capability the changelog said was available. The engine pin
+  now at HEAD (`85dfe9d5`, #83) does carry it; the claim becomes true whenever
+  the next release ships. The historical entry is left in place and corrected
+  here rather than rewritten.
+
 ### Added
 
 - **Rust-owned npm distribution tooling (FR-022..024, NFR-008, #61).** A
@@ -39,24 +51,6 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   `ClauseSet` types. FR-020-CON-1 advances with it, so IT-145's six surfaces
   still agree. The `assurance_export.v1` capability and engine-owned assurance
   schema are unchanged.
-
-## [0.33.0] - 2026-09-12
-
-### Changed
-
-- **Engine pin advances to `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f`**
-  (quire-rs#422), which is the first published build to actually carry
-  quire-rs#410's explicit per-reference `status_column` selection.
-
-### Fixed
-
-- **The 0.32.0 entry below claimed an engine pin that release did not ship.**
-  It records the pin advancing to `616a7e97` for per-reference
-  `status_column`; the `v0.32.0` tag pins `a874fb64`, which predates that
-  commit, so the published 0.32.0 binary rejects `status_column` as an unknown
-  field. Consumers reading the changelog had no way to see that. The claim is
-  true of this release, not of that one; the historical entry is left in place
-  and corrected here rather than rewritten.
 
 ## [0.32.0] - 2026-09-06
 
