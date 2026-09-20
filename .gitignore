@@ -1,4 +1,3 @@
-/target
 Cargo.lock.bak
 *.swp
 .DS_Store
@@ -7,3 +6,8 @@ Cargo.lock.bak
 
 # LOCAL-ONLY quire-rs path override (see quire-cli#11) — never commit.
 .cargo/
+
+target/
+*-target/
+target-*/
+.worktrees/
