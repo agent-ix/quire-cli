@@ -77,6 +77,7 @@ fn audit_release_workflow(workflow: &str) -> Vec<String> {
         "cargo run --locked -p quire-dist -- verify-binary",
         "cargo run --locked -p quire-dist -- verify-release",
         "cargo run --locked -p quire-dist -- package-npm",
+        "cargo run --locked -p quire-dist -- verify-published",
     ] {
         if !workflow.contains(required) {
             findings.push(format!("release workflow is missing {required:?}"));
@@ -93,8 +94,11 @@ fn audit_release_workflow(workflow: &str) -> Vec<String> {
             findings.push(format!("release workflow contains {forbidden:?}"));
         }
     }
-    if workflow.matches("if: inputs.publish").count() != 2 {
-        findings.push("both publication steps must be guarded by inputs.publish".to_owned());
+    // PLAT-885: publishing, and verifying what publishing actually produced,
+    // are both irreversible-adjacent or registry-dependent and must not run
+    // on a dry-run dispatch.
+    if workflow.matches("if: inputs.publish").count() != 3 {
+        findings.push("every publish-adjacent step must be guarded by inputs.publish".to_owned());
     }
     findings
 }
@@ -149,7 +153,7 @@ fn tc815_launcher_is_the_single_bounded_javascript_host() {
     );
 }
 
-#[trace("TC-819", "FR-024-AC-5", "FR-024-AC-6", "NFR-008-AC-1")]
+#[trace("TC-819", "FR-023-AC-9", "FR-024-AC-5", "FR-024-AC-6", "NFR-008-AC-1")]
 #[test]
 fn tc819_release_workflow_is_manual_native_and_mutation_sensitive() {
     let root = repo_root();
@@ -169,6 +173,11 @@ fn tc819_release_workflow_is_manual_native_and_mutation_sensitive() {
         production.replacen(
             "cargo run --locked -p quire-dist -- package-npm",
             "node npm/build-packages.mjs",
+            1,
+        ),
+        production.replacen(
+            "cargo run --locked -p quire-dist -- verify-published",
+            "true",
             1,
         ),
         production.replacen("npm install -g npm@11.6.2", "npm install -g npm@latest", 1),

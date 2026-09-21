@@ -271,3 +271,17 @@ jobs:
           done
           echo "publishing launcher"
           (cd npm/quire-cli && npm publish)
+
+      # PLAT-885: package-npm only ever checked what it wrote locally.
+      # Publishing is a separate step that can partially fail (the launcher's
+      # own `npm publish` erroring after the platform packages already
+      # succeeded) or diverge from local state entirely -- this asserts what
+      # the registry actually now serves, reading the launcher's published
+      # optionalDependencies from the registry itself, not from the working
+      # tree.
+      - name: Verify published packages resolve
+        if: inputs.publish
+        run: |
+          cargo run --locked -p quire-dist -- verify-published \
+            --version "${{ steps.ver.outputs.version }}" \
+            --registry https://registry.npmjs.org/

@@ -533,7 +533,10 @@ fn tc143_makefile_locking_policy_is_mutation_sensitive() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     assert_eq!(audit(root), Vec::new(), "production tool policy drifted");
     let mutations = makefile_mutations(root);
-    assert_eq!(mutations.len(), 19, "the Makefile mutation census changed");
+    // PLAT-885 added `dist-verify-published`'s `$(CARGO) run --locked -p
+    // quire-dist -- verify-published ...` line, one more governed,
+    // lock-sensitive Cargo invocation for this census to catch.
+    assert_eq!(mutations.len(), 20, "the Makefile mutation census changed");
 
     for mutation in mutations {
         let fixture = tempfile::tempdir().expect("tempdir");

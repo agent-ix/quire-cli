@@ -4,6 +4,7 @@
 //! treats every native executable as an opaque, target-identified artifact.
 
 use std::collections::BTreeSet;
+use std::ffi::OsStr;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -90,6 +91,26 @@ pub struct VerifyRelease<'a> {
     pub launcher_manifest: &'a Path,
 }
 
+/// A post-publish gate: fetch the launcher package as it was actually
+/// published at `version`, and assert every platform package it declares
+/// actually resolves in the target registry too. Deliberately reads
+/// everything from the registry, never from the local working tree —
+/// `package_npm` already checked what it wrote *locally*; this checks what
+/// publish actually produced, which can differ (the launcher's own publish
+/// failed after the platform packages succeeded, or the tree moved on since
+/// the commit that was published). This is the assertion PLAT-885 was filed
+/// over — `verify_binary_version` never covered it, since it only ever
+/// compares the local binary's own reported version.
+#[derive(Debug)]
+pub struct VerifyPublished<'a> {
+    pub version: &'a str,
+    pub registry: &'a str,
+    /// The `npm` executable to invoke `view` through — a bare name is
+    /// resolved on `PATH`; tests pass an explicit stub binary so the check
+    /// stays hermetic instead of depending on real network access.
+    pub npm_binary: &'a OsStr,
+}
+
 fn checked_version(raw: &str) -> Result<Version> {
     Version::parse(raw).with_context(|| format!("invalid SemVer release version {raw:?}"))
 }
@@ -121,6 +142,10 @@ fn object_mut<'a>(value: &'a mut Value, path: &Path) -> Result<&'a mut Map<Strin
         .with_context(|| format!("{} must contain a JSON object", path.display()))
 }
 
+/// The published npm launcher package name. Every distribution target's
+/// platform package (`package_name`) shares this scope (`@agent-ix`).
+pub const LAUNCHER_PACKAGE_NAME: &str = "@agent-ix/quire-cli";
+
 fn package_name(target: &DistributionTarget) -> String {
     format!("@agent-ix/quire-cli-{}-{}", target.platform, target.arch)
 }
@@ -129,6 +154,41 @@ fn expected_package_names() -> BTreeSet<String> {
     TARGETS.iter().map(package_name).collect()
 }
 
+/// The one place that decides whether an `optionalDependencies` map is
+/// admissible: non-empty, and every key inside [`TARGETS`]'s catalog. Both
+/// [`launcher_dependencies`] (the committed launcher manifest on disk) and
+/// `verify_published` (the manifest actually served by the registry after
+/// publish) funnel through this — a launcher naming a package outside the
+/// catalog, or naming nothing at all, is rejected the same way regardless
+/// of which of those two it was read from. `location` is used only for
+/// error messages, so it names a file path in one caller and a
+/// `pkg@version` registry query in the other.
+fn validate_dependency_catalog(dependencies: &Map<String, Value>, location: &str) -> Result<()> {
+    if dependencies.is_empty() {
+        bail!(
+            "{location}.optionalDependencies must declare at least one platform package; an \
+             empty set here is the exact dangling-pin defect PLAT-885 exists to catch, not a \
+             vacuous pass"
+        );
+    }
+    let observed: BTreeSet<_> = dependencies.keys().cloned().collect();
+    let expected = expected_package_names();
+    let unknown: BTreeSet<_> = observed.difference(&expected).cloned().collect();
+    if !unknown.is_empty() {
+        bail!(
+            "{location}.optionalDependencies names packages outside the target catalog: {unknown:?} (catalog is {expected:?})"
+        );
+    }
+    Ok(())
+}
+
+/// A launcher declares one optional dependency per platform it actually
+/// ships a binary for. The catalog in [`TARGETS`] is the closed set of
+/// platforms the tooling knows how to build; the launcher's declared set is
+/// whatever non-empty subset of that catalog this release actually built
+/// (see [`artifact_paths`]), never a name outside it and never empty — an
+/// empty set here is the exact dangling-pin defect PLAT-885 exists to catch,
+/// not a vacuous pass.
 fn launcher_dependencies<'a>(
     object: &'a mut Map<String, Value>,
     path: &Path,
@@ -139,14 +199,7 @@ fn launcher_dependencies<'a>(
     let dependencies = dependencies
         .as_object_mut()
         .with_context(|| format!("{}.optionalDependencies must be an object", path.display()))?;
-    let observed: BTreeSet<_> = dependencies.keys().cloned().collect();
-    let expected = expected_package_names();
-    if observed != expected {
-        bail!(
-            "{}.optionalDependencies keys differ from the target catalog: expected {expected:?}, observed {observed:?}",
-            path.display()
-        );
-    }
+    validate_dependency_catalog(dependencies, &path.display().to_string())?;
     Ok(dependencies)
 }
 
@@ -169,7 +222,7 @@ fn require_json_value(
 }
 
 fn validate_launcher_contract(object: &Map<String, Value>, path: &Path) -> Result<()> {
-    require_json_value(object, "name", &json!("@agent-ix/quire-cli"), path)?;
+    require_json_value(object, "name", &json!(LAUNCHER_PACKAGE_NAME), path)?;
     require_json_value(object, "license", &json!("AGPL-3.0-or-later"), path)?;
     require_json_value(object, "type", &json!("commonjs"), path)?;
     require_json_value(object, "bin", &json!({ "quire": "bin/quire.js" }), path)?;
@@ -344,6 +397,161 @@ pub fn verify_binary_version(version: &str, binary: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Parse the npm scope (`"agent-ix"`) out of a scoped package name
+/// (`"@agent-ix/quire-cli"`). Every package this tool ever names is scoped.
+fn npm_scope(package: &str) -> Result<&str> {
+    package
+        .strip_prefix('@')
+        .and_then(|rest| rest.split('/').next())
+        .filter(|scope| !scope.is_empty())
+        .with_context(|| format!("{package:?} is not a scoped npm package name"))
+}
+
+/// Build the scope-specific registry override for `package`.
+///
+/// npm gives scope config (`@scope:registry=`, from any user or project
+/// `.npmrc`) precedence over the bare `--registry` flag. Every package this
+/// tool checks is `@agent-ix/…`, so a bare `--registry` is silently inert
+/// for all of them: measured directly (npm 10.9.2 and the CI-pinned
+/// 11.6.2), `npm view @agent-ix/…@<version> version --registry
+/// http://does-not-exist.invalid/` for a version that is *not* published
+/// still exits 0 and prints the version, because npm resolved the scope
+/// against this host's own `.npmrc`/npmjs.org default and never consulted
+/// the flag at all. That was the actual defect in the first cut of this
+/// gate: it always passed, for a reason unrelated to what it claimed to
+/// check. There is no bare `--registry` kept alongside "just in case" —
+/// only the scope override is authoritative.
+fn npm_registry_override(package: &str, registry: &str) -> Result<String> {
+    let scope = npm_scope(package)?;
+    Ok(format!("--@{scope}:registry={registry}"))
+}
+
+/// Assert that `name@version` resolves as an installable package on
+/// `registry`. Shells out to `npm view`, which itself performs the registry
+/// round trip — this function adds no interpretation `npm` did not already
+/// do, and in particular it never re-derives the answer from anything
+/// local (the artifact directory, the Cargo manifest, or the binary that
+/// was just built). A 404, an unreachable registry, or a spawn failure all
+/// surface as an `Err`; nothing here treats "npm exited non-zero" as
+/// anything but a hard failure.
+fn verify_package_resolves(
+    npm_binary: &OsStr,
+    name: &str,
+    version: &str,
+    registry: &str,
+) -> Result<()> {
+    let spec = format!("{name}@{version}");
+    let registry_override = npm_registry_override(name, registry)?;
+    let output = Command::new(npm_binary)
+        .args(["view", &spec, "version", &registry_override])
+        .output()
+        .with_context(|| format!("execute npm view {spec} version {registry_override}"))?;
+    if !output.status.success() {
+        bail!(
+            "{spec} does not resolve on {registry}: npm view exited with {} ({})",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    let resolved = std::str::from_utf8(&output.stdout)
+        .with_context(|| format!("npm view {spec} stdout is not UTF-8"))?
+        .trim();
+    // `npm view <pkg>@<version> version` pins the version in the query
+    // itself, so a mismatch here would mean npm's own output disagreed with
+    // what it was asked to resolve — defend against that rather than trust
+    // a non-empty stdout as proof of anything. Measured: npm exits non-zero
+    // for a genuinely absent version against both npm.ix and public npm on
+    // 10.9.2 and 11.6.2, so this branch is a defensive backstop rather than
+    // the primary "missing" path — but it is the one guarding against npm
+    // itself resolving something other than what was asked for.
+    if resolved != version {
+        bail!("{spec} did not resolve to {version:?} on {registry}: npm view printed {resolved:?}");
+    }
+    Ok(())
+}
+
+/// Fetch `<package>@<version>` exactly as published, via `npm view --json`.
+/// A non-zero exit — missing package, missing version, or an unreachable
+/// registry — is the gate's primary signal here and is never downgraded.
+fn fetch_published_manifest(
+    npm_binary: &OsStr,
+    package: &str,
+    version: &str,
+    registry: &str,
+) -> Result<Value> {
+    let spec = format!("{package}@{version}");
+    let registry_override = npm_registry_override(package, registry)?;
+    let output = Command::new(npm_binary)
+        .args(["view", &spec, "--json", &registry_override])
+        .output()
+        .with_context(|| format!("execute npm view {spec} --json {registry_override}"))?;
+    if !output.status.success() {
+        bail!(
+            "{spec} does not resolve on {registry}: npm view exited with {} ({})",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    let manifest: Value = serde_json::from_slice(&output.stdout)
+        .with_context(|| format!("npm view {spec} --json stdout is not valid JSON"))?;
+    let observed_version = manifest
+        .get("version")
+        .and_then(Value::as_str)
+        .with_context(|| format!("npm view {spec} --json has no string .version"))?;
+    if observed_version != version {
+        bail!(
+            "{spec} resolved to version {observed_version:?} on {registry}, expected {version:?}"
+        );
+    }
+    Ok(manifest)
+}
+
+/// Verify the launcher package itself resolves at `request.version`, and
+/// that every platform package its *published* `optionalDependencies`
+/// declares also resolves — reading that map from the registry's own copy
+/// of the manifest, not from `npm/quire-cli/package.json` in the working
+/// tree. Two failures this specifically catches that a local-file read
+/// cannot: the launcher's own `npm publish` failing after the platform
+/// packages already succeeded (consumers then silently keep installing the
+/// previous, broken launcher), and the working tree having moved past the
+/// commit that was actually published (a local read would then verify pins
+/// that were never in the published launcher at all).
+///
+/// An empty (or absent) `optionalDependencies` map is refused before the
+/// loop, not treated as "zero failures": a manifest with nothing to check
+/// is the exact dangling-pin defect class this gate exists to catch, and a
+/// loop over zero entries reporting success would be silently useless for
+/// it. The catalog-membership and non-emptiness checks are the same
+/// `validate_dependency_catalog` rule that governs the committed manifest
+/// via `launcher_dependencies` — one rule, read from either source.
+pub fn verify_published(request: &VerifyPublished<'_>) -> Result<()> {
+    let manifest = fetch_published_manifest(
+        request.npm_binary,
+        LAUNCHER_PACKAGE_NAME,
+        request.version,
+        request.registry,
+    )?;
+    let location = format!(
+        "{LAUNCHER_PACKAGE_NAME}@{} (published on {})",
+        request.version, request.registry
+    );
+    let dependencies: Map<String, Value> = match manifest.get("optionalDependencies") {
+        Some(value) => value
+            .as_object()
+            .with_context(|| format!("{location}.optionalDependencies must be an object"))?
+            .clone(),
+        None => Map::new(),
+    };
+    validate_dependency_catalog(&dependencies, &location)?;
+    for (name, value) in &dependencies {
+        let version = value.as_str().with_context(|| {
+            format!("{location}.optionalDependencies[{name:?}] must be a string")
+        })?;
+        verify_package_resolves(request.npm_binary, name, version, request.registry)?;
+    }
+    Ok(())
+}
+
 fn u16_le(bytes: &[u8], start: usize) -> Option<u16> {
     Some(u16::from_le_bytes(
         bytes.get(start..start + 2)?.try_into().ok()?,
@@ -393,8 +601,14 @@ fn verify_binary_format(path: &Path, target: &DistributionTarget) -> Result<()> 
     Ok(())
 }
 
+/// Read the built targets out of `root`. A run may build any non-empty
+/// subset of [`TARGETS`] — the local publish path has only ever built
+/// `linux-x64`, and that is a legitimate release, not a defect. What is
+/// still rejected: a directory naming a target outside the catalog (a typo
+/// or a stale leftover), and an empty artifacts directory (nothing built is
+/// never a valid release).
 fn artifact_paths(root: &Path) -> Result<Vec<(DistributionTarget, PathBuf)>> {
-    let expected_dirs: BTreeSet<_> = TARGETS
+    let known_dirs: BTreeSet<_> = TARGETS
         .iter()
         .map(|target| target.rust.to_owned())
         .collect();
@@ -417,15 +631,21 @@ fn artifact_paths(root: &Path) -> Result<Vec<(DistributionTarget, PathBuf)>> {
                 .map_err(|_| anyhow::anyhow!("artifact directory name is not UTF-8"))
         })
         .collect::<Result<_>>()?;
-    if observed_dirs != expected_dirs {
+    let unknown: BTreeSet<_> = observed_dirs.difference(&known_dirs).cloned().collect();
+    if !unknown.is_empty() {
+        bail!("artifact targets outside the catalog: {unknown:?} (catalog is {known_dirs:?})");
+    }
+    if observed_dirs.is_empty() {
         bail!(
-            "artifact targets differ from catalog: expected {expected_dirs:?}, observed {observed_dirs:?}"
+            "artifacts directory {} contains no built targets; at least one of {known_dirs:?} is required",
+            root.display()
         );
     }
 
     TARGETS
         .iter()
         .copied()
+        .filter(|target| observed_dirs.contains(target.rust))
         .map(|target| {
             let directory = root.join(target.rust);
             let entries: Vec<_> = fs::read_dir(&directory)
@@ -530,6 +750,25 @@ pub fn package_npm(request: &PackageNpm<'_>) -> Result<()> {
     let license = fs::read(request.license)
         .with_context(|| format!("read license {}", request.license.display()))?;
 
+    // Compute the rewritten launcher manifest content now, alongside the
+    // rest of the preflight, before any destructive write happens: its
+    // optionalDependencies become exactly the platforms this run built, one
+    // entry per artifact actually present — never the previously committed
+    // set, and never a hardcoded four-platform list. A platform absent here
+    // is simply absent from the manifest; the launcher's own "unsupported
+    // platform" error path handles that.
+    let mut launcher_json = read_json(&launcher_manifest)?;
+    let launcher_object = object_mut(&mut launcher_json, &launcher_manifest)?;
+    let dependencies: Map<String, Value> = artifacts
+        .iter()
+        .map(|(target, _)| (package_name(target), Value::String(version.clone())))
+        .collect();
+    launcher_object.insert(
+        "optionalDependencies".to_owned(),
+        Value::Object(dependencies),
+    );
+    let launcher_bytes = json_bytes(&launcher_json)?;
+
     let output_parent = request
         .output_dir
         .parent()
@@ -564,6 +803,20 @@ pub fn package_npm(request: &PackageNpm<'_>) -> Result<()> {
         .with_context(|| format!("write package manifest in {}", directory.display()))?;
     }
 
+    // Commit phase: three separate atomic writes, not one transaction —
+    // ordered so a failure partway through never leaves the launcher
+    // manifest declaring a wider platform set than what the freshly staged
+    // `npm/dist` tree actually contains. That specific bad state (dist
+    // regenerated and correct, launcher stale and wider) is the PLAT-885
+    // shape reappearing via an interrupted regeneration rather than a
+    // hardcoded list. The launcher manifest — the file a human is most
+    // likely to `git diff`, commit, and publish from — is written first, so
+    // if the tree replace or the LICENSE refresh then fails, the launcher
+    // already reflects the true, minimal, just-built platform set rather
+    // than a stale, wider one. Either write can still fail on its own after
+    // this point (disk full, permissions); that failure returns `Err` and
+    // must not be ignored by the caller, the same as it always has been.
+    write_atomic(&launcher_manifest, &launcher_bytes)?;
     replace_output_tree(&staged_output, request.output_dir, staging)?;
     write_atomic(&request.launcher_dir.join("LICENSE"), &license)?;
     Ok(())
