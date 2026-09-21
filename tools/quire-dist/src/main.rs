@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use quire_dist::{
-    package_npm, set_version, verify_binary_version, verify_release, PackageNpm, SetVersion,
-    VerifyRelease,
+    package_npm, set_version, verify_binary_version, verify_published, verify_release, PackageNpm,
+    SetVersion, VerifyPublished, VerifyRelease,
 };
 
 #[derive(Debug, Parser)]
@@ -37,7 +37,9 @@ enum Command {
         #[arg(long)]
         binary: PathBuf,
     },
-    /// Generate the four platform npm packages from native artifacts.
+    /// Generate one npm package per platform actually present in
+    /// `artifacts-dir`, and sync the launcher's optionalDependencies to
+    /// exactly that set.
     PackageNpm {
         #[arg(long)]
         version: String,
@@ -45,6 +47,16 @@ enum Command {
         root: PathBuf,
         #[arg(long, default_value = "artifacts")]
         artifacts_dir: PathBuf,
+    },
+    /// Post-publish gate: assert every platform package the launcher
+    /// declares actually resolves at its pinned version in `registry`.
+    VerifyPublished {
+        #[arg(long, default_value = ".")]
+        root: PathBuf,
+        #[arg(long)]
+        registry: String,
+        #[arg(long, default_value = "npm")]
+        npm_binary: PathBuf,
     },
 }
 
@@ -72,6 +84,15 @@ fn main() -> Result<()> {
             output_dir: &root.join("npm/dist"),
             launcher_dir: &root.join("npm/quire-cli"),
             license: &root.join("LICENSE"),
+        }),
+        Command::VerifyPublished {
+            root,
+            registry,
+            npm_binary,
+        } => verify_published(&VerifyPublished {
+            launcher_manifest: &root.join("npm/quire-cli/package.json"),
+            registry: &registry,
+            npm_binary: npm_binary.as_os_str(),
         }),
     }
 }

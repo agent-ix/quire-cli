@@ -4,6 +4,7 @@
 //! treats every native executable as an opaque, target-identified artifact.
 
 use std::collections::BTreeSet;
+use std::ffi::OsStr;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -90,6 +91,22 @@ pub struct VerifyRelease<'a> {
     pub launcher_manifest: &'a Path,
 }
 
+/// A post-publish gate: for every platform package the launcher declares,
+/// assert it actually resolves in the target registry. `package_npm` only
+/// checks what it wrote *locally*; nothing upstream of this ever asked the
+/// registry whether the published package exists. This is the assertion
+/// PLAT-885 was filed over — `verify_binary_version` never covered it, since
+/// it only ever compares the local binary's own reported version.
+#[derive(Debug)]
+pub struct VerifyPublished<'a> {
+    pub launcher_manifest: &'a Path,
+    pub registry: &'a str,
+    /// The `npm` executable to invoke `view` through — a bare name is
+    /// resolved on `PATH`; tests pass an explicit stub binary so the check
+    /// stays hermetic instead of depending on real network access.
+    pub npm_binary: &'a OsStr,
+}
+
 fn checked_version(raw: &str) -> Result<Version> {
     Version::parse(raw).with_context(|| format!("invalid SemVer release version {raw:?}"))
 }
@@ -129,6 +146,13 @@ fn expected_package_names() -> BTreeSet<String> {
     TARGETS.iter().map(package_name).collect()
 }
 
+/// A launcher declares one optional dependency per platform it actually
+/// ships a binary for. The catalog in [`TARGETS`] is the closed set of
+/// platforms the tooling knows how to build; the launcher's declared set is
+/// whatever non-empty subset of that catalog this release actually built
+/// (see [`artifact_paths`]), never a name outside it and never empty — an
+/// empty set here is the exact dangling-pin defect PLAT-885 exists to catch,
+/// not a vacuous pass.
 fn launcher_dependencies<'a>(
     object: &'a mut Map<String, Value>,
     path: &Path,
@@ -139,11 +163,18 @@ fn launcher_dependencies<'a>(
     let dependencies = dependencies
         .as_object_mut()
         .with_context(|| format!("{}.optionalDependencies must be an object", path.display()))?;
+    if dependencies.is_empty() {
+        bail!(
+            "{}.optionalDependencies must declare at least one platform package",
+            path.display()
+        );
+    }
     let observed: BTreeSet<_> = dependencies.keys().cloned().collect();
     let expected = expected_package_names();
-    if observed != expected {
+    let unknown: BTreeSet<_> = observed.difference(&expected).cloned().collect();
+    if !unknown.is_empty() {
         bail!(
-            "{}.optionalDependencies keys differ from the target catalog: expected {expected:?}, observed {observed:?}",
+            "{}.optionalDependencies names packages outside the target catalog: {unknown:?} (catalog is {expected:?})",
             path.display()
         );
     }
@@ -344,6 +375,92 @@ pub fn verify_binary_version(version: &str, binary: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Assert that `name@version` resolves as an installable package on
+/// `registry`. Shells out to `npm view`, which itself performs the registry
+/// round trip — this function adds no interpretation `npm` did not already
+/// do, and in particular it never re-derives the answer from anything
+/// local (the artifact directory, the Cargo manifest, or the binary that
+/// was just built). A 404, an unreachable registry, or a spawn failure all
+/// surface as an `Err`; nothing here treats "npm exited non-zero" as
+/// anything but a hard failure.
+fn verify_package_resolves(
+    npm_binary: &OsStr,
+    name: &str,
+    version: &str,
+    registry: &str,
+) -> Result<()> {
+    let spec = format!("{name}@{version}");
+    let output = Command::new(npm_binary)
+        .args(["view", &spec, "version", "--registry", registry])
+        .output()
+        .with_context(|| format!("execute npm view {spec} --registry {registry}"))?;
+    if !output.status.success() {
+        bail!(
+            "{spec} does not resolve on {registry}: npm view exited with {} ({})",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    let resolved = std::str::from_utf8(&output.stdout)
+        .with_context(|| format!("npm view {spec} stdout is not UTF-8"))?
+        .trim();
+    // `npm view <pkg>@<version> version` pins the version in the query
+    // itself, so a mismatch here would mean npm's own output disagreed with
+    // what it was asked to resolve — defend against that rather than trust
+    // a non-empty stdout as proof of anything.
+    if resolved != version {
+        bail!("{spec} did not resolve to {version:?} on {registry}: npm view printed {resolved:?}");
+    }
+    Ok(())
+}
+
+/// Verify every platform package the launcher manifest declares actually
+/// resolves in `request.registry`. Reads `optionalDependencies` straight off
+/// the manifest on disk — the same map `package_npm` just derived from the
+/// build's own artifacts — so this checks the thing that was actually
+/// published, not a restatement of what should have been built.
+///
+/// An empty `optionalDependencies` map is refused before the loop, not
+/// treated as "zero failures": a manifest with nothing to check is the exact
+/// dangling-pin defect class this gate exists to catch, and a loop over zero
+/// entries reporting success would be silently useless for it.
+pub fn verify_published(request: &VerifyPublished<'_>) -> Result<()> {
+    let mut launcher = read_json(request.launcher_manifest)?;
+    let object = object_mut(&mut launcher, request.launcher_manifest)?;
+    let dependencies = object
+        .get("optionalDependencies")
+        .with_context(|| {
+            format!(
+                "{} has no optionalDependencies",
+                request.launcher_manifest.display()
+            )
+        })?
+        .as_object()
+        .with_context(|| {
+            format!(
+                "{}.optionalDependencies must be an object",
+                request.launcher_manifest.display()
+            )
+        })?;
+    if dependencies.is_empty() {
+        bail!(
+            "{}.optionalDependencies is empty; nothing would be verified — this is the dangling-pin \
+             defect this gate exists to catch (PLAT-885), not a vacuous pass",
+            request.launcher_manifest.display()
+        );
+    }
+    for (name, value) in dependencies {
+        let version = value.as_str().with_context(|| {
+            format!(
+                "{}.optionalDependencies[{name:?}] must be a string",
+                request.launcher_manifest.display()
+            )
+        })?;
+        verify_package_resolves(request.npm_binary, name, version, request.registry)?;
+    }
+    Ok(())
+}
+
 fn u16_le(bytes: &[u8], start: usize) -> Option<u16> {
     Some(u16::from_le_bytes(
         bytes.get(start..start + 2)?.try_into().ok()?,
@@ -393,8 +510,14 @@ fn verify_binary_format(path: &Path, target: &DistributionTarget) -> Result<()> 
     Ok(())
 }
 
+/// Read the built targets out of `root`. A run may build any non-empty
+/// subset of [`TARGETS`] — the local publish path has only ever built
+/// `linux-x64`, and that is a legitimate release, not a defect. What is
+/// still rejected: a directory naming a target outside the catalog (a typo
+/// or a stale leftover), and an empty artifacts directory (nothing built is
+/// never a valid release).
 fn artifact_paths(root: &Path) -> Result<Vec<(DistributionTarget, PathBuf)>> {
-    let expected_dirs: BTreeSet<_> = TARGETS
+    let known_dirs: BTreeSet<_> = TARGETS
         .iter()
         .map(|target| target.rust.to_owned())
         .collect();
@@ -417,15 +540,21 @@ fn artifact_paths(root: &Path) -> Result<Vec<(DistributionTarget, PathBuf)>> {
                 .map_err(|_| anyhow::anyhow!("artifact directory name is not UTF-8"))
         })
         .collect::<Result<_>>()?;
-    if observed_dirs != expected_dirs {
+    let unknown: BTreeSet<_> = observed_dirs.difference(&known_dirs).cloned().collect();
+    if !unknown.is_empty() {
+        bail!("artifact targets outside the catalog: {unknown:?} (catalog is {known_dirs:?})");
+    }
+    if observed_dirs.is_empty() {
         bail!(
-            "artifact targets differ from catalog: expected {expected_dirs:?}, observed {observed_dirs:?}"
+            "artifacts directory {} contains no built targets; at least one of {known_dirs:?} is required",
+            root.display()
         );
     }
 
     TARGETS
         .iter()
         .copied()
+        .filter(|target| observed_dirs.contains(target.rust))
         .map(|target| {
             let directory = root.join(target.rust);
             let entries: Vec<_> = fs::read_dir(&directory)
@@ -530,6 +659,24 @@ pub fn package_npm(request: &PackageNpm<'_>) -> Result<()> {
     let license = fs::read(request.license)
         .with_context(|| format!("read license {}", request.license.display()))?;
 
+    // Preflight the rewritten launcher manifest before any destructive
+    // write: its optionalDependencies become exactly the platforms this run
+    // built, one entry per artifact actually present — never the
+    // previously committed set, and never a hardcoded four-platform list.
+    // A platform absent here is simply absent from the manifest; the
+    // launcher's own "unsupported platform" error path handles that.
+    let mut launcher_json = read_json(&launcher_manifest)?;
+    let launcher_object = object_mut(&mut launcher_json, &launcher_manifest)?;
+    let dependencies: Map<String, Value> = artifacts
+        .iter()
+        .map(|(target, _)| (package_name(target), Value::String(version.clone())))
+        .collect();
+    launcher_object.insert(
+        "optionalDependencies".to_owned(),
+        Value::Object(dependencies),
+    );
+    let launcher_bytes = json_bytes(&launcher_json)?;
+
     let output_parent = request
         .output_dir
         .parent()
@@ -566,5 +713,6 @@ pub fn package_npm(request: &PackageNpm<'_>) -> Result<()> {
 
     replace_output_tree(&staged_output, request.output_dir, staging)?;
     write_atomic(&request.launcher_dir.join("LICENSE"), &license)?;
+    write_atomic(&launcher_manifest, &launcher_bytes)?;
     Ok(())
 }
