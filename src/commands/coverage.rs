@@ -100,14 +100,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     // FR-050: the model is module data. Without it there is nothing to
     // reconcile against, and guessing would be exactly the agent-grep behaviour
-    // this command replaces.
-    if registry.traceability().is_none() {
-        bail!(
-            "no module in scope declares a `traceability:` model, so there is \
-             nothing to reconcile; install a module that declares one (e.g. \
-             spec-artifacts-process) or pass --module"
-        );
-    }
+    // this command replaces. Shared with `trace`, which needs the identical
+    // refusal (`super::require_traceability_model`) — checked and returned in
+    // one call rather than checked here and re-derived with a second
+    // `.expect()` below.
+    let model = super::require_traceability_model(&registry)?;
 
     // Two roots, one scope (CR-045): the document walk is bounded to
     // `<scope>/spec`; the code walk covers `<scope>` minus the document
@@ -127,9 +124,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // (agent-ix/quire-rs#113). The engine compares by canonicalized
     // identity, so a case-insensitive filesystem or a symlinked root still
     // excludes what the walk actually reads (quire-rs CR-056).
-    let model = registry
-        .traceability()
-        .expect("traceability model checked above");
+    //
     // CR-085: a module may declare `source_exclude` globs naming fixture trees
     // that hold no traceable source. Two filters, different in kind — the
     // document root is the caller's non-configurable argument (CR-045), the

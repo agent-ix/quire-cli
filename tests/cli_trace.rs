@@ -128,6 +128,23 @@ fn ambiguous_tree(dir: &TempDir) -> String {
     dir.path().to_string_lossy().into_owned()
 }
 
+/// Two symbols tagging the SAME requirement under two DIFFERENT raw
+/// spellings — `FR-950` and `FR_950`, which the engine's own
+/// `normalized_trace_id` fold treats as identical (strips all punctuation,
+/// uppercases) — for the H1 (case/separator folding) and H2 (double-count)
+/// regression fixtures.
+fn prefix_fold_tree(dir: &TempDir) -> String {
+    let src = dir.path().join("src");
+    fs::create_dir_all(&src).expect("mkdir src");
+    fs::write(
+        src.join("fold.rs"),
+        "#[trace(\"FR-950\")]\n#[test]\nfn tc_dash_spelling() {\n    assert!(true);\n}\n\n\
+         #[trace(\"FR_950\")]\n#[test]\nfn tc_underscore_spelling() {\n    assert!(true);\n}\n",
+    )
+    .expect("write fold.rs");
+    dir.path().to_string_lossy().into_owned()
+}
+
 #[test]
 fn claims_and_citations_are_structurally_separate_json_subtrees() {
     // FR-077-AC-1: the whole reason this tool exists. `.claims` and
@@ -186,8 +203,14 @@ fn human_output_headers_the_citations_section_as_not_evidence() {
     let m = module(&dir);
     let out = run(&["trace", "--scope", &scope, "--module", &m, "--id", "FR-900"]);
     assert_eq!(out.code, Some(0), "stderr: {}", out.stderr);
+    // The ONE required line, whole and contiguous (review finding #9: two
+    // independent `contains` checks would still pass if the count and the
+    // trailer text ended up on two separate lines, which is not the
+    // requirement — "Citations (N) — NOT verification evidence" must be one
+    // line). FR-900 in this fixture has exactly one citation (citing_helper).
     assert!(
-        out.stdout.contains("Citations (") && out.stdout.contains("— NOT verification evidence"),
+        out.stdout
+            .contains("Citations (1) — NOT verification evidence"),
         "stdout: {}",
         out.stdout
     );
@@ -267,6 +290,113 @@ fn prefix_matches_on_a_separator_boundary_not_a_digit_run() {
     assert_eq!(exact_ids, vec!["FR-047".to_string()], "{exact_payload}");
 }
 
+// Review finding H1, end to end: `--prefix` must fold case and separator
+// choice the same way the engine's own exact `--id` match does — reproduced
+// broken (empty result) against the pre-fix `prefix_matches` before the
+// `id_segments` rewrite.
+#[test]
+fn prefix_folds_case_and_separator_like_an_exact_id_query_does() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = prefix_fold_tree(&dir);
+    let m = module(&dir);
+
+    // Lowercase, hyphenated query must still find the hyphenated tag.
+    let lower = run(&[
+        "trace", "--scope", &scope, "--module", &m, "--id", "fr-950", "--prefix", "--json",
+    ]);
+    assert_eq!(lower.code, Some(0), "stderr: {}", lower.stderr);
+    let lower_payload: serde_json::Value = serde_json::from_str(&lower.stdout).expect("json");
+    assert_eq!(lower_payload["resolved"], true, "{lower_payload}");
+    let lower_symbols: Vec<String> = lower_payload["claims"]["verifies"]
+        .as_array()
+        .expect("verifies")
+        .iter()
+        .map(|v| v["symbol"].as_str().unwrap().to_string())
+        .collect();
+    assert!(
+        lower_symbols.contains(&"tc_dash_spelling".to_string()),
+        "{lower_payload}"
+    );
+
+    // Underscore query must still find the hyphenated tag (the engine folds
+    // `-`/`_` as equivalent separators).
+    let underscore = run(&[
+        "trace", "--scope", &scope, "--module", &m, "--id", "FR_950", "--prefix", "--json",
+    ]);
+    let underscore_payload: serde_json::Value =
+        serde_json::from_str(&underscore.stdout).expect("json");
+    let underscore_symbols: Vec<String> = underscore_payload["claims"]["verifies"]
+        .as_array()
+        .expect("verifies")
+        .iter()
+        .map(|v| v["symbol"].as_str().unwrap().to_string())
+        .collect();
+    assert!(
+        underscore_symbols.contains(&"tc_dash_spelling".to_string()),
+        "{underscore_payload}"
+    );
+
+    // A trailing separator on the query changes nothing.
+    let trailing = run(&[
+        "trace", "--scope", &scope, "--module", &m, "--id", "FR-950-", "--prefix", "--json",
+    ]);
+    let trailing_payload: serde_json::Value = serde_json::from_str(&trailing.stdout).expect("json");
+    assert_eq!(
+        trailing_payload["claims"]["verifies"]
+            .as_array()
+            .expect("verifies")
+            .len(),
+        2,
+        "{trailing_payload}"
+    );
+}
+
+// Review finding H2, end to end: two raw spellings of the same requirement
+// (`FR-950`, `FR_950`) that fold to the same normalized id must be searched
+// once between them, not once each — reproduced broken (4 rows instead of 2)
+// before the normalized-dedup fix in `search_by_prefix`.
+#[test]
+fn prefix_does_not_double_count_ids_that_normalize_the_same() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = prefix_fold_tree(&dir);
+    let m = module(&dir);
+    let out = run(&[
+        "trace", "--scope", &scope, "--module", &m, "--id", "FR-950", "--prefix", "--json",
+    ]);
+    assert_eq!(out.code, Some(0), "stderr: {}", out.stderr);
+    let payload: serde_json::Value = serde_json::from_str(&out.stdout).expect("json");
+    let verifies = payload["claims"]["verifies"].as_array().expect("verifies");
+    // Exactly one row per symbol — never two, which is what searching once
+    // per raw spelling (rather than once per normalized-equivalence class)
+    // used to produce.
+    assert_eq!(verifies.len(), 2, "{payload}");
+    let mut symbols: Vec<&str> = verifies
+        .iter()
+        .map(|v| v["symbol"].as_str().unwrap())
+        .collect();
+    symbols.sort();
+    assert_eq!(symbols, vec!["tc_dash_spelling", "tc_underscore_spelling"]);
+
+    // `matched_ids` reports BOTH distinct raw spellings — transparency is
+    // preserved even though the search itself deduplicated.
+    let matched_ids = payload["query"]["matched_ids"]
+        .as_array()
+        .expect("matched_ids");
+    let mut matched: Vec<&str> = matched_ids.iter().map(|v| v.as_str().unwrap()).collect();
+    matched.sort();
+    assert_eq!(matched, vec!["FR-950", "FR_950"]);
+
+    // The human form surfaces `matched_ids` too (review finding #12).
+    let human = run(&[
+        "trace", "--scope", &scope, "--module", &m, "--id", "FR-950", "--prefix",
+    ]);
+    assert!(
+        human.stdout.contains("matched ids (2)"),
+        "stdout: {}",
+        human.stdout
+    );
+}
+
 #[test]
 fn ambiguous_bare_symbol_name_lists_every_candidate() {
     // FR-077-AC-4: never a silent pick.
@@ -344,13 +474,20 @@ fn file_query_returns_every_claim_and_citation_in_that_file() {
     assert_eq!(verifies.len(), 4, "{payload}");
 }
 
+// Review finding #7: this test's ORIGINAL name claimed to prove the absence
+// of a hardcoded per-language table. It cannot — a hidden
+// `match language { "rust" => "structural", _ => "line_heuristic" }` inside
+// this crate would pass every assertion below identically, since Rust really
+// is `structural` and Python really is `line_heuristic` either way. What
+// actually establishes "derived, not hardcoded" is source inspection (no
+// such match arm exists anywhere in `src/commands/trace.rs`; every
+// `confidence` field is computed by calling the engine's own
+// `language_confidence`/`symbol_language` — confirmed during review). This
+// test's real job, honestly named, is a regression pin: if the engine's
+// mapping for either language ever changes, or a hardcoded table gets
+// introduced later with the WRONG values, this fails.
 #[test]
-fn cross_language_confidence_is_derived_per_record_not_hardcoded() {
-    // The stale-ticket correction this ticket calls out explicitly: no static
-    // per-language table. A Python citation must be reported honestly as
-    // `line_heuristic` because that is what quire-rs's own
-    // `language_confidence("python")` says, not because this crate wrote
-    // "python" into a match arm anywhere.
+fn cross_language_confidence_matches_the_engines_reported_values() {
     let dir = TempDir::new().expect("tempdir");
     let scope = tree(&dir);
     let m = module(&dir);
@@ -417,6 +554,41 @@ fn exclude_path_drops_matching_citations_and_reports_the_count() {
             .len(),
         1,
         "{payload}"
+    );
+}
+
+// Review finding #3: `resolved` must be recomputed AFTER `--exclude-path`
+// filtering, not left as the engine's pre-filter verdict. FR-901 resolves to
+// exactly one citation and zero claims (the Python fixture in `tree()`), so
+// excluding its only path empties the result entirely — `resolved` must flip
+// to `false`. Reproduced broken (stayed `true`) before the recompute fix.
+#[test]
+fn exclude_path_that_empties_the_result_flips_resolved_to_false() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = tree(&dir);
+    let m = module(&dir);
+    let out = run(&[
+        "trace",
+        "--scope",
+        &scope,
+        "--module",
+        &m,
+        "--id",
+        "FR-901",
+        "--exclude-path",
+        "tests/**",
+        "--json",
+    ]);
+    assert_eq!(out.code, Some(0), "stderr: {}", out.stderr);
+    let payload: serde_json::Value = serde_json::from_str(&out.stdout).expect("json");
+    assert_eq!(payload["citations_excluded_by_path_filter"], 1, "{payload}");
+    assert!(payload["citations"]
+        .as_array()
+        .expect("citations")
+        .is_empty());
+    assert_eq!(
+        payload["resolved"], false,
+        "an exclude-path that empties the whole result must flip resolved: {payload}"
     );
 }
 

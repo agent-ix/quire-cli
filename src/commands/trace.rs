@@ -262,19 +262,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     // FR-077 needs a declared traceability model to compute at all — unlike
     // `symbols`, which reports the walk with no declaration. Same resolution
-    // and same failure `coverage` uses, so the two commands cannot disagree
-    // about which module is in scope for one invocation.
+    // `coverage` uses, and the identical refusal via the shared
+    // `require_traceability_model` helper, so the two commands cannot
+    // disagree about which module is in scope, or drift apart on the
+    // refusal's wording, for one invocation.
     let registry = super::coverage::load_registry_for(ctx, &args.module, &scope)?;
-    if registry.traceability().is_none() {
-        bail!(
-            "no module in scope declares a `traceability:` model, so there is \
-             nothing to reconcile; install a module that declares one (e.g. \
-             spec-artifacts-process) or pass --module"
-        );
-    }
-    let model = registry
-        .traceability()
-        .expect("traceability model checked above");
+    let model = super::require_traceability_model(&registry)?;
 
     let extraction = quire_rs::symbols::extract_tree_scoped(
         &scope,
@@ -299,9 +292,20 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         .retain(|m| !path_excluded(&m.path, &exclude_globs));
     let citations_excluded_by_path_filter = before - result.citations.len();
 
+    // `result.resolved` is the engine's PRE-filter verdict; `--exclude-path`
+    // runs after it and can empty `citations` entirely, which must flip
+    // `resolved` to `false` too — otherwise a fully-filtered result reports
+    // itself resolved with nothing in it (review finding #3). Recomputed
+    // rather than left as the engine's answer, matching the same rule
+    // `trace_search::finish` uses (FR-077-AC-3) over the POST-filter state.
+    let resolved = !(result.verifies.is_empty()
+        && result.implements.is_empty()
+        && result.citations.is_empty()
+        && result.ambiguous_matches.is_empty());
+
     let report = TraceReport {
         query: query_desc,
-        resolved: result.resolved,
+        resolved,
         claims: ClaimsSection {
             verifies: result
                 .verifies
@@ -413,11 +417,19 @@ fn describe_query(query: &Query) -> QueryDescription {
     }
 }
 
-/// `--id --prefix`: union every distinct id in the graph that
-/// [`prefix_matches`] `prefix`, running the engine's own exact `Query::Id`
-/// search per matched id and concatenating — each id's rows are disjoint by
-/// construction (a claim/citation carries exactly one `trace_id`), so this
-/// cannot double-count.
+/// `--id --prefix`: union every distinct id in the graph whose
+/// [`id_segments`] start with `prefix`'s segments, running the engine's own
+/// exact `Query::Id` search once per **normalized-equivalence class** of
+/// matched id and concatenating.
+///
+/// Two raw spellings that fold to the same normalized id (e.g. `FR-047` and
+/// `FR_047`) must be searched only **once** between them: the engine's own
+/// `Query::Id` search matches by normalized id (`normalized_trace_id`), so
+/// searching each raw spelling separately would return the identical set of
+/// relations twice — a real double-count this function used to have (review
+/// finding H2). `matched_ids` in the returned [`QueryDescription`] still
+/// lists every distinct RAW spelling that matched, for transparency; only the
+/// search itself is deduplicated by normalized form.
 fn search_by_prefix(
     prefix: &str,
     graph: &SymbolGraph,
@@ -436,7 +448,16 @@ fn search_by_prefix(
     let mut verifies = Vec::new();
     let mut implements = Vec::new();
     let mut citations = Vec::new();
+    let mut searched_normalized: BTreeSet<String> = BTreeSet::new();
     for id in &matched_ids {
+        // The one representative per normalized-equivalence class. A second
+        // raw spelling that normalizes the same is skipped here, not
+        // searched-then-deduplicated after the fact — the engine's search
+        // would hand back the exact same rows either way, so running it
+        // twice is pure waste as well as the double-count bug.
+        if !searched_normalized.insert(normalized_id(id)) {
+            continue;
+        }
         let r = trace_search::search(graph, extraction, &Query::Id(id.clone()));
         verifies.extend(r.verifies);
         implements.extend(r.implements);
@@ -461,19 +482,61 @@ fn search_by_prefix(
     )
 }
 
-/// String-prefix match on a separator boundary: `prefix` matches `candidate`
-/// when they are equal, or `candidate` starts with `prefix` and the very next
-/// character is not alphanumeric — `FR-047` matches `FR-047-AC-1` but never
-/// `FR-0470`. A plain comparison over the RAW id text (the engine's own
-/// case/punctuation fold, `normalized_trace_id`, is `pub(crate)` inside
-/// quire-rs and out of reach here) — deliberate: `--prefix` is a
-/// caller-requested CLI convenience layered on the engine's exact match, not
-/// a rule the engine itself enforces.
+/// Split `value` on runs of non-alphanumeric characters and uppercase each
+/// resulting piece, dropping empty pieces (so a leading/trailing separator —
+/// `FR-047-` — contributes nothing, and consecutive separators collapse).
+///
+/// This is character-for-character the same fold quire-rs's own
+/// `normalized_trace_id` applies (`src/symbols/trace.rs:871`: filter
+/// `is_ascii_alphanumeric`, uppercase) — that function is `pub(crate)` and
+/// unreachable from here, so this duplicates its per-character rule rather
+/// than sharing it (asked for during review; requesting the export be made
+/// `pub` upstream is the preferred long-term fix and does not, by itself,
+/// replace this function even if granted — see below). It is deliberately
+/// NOT a drop-in reimplementation of `normalized_trace_id` itself: that
+/// function concatenates every alphanumeric character into one string,
+/// discarding exactly the segment boundaries `--prefix` needs to tell
+/// `FR-047` (must match `FR-047-AC-1`) apart from `FR-0470` (must not). No
+/// function in the engine currently preserves those boundaries — boundary-
+/// aware prefix matching is CLI-only logic by design (quire-rs
+/// `traceability.rs`: the engine knows nothing of FR/AC/TC hierarchy).
+fn id_segments(value: &str) -> Vec<String> {
+    value
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .map(str::to_ascii_uppercase)
+        .collect()
+}
+
+/// The engine's own normalized id, reproduced by concatenating
+/// [`id_segments`] — used only to tell whether two RAW spellings are the
+/// same id as far as `Query::Id`'s own match is concerned (H2's dedup key),
+/// never to decide `--prefix` boundaries (which need the segments, not the
+/// concatenation — see [`id_segments`]).
+fn normalized_id(value: &str) -> String {
+    id_segments(value).concat()
+}
+
+/// Segment-boundary prefix match, fold-consistent with the engine's own
+/// `normalized_trace_id` equality: `prefix` matches `candidate` when
+/// `candidate`'s [`id_segments`] start with `prefix`'s.
+///
+/// `FR-047` (segments `["FR","047"]`) matches `FR-047-AC-1`
+/// (`["FR","047","AC","1"]`, a genuine extra segment) and `FR_047_AC_9`
+/// (separator-agnostic) and is case-insensitive (`fr-047` folds the same as
+/// `FR-047`) — all three were confirmed broken under the previous raw,
+/// case-sensitive `strip_prefix` (review finding H1). `FR-047` still does
+/// NOT match `FR-0470` (segments `["FR","0470"]`; `"0470" != "047"` as whole
+/// segments, not merely as a string-prefix check within one segment) — the
+/// property this flag exists to guarantee.
 fn prefix_matches(candidate: &str, prefix: &str) -> bool {
-    match candidate.strip_prefix(prefix) {
-        Some(rest) => !rest.starts_with(|c: char| c.is_ascii_alphanumeric()),
-        None => false,
+    let prefix_segments = id_segments(prefix);
+    if prefix_segments.is_empty() {
+        return false;
     }
+    let candidate_segments = id_segments(candidate);
+    candidate_segments.len() >= prefix_segments.len()
+        && candidate_segments[..prefix_segments.len()] == prefix_segments[..]
 }
 
 fn verifies_record(v: &VerifiesRelation, extraction: &SymbolExtraction) -> VerifiesRecord {
@@ -567,6 +630,26 @@ fn confidence_suffix(confidence: Option<&str>) -> String {
 
 fn emit_human(ctx: &Ctx, report: &TraceReport) {
     io::emit_result(&format!("resolved: {}", report.resolved));
+
+    // `--prefix` unions however many concrete ids matched — the exact thing
+    // H1/H2 got wrong, and the exact thing a `--prefix` user most needs to
+    // see to trust the result. It was JSON-only before (review finding #12).
+    if let QueryDescription::Id {
+        prefix: true,
+        matched_ids,
+        ..
+    } = &report.query
+    {
+        io::emit_result(&format!(
+            "matched ids ({}): {}",
+            matched_ids.len(),
+            if matched_ids.is_empty() {
+                "(none)".to_string()
+            } else {
+                matched_ids.join(", ")
+            }
+        ));
+    }
 
     let claim_count = report.claims.verifies.len() + report.claims.implements.len();
     io::emit_result(&format!("Claims ({claim_count})"));
@@ -703,7 +786,7 @@ fn tsv_cell(s: &str) -> String {
         .collect()
 }
 
-fn tsv_line(kind: &str, cells: [&str; 7]) -> String {
+fn tsv_line(kind: &str, cells: [&str; 8]) -> String {
     let mut line = String::from(kind);
     for c in cells {
         line.push('\t');
@@ -713,10 +796,25 @@ fn tsv_line(kind: &str, cells: [&str; 7]) -> String {
     line
 }
 
-/// One record per line: `kind trace_id path line symbol form language
-/// confidence`. `kind` is `verifies`/`implements`/`citation`.
+/// One record per line: `kind trace_id path line symbol form bucket language
+/// confidence`. `kind` is `verifies`/`implements`/`citation`/`ambiguous`.
+///
+/// `form` and `bucket` are two SEPARATE columns, deliberately — a claim's
+/// declared marker-form name (`form`) and a citation's classification
+/// (`bucket`, e.g. `mention`/`evidence_near_miss`) are different facts, and
+/// overloading one column to carry either depending on `kind` (the first
+/// draft's shape) made a citation row's `form` cell silently contain bucket
+/// data with no column name saying so (review finding #4). A claim row
+/// leaves `bucket` empty; a citation row leaves `form` empty.
+///
+/// An `ambiguous` row is emitted per `ambiguous_matches` entry (`path` and
+/// `symbol` split from its `path#qualified_name` form) so a TSV consumer can
+/// tell an ambiguous query apart from a zero-match one — both used to render
+/// as the bare header line with nothing to distinguish them (review finding
+/// #4).
 fn render_tsv(report: &TraceReport) -> String {
-    let mut out = String::from("kind\ttrace_id\tpath\tline\tsymbol\tform\tlanguage\tconfidence\n");
+    let mut out =
+        String::from("kind\ttrace_id\tpath\tline\tsymbol\tform\tbucket\tlanguage\tconfidence\n");
     for v in &report.claims.verifies {
         out.push_str(&tsv_line(
             "verifies",
@@ -726,6 +824,7 @@ fn render_tsv(report: &TraceReport) -> String {
                 &v.line.to_string(),
                 &v.symbol,
                 &v.form,
+                "",
                 v.language.as_deref().unwrap_or(""),
                 v.confidence.unwrap_or(""),
             ],
@@ -740,6 +839,7 @@ fn render_tsv(report: &TraceReport) -> String {
                 "",
                 &i.symbol,
                 &i.form,
+                "",
                 i.language.as_deref().unwrap_or(""),
                 i.confidence.unwrap_or(""),
             ],
@@ -753,10 +853,18 @@ fn render_tsv(report: &TraceReport) -> String {
                 &c.path,
                 &c.line.to_string(),
                 c.symbol.as_deref().unwrap_or(""),
+                "",
                 c.bucket,
                 &c.language,
                 c.confidence,
             ],
+        ));
+    }
+    for m in &report.ambiguous_matches {
+        let (path, symbol) = m.split_once('#').unwrap_or((m.as_str(), ""));
+        out.push_str(&tsv_line(
+            "ambiguous",
+            ["", path, "", symbol, "", "", "", ""],
         ));
     }
     out
@@ -775,6 +883,46 @@ mod tests {
         assert!(!prefix_matches("FR-0470", "FR-047"));
         assert!(!prefix_matches("FR-04", "FR-047"));
         assert!(!prefix_matches("XR-047", "FR-047"));
+    }
+
+    // Review finding H1: the previous raw, case-sensitive `strip_prefix`
+    // diverged from the engine's own `normalized_trace_id` fold in three
+    // reproduced ways. Each of these failed before the `id_segments` rewrite.
+    #[test]
+    fn tc_prefix_matches_folds_case_like_the_engine() {
+        assert!(prefix_matches("FR-047", "fr-047"));
+        assert!(prefix_matches("fr-047-ac-1", "FR-047"));
+    }
+
+    #[test]
+    fn tc_prefix_matches_folds_separator_choice_like_the_engine() {
+        // The engine strips ALL non-alphanumeric characters before comparing
+        // ids, so `-` and `_` are interchangeable to it; --prefix must agree.
+        assert!(prefix_matches("FR_047_AC_9", "FR-047"));
+        assert!(prefix_matches("FR-047-AC-9", "FR_047"));
+    }
+
+    #[test]
+    fn tc_prefix_matches_ignores_a_trailing_separator_on_the_query() {
+        // `--id FR-047- --prefix` must behave exactly like `--id FR-047
+        // --prefix` — a trailing separator on the CALLER's query contributes
+        // no empty trailing segment.
+        assert!(prefix_matches("FR-047-AC-1", "FR-047-"));
+        assert!(prefix_matches("FR-047", "FR-047-"));
+    }
+
+    #[test]
+    fn tc_id_segments_splits_on_non_alphanumeric_runs_and_uppercases() {
+        assert_eq!(id_segments("FR-047-AC-1"), vec!["FR", "047", "AC", "1"]);
+        assert_eq!(id_segments("fr_047"), vec!["FR", "047"]);
+        assert_eq!(id_segments("FR-047-"), vec!["FR", "047"]);
+        assert_eq!(id_segments(""), Vec::<String>::new());
+    }
+
+    #[test]
+    fn tc_normalized_id_matches_across_separator_and_case_spellings() {
+        assert_eq!(normalized_id("FR-047-AC-1"), normalized_id("fr_047_ac_1"));
+        assert_ne!(normalized_id("FR-047"), normalized_id("FR-0470"));
     }
 
     fn citation(trace_id: &str, path: &str) -> CitationRecord {
@@ -853,6 +1001,137 @@ mod tests {
         assert_eq!(
             parse_symbol_query("#bar"),
             Query::SymbolName("#bar".to_string())
+        );
+    }
+
+    // Review finding #8: `tsv_cell`/`tsv_line` were copy-pasted from
+    // `coverage.rs` with no equivalent of ITS `tc812` escaping test in this
+    // file. Pinned here the same way.
+    #[test]
+    fn tc_tsv_cells_escape_structural_characters() {
+        assert_eq!(tsv_cell("a\tb\nc\rd"), "a b c d");
+        assert_eq!(tsv_cell("plain"), "plain");
+
+        let line = tsv_line("kind", ["a\tb", "c\nd", "", "", "", "", "e\rf", "text"]);
+        let body = line.strip_suffix('\n').expect("one trailing newline");
+        assert_eq!(
+            body.split('\t').count(),
+            9,
+            "hostile cells must not add or remove columns: {body:?}"
+        );
+        assert!(
+            !body.contains('\n') && !body.contains('\r'),
+            "hostile cells must not break the one-record-per-line contract: {body:?}"
+        );
+    }
+
+    fn minimal_report(claims: ClaimsSection, citations: Vec<CitationRecord>) -> TraceReport {
+        TraceReport {
+            query: QueryDescription::Id {
+                id: "FR-1".to_string(),
+                prefix: false,
+                matched_ids: Vec::new(),
+            },
+            resolved: true,
+            claims,
+            citations,
+            ambiguous_matches: Vec::new(),
+            citations_excluded_by_path_filter: 0,
+        }
+    }
+
+    // Review finding #4: no test anywhere exercised `render_tsv`, and the
+    // format actually shipped a real defect — a citation row's `bucket`
+    // silently occupied the `form` column, undocumented. Pinned as two
+    // separate, present columns.
+    #[test]
+    fn tc_render_tsv_keeps_form_and_bucket_as_separate_columns() {
+        let report = minimal_report(
+            ClaimsSection {
+                verifies: vec![VerifiesRecord {
+                    trace_id: "FR-1".to_string(),
+                    symbol: "tc_verifies".to_string(),
+                    path: "src/lib.rs".to_string(),
+                    line: 3,
+                    form: "rust-trace-attribute".to_string(),
+                    provenance: "canonical",
+                    language: Some("rust".to_string()),
+                    confidence: Some("structural"),
+                }],
+                implements: Vec::new(),
+            },
+            vec![citation("FR-1", "src/other.rs")],
+        );
+        let tsv = render_tsv(&report);
+        let mut lines = tsv.lines();
+        assert_eq!(
+            lines.next(),
+            Some("kind\ttrace_id\tpath\tline\tsymbol\tform\tbucket\tlanguage\tconfidence")
+        );
+        let verifies_line = lines.next().expect("verifies row");
+        let cells: Vec<&str> = verifies_line.split('\t').collect();
+        assert_eq!(cells[0], "verifies");
+        assert_eq!(cells[5], "rust-trace-attribute", "form column: {cells:?}");
+        assert_eq!(cells[6], "", "a claim leaves bucket empty: {cells:?}");
+
+        let citation_line = lines.next().expect("citation row");
+        let cells: Vec<&str> = citation_line.split('\t').collect();
+        assert_eq!(cells[0], "citation");
+        assert_eq!(cells[5], "", "a citation leaves form empty: {cells:?}");
+        assert_eq!(cells[6], "mention", "bucket column: {cells:?}");
+    }
+
+    // Review finding #4: an ambiguous query and a zero-match query used to
+    // render byte-identical TSV — the header line and nothing else — so the
+    // one property this command exists to guarantee (never silently pick a
+    // candidate) was invisible to a TSV consumer.
+    #[test]
+    fn tc_render_tsv_distinguishes_ambiguous_from_zero_match() {
+        let zero_match = minimal_report(ClaimsSection::default(), Vec::new());
+        let mut ambiguous = minimal_report(ClaimsSection::default(), Vec::new());
+        ambiguous.resolved = true;
+        ambiguous.ambiguous_matches = vec![
+            "src/a.rs#tests::outer::helper".to_string(),
+            "src/b.rs#tests::outer::helper".to_string(),
+        ];
+
+        let zero_tsv = render_tsv(&zero_match);
+        let ambiguous_tsv = render_tsv(&ambiguous);
+        assert_ne!(
+            zero_tsv, ambiguous_tsv,
+            "an ambiguous result must not render identically to a zero-match one"
+        );
+        assert_eq!(zero_tsv.lines().count(), 1, "header only: {zero_tsv:?}");
+        assert_eq!(
+            ambiguous_tsv.lines().count(),
+            3,
+            "header plus one `ambiguous` row per candidate: {ambiguous_tsv:?}"
+        );
+        assert!(ambiguous_tsv.contains("ambiguous\t\tsrc/a.rs\t\ttests::outer::helper"));
+    }
+
+    // Review finding #11: the "... and N more file(s)" overflow branch in
+    // `citation_lines` needs more distinct paths than
+    // `CITATION_GROUP_DISPLAY_LIMIT`, and nothing exercised it.
+    #[test]
+    fn tc_citation_grouping_overflow_reports_the_remainder() {
+        let mut citations = Vec::new();
+        // One extra citation beyond the inline threshold to force grouping,
+        // spread over more distinct paths than the display limit so the
+        // overflow line is reached.
+        for i in 0..(CITATION_GROUP_DISPLAY_LIMIT + 5) {
+            citations.push(citation("FR-1", &format!("file{i}.rs")));
+        }
+        citations.push(citation("FR-1", "file0.rs"));
+        let lines = citation_lines(&citations);
+        let last = lines.last().expect("at least a header line");
+        assert!(
+            last.contains("more file(s)"),
+            "expected an overflow line: {lines:?}"
+        );
+        assert!(
+            last.contains('5'),
+            "5 files beyond the display limit: {lines:?}"
         );
     }
 }

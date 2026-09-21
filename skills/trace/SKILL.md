@@ -19,10 +19,14 @@ this" below).
 quire trace --id FR-047 --module path/to/module --json
 ```
 
-Exactly one of `--id` / `--symbol` / `--file` is required, and `--module` is
-always required — the graph needs a declared `traceability:` model to compute
-at all (same requirement as `quire coverage`). A missing model fails loudly
-rather than guessing.
+Exactly one of `--id` / `--symbol` / `--file` is required. `--module` is not
+a required *flag* — omit it and `trace` falls back to a `manifest.yaml` at
+`--scope`, then to ambient module discovery, the same resolution `quire
+coverage` uses — but a declared `traceability:` model is required for the
+graph to compute at all, from wherever it resolves. Pass `--module`
+explicitly whenever the ambient/ambient-manifest resolution might not be the
+module you mean. A scope with no model anywhere fails loudly rather than
+guessing.
 
 ## Inverse lookup: what does this symbol or file verify
 
@@ -58,9 +62,13 @@ output enforces the same split visually: a `Claims (N)` section, then a
 always visually separated.
 
 ```bash
-quire trace --id FR-047 --module path/to/module | jq '.claims'
-quire trace --id FR-047 --module path/to/module | jq '.citations'
+quire trace --id FR-047 --module path/to/module --json | jq '.claims'
+quire trace --id FR-047 --module path/to/module --json | jq '.citations'
 ```
+
+`--json` (or `--format json`) is required for `jq` to have anything to parse
+— the default output is the human form, and piping it into `jq` fails with a
+parse error, not a quiet no-op.
 
 ## Every record's confidence is reported, not assumed
 

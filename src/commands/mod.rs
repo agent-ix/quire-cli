@@ -150,3 +150,22 @@ pub fn load_module_registry(ctx: &Ctx, module: &Path) -> anyhow::Result<Registry
     }
     Ok(registry)
 }
+
+/// The `ModelUndeclared`-shaped refusal `coverage` and `trace` both need:
+/// neither has anything to reconcile without a declared `traceability:`
+/// model. Shared, not restated, so the two commands cannot independently
+/// drift on its wording the way an inline copy-pasted `bail!` would let them
+/// (review finding, PLAT-879 PR #99) — and returns the model directly rather
+/// than requiring a caller to re-derive it with a second `.expect()` after
+/// the check, which was itself a finding against the first draft of `trace`.
+pub fn require_traceability_model(
+    registry: &Registry,
+) -> anyhow::Result<&quire_rs::traceability::TraceabilityModel> {
+    registry.traceability().ok_or_else(|| {
+        anyhow::anyhow!(
+            "no module in scope declares a `traceability:` model, so there is \
+             nothing to reconcile; install a module that declares one (e.g. \
+             spec-artifacts-process) or pass --module"
+        )
+    })
+}
