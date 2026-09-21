@@ -52,6 +52,21 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   still agree. The `assurance_export.v1` capability and engine-owned assurance
   schema are unchanged.
 
+## [0.32.2] - 2026-09-20
+
+### Changed
+
+- **Engine pin advances to `acd1be633a1a89cf5e21bc1abb9a91b7e2493838`**
+  (PLAT-850), a descendant of `a874fb64` that carries quire-rs's Rust AST
+  port (PLAT-843, quire-rs#472), `0df4206` (quire-rs#407, bounded native
+  unittest method recognition), `616a7e9` (quire-rs#409/#410, per-reference
+  `status_column` selection — the 0.32.0 entry above already claims this
+  pin; the claim only becomes true once this release ships), and PLAT-845
+  (quire-rs#474, thread a function's own name into its body's container —
+  changes 207 symbol ids across the measured corpus). quire-rs stays at
+  semver **0.46.0**; only the commit moves. No CLI surface, exit code, or
+  JSON schema changes.
+
 ## [0.32.0] - 2026-09-06
 
 ### Added

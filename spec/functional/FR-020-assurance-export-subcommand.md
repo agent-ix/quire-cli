@@ -99,9 +99,21 @@ it does not disable schema checking.
 > manifest, lockfile, specification, changelog, and executable provenance in
 > exact agreement.
 
+> **PLAT-850 followup (2026-09-20):** advance the compatible engine identity to
+> `acd1be633a1a89cf5e21bc1abb9a91b7e2493838`, the merge of quire-rs #474
+> (PLAT-845: thread a function's own name into its body's container —
+> changes 207 symbol ids across the measured corpus), and everything ahead
+> of the prior pin — including quire-rs #472 (PLAT-843: `src/symbols/rust.rs`
+> ported from a hand-rolled line scanner to tree-sitter via
+> `quire-code-parse`), #407 (bounded native unittest method recognition), and
+> #409/#410 (per-reference `status_column` selection). Still quire-rs 0.46.0:
+> only the commit moves. The assurance schema and command semantics are
+> unchanged; IT-145 keeps the manifest, lockfile, specification, changelog,
+> and executable provenance in exact agreement.
+
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at revision `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
+| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at revision `acd1be633a1a89cf5e21bc1abb9a91b7e2493838` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
 | FR-020-CON-2 | The command SHALL execute no test, proof, solver, consumer, package-manager, Git, or network command. It performs parsing and static source extraction only. | Responsibility | Test |
 | FR-020-CON-3 | The CLI SHALL add no verdict, execution result, evidence freshness claim, generic evidence envelope, or tool-provenance field to the closed upstream payload. | Responsibility | Inspection |
 | FR-020-CON-4 | Unknown or malformed module versions, schema premises, source revisions, and incomplete module loads SHALL fail closed before any stdout byte. | Integrity | Test |
@@ -126,8 +138,10 @@ it does not disable schema checking.
   [FR-068](ix://agent-ix/quire-rs/FR-068), implemented by
   `agent-ix/quire-rs#389` at merge
   `e3352a0644abcfd5f0ebad348bc7aca235925ecc`; current compatible engine pin
-  `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f` (crate version 0.46.0), which
-  contains the exact-Rust-1.98.1 qualification merged by quire-rs #422.
+  `acd1be633a1a89cf5e21bc1abb9a91b7e2493838` (crate version 0.46.0), which
+  contains the tree-sitter Rust symbol extraction merged by quire-rs #472
+  (PLAT-843) and the nested-function container fix merged by quire-rs #474
+  (PLAT-845).
 - **Ownership gate**: `agent-ix/engineering-assurance#5`, accepted before this
   command was specified.
 - **Downstream**: `agent-ix/quoin#322` and the common compatibility fixtures in
