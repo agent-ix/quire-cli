@@ -32,6 +32,8 @@ quire validate --okf <BUNDLE_DIR> [--scope <DIR>] [--module <PATH>]
 quire schema <ARCHETYPE> --module <PATH>
 quire clauses evaluate --module <PATH> --authority <ID> --set <ID> --version <VERSION> [--context KEY=VALUE]...
 quire clauses diff --module <PATH> --authority <ID> --set <ID> --before-version <VERSION> --after-version <VERSION>
+quire trace (--id <ID> [--prefix] | --symbol <PATH#NAME> | --file <PATH>) --module <PATH>... \
+  [--scope <DIR>] [--exclude-path <GLOB>]... [--format human|json|tsv]
 ```
 
 Global flags:
@@ -294,6 +296,7 @@ Available skills:
 | `write-markdown` | `/write-markdown` | Author Markdown artifacts against an archetype's input contract via `schema` + `validate`. |
 | `validate-markdown` | `/validate-markdown` | Check authored Markdown structure with `validate`, `parse`, and `lookup`. |
 | `link-markdown` | `/link-markdown` | Inspect relationships, `ix://` links, and blast radius with `extract`. |
+| `trace` | `/trace` | Structural forward/inverse trace lookup — "what backs this id" / "what does this file verify" — with `trace`, never a hand-rolled grep pipeline. |
 
 Each skill has:
 
@@ -313,6 +316,7 @@ python3 path/to/quick_validate.py skills/explore-markdown
 python3 path/to/quick_validate.py skills/write-markdown
 python3 path/to/quick_validate.py skills/validate-markdown
 python3 path/to/quick_validate.py skills/link-markdown
+python3 path/to/quick_validate.py skills/trace
 ```
 
 ## Safety

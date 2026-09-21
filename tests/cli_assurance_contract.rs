@@ -6,7 +6,7 @@ use std::fs;
 
 use common::quire;
 
-const ENGINE_REVISION: &str = "acd1be633a1a89cf5e21bc1abb9a91b7e2493838";
+const ENGINE_REVISION: &str = "7efe616880610469f4577139c76856e18ef20fc6";
 
 // Trace: IT-145, FR-020-AC-9
 #[test]

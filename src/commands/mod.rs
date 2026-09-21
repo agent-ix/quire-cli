@@ -15,6 +15,7 @@ pub mod properties;
 pub mod provenance;
 pub mod schema;
 pub mod symbols;
+pub mod trace;
 pub mod update;
 pub mod validate;
 
