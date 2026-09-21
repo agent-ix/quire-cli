@@ -9,7 +9,53 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.32.3] - 2026-09-20
+
+No source change from `0.32.2` (`d61afb2`, PLAT-850) — this release exists
+solely to republish that commit's artifact correctly. `0.32.2`'s npm.ix
+package was built before the commit that produced it was finalized: `git
+commit --amend` ran after the release build, not before, so the binary's own
+`quire provenance` reported `cli.sourceRevision` as a commit (`e723b59`) the
+amend then made unreachable from any branch, with `cli.sourceState: "dirty"`.
+The engine leg was unaffected (it's read from `Cargo.lock` content, not live
+git state), and the behavioral fix itself was never in question — only the
+published artifact's self-reported identity was wrong.
+
+This build was produced from `d61afb23e9a936658307ee2e49d8e627e096045c` with
+a clean working tree confirmed before compiling, never after. Its own `quire
+provenance --json` reports `cli.sourceRevision: "d61afb23e9a936658307ee2e49d8e627e096045c"`,
+`cli.sourceState: "clean"`. The npm package version (`0.32.3`) does not match
+the embedded `CARGO_PKG_VERSION` (`0.32.2`, from `d61afb2`'s `Cargo.toml`,
+deliberately left unchanged so the verified binary and the published
+artifact are the same bytes) — this is a registry-label bump only, not a
+crate version bump. `0.32.1` and `0.32.2` are deprecated on npm.ix; do not
+resolve `latest` or a range to either.
+
+This build covers **linux-x64 only**. `@agent-ix/quire-cli@0.32.3`'s
+`optionalDependencies` still declare `darwin-arm64`, `linux-arm64`, and
+`win32-x64` at `0.32.3`, but no such versions exist on npm.ix for those three
+platforms — the last version where all four platform packages exist is
+`0.32.0`, so every release since `0.32.1` (including this one) carries three
+dangling platform pins. `npm install` succeeds on those platforms (npm skips
+a 404 on an optional dependency) and the launcher then exits 1 at every
+invocation with "the prebuilt binary package ... is not installed." This
+predates PLAT-850 and is **not** fixed here; see PLAT-885 for the gap and
+fix options.
+
 ## [0.32.2] - 2026-09-20
+
+**The npm.ix artifact published under this version was built dirty, from a
+commit this repository's history no longer contains — see `## [0.32.3]`
+above.** The source content described below is correct and is what actually
+shipped in `d61afb2`; only the previously-published binary's own provenance
+output was wrong. Deprecated on npm.ix in favor of `0.32.3`. Because both
+`0.32.1` and `0.32.2` are deprecated, npm will not resolve `latest` or a
+version range to either on any platform. On `linux-x64` that leaves a
+working, verified `0.32.3` above `0.32.0`. On
+`darwin-arm64`, `linux-arm64`, and `win32-x64` it does not — no platform
+package exists above `0.32.0` for those three (PLAT-885), so deprecating
+`0.32.1`/`0.32.2` leaves `0.32.0` as the newest install that actually runs
+there, not merely the newest recommended one.
 
 **First published build of everything below that had been sitting under
 `## [Unreleased]`** — the npm distribution tooling, `quire clauses`, and the
