@@ -36,7 +36,7 @@ allow-git = [
     "https://github.com/agent-ix/quire-rs",
     "https://github.com/agent-ix/ix-trace-rs",
     # PLAT-850: quire-rs 456f73f (PLAT-843), an ancestor of the pinned
-    # acd1be6, ports rust.rs symbol extraction to tree-sitter via
+    # 523e47f, ports rust.rs symbol extraction to tree-sitter via
     # quire-code-parse, pulling this repo in transitively.
     "https://github.com/agent-ix/quire-code-rs",
 ]
