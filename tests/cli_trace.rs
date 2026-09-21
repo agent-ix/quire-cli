@@ -397,6 +397,92 @@ fn prefix_does_not_double_count_ids_that_normalize_the_same() {
     );
 }
 
+// Coordinator follow-up on H1/H2: `id_segments` duplicates the engine's
+// `normalized_trace_id` fold rather than sharing it (that function is
+// `pub(crate)`, and boundary-aware `--prefix` needs the segment structure it
+// discards anyway). A duplicated invariant with nothing comparing the two
+// copies is exactly the defect class this campaign exists to kill — if
+// quire-rs ever changes its fold, this crate's copy keeps the old rule and
+// `--prefix` silently diverges from exact `--id` again, with every other
+// test in this file staying green because they all check this crate's fold
+// against itself.
+//
+// This test measures BOTH folds independently and behaviorally, never by
+// calling the unreachable `normalized_trace_id`:
+//   - the ENGINE's fold, observed through exact `--id` (which already
+//     case/separator-folds internally, per the HIGH 1 repro: `--id fr-047`
+//     found `FR-047`);
+//   - THIS CRATE's fold, observed through `--prefix` (`id_segments` /
+//     `prefix_matches`).
+// Over a table of five spellings of `FR-047` — including one that mixes
+// separator characters within a single spelling (`FR_047-`: underscore
+// internally, dash trailing) — plus the `FR-0470` decoy, which must never
+// enter either set. If the engine's rule ever moves, the exact-`--id`
+// assertions below change while the `--prefix` assertions do not, and this
+// test fails naming the diverging spelling.
+#[test]
+fn prefix_fold_tracks_the_engines_own_normalization_across_spellings() {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = tree(&dir);
+    let m = module(&dir);
+
+    let spellings = ["FR-047", "fr-047", "FR_047", "fr_047", "FR_047-"];
+
+    for spelling in spellings {
+        // The ENGINE's fold: an exact `--id` for every spelling must resolve
+        // to FR-047 alone — never pulling in FR-047-AC-1 (a real sibling)
+        // or FR-0470 (the decoy).
+        let exact = run(&[
+            "trace", "--scope", &scope, "--module", &m, "--id", spelling, "--json",
+        ]);
+        assert_eq!(
+            exact.code,
+            Some(0),
+            "spelling {spelling:?} stderr: {}",
+            exact.stderr
+        );
+        let exact_payload: serde_json::Value = serde_json::from_str(&exact.stdout).expect("json");
+        let exact_ids: Vec<String> = exact_payload["claims"]["verifies"]
+            .as_array()
+            .expect("verifies")
+            .iter()
+            .map(|v| v["trace_id"].as_str().unwrap().to_string())
+            .collect();
+        assert_eq!(
+            exact_ids,
+            vec!["FR-047".to_string()],
+            "engine's exact-match fold disagrees for spelling {spelling:?}: {exact_payload}"
+        );
+
+        // THIS CRATE's fold: `--prefix` for every spelling must resolve to
+        // the whole FR-047 family (FR-047, FR-047-AC-1) and still exclude
+        // the FR-0470 decoy.
+        let prefixed = run(&[
+            "trace", "--scope", &scope, "--module", &m, "--id", spelling, "--prefix", "--json",
+        ]);
+        assert_eq!(
+            prefixed.code,
+            Some(0),
+            "spelling {spelling:?} stderr: {}",
+            prefixed.stderr
+        );
+        let prefixed_payload: serde_json::Value =
+            serde_json::from_str(&prefixed.stdout).expect("json");
+        let mut prefixed_ids: Vec<String> = prefixed_payload["claims"]["verifies"]
+            .as_array()
+            .expect("verifies")
+            .iter()
+            .map(|v| v["trace_id"].as_str().unwrap().to_string())
+            .collect();
+        prefixed_ids.sort();
+        assert_eq!(
+            prefixed_ids,
+            vec!["FR-047".to_string(), "FR-047-AC-1".to_string()],
+            "this crate's --prefix fold disagrees for spelling {spelling:?}: {prefixed_payload}"
+        );
+    }
+}
+
 #[test]
 fn ambiguous_bare_symbol_name_lists_every_candidate() {
     // FR-077-AC-4: never a silent pick.

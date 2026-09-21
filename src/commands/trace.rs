@@ -500,6 +500,21 @@ fn search_by_prefix(
 /// function in the engine currently preserves those boundaries — boundary-
 /// aware prefix matching is CLI-only logic by design (quire-rs
 /// `traceability.rs`: the engine knows nothing of FR/AC/TC hierarchy).
+///
+/// This duplication is a liability by itself: if quire-rs ever changes what
+/// `normalized_trace_id` folds (a new character class, different case
+/// handling), this copy keeps the OLD rule and `--prefix` silently diverges
+/// from exact `--id` again, with every test in this file staying green
+/// because they all check this copy against itself. The integration test
+/// `prefix_fold_tracks_the_engines_own_normalization_across_spellings` in
+/// `tests/cli_trace.rs` is the guard against that: it measures the engine's
+/// fold behaviorally (through exact `--id`, since `normalized_trace_id`
+/// itself is `pub(crate)` and unreachable) and this crate's fold
+/// behaviorally (through `--prefix`) over the same spelling table, so a
+/// drift between the two shows up as a named, failing assertion instead of
+/// silence. Do not replace that test with a doc comment restating this
+/// property — an assertion the code does not enforce is what this note
+/// itself would become.
 fn id_segments(value: &str) -> Vec<String> {
     value
         .split(|c: char| !c.is_ascii_alphanumeric())
