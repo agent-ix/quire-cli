@@ -48,9 +48,10 @@ fix options.
 commit this repository's history no longer contains — see `## [0.32.3]`
 above.** The source content described below is correct and is what actually
 shipped in `d61afb2`; only the previously-published binary's own provenance
-output was wrong. Deprecated on npm.ix in favor of `0.32.3`, which does not
-resolve `latest` or a version range to `0.32.1` or `0.32.2` on any platform.
-On `linux-x64` that leaves a working, verified `0.32.3` above `0.32.0`. On
+output was wrong. Deprecated on npm.ix in favor of `0.32.3`. Because both
+`0.32.1` and `0.32.2` are deprecated, npm will not resolve `latest` or a
+version range to either on any platform. On `linux-x64` that leaves a
+working, verified `0.32.3` above `0.32.0`. On
 `darwin-arm64`, `linux-arm64`, and `win32-x64` it does not — no platform
 package exists above `0.32.0` for those three (PLAT-885), so deprecating
 `0.32.1`/`0.32.2` leaves `0.32.0` as the newest install that actually runs
