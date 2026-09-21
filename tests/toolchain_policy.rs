@@ -124,11 +124,22 @@ fn workflow_paths(root: &Path, findings: &mut Vec<Finding>) -> Vec<PathBuf> {
 }
 
 fn action_reference(line: &str) -> Option<&str> {
-    line.split_once("uses:")?.1.split_whitespace().next()
+    let trimmed = line.trim_start();
+    let trimmed = trimmed.strip_prefix("- ").unwrap_or(trimmed);
+    trimmed.strip_prefix("uses:")?.split_whitespace().next()
 }
 
 fn is_full_sha(value: &str) -> bool {
     value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+// First-party agent-ix/* reusable workflows and actions are our own code
+// under our own control, not a third-party supply-chain dependency -- closer
+// to an internal function call than to something that can be silently
+// changed underneath us. Pinning them by SHA would also defeat the reason
+// reusable workflows exist: a fix landing in one place (PLAT-878).
+fn is_first_party_action(action_path: &str) -> bool {
+    action_path == "agent-ix" || action_path.starts_with("agent-ix/")
 }
 
 fn cargo_command_needs_lock(line: &str) -> bool {
@@ -161,8 +172,10 @@ fn audit_workflow(relative: &Path, text: &str, findings: &mut Vec<Finding>) {
         }
 
         if let Some(action) = action_reference(line) {
-            let revision = action.rsplit_once('@').map(|(_, revision)| revision);
-            if !revision.is_some_and(is_full_sha) {
+            let parts = action.rsplit_once('@');
+            let is_first_party = parts.is_some_and(|(path, _)| is_first_party_action(path));
+            let revision = parts.map(|(_, revision)| revision);
+            if !is_first_party && !revision.is_some_and(is_full_sha) {
                 findings.push(Finding::new(
                     relative,
                     number,
