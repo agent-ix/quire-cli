@@ -35,9 +35,7 @@ fn it_145_help_docs_capability_and_dependency_pin_agree() {
     // manifest/lock/spec/changelog/executable agreement, and a spec file naming
     // a stale rev with every other check green is exactly the drift this test
     // exists to catch.
-    assert!(spec.contains(&format!(
-        "revision `{ENGINE_REVISION}` and use its owned"
-    )));
+    assert!(spec.contains(&format!("revision `{ENGINE_REVISION}` and use its owned")));
     assert!(quire_cli::engine::CAPABILITIES.contains(&"assurance_export.v1"));
 
     let resolved = quire_cli::lockfile::engine_source_revision(&lock).expect("engine revision");
