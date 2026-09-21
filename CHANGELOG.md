@@ -9,6 +9,14 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.32.2] - 2026-09-20
+
+**First published build of everything below that had been sitting under
+`## [Unreleased]`** — the npm distribution tooling, `quire clauses`, and the
+`85dfe9d5` engine advance were all implemented and merged to `main` across
+earlier PRs without a version cut. Moved here rather than left orphaned above
+a released version, the same drift the Fixed entry below is about.
+
 ### Fixed
 
 - **The 0.32.0 entry below claims an engine pin that release did not ship.** It
@@ -17,9 +25,9 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   `a874fb64`, which predates that commit, so the published 0.32.0 binary
   rejects `status_column` as an unknown field. Downstream work stalled for a
   week against a capability the changelog said was available. The engine pin
-  now at HEAD (`85dfe9d5`, #83) does carry it; the claim becomes true whenever
-  the next release ships. The historical entry is left in place and corrected
-  here rather than rewritten.
+  in this release (`acd1be6`, a descendant of `85dfe9d5`, #83) does carry it.
+  The historical entry is left in place and corrected here rather than
+  rewritten.
 
 ### Added
 
@@ -51,6 +59,26 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   `ClauseSet` types. FR-020-CON-1 advances with it, so IT-145's six surfaces
   still agree. The `assurance_export.v1` capability and engine-owned assurance
   schema are unchanged.
+
+- **Engine pin advances to `acd1be633a1a89cf5e21bc1abb9a91b7e2493838`**
+  (PLAT-850), a descendant of `85dfe9d5` above that carries quire-rs's Rust
+  AST port (PLAT-843, quire-rs#472, merged at `456f73f`), `0df4206`
+  (quire-rs#407, bounded native unittest method recognition), `616a7e9`
+  (quire-rs#409/#410, per-reference `status_column` selection), and PLAT-845
+  (quire-rs#474, thread a function's own name into its body's container —
+  changes 207 symbol ids across the measured corpus). quire-rs stays at
+  semver **0.46.0**; only the commit moves. No CLI surface, exit code, or
+  JSON schema changes.
+
+## [0.32.1] - 2026-09-20
+
+Superseded before merge, in-branch, once quire-rs main advanced to `acd1be6`
+(quire-rs#474, PLAT-845) during PLAT-850's review. Pinned quire-rs
+`456f73f557183fa38b55956c8698e97cc9fe7d79` (PLAT-843 only) and was briefly
+published to the internal npm.ix registry for verification; the amend that
+produced 0.32.2 rewrote this release's commit out of the branch's history, so
+no commit in this repository corresponds to it. See `## [0.32.2]` above, which
+carries the same change plus PLAT-845.
 
 ## [0.32.0] - 2026-09-06
 

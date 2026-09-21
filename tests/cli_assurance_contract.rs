@@ -6,7 +6,7 @@ use std::fs;
 
 use common::quire;
 
-const ENGINE_REVISION: &str = "85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f";
+const ENGINE_REVISION: &str = "acd1be633a1a89cf5e21bc1abb9a91b7e2493838";
 
 // Trace: IT-145, FR-020-AC-9
 #[test]
@@ -22,6 +22,7 @@ fn it_145_help_docs_capability_and_dependency_pin_agree() {
     let lock = read("Cargo.lock");
     let readme = read("README.md");
     let changelog = read("CHANGELOG.md");
+    let spec = read("spec/functional/FR-020-assurance-export-subcommand.md");
 
     assert!(manifest.contains(&format!("rev = \"{ENGINE_REVISION}\"")));
     assert!(lock.contains(&format!("rev={ENGINE_REVISION}#{ENGINE_REVISION}")));
@@ -29,6 +30,12 @@ fn it_145_help_docs_capability_and_dependency_pin_agree() {
     assert!(readme.contains("--expect-schema <MODULE/ARCHETYPE@SHA256>"));
     assert!(changelog.contains(ENGINE_REVISION));
     assert!(changelog.contains("assurance_export.v1"));
+    // FR-020-CON-1 states the pin as a normative constraint, not just narrative
+    // prose (the "CR followup" blockquotes above it) -- IT-145's job is exact
+    // manifest/lock/spec/changelog/executable agreement, and a spec file naming
+    // a stale rev with every other check green is exactly the drift this test
+    // exists to catch.
+    assert!(spec.contains(&format!("revision `{ENGINE_REVISION}` and use its owned")));
     assert!(quire_cli::engine::CAPABILITIES.contains(&"assurance_export.v1"));
 
     let resolved = quire_cli::lockfile::engine_source_revision(&lock).expect("engine revision");
