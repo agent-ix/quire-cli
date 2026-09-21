@@ -58,6 +58,8 @@ enum Command {
     Coverage(commands::coverage::Args),
     /// Report the extracted symbol table, as the engine built it (#309).
     Symbols(commands::symbols::Args),
+    /// Structural forward/inverse lookup over the trace-search index (PLAT-879).
+    Trace(commands::trace::Args),
     /// Per-criterion property-shape classification (FR-052). Reports; never a finding.
     Properties(commands::properties::Args),
     /// Report exact CLI/engine source identity and capabilities as JSON.
@@ -87,6 +89,7 @@ fn main() {
         Command::Edit(a) => commands::edit::run(&ctx, a),
         Command::Coverage(a) => commands::coverage::run(&ctx, a),
         Command::Symbols(a) => commands::symbols::run(&ctx, a),
+        Command::Trace(a) => commands::trace::run(&ctx, a),
         Command::Validate(a) => commands::validate::run(&ctx, a),
         Command::Properties(a) => commands::properties::run(&ctx, a),
         Command::Provenance(a) => commands::provenance::run(&ctx, a),

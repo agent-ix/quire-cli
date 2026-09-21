@@ -1,0 +1,7 @@
+interface:
+  display_name: "Trace"
+  short_description: "Structural trace lookup"
+  default_prompt: "Use $trace to look up what backs a requirement id or what a file/symbol verifies with quire trace."
+
+policy:
+  allow_implicit_invocation: true
