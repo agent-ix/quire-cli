@@ -120,9 +120,22 @@ it does not disable schema checking.
 > by that addition; IT-145 keeps the manifest, lockfile, specification,
 > changelog, and executable provenance in exact agreement.
 
+> **PLAT-850 followup (2026-09-21):** advance the compatible engine identity to
+> `523e47f61ca5532c3c86064ed4872a1c5de3ed02`, the merge of quire-rs #481
+> (PLAT-882: the TypeScript symbol adapter ported to tree-sitter via
+> `quire-code-parse`), and everything ahead of the prior pin, including
+> quire-rs #479 (PLAT-868: the Python symbol adapter ported to tree-sitter).
+> Still quire-rs 0.46.0: only the commit moves. Both ports change the
+> symbols an extraction observes on Python/TypeScript sources — measured
+> upstream as a net -35/+44 identity delta on the TypeScript corpus and zero
+> identity deltas (only `leading_line`/`end_line` shifts) on the Python
+> corpus — but neither touches the `assurance-v1` schema shape or this
+> command's export semantics; IT-145 keeps the manifest, lockfile,
+> specification, changelog, and executable provenance in exact agreement.
+
 | ID | Constraint | Type | Validation |
 |----|------------|------|------------|
-| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at revision `7efe616880610469f4577139c76856e18ef20fc6` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
+| FR-020-CON-1 | The CLI SHALL pin quire-rs 0.46.0 at revision `523e47f61ca5532c3c86064ed4872a1c5de3ed02` and use its owned `assurance-v1` schema without vendoring or generating another schema. | Compatibility | Inspection |
 | FR-020-CON-2 | The command SHALL execute no test, proof, solver, consumer, package-manager, Git, or network command. It performs parsing and static source extraction only. | Responsibility | Test |
 | FR-020-CON-3 | The CLI SHALL add no verdict, execution result, evidence freshness claim, generic evidence envelope, or tool-provenance field to the closed upstream payload. | Responsibility | Inspection |
 | FR-020-CON-4 | Unknown or malformed module versions, schema premises, source revisions, and incomplete module loads SHALL fail closed before any stdout byte. | Integrity | Test |
@@ -147,10 +160,13 @@ it does not disable schema checking.
   [FR-068](ix://agent-ix/quire-rs/FR-068), implemented by
   `agent-ix/quire-rs#389` at merge
   `e3352a0644abcfd5f0ebad348bc7aca235925ecc`; current compatible engine pin
-  `7efe616880610469f4577139c76856e18ef20fc6` (crate version 0.46.0), which
+  `523e47f61ca5532c3c86064ed4872a1c5de3ed02` (crate version 0.46.0), which
   contains the tree-sitter Rust symbol extraction merged by quire-rs #472
   (PLAT-843), the nested-function container fix merged by quire-rs #474
-  (PLAT-845), and the trace-search index merged by quire-rs #477 (PLAT-844).
+  (PLAT-845), the trace-search index merged by quire-rs #477 (PLAT-844),
+  the tree-sitter Python symbol adapter merged by quire-rs #479 (PLAT-868),
+  and the tree-sitter TypeScript symbol adapter merged by quire-rs #481
+  (PLAT-882).
 - **Ownership gate**: `agent-ix/engineering-assurance#5`, accepted before this
   command was specified.
 - **Downstream**: `agent-ix/quoin#322` and the common compatibility fixtures in

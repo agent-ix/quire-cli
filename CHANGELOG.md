@@ -23,6 +23,13 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 - Bumped the `quire-rs` pin to `7efe616880610469f4577139c76856e18ef20fc6`
   (PLAT-844 merged), which carries `src/symbols/trace_search.rs` and the
   `SymbolGraph.mentions` field `quire trace` depends on.
+- Bumped the `quire-rs` pin to `523e47f61ca5532c3c86064ed4872a1c5de3ed02`
+  (PLAT-850), carrying the Python (PLAT-868) and TypeScript (PLAT-882)
+  symbol adapters' port from hand-rolled scanners to tree-sitter via
+  `quire-code-parse`. Still quire-rs 0.46.0: only the commit moves. The two
+  ports change the symbols an extraction observes on Python/TypeScript
+  sources but touch neither the `assurance-v1` schema nor this CLI's
+  surface.
 
 ## [0.32.3] - 2026-09-20
 
