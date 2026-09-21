@@ -48,11 +48,12 @@ enum Command {
         #[arg(long, default_value = "artifacts")]
         artifacts_dir: PathBuf,
     },
-    /// Post-publish gate: assert every platform package the launcher
-    /// declares actually resolves at its pinned version in `registry`.
+    /// Post-publish gate: fetch the launcher package as actually published
+    /// at `version` from `registry`, and assert every platform package its
+    /// published optionalDependencies declares also resolves there.
     VerifyPublished {
-        #[arg(long, default_value = ".")]
-        root: PathBuf,
+        #[arg(long)]
+        version: String,
         #[arg(long)]
         registry: String,
         #[arg(long, default_value = "npm")]
@@ -86,11 +87,11 @@ fn main() -> Result<()> {
             license: &root.join("LICENSE"),
         }),
         Command::VerifyPublished {
-            root,
+            version,
             registry,
             npm_binary,
         } => verify_published(&VerifyPublished {
-            launcher_manifest: &root.join("npm/quire-cli/package.json"),
+            version: &version,
             registry: &registry,
             npm_binary: npm_binary.as_os_str(),
         }),

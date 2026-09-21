@@ -1,11 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use ix_trace_rs::trace;
 use quire_dist::{
     package_npm, set_version, verify_binary_version, verify_published, verify_release, PackageNpm,
-    SetVersion, VerifyPublished, VerifyRelease, TARGETS,
+    SetVersion, VerifyPublished, VerifyRelease, LAUNCHER_PACKAGE_NAME, TARGETS,
 };
 use serde_json::{json, Value};
 use tempfile::TempDir;
@@ -509,28 +510,76 @@ fn it164_native_binary_version_mismatch_fails() {
     assert!(error.to_string().contains("reports version 1.2.3"));
 }
 
-/// A fake `npm` that answers `view <name>@<version> version --registry <r>`
-/// without any real registry: a version containing `missing` is treated as a
-/// 404 (exit 1, npm-shaped stderr), everything else echoes the requested
-/// version to stdout with exit 0 -- exactly the two shapes real `npm view`
-/// produces, so `verify_published` is exercised the same way it runs in
-/// production, only against a hermetic stand-in for the network call.
+/// A fake `npm` that answers the two `npm view` shapes `verify_published`
+/// actually issues:
+///
+/// - `view <spec> version <registry_arg>` (one platform package)
+/// - `view <spec> --json <registry_arg>` (the launcher package, whose
+///   response is read from a sibling `published-manifest.json` fixture so
+///   each sub-case below can vary it)
+///
+/// `registry_arg` is asserted verbatim against `expected_registry_override`
+/// and the stub fails, loudly, if it is wrong or absent — this is the fix
+/// for the reviewer's finding: a stub that answers regardless of the
+/// registry argument tests nothing about the registry argument. Deleting
+/// `&registry_override` from either call site in `lib.rs` now fails every
+/// "should succeed" case below immediately, not just a dedicated one, since
+/// every call this test makes goes through the same assertion.
+///
+/// A version containing `missing` is treated as a 404 (exit 1, npm-shaped
+/// stderr) in both modes -- measured directly against npm 10.9.2 and the
+/// CI-pinned 11.6.2 on both npm.ix and public npm, a genuinely absent
+/// version reliably exits non-zero with `E404`, never exit 0 with empty
+/// stdout, on either registry. A version containing `garbled` echoes a
+/// version that disagrees with what was asked for, exit 0 -- the shape
+/// `verify_package_resolves`'s `resolved != version` guard exists for.
+///
+/// `#[cfg(unix)]`: this and `it165_...resolved_packages` below are the
+/// only tests that exercise `verify_published`'s stub-backed hermetic path
+/// through a `sh` script, so Windows carries zero coverage of it. Accepted
+/// deliberately, not by omission: `tests/npm_host.rs` already takes the
+/// same `#![cfg(unix)]` stance file-wide for the identical reason (a shell
+/// stub host), and `make ci`/this repo's CI never run `cargo test` on
+/// Windows at all -- the only Windows leg is `release.yml`'s
+/// `x86_64-pc-windows-msvc` *build* matrix entry, which never runs the test
+/// suite. The real-network `it165_unreachable_registry_...` case below is
+/// not `#[cfg(unix)]` and does run cross-platform.
 #[cfg(unix)]
-fn write_stub_npm(directory: &Path) -> PathBuf {
+fn write_stub_npm(directory: &Path, expected_registry_override: &str) -> PathBuf {
     use std::os::unix::fs::PermissionsExt;
     let path = directory.join("npm");
-    fs::write(
-        &path,
+    let script = format!(
         "#!/bin/sh\n\
+         here=\"$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)\"\n\
          spec=\"$2\"\n\
-         version=\"${spec##*@}\"\n\
-         case \"$version\" in\n\
-         \x20\x20*missing*) echo 'npm error code E404' >&2; exit 1 ;;\n\
-         \x20\x20*garbled*) echo 'not-the-requested-version' ;;\n\
-         \x20\x20*) echo \"$version\" ;;\n\
-         esac\n",
-    )
-    .expect("write stub npm");
+         mode=\"$3\"\n\
+         registry_arg=\"$4\"\n\
+         if [ \"$registry_arg\" != {expected_registry_override:?} ]; then\n\
+         \x20\x20echo \"npm error: unexpected or missing registry override '$registry_arg'\" >&2\n\
+         \x20\x20exit 1\n\
+         fi\n\
+         version=\"${{spec##*@}}\"\n\
+         case \"$mode\" in\n\
+         \x20\x20--json)\n\
+         \x20\x20\x20\x20case \"$version\" in\n\
+         \x20\x20\x20\x20\x20\x20*missing*) echo 'npm error code E404' >&2; exit 1 ;;\n\
+         \x20\x20\x20\x20\x20\x20*) cat \"$here/published-manifest.json\" ;;\n\
+         \x20\x20\x20\x20esac\n\
+         \x20\x20\x20\x20;;\n\
+         \x20\x20version)\n\
+         \x20\x20\x20\x20case \"$version\" in\n\
+         \x20\x20\x20\x20\x20\x20*missing*) echo 'npm error code E404' >&2; exit 1 ;;\n\
+         \x20\x20\x20\x20\x20\x20*garbled*) echo 'not-the-requested-version' ;;\n\
+         \x20\x20\x20\x20\x20\x20*) echo \"$version\" ;;\n\
+         \x20\x20\x20\x20esac\n\
+         \x20\x20\x20\x20;;\n\
+         \x20\x20*)\n\
+         \x20\x20\x20\x20echo \"npm error: unknown query mode '$mode'\" >&2\n\
+         \x20\x20\x20\x20exit 1\n\
+         \x20\x20\x20\x20;;\n\
+         esac\n"
+    );
+    fs::write(&path, script).expect("write stub npm");
     fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).expect("chmod stub npm");
     path
 }
@@ -539,58 +588,99 @@ fn write_stub_npm(directory: &Path) -> PathBuf {
 #[trace("IT-165", "FR-023-AC-9")]
 #[test]
 fn it165_publish_resolvability_gate_fails_closed_and_passes_on_resolved_packages() {
+    let registry = "http://npm.ix/";
+    let expected_registry_override = "--@agent-ix:registry=http://npm.ix/";
     let stub_dir = tempfile::tempdir().expect("stub npm directory");
-    let npm = write_stub_npm(stub_dir.path());
+    let npm = write_stub_npm(stub_dir.path(), expected_registry_override);
+    let manifest_fixture = stub_dir.path().join("published-manifest.json");
 
-    let root = tempfile::tempdir().expect("launcher root");
-    let launcher_manifest = root.path().join("package.json");
-    let write_dependencies = |dependencies: Value| {
+    let write_published_manifest = |version: &str, dependencies: Value| {
         write_json(
-            &launcher_manifest,
-            &json!({ "optionalDependencies": dependencies }),
+            &manifest_fixture,
+            &json!({ "version": version, "optionalDependencies": dependencies }),
         );
     };
-    let verify = |registry: &str| {
+    let verify = |version: &str| {
         verify_published(&VerifyPublished {
-            launcher_manifest: &launcher_manifest,
+            version,
             registry,
             npm_binary: npm.as_os_str(),
         })
     };
 
-    // Every declared package resolves at its pinned version: success.
-    write_dependencies(json!({
-        "@agent-ix/quire-cli-linux-x64": "0.32.3",
-    }));
-    verify("http://npm.ix/").expect("all packages resolve");
+    // The launcher itself, and every declared platform package, resolves at
+    // its pinned version: success. This is also the mutation-sensitivity
+    // check for the registry argument: if `lib.rs` stopped passing
+    // `--@agent-ix:registry=…`, the stub above would refuse every call the
+    // launcher-manifest fetch makes, and this assertion would fail first.
+    write_published_manifest(
+        "0.32.3",
+        json!({ "@agent-ix/quire-cli-linux-x64": "0.32.3" }),
+    );
+    verify("0.32.3").expect("launcher and platform package both resolve");
 
-    // One declared package does not exist at its pinned version: this is
+    // The launcher package itself does not resolve at the requested version
+    // (its own `npm publish` failed after the platform packages already
+    // succeeded, or nothing was published at all) -- must fail, naming the
+    // launcher, never silently falling back to checking only the platform
+    // packages a local file happened to list.
+    let error = verify("0.32.3-missing").expect_err("unresolved launcher must fail");
+    assert!(error
+        .to_string()
+        .contains(&format!("{LAUNCHER_PACKAGE_NAME}@0.32.3-missing")));
+
+    // One declared platform package does not exist at its pinned version:
     // the exact PLAT-885 shape (three dangling platform pins alongside one
     // real one), and it must fail, naming the unresolved package.
-    write_dependencies(json!({
-        "@agent-ix/quire-cli-linux-x64": "0.32.3",
-        "@agent-ix/quire-cli-darwin-arm64": "0.32.3-missing",
-    }));
-    let error = verify("http://npm.ix/").expect_err("unresolved package must fail");
+    write_published_manifest(
+        "0.32.3",
+        json!({
+            "@agent-ix/quire-cli-linux-x64": "0.32.3",
+            "@agent-ix/quire-cli-darwin-arm64": "0.32.3-missing",
+        }),
+    );
+    let error = verify("0.32.3").expect_err("unresolved platform package must fail");
     assert!(error
         .to_string()
         .contains("@agent-ix/quire-cli-darwin-arm64@0.32.3-missing"));
 
     // `npm view` can exit 0 while printing something other than what was
-    // asked for (a stale index, a scoped-registry quirk) -- defend against
-    // trusting a non-empty stdout as proof on its own.
-    write_dependencies(json!({
-        "@agent-ix/quire-cli-linux-x64": "0.32.3-garbled",
-    }));
-    let error = verify("http://npm.ix/").expect_err("a printed version that disagrees must fail");
+    // asked for -- defend against trusting a non-empty stdout as proof on
+    // its own.
+    write_published_manifest(
+        "0.32.3",
+        json!({ "@agent-ix/quire-cli-linux-x64": "0.32.3-garbled" }),
+    );
+    let error = verify("0.32.3").expect_err("a printed version that disagrees must fail");
     assert!(error
         .to_string()
         .contains("did not resolve to \"0.32.3-garbled\""));
 
-    // Empty optionalDependencies must fail outright, not pass by iterating
-    // zero entries -- that silent success is the defect class this gate
-    // exists to catch (PLAT-885).
-    write_dependencies(json!({}));
-    let error = verify("http://npm.ix/").expect_err("empty dependency set must fail");
-    assert!(error.to_string().contains("optionalDependencies is empty"));
+    // Empty optionalDependencies (or the field absent entirely) must fail
+    // outright, not pass by iterating zero entries -- that silent success
+    // is the defect class this gate exists to catch (PLAT-885).
+    write_published_manifest("0.32.3", json!({}));
+    let error = verify("0.32.3").expect_err("empty dependency set must fail");
+    assert!(error
+        .to_string()
+        .contains("must declare at least one platform package"));
+}
+
+/// The unreachable-registry half of FR-023-AC-9, against the real `npm`
+/// binary rather than the hermetic stub: a host that cannot even resolve
+/// must fail the gate. This is precisely the scenario finding 1 measured as
+/// silently passing under the original `--registry` flag (npm resolved the
+/// scope against this host's own default and never consulted the flag).
+/// Network-dependent, so it is `#[ignore]`d out of the default offline
+/// suite rather than skipping silently or flaking under a blocked host.
+#[trace("IT-165", "FR-023-AC-9")]
+#[test]
+#[ignore = "hits the real npm binary and a non-resolving network address; run explicitly with `cargo test -- --ignored`"]
+fn it165_unreachable_registry_fails_against_real_npm() {
+    verify_published(&VerifyPublished {
+        version: "0.32.3",
+        registry: "http://does-not-exist.invalid/",
+        npm_binary: OsStr::new("npm"),
+    })
+    .expect_err("an unreachable registry must fail the gate, not resolve against some default");
 }
