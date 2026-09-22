@@ -9,6 +9,7 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **Engine: quire-rs 0.47.1 (PLAT-974).** The pin moves to the v0.47.1 release (`92dbebc`), whose semantic layer embeds `@agent-ix/semantic-core` 0.3.0 and requires bundle artifacts to list their `operations`. This is what the default Filament modules now declare. IT-145 now checks that the lockfile resolves the revision `Cargo.toml` pins, rather than a SHA restated across the changelog and specification.
 - **`package-npm` emits only the platforms actually built, and a post-publish resolvability gate closes the loop (PLAT-885).** The launcher's `optionalDependencies` is now derived from the artifacts present in a given run, never from a hardcoded four-platform list — a platform this run didn't build is simply absent, not pinned to a version that was never published. A new `quire-dist verify-published` command (`make dist-verify-published REGISTRY=<url>`) asserts, after publish, that every declared platform package actually resolves at its pinned version in the target registry; it fails on an unresolved package and on an empty dependency set. `0.32.1`–`0.32.3`'s already-published dangling pins are unchanged — this fixes the generator for future releases.
 - Added the `quire trace` subcommand (PLAT-879): structural forward
   (`--id [--prefix]`) and inverse (`--symbol`/`--file`) lookup over the

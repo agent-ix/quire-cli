@@ -3,6 +3,11 @@
 version = 4
 
 [[package]]
+name = "agent-ix-semantic-schema"
+version = "0.1.0"
+source = "git+https://github.com/agent-ix/filament-core-data?tag=semantic-schema-v0.1.0#dc6e85b1df6972e7203b3560781c26b67b0a678e"
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1071,9 +1076,10 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.46.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=523e47f61ca5532c3c86064ed4872a1c5de3ed02#523e47f61ca5532c3c86064ed4872a1c5de3ed02"
+version = "0.47.1"
+source = "git+https://github.com/agent-ix/quire-rs?rev=92dbebc49f354f7a3d5050b94cd2d57d9084d99f#92dbebc49f354f7a3d5050b94cd2d57d9084d99f"
 dependencies = [
+ "agent-ix-semantic-schema",
  "globset",
  "ignore",
  "indexmap",
@@ -1094,7 +1100,7 @@ dependencies = [
 [[package]]
 name = "quire-rust-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=523e47f61ca5532c3c86064ed4872a1c5de3ed02#523e47f61ca5532c3c86064ed4872a1c5de3ed02"
+source = "git+https://github.com/agent-ix/quire-rs?rev=92dbebc49f354f7a3d5050b94cd2d57d9084d99f#92dbebc49f354f7a3d5050b94cd2d57d9084d99f"
 dependencies = [
  "quire-code-parse",
 ]

@@ -39,4 +39,7 @@ allow-git = [
     # 523e47f, ports rust.rs symbol extraction to tree-sitter via
     # quire-code-parse, pulling this repo in transitively.
     "https://github.com/agent-ix/quire-code-rs",
+    # quire-rs embeds the semantic-core and module-manifest schemas from
+    # filament-core-data's agent-ix-semantic-schema crate.
+    "https://github.com/agent-ix/filament-core-data",
 ]
