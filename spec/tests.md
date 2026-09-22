@@ -44,7 +44,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 ## User Story Coverage
 
-| User Story | Acceptance Criteria | Test Cases | Coverage Status |
+| User Story | Acceptance Criteria | Test Cases | Status |
 |----|----|----|--------|
 | US-001 Agent renders FR | ⛔ RETIRED (§2bis) | IT-001, IT-009, IT-010, TC-088 (all retired) | ⛔ |
 | US-002 Human parses doc | AC-1..4 | IT-002, IT-011 (stdin), IT-012 (malformed frontmatter), IT-013 (empty doc) | ✅ |
@@ -56,7 +56,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 ## Functional Requirement Coverage
 
-| Functional Req | Acceptance Criteria | Test Cases | Coverage Status |
+| Functional Req | Acceptance Criteria | Test Cases | Status |
 |----|----|----|--------|
 | FR-001 render subcommand | ⛔ RETIRED (§2bis) | IT-001, IT-009, IT-010, IT-017, IT-018 (all retired) | ⛔ |
 | FR-002 parse subcommand | AC-1..5 | IT-002, IT-011, IT-012, IT-013, IT-019 (byte-offset round-trip) | ✅ |

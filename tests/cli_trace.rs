@@ -147,7 +147,7 @@ fn prefix_fold_tree(dir: &TempDir) -> String {
 
 #[test]
 fn claims_and_citations_are_structurally_separate_json_subtrees() {
-    // FR-077-AC-1: the whole reason this tool exists. `.claims` and
+    // Upstream trace-search criterion 1, the whole reason this tool exists. `.claims` and
     // `.citations` must be separate keys, and the same trace id's claim and
     // citation records must never collapse into one homogeneous list.
     let dir = TempDir::new().expect("tempdir");
@@ -485,7 +485,7 @@ fn prefix_fold_tracks_the_engines_own_normalization_across_spellings() {
 
 #[test]
 fn ambiguous_bare_symbol_name_lists_every_candidate() {
-    // FR-077-AC-4: never a silent pick.
+    // Upstream trace-search criterion 4: never a silent pick.
     let dir = TempDir::new().expect("tempdir");
     let scope = ambiguous_tree(&dir);
     let m = module(&dir);
@@ -556,7 +556,7 @@ fn file_query_returns_every_claim_and_citation_in_that_file() {
     assert_eq!(out.code, Some(0), "stderr: {}", out.stderr);
     let payload: serde_json::Value = serde_json::from_str(&out.stdout).expect("json");
     let verifies = payload["claims"]["verifies"].as_array().expect("verifies");
-    // FR-900, FR-047, FR-047-AC-1, FR-0470 all in src/lib.rs.
+    // Every fixture id the tree writes lives in src/lib.rs.
     assert_eq!(verifies.len(), 4, "{payload}");
 }
 
