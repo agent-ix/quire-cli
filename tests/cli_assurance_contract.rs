@@ -32,7 +32,10 @@ fn it_145_help_docs_capability_and_dependency_pin_agree() {
     let resolved = quire_cli::lockfile::engine_source_revision(&lock).expect("engine revision");
     assert_eq!(resolved, pinned);
     let version = quire_cli::lockfile::engine_manifest_version(&lock).expect("engine version");
-    assert!(manifest.contains(&format!("version = \"={version}\"")), "{version}");
+    assert!(
+        manifest.contains(&format!("version = \"={version}\"")),
+        "{version}"
+    );
 
     assert!(readme.contains("quire assurance"));
     assert!(readme.contains("--expect-schema <MODULE/ARCHETYPE@SHA256>"));
