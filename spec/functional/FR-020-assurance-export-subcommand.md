@@ -152,15 +152,15 @@ it does not disable schema checking.
 | FR-020-AC-6 | The command delegates construction to `build_assurance_export`, validation to `read_assurance_export`, corpus loading to `Spec`, extraction to `extract_tree_scoped`, and binding to `trace::bind`; a static boundary audit rejects a second graph, schema, or direct parser in the CLI. | Inspection (TC-814) |
 | FR-020-AC-7 | The command opens no network socket and spawns no child process on success or refusal paths. | Test (IT-143) |
 | FR-020-AC-8 | A checked-in golden JSON fixture validates against the upstream schema in Rust, is consumed from the exact same bytes by required Node/TypeScript and Python compatibility probes without normalization, and pins every v1 field and state token. A missing probe runtime fails the gate. | Test (IT-144) |
-| FR-020-AC-9 | `--help`, README, changelog, linked-engine capability reporting, and a lockfile resolving the revision `Cargo.toml` pins consistently describe the assurance command and quire-rs compatibility boundary. | Test (IT-145) |
+| FR-020-AC-9 | `--help`, README, changelog, linked-engine capability reporting, and a `Cargo.toml` pin of quire-rs by exact version and revision consistently describe the assurance command and quire-rs compatibility boundary. | Test (IT-145) |
 
 ## Dependencies
 
 - **Upstream**: quire-rs [FR-067](ix://agent-ix/quire-rs/FR-067) and
   [FR-068](ix://agent-ix/quire-rs/FR-068), implemented by
   `agent-ix/quire-rs#389` at merge
-  `e3352a0644abcfd5f0ebad348bc7aca235925ecc`; the compatible engine is the one `Cargo.toml` pins (quire-rs 0.47.1 at the time
-  of writing); its revision is stated there only.
+  `e3352a0644abcfd5f0ebad348bc7aca235925ecc`; the compatible engine is the one `Cargo.toml` pins; its version and
+  revision are stated there only.
 - **Ownership gate**: `agent-ix/engineering-assurance#5`, accepted before this
   command was specified.
 - **Downstream**: `agent-ix/quoin#322` and the common compatibility fixtures in

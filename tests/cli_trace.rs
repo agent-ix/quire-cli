@@ -556,7 +556,7 @@ fn file_query_returns_every_claim_and_citation_in_that_file() {
     assert_eq!(out.code, Some(0), "stderr: {}", out.stderr);
     let payload: serde_json::Value = serde_json::from_str(&out.stdout).expect("json");
     let verifies = payload["claims"]["verifies"].as_array().expect("verifies");
-    // Every fixture id the tree writes lives in src/lib.rs.
+    // The four `#[trace]` tags the tree writes all live in src/lib.rs.
     assert_eq!(verifies.len(), 4, "{payload}");
 }
 

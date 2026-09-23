@@ -17,24 +17,20 @@ fn it_145_help_docs_capability_and_dependency_pin_agree() {
     let root = env!("CARGO_MANIFEST_DIR");
     let read = |relative: &str| fs::read_to_string(format!("{root}/{relative}")).expect(relative);
     let manifest = read("Cargo.toml");
-    let lock = read("Cargo.lock");
     let readme = read("README.md");
     let changelog = read("CHANGELOG.md");
 
-    // The engine identity lives in Cargo.toml alone; the lock must resolve the
-    // revision the manifest pins. No prose restates the SHA.
-    let pinned = manifest
+    // The engine identity lives in Cargo.toml alone, pinned by rev with an
+    // exact version; `cargo --locked` already checks the lock agrees with it.
+    // No prose restates the SHA.
+    let pin = manifest
         .lines()
         .find(|line| line.starts_with("quire-rs = "))
-        .and_then(|line| line.split("rev = \"").nth(1))
-        .and_then(|rest| rest.split('"').next())
-        .expect("Cargo.toml pins quire-rs by rev");
-    let resolved = quire_cli::lockfile::engine_source_revision(&lock).expect("engine revision");
-    assert_eq!(resolved, pinned);
-    let version = quire_cli::lockfile::engine_manifest_version(&lock).expect("engine version");
+        .expect("Cargo.toml declares quire-rs");
+    assert!(pin.contains("rev = \""), "quire-rs is pinned by rev: {pin}");
     assert!(
-        manifest.contains(&format!("version = \"={version}\"")),
-        "{version}"
+        pin.contains("version = \"="),
+        "quire-rs is pinned to an exact version: {pin}"
     );
 
     assert!(readme.contains("quire assurance"));
