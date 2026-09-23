@@ -35,8 +35,10 @@ unknown-git = "deny"
 allow-git = [
     "https://github.com/agent-ix/quire-rs",
     "https://github.com/agent-ix/ix-trace-rs",
-    # PLAT-850: quire-rs 456f73f (PLAT-843), an ancestor of the pinned
-    # 523e47f, ports rust.rs symbol extraction to tree-sitter via
-    # quire-code-parse, pulling this repo in transitively.
+    # PLAT-850: quire-rs ports rust.rs symbol extraction to tree-sitter via
+    # quire-code-parse (PLAT-843), pulling this repo in transitively.
     "https://github.com/agent-ix/quire-code-rs",
+    # quire-rs embeds the semantic-core and module-manifest schemas from
+    # filament-core-data's agent-ix-semantic-schema crate.
+    "https://github.com/agent-ix/filament-core-data",
 ]
