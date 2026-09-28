@@ -73,3 +73,7 @@ Reviewed at agent-ix/quire-cli@370f4b95ec1172ada6b5092a3608406de976a76d.
 | FND-001 | fixed | 370f4b9 — §B 68-82 defines zero population as zero criteria in either shape; §G 202-206 and AC-10 require at least one criterion to exit 0 under --strict; IT-173/IT-174 cover both shapes |
 | FND-002 | fixed | 370f4b9 — §G 190-223 and AC-12: `--severity` is not accepted (clap exit 2, FR-007-AC-5), grammar_severity promotions have no effect, FR-017-AC-22 explicitly not inherited with a stated reason; IT-176 rewritten to match |
 | FND-003 | fixed | 370f4b9 — §D 130-137, §F 180, AC-5, AC-8 render binders as path:line:column; IT-169 asserts no same-line collapse |
+
+### Dispositions — round 2
+
+Reviewed at agent-ix/quire-cli@587f609eadc9e17d8fd72eb84673310dd3895226. No finding in this file had an open outcome after round 1; nothing to dispose. The round-2 diff touches no artifact in this file's scope beyond FR-026 §A/§C wording, which introduces no defect for this analysis.

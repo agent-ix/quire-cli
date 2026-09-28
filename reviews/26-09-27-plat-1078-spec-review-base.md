@@ -72,3 +72,12 @@ Reviewed at agent-ix/quire-cli@370f4b95ec1172ada6b5092a3608406de976a76d.
 | FND-002 | fixed | 370f4b9 — exact `## <document>` heading (§C 92-97, AC-4), literal zero line `No obligations matched this scope.` (99-104, AC-9), `\|` escaping after truncation (108-126, AC-6) |
 | FND-003 | fixed | 370f4b9 — §E 165-167 and AC-7 describe an object carrying `requirements[]`, never a bare array |
 | FND-004 | fixed | 370f4b9 — Description 22-24 states stdout result / stderr diagnostics (FR-006); "fourth, non-error state" removed |
+
+### Dispositions — round 2
+
+Reviewed at agent-ix/quire-cli@587f609eadc9e17d8fd72eb84673310dd3895226. Regression check of the 370f4b9..587f609 diff: only FR-026 lines 59-65 and 119 changed in spec; no new defect.
+
+| FND | Outcome | sha/reason |
+| --- | --- | --- |
+| FND-005 | fixed | 587f609 — worked example now states 61 characters, matching the statement's scalar-value count |
+| FND-006 | fixed | 587f609 — §A now says the statement is carried verbatim and untruncated, citing FR-053 |

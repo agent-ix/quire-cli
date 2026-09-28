@@ -34,3 +34,7 @@ Reviewed at agent-ix/quire-cli@370f4b95ec1172ada6b5092a3608406de976a76d.
 | FND | Outcome | sha/reason |
 | --- | --- | --- |
 | FND-001 | fixed | 370f4b9 — IT-177 and AC-14 cover all of `<scope>`; TC-841 type is Unit; IT-174 traces AC-10 and AC-11; AC-2 and IT-167 require `matrix --help` to carry the FR-017-AC-21 text. AC-1..14 still map both ways to IT-166..177/TC-841 |
+
+### Dispositions — round 2
+
+Reviewed at agent-ix/quire-cli@587f609eadc9e17d8fd72eb84673310dd3895226. No finding in this file had an open outcome after round 1; nothing to dispose. The round-2 diff touches no artifact in this file's scope beyond FR-026 §A/§C wording, which introduces no defect for this analysis.
