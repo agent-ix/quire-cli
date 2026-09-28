@@ -10,6 +10,7 @@ pub mod extract;
 pub mod fix;
 pub mod lint;
 pub mod lookup;
+pub mod matrix;
 pub mod parse;
 pub mod properties;
 pub mod provenance;

@@ -11,7 +11,7 @@
 //! Output is byte-identical for identical input (FR-050-AC-7), so it is safe to
 //! diff between runs or commit as an artifact.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context};
 use clap::Parser;
@@ -24,21 +24,8 @@ use crate::commands::Ctx;
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    /// Repository root. Two roots derive from it and are never interchanged
-    /// (quire-rs FR-050, CR-045): documents are read from `<scope>/spec` and
-    /// trace tags from the source tree at `<scope>`, excluding `spec/`.
-    /// Defaults to the current directory.
-    #[arg(long, default_value = ".")]
-    pub scope: String,
-
-    /// Module directory supplying the `traceability:` model. Repeatable: the
-    /// roots are used in the order given and REPLACE ambient discovery rather
-    /// than adding to it — neither IX_FILAMENT_MODULES_PATH nor the default
-    /// install root (~/.ix/filament/modules) is consulted, so the report is
-    /// attributable to exactly the modules named. When omitted the module set
-    /// is discovered exactly as `quire validate` discovers it.
-    #[arg(long, value_name = "PATH")]
-    pub module: Vec<String>,
+    #[command(flatten)]
+    pub target: Target,
 
     /// Emit the report as JSON on stdout instead of the human summary.
     /// The JSON is the stable interface; the human form may change.
@@ -72,6 +59,38 @@ pub struct Args {
     pub severity: Vec<String>,
 }
 
+/// Where a coverage computation reads from: the scope and the module set.
+/// Shared by every command that computes a `CoverageReport`, so they resolve
+/// the same modules and the same roots for the same invocation.
+#[derive(Debug, clap::Args)]
+pub struct Target {
+    /// Repository root. Two roots derive from it and are never interchanged
+    /// (quire-rs FR-050, CR-045): documents are read from `<scope>/spec` and
+    /// trace tags from the source tree at `<scope>`, excluding `spec/`.
+    /// Defaults to the current directory.
+    #[arg(long, default_value = ".")]
+    pub scope: String,
+
+    /// Module directory supplying the `traceability:` model. Repeatable: the
+    /// roots are used in the order given and REPLACE ambient discovery rather
+    /// than adding to it — neither IX_FILAMENT_MODULES_PATH nor the default
+    /// install root (~/.ix/filament/modules) is consulted, so the report is
+    /// attributable to exactly the modules named. When omitted the module set
+    /// is discovered exactly as `quire validate` discovers it.
+    #[arg(long, value_name = "PATH")]
+    pub module: Vec<String>,
+}
+
+impl Target {
+    /// Validate `--scope` and load the module set it and `--module` name.
+    pub(super) fn load(&self, ctx: &Ctx) -> anyhow::Result<(PathBuf, Registry)> {
+        let scope = safety::validate_dir_path("--scope", &self.scope)
+            .with_context(|| format!("validating --scope '{}'", self.scope))?;
+        let registry = load_registry_for(ctx, &self.module, &scope)?;
+        Ok((scope, registry))
+    }
+}
+
 /// How the report leaves the process (FR-017-AC-1/AC-2/AC-14).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum OutputFormat {
@@ -84,9 +103,7 @@ pub enum OutputFormat {
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let scope = safety::validate_dir_path("--scope", &args.scope)
-        .with_context(|| format!("validating --scope '{}'", args.scope))?;
-    let registry = load_registry(ctx, &args, &scope)?;
+    let (scope, registry) = args.target.load(ctx)?;
     // FR-017-AC-13 (#53): layer `--severity` over the module-declared
     // `grammar_severity` map — the identical call `validate` makes — so a
     // malformed entry is rejected here, before any document is read. The
@@ -97,63 +114,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // and silently not project what the operator asked for.
     reject_unknown_pack_checks(&args.severity)?;
     let registry = super::validate::apply_severity_overrides(&registry, &args.severity)?;
-
-    // FR-050: the model is module data. Without it there is nothing to
-    // reconcile against, and guessing would be exactly the agent-grep behaviour
-    // this command replaces. Shared with `trace`, which needs the identical
-    // refusal (`super::require_traceability_model`) — checked and returned in
-    // one call rather than checked here and re-derived with a second
-    // `.expect()` below.
-    let model = super::require_traceability_model(&registry)?;
-
-    // Two roots, one scope (CR-045): the document walk is bounded to
-    // `<scope>/spec`; the code walk covers `<scope>` minus the document
-    // root. `compute_coverage` still relativizes against `<scope>`, so
-    // report paths keep their `spec/` prefix and output is byte-identical
-    // for a compliant repo.
-    // Path-safety on the derived document root, the same guard
-    // `validate --okf` has always applied to its bundle root. `coverage`
-    // skipped it, so the two commands disagreed about what a `..` in the
-    // resolved root meant (agent-ix/quire-rs#113).
-    let spec_root = super::spec_root_of(&scope)?;
-    let spec_root = safety::validate_dir_path("document root", &spec_root.display().to_string())
-        .with_context(|| format!("validating document root '{}'", spec_root.display()))?;
-    let spec = Spec::from_path(&spec_root);
-    // The exclusion is derived from the same constant the root is, rather
-    // than a second literal `"spec"` that can drift from it
-    // (agent-ix/quire-rs#113). The engine compares by canonicalized
-    // identity, so a case-insensitive filesystem or a symlinked root still
-    // excludes what the walk actually reads (quire-rs CR-056).
-    //
-    // CR-085: a module may declare `source_exclude` globs naming fixture trees
-    // that hold no traceable source. Two filters, different in kind — the
-    // document root is the caller's non-configurable argument (CR-045), the
-    // globs are declared data that can only subtract within the code root.
-    //
-    // The engine shipping the key is inert until this line passes it; that is
-    // the failure the last programme phase kept finding, so it is wired in the
-    // same release rather than the next one.
-    let extraction = quire_rs::symbols::extract_tree_scoped(
-        &scope,
-        &[Path::new(super::DOCUMENT_ROOT_DIR)],
-        &model.source_exclude,
-    );
-    // FR-017-AC-18 (#51, quire-rs #215): extraction diagnostics reach stderr.
-    // A refused `source_exclude` list (FR-050-AC-25) or an unreadable source
-    // file used to be computed and dropped here — a walk that silently read
-    // less than the operator declared. Stderr on every format: diagnostics
-    // are the progress/finding stream, never part of the stdout payload.
-    for d in &extraction.diagnostics {
-        io::emit_diagnostic(
-            ctx.diagnostics,
-            "SymbolExtraction",
-            &format!("{}: {}", d.path, d.reason),
-        );
-    }
-    let graph = quire_rs::symbols::trace::bind(&extraction, model);
-
-    let report =
-        compute_coverage(&spec, &registry, &graph, &scope).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let report = compute_report(ctx, &scope, &registry)?;
 
     // FR-017-AC-13 (#53): the coverage severity pack. Counts are captured on
     // the FULL computation, before projection — `--strict` and `error`
@@ -249,6 +210,72 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// The one `CoverageReport` computation every coverage view renders: the
+/// traceability-model refusal, the two-roots split, the scoped symbol walk
+/// and the engine call. `coverage` and `matrix` are two views over this, never
+/// two computations.
+pub(super) fn compute_report(
+    ctx: &Ctx,
+    scope: &Path,
+    registry: &Registry,
+) -> anyhow::Result<quire_rs::CoverageReport> {
+    // FR-050: the model is module data. Without it there is nothing to
+    // reconcile against, and guessing would be exactly the agent-grep behaviour
+    // this command replaces. Shared with `trace`, which needs the identical
+    // refusal (`super::require_traceability_model`) — checked and returned in
+    // one call rather than checked here and re-derived with a second
+    // `.expect()` below.
+    let model = super::require_traceability_model(registry)?;
+
+    // Two roots, one scope (CR-045): the document walk is bounded to
+    // `<scope>/spec`; the code walk covers `<scope>` minus the document
+    // root. `compute_coverage` still relativizes against `<scope>`, so
+    // report paths keep their `spec/` prefix and output is byte-identical
+    // for a compliant repo.
+    // Path-safety on the derived document root, the same guard
+    // `validate --okf` has always applied to its bundle root. `coverage`
+    // skipped it, so the two commands disagreed about what a `..` in the
+    // resolved root meant (agent-ix/quire-rs#113).
+    let spec_root = super::spec_root_of(scope)?;
+    let spec_root = safety::validate_dir_path("document root", &spec_root.display().to_string())
+        .with_context(|| format!("validating document root '{}'", spec_root.display()))?;
+    let spec = Spec::from_path(&spec_root);
+    // The exclusion is derived from the same constant the root is, rather
+    // than a second literal `"spec"` that can drift from it
+    // (agent-ix/quire-rs#113). The engine compares by canonicalized
+    // identity, so a case-insensitive filesystem or a symlinked root still
+    // excludes what the walk actually reads (quire-rs CR-056).
+    //
+    // CR-085: a module may declare `source_exclude` globs naming fixture trees
+    // that hold no traceable source. Two filters, different in kind — the
+    // document root is the caller's non-configurable argument (CR-045), the
+    // globs are declared data that can only subtract within the code root.
+    //
+    // The engine shipping the key is inert until this line passes it; that is
+    // the failure the last programme phase kept finding, so it is wired in the
+    // same release rather than the next one.
+    let extraction = quire_rs::symbols::extract_tree_scoped(
+        scope,
+        &[Path::new(super::DOCUMENT_ROOT_DIR)],
+        &model.source_exclude,
+    );
+    // FR-017-AC-18 (#51, quire-rs #215): extraction diagnostics reach stderr.
+    // A refused `source_exclude` list (FR-050-AC-25) or an unreadable source
+    // file used to be computed and dropped here — a walk that silently read
+    // less than the operator declared. Stderr on every format: diagnostics
+    // are the progress/finding stream, never part of the stdout payload.
+    for d in &extraction.diagnostics {
+        io::emit_diagnostic(
+            ctx.diagnostics,
+            "SymbolExtraction",
+            &format!("{}: {}", d.path, d.reason),
+        );
+    }
+    let graph = quire_rs::symbols::trace::bind(&extraction, model);
+
+    compute_coverage(&spec, registry, &graph, scope).map_err(|e| anyhow::anyhow!("{e}"))
+}
+
 /// The four checks the `coverage` severity pack owns (FR-017-AC-13). The
 /// gateable engine kinds, and only those — `no_symbol_rows` is an exemption
 /// note, deliberately outside the pack (FR-017 CR note, #51).
@@ -330,7 +357,7 @@ fn project_by_severity(
 /// A TSV cell: the two structural characters (tab, newline) become spaces.
 /// Measured on a real corpus, 0 of 1,107 statements contain either — the
 /// replacement is the guard, not the common case (#53).
-fn tsv_cell(s: &str) -> String {
+pub(super) fn tsv_cell(s: &str) -> String {
     s.chars()
         .map(|c| {
             if matches!(c, '\t' | '\n' | '\r') {
@@ -719,12 +746,6 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
             ),
         );
     }
-}
-
-/// Same module resolution as `validate`: an explicit `--module`, else a
-/// `manifest.yaml` at the scope root, else scoped discovery.
-fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
-    load_registry_for(ctx, &args.module, scope)
 }
 
 /// The module-resolution `coverage` performs, taking the flag rather than the
