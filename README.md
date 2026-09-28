@@ -32,6 +32,7 @@ quire validate --okf <BUNDLE_DIR> [--scope <DIR>] [--module <PATH>]
 quire schema <ARCHETYPE> --module <PATH>
 quire clauses evaluate --module <PATH> --authority <ID> --set <ID> --version <VERSION> [--context KEY=VALUE]...
 quire clauses diff --module <PATH> --authority <ID> --set <ID> --before-version <VERSION> --after-version <VERSION>
+quire matrix [--scope <DIR>] [--module <PATH>]... [--format markdown|json|tsv] [--strict]
 quire trace (--id <ID> [--prefix] | --symbol <PATH#NAME> | --file <PATH>) --module <PATH>... \
   [--scope <DIR>] [--exclude-path <GLOB>]... [--format human|json|tsv]
 ```

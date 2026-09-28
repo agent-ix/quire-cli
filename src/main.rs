@@ -56,6 +56,8 @@ enum Command {
     Validate(commands::validate::Args),
     /// AC→TC→code coverage rollup (FR-050). Reports; does not judge.
     Coverage(commands::coverage::Args),
+    /// Render the computed coverage matrix: requirement → criterion → binders → status.
+    Matrix(commands::matrix::Args),
     /// Report the extracted symbol table, as the engine built it (#309).
     Symbols(commands::symbols::Args),
     /// Structural forward/inverse lookup over the trace-search index (PLAT-879).
@@ -88,6 +90,7 @@ fn main() {
         Command::Lookup(a) => commands::lookup::run(&ctx, a),
         Command::Edit(a) => commands::edit::run(&ctx, a),
         Command::Coverage(a) => commands::coverage::run(&ctx, a),
+        Command::Matrix(a) => commands::matrix::run(&ctx, a),
         Command::Symbols(a) => commands::symbols::run(&ctx, a),
         Command::Trace(a) => commands::trace::run(&ctx, a),
         Command::Validate(a) => commands::validate::run(&ctx, a),

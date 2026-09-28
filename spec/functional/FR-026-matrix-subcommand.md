@@ -67,21 +67,16 @@ value unchanged — alongside `id`/`method`/`binders`/`status`.
 itself, does not re-read the obligation's source document, and does not
 reconstruct a statement from any other field or any other surface.
 
-### §B — Zero population is zero criteria, in either upstream shape
+### §B — Zero population is zero criteria, and has one shape
 
-The zero-population state is **zero criteria** — whether `coverage_matrix` is
-absent from the engine report entirely, or present with a `requirements[]`
-that itself contains zero entries. FR-050-AC-51 pins omission for the case
-where the population "derives none"; it does not pin which of the two JSON
-shapes upstream emits for that case, and `matrix` does not need it to: both
-shapes mean the identical thing to a renderer — nothing to show — so markdown
-and TSV render them identically (§C, §F), and both fail `--strict` identically
-(§G, AC-10). `--format json` is the one surface that does not collapse the
-two shapes: it passes the upstream value through exactly as given — the key
-absent when upstream omits it, present carrying upstream's own object
-(including an empty `requirements[]`) when upstream emits that — so the JSON
-surface stays a thin, unmodified mirror of whichever shape upstream actually
-ships (§E).
+`coverage_matrix` is a JSON array of requirement entries (the
+`requirements[]` of FR-050-AC-47/48 is the array itself), and the engine omits
+the key whenever that array would be empty (FR-050-AC-51: `Vec` with
+`skip_serializing_if = "Vec::is_empty"` at quire-rs 0.48.0). The
+zero-population state — **zero criteria** — therefore has exactly one shape:
+the key is absent. Markdown renders it as the single empty-state line (§C),
+TSV as the header alone (§F), `--strict` fails it (§G, AC-10), and
+`--format json` omits the key exactly as the engine does (§E).
 
 ### §C — Markdown: one table per requirement, in the report's own order
 
@@ -162,16 +157,14 @@ rule or a wire contract (AC-6, AC-8).
 
 `--format json` emits, on stdout, `{"coverage_matrix": <value>, "engine":
 {...}}` — the engine's own `coverage_matrix` value exactly as `CoverageReport`
-carries it, unmodified in whichever of the two shapes (§B) upstream actually
-ships: the key is **absent** when upstream omits it, and **present** carrying
-upstream's own object — an object carrying a `requirements[]` array
-(FR-050-AC-47/48), never re-typed by this CLI as a bare array — including when
-that `requirements[]` is itself empty. `matrix` does not coerce one shape into
-the other, or normalize zero-population to a single canonical JSON shape:
-whichever shape upstream ships is the shape this surface emits, verbatim. The
-envelope adds the FR-008-CR-104 provenance block every JSON payload in this
-CLI carries, and nothing else — the same `engine::attach` call every other
-JSON surface uses (AC-7).
+carries it: a bare array of `{document, criteria}` requirement entries, never
+re-wrapped by this CLI in an object of its own. The key is **absent** when the
+engine omits it (zero population, §B) and is never emitted present-but-empty.
+The CLI adds no shape of its own: whatever the engine serializes for the
+field is what this surface emits, verbatim. The envelope adds the
+FR-008-CR-104 provenance block every JSON payload in this CLI carries, and
+nothing else — the same `engine::attach` call every other JSON surface uses
+(AC-7).
 
 ### §F — TSV: one flattened record per criterion
 
@@ -184,7 +177,7 @@ list markdown renders, comma-separated, with `(ignored)` on the same entries
 markdown marks, and empty (not `(none)`) when there are zero; `statement` is
 the full, untruncated, unescaped, tab/newline-scrubbed text — TSV is a machine
 format, and §D/§C's readability rules are markdown-only, not a wire contract
-(AC-8). Zero criteria (§B, in either upstream shape) renders the header alone,
+(AC-8). Zero criteria (§B) renders the header alone,
 no data rows.
 
 ### §G — `--strict`, and no severity pack
@@ -203,7 +196,7 @@ from any other part of the same `CoverageReport`.
 
 - **`--strict`** exits 1 when any criterion in `coverage_matrix` computes
   `untagged` or `tagged-by-ignored-test`, or when the population is zero
-  criteria (§B, either upstream shape); it exits 0 only when there is **at
+  criteria (§B); it exits 0 only when there is **at
   least one** criterion and every one computes `tagged` or
   `method-without-symbol`. `method-without-symbol` **never** fails `--strict`
   on its own, regardless of its binder count: FR-050-AC-49 defines it as the
@@ -242,10 +235,10 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 | FR-026-AC-4 | Each requirement renders as the exact heading `## <document>` with the requirement's own `document` value verbatim (no link, no backticks), followed by one table with header `Criterion \| Statement \| Binders \| Status`, rows in the engine's own per-document criteria order | Test |
 | FR-026-AC-5 | A criterion's `Binders` cell lists each `(path, line, column)` binder as `path:line:column`, separated by `, `, in the engine's own binder order — never collapsing two same-line binders that differ only by column; a binder the engine marks `ignored` carries a trailing ` (ignored)`; a criterion with zero binders renders the literal `(none)` | Test |
 | FR-026-AC-6 | A `Statement` cell is the criterion's own `statement` field (never re-derived) with every tab/newline/CR replaced by a space, truncated first — left intact at ≤80 Unicode scalar values or cut to 77 scalar values plus a trailing `...` above that — and only then pipe-escaped (`\|`), so escaping never splits the cut and never counts toward the 80-character budget; `--format json`/`--format tsv` carry the untruncated, unescaped text for the identical criterion | Test |
-| FR-026-AC-7 | `--format json` emits `{"coverage_matrix": <value>, "engine": {cli, engine, capabilities}}` on stdout; the `coverage_matrix` key carries the engine's own value unmodified in whichever shape upstream ships — absent when upstream omits it, present carrying an object with a `requirements[]` array (never re-typed as a bare array), including when that array is empty; two runs over identical inputs are byte-identical | Test |
-| FR-026-AC-8 | `--format tsv` emits header `document\tcriterion\tstatus\tbinders\tstatement`, one untruncated, unescaped record per criterion in the JSON/markdown order, `binders` comma-separated as `path:line:column` with the same `(ignored)` marker and empty (not `(none)`) at zero; a zero-criteria report (§B, either upstream shape) emits the header alone | Test |
-| FR-026-AC-9 | The zero-population state — `coverage_matrix` absent, or present with an empty `requirements[]` — renders identically in markdown (the single line `No obligations matched this scope.`, no heading, no table) and in TSV (header alone); `--format json` passes through whichever of the two shapes upstream actually emitted, unmodified | Test |
-| FR-026-AC-10 | `--strict`'s pass condition requires **at least one** criterion, all `tagged`/`method-without-symbol`: it exits 1 on the zero-population state (§B, either upstream shape) exactly as it exits 1 on an `untagged`/`tagged-by-ignored-test` criterion — a report measuring nothing must not exit 0 (FR-050-AC-14/CR-035 argument, applied to the derived-obligation population) | Test |
+| FR-026-AC-7 | `--format json` emits `{"coverage_matrix": <value>, "engine": {cli, engine, capabilities}}` on stdout; the `coverage_matrix` key carries the engine's own value unmodified — a bare array of requirement entries, never re-wrapped in an object — and is absent when the engine omits it (zero population), never present-but-empty; two runs over identical inputs are byte-identical | Test |
+| FR-026-AC-8 | `--format tsv` emits header `document\tcriterion\tstatus\tbinders\tstatement`, one untruncated, unescaped record per criterion in the JSON/markdown order, `binders` comma-separated as `path:line:column` with the same `(ignored)` marker and empty (not `(none)`) at zero; a zero-criteria report (§B) emits the header alone | Test |
+| FR-026-AC-9 | The zero-population state — `coverage_matrix` absent, whether the module declares no `obligations:` source or declares one that derives nothing — renders in markdown as the single line `No obligations matched this scope.` (no heading, no table) and in TSV as the header alone; `--format json` omits the key, as the engine does | Test |
+| FR-026-AC-10 | `--strict`'s pass condition requires **at least one** criterion, all `tagged`/`method-without-symbol`: it exits 1 on the zero-population state (§B) exactly as it exits 1 on an `untagged`/`tagged-by-ignored-test` criterion — a report measuring nothing must not exit 0 (FR-050-AC-14/CR-035 argument, applied to the derived-obligation population) | Test |
 | FR-026-AC-11 | A criterion computing `method-without-symbol` never fails `--strict` on its own, regardless of its binder count, and renders in every format exactly like any other criterion — its own `Status`/`status` cell/field states `method-without-symbol` verbatim | Test |
 | FR-026-AC-12 | `matrix` does not accept `--severity` (an attempt is an ordinary clap argv error, exit 2, FR-007-AC-5) and runs none of the `unbacked-row`/`status-lie`/`untracked-symbol`/`undeclared-status` checks; a module's `grammar_severity` promotion of any of those checks has no effect on `matrix`'s exit code, because `coverage_matrix` carries none of their record kinds. `matrix` also does not inherit `coverage`'s FR-017-AC-22 unread-measurement gate (`status-column-matches-nothing`/`hollow-denominator`): `coverage_matrix` reads no status column, so there is no unread-column state for it to gate on | Test |
 | FR-026-AC-13 | `matrix` uses only the FR-007 exit codes — 0, 1, 2 — across every case above, including an unrecognized `--severity` flag (exit 2); no new code is introduced | Test |
@@ -301,3 +294,14 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 >   `Type` is corrected to match its `Test` verification method; IT-174 now
 >   traces AC-11 as well as AC-10; AC-2 states that `matrix --help` itself
 >   carries the FR-017-AC-21 resolution-order text (SR-067 FND-001).
+
+> **CR note (implementation, 2026-09-28, PLAT-1078):** §B, §E and AC-7/8/9/10
+> are amended to the shape quire-rs 0.48.0 actually ships. The authored text
+> read `coverage_matrix` as an object carrying `requirements[]` and allowed a
+> present-but-empty shape. The engine serializes the field as a bare array of
+> requirement entries (`Vec<CoverageMatrixRequirement>`) and omits it whenever
+> it is empty, so neither the object shape nor the present-but-empty shape
+> exists. Zero population now has one shape — key absent — and the
+> verbatim-passthrough rule is unchanged. IT-171/IT-173/IT-174 in
+> `spec/tests.md` are reworded to match; the tests already asserted equality
+> with the engine's own serialization.
