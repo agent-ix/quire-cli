@@ -59,8 +59,10 @@ of its own.
 Every rendered field — `id`, `method`, `binders`, `status`, and `statement` —
 is read from the engine's own criterion record and never re-derived.
 `statement` is FR-050-AC-48 **as amended by PLAT-1077** (quire-rs, tracking
-this same effort): the criterion entry carries the obligation's own,
-already-normalized statement text alongside `id`/`method`/`binders`/`status`.
+this same effort): the criterion entry carries the obligation's own statement
+text, verbatim and untruncated — quire-rs FR-053 defines `Obligation.statement`
+as the source cell's text verbatim, and the matrix criterion carries that same
+value unchanged — alongside `id`/`method`/`binders`/`status`.
 `matrix` reads that field verbatim; it does not call `obligation::derive`
 itself, does not re-read the obligation's source document, and does not
 reconstruct a statement from any other field or any other surface.
@@ -114,7 +116,7 @@ only then is every `|` in that already-cut string escaped — so an escape can
 never itself be sliced in half by the 77-scalar-value cut, and the backslash
 it adds is never counted toward the 80-character budget. Worked example, a
 criterion whose full `statement` is `Requests carrying X-Debug|X-Trace
-headers are logged verbatim` (63 characters, under the 80-character budget,
+headers are logged verbatim` (61 characters, under the 80-character budget,
 rendered whole):
 
 ```

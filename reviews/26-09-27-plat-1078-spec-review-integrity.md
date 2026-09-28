@@ -26,3 +26,11 @@ own tempdir fixtures). Only minor verification-strength nits.
 ## Verdict
 
 Traceability is complete both ways. FND-001 is low and does not block.
+
+## Dispositions
+
+Reviewed at agent-ix/quire-cli@370f4b95ec1172ada6b5092a3608406de976a76d.
+
+| FND | Outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | fixed | 370f4b9 — IT-177 and AC-14 cover all of `<scope>`; TC-841 type is Unit; IT-174 traces AC-10 and AC-11; AC-2 and IT-167 require `matrix --help` to carry the FR-017-AC-21 text. AC-1..14 still map both ways to IT-166..177/TC-841 |

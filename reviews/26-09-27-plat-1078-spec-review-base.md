@@ -54,3 +54,21 @@ cut in half by the 77-char truncation (leaving a dangling backslash).
 
 **NOT MERGEABLE** until FND-001 is resolved (upstream field added, or the
 statement surface removed). FND-002 should be fixed in the same round.
+
+## New findings (disposition pass 1)
+
+Reviewed at agent-ix/quire-cli@370f4b95ec1172ada6b5092a3608406de976a76d.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | Worked example states its statement is 63 characters; it is 61 scalar values, so a test asserting the pinned figure fails | spec/functional/FR-026-matrix-subcommand.md:116-117 |
+| FND-006 | low | §A calls the upstream statement "already-normalized"; FR-053 defines Obligation.statement as the cell "verbatim and untruncated" (normalization applies only to statement_hash). The CLI's own scrub makes it harmless, but the upstream contract is misdescribed | spec/functional/FR-026-matrix-subcommand.md:62-63 |
+
+## Dispositions
+
+| FND | Outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | fixed | 370f4b9 — §A (59-66), §D (144), AC-6 read `statement` from the criterion as amended by PLAT-1077 and forbid re-derivation; citation accepted per leader ruling (upstream amendment not yet landed) |
+| FND-002 | fixed | 370f4b9 — exact `## <document>` heading (§C 92-97, AC-4), literal zero line `No obligations matched this scope.` (99-104, AC-9), `\|` escaping after truncation (108-126, AC-6) |
+| FND-003 | fixed | 370f4b9 — §E 165-167 and AC-7 describe an object carrying `requirements[]`, never a bare array |
+| FND-004 | fixed | 370f4b9 — Description 22-24 states stdout result / stderr diagnostics (FR-006); "fourth, non-error state" removed |

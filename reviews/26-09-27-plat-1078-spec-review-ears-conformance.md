@@ -23,3 +23,11 @@ uses one ubiquitous SHALL with a named subject (the CLI).
 ## Verdict
 
 Clean.
+
+## Dispositions
+
+Reviewed at agent-ix/quire-cli@370f4b95ec1172ada6b5092a3608406de976a76d.
+
+| FND | Outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | rejected | Placeholder row, not a finding. FR-026 at 370f4b9 still has no grammar finding under quire validate |
