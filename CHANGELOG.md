@@ -9,6 +9,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-09-28
+
 - **Added `quire matrix` (PLAT-1078, FR-026).** Renders the engine's computed `CoverageReport.coverage_matrix` — requirement → criterion → binder symbols → computed status — on stdout as markdown (one `## <document>` table per requirement, statements cut to 80 characters, binders as `path:line:column` with ` (ignored)` markers), `--format json` (the engine's value verbatim plus the `engine` provenance block) or `--format tsv`. It never writes a file. `--strict` exits 1 on zero criteria or on any `untagged`/`tagged-by-ignored-test` criterion; `method-without-symbol` never fails it. `--scope`/`--module` resolve exactly as `coverage` resolves them, through the same shared computation. There is no `--severity` flag.
 - **Engine: quire-rs 0.48.0.** Adds `coverage_matrix` to `coverage --json` for modules declaring an `obligations:` source, and reports a trace-tag range (`FR-1-AC-1..FR-1-AC-5`) as a `range-in-trace-tag` diagnostic that binds no id, where a legacy range used to bind its left endpoint.
 
