@@ -459,6 +459,61 @@ fn it169_binders_render_path_line_column_with_ignored_and_none_markers() {
     assert_eq!(row("FR-001-AC-3")[3], "untagged");
 }
 
+// Trace: IT-169, FR-026-AC-5
+#[test]
+fn it169_a_pipe_in_a_binder_path_is_escaped() {
+    let f = Fixture::with_obligations();
+    f.write(
+        "spec/FR-001.md",
+        &fr_doc(
+            "FR-001",
+            &[("FR-001-AC-1", "Bound from a piped path.", "Test")],
+        ),
+    );
+    f.write("tests/a|b.rs", &rust_test("piped", "FR-001-AC-1", false));
+    let out = f.matrix(&[]);
+    assert_eq!(code(&out), 0, "{}", stderr(&out));
+    let markdown = stdout(&out);
+    let row = markdown
+        .lines()
+        .find(|l| l.starts_with("| FR-001-AC-1 |"))
+        .unwrap_or_else(|| panic!("no row: {markdown}"));
+    assert_eq!(
+        row,
+        "| FR-001-AC-1 | Bound from a piped path. | tests/a\\|b.rs:3:1 | tagged |"
+    );
+    // Four cells: the escaped pipe opens no fifth column.
+    assert_eq!(row.split(" | ").count(), 4, "{row}");
+}
+
+// Trace: IT-170, FR-026-AC-6
+#[test]
+fn it170_structural_characters_become_spaces_before_truncation() {
+    // 40 letters, a tab, 40 letters: 81 scalar values, so the cut applies,
+    // and the tab spends exactly one of them as a space.
+    let tabbed = format!("{}\t{}", "a".repeat(40), "b".repeat(40));
+    let f = Fixture::with_obligations();
+    f.write(
+        "spec/FR-001.md",
+        &fr_doc("FR-001", &[("FR-001-AC-1", &tabbed, "Test")]),
+    );
+    let engine = engine_matrix(&f).expect("coverage_matrix");
+    assert_eq!(
+        engine[0]["criteria"][0]["statement"],
+        tabbed.as_str(),
+        "the engine carries the tab verbatim"
+    );
+
+    let markdown = stdout(&f.matrix(&[]));
+    let expected = format!("{} {}...", "a".repeat(40), "b".repeat(36));
+    assert_eq!(expected.chars().count(), 80);
+    assert!(
+        markdown.contains(&format!("| FR-001-AC-1 | {expected} | (none) | untagged |")),
+        "{markdown:?}"
+    );
+    assert!(!markdown.contains('\t'), "{markdown:?}");
+}
+
 // Trace: IT-170, FR-026-AC-6
 #[test]
 fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
