@@ -83,6 +83,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-023 Rust-owned npm package assembly | AC-1..9 | TC-815 (catalog), TC-816 (complete deterministic packages), TC-817 (empty/wrong/extra input and atomic refusal), TC-822 (built-subset emits only its own platforms), IT-159 (offline installation), IT-163 (`npm pack` membership), IT-165 (post-publish resolvability gate, scope-registry mutation-sensitive, plus a real-network unreachable-registry case), TC-819 (the gate is a required step on the manual publish path) | ✅ Complete |
 | FR-024 Rust-owned npm release version contract | AC-1..6 | TC-818 (transactional version contract), IT-164 (binary/version disagreement), TC-819 (manual workflow and native tooling audit) | ✅ Complete |
 | FR-025 Rust-owned CLI qualification tooling | AC-1..7 | TC-828..839 | ✅ Complete |
+| FR-026 matrix subcommand (computed `coverage_matrix` rendering — PLAT-1078, quire-rs FR-050-AC-47..51/FR-051-AC-27/28) | AC-1..14 | IT-166 (happy path across all three formats), IT-167 (shared `coverage` refusals: `MissingDocumentRoot`, no traceability model, closed `--module`), IT-168 (markdown requirement-table shape and engine-order rows), IT-169 (`Binders` cell: `path:line`, `(ignored)` marker, `(none)` at zero), IT-170 (80-scalar-value statement truncation, untruncated in json/tsv), IT-171 (`--format json` envelope: `coverage_matrix` present/absent, provenance, byte-identity), IT-172 (`--format tsv` header/columns, untruncated statement, header-only at zero), IT-173 (zero-population rendering in every format), IT-174 (`--strict` fails on an absent matrix and on `untagged`/`tagged-by-ignored-test`, passes on `tagged`/`method-without-symbol`), IT-175 (`method-without-symbol` never fails `--strict`, renders normally), IT-176 (`--severity coverage:*` validated identically to `coverage` but has no effect on `matrix` output, `error` promotion still fails the run), IT-177 (no output file: `<scope>/spec` byte-identical before/after), TC-841 (exit-code audit: only 0/1/2 appear) — implementation (PLAT-1077 upstream, PLAT-1078 this repo) is in progress; these traces are specified here but not yet implemented | 🚧 |
 
 ## Non-Functional Requirement Coverage
 
@@ -301,6 +302,19 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | TC-838 | Make contains only Rust gate orchestration and no report/source interpretation | Static | P1 | FR-025-AC-6, FR-025-CON-2, FR-025-CON-3 | ✅ |
 | TC-839 | Executable `.py`/`.sh` qualification paths are absent and the npm launcher remains a semantics-free distribution host | Static | P0 | FR-025-AC-7, FR-025-CON-4, FR-025-CON-5 | ✅ |
 | TC-840 | Exact Rust 1.98.1, locked local gates, canonical `ix-trace-rs`, no shell-spawned qualification, and no hosted-CI change are evidenced | Static | P0 | NFR-009 | ✅ |
+| IT-166 | `quire matrix --scope <DIR> --module $M` over a fixture whose module declares an `obligations:` source deriving a non-empty population exits 0 and renders every requirement's criteria in markdown, `--format json` and `--format tsv` (`cli_matrix::it166_*`) | Integration | P0 | FR-026-AC-1 | 🚧 |
+| IT-167 | `matrix` shares `coverage`'s refusals verbatim: no `spec/` exits 1 as `MissingDocumentRoot`, no `traceability:` model exits 1 naming the missing declaration, `--module` is repeatable and closed (`cli_matrix::it167_*`) | Integration | P0 | FR-026-AC-2 | 🚧 |
+| IT-168 | Markdown renders one level-2-headed table per `requirements[]` entry, in the engine's own document order, rows in the engine's own per-document criteria order, header `Criterion \| Statement \| Binders \| Status` (`cli_matrix::it168_*`) | Integration | P0 | FR-026-AC-3, FR-026-AC-4 | 🚧 |
+| IT-169 | A criterion's `Binders` cell lists `path:line` entries comma-separated in engine order, an `ignored` binder carries a trailing ` (ignored)`, and a zero-binder criterion renders the literal `(none)` (`cli_matrix::it169_*`) | Integration | P0 | FR-026-AC-5 | 🚧 |
+| IT-170 | A statement ≤80 Unicode scalar values renders whole; a longer one is cut to 77 scalar values plus `...`, every rendered cell exactly ≤80 characters; `--format json`/`--format tsv` carry the identical statement untruncated (`cli_matrix::it170_*`) | Integration | P0 | FR-026-AC-6 | 🚧 |
+| IT-171 | `--format json` emits `{"coverage_matrix": <value>, "engine": {...}}`; the key is present when the population is non-empty and absent (not `null`/`[]`) when the engine omits it; two runs are byte-identical (`cli_matrix::it171_*`) | Integration | P0 | FR-026-AC-7 | 🚧 |
+| IT-172 | `--format tsv` emits header `document\tcriterion\tstatus\tbinders\tstatement`, one untruncated record per criterion in the json/markdown order, `binders` comma-separated with the same `(ignored)` marker and empty at zero; a zero-population report emits the header alone (`cli_matrix::it172_*`) | Integration | P0 | FR-026-AC-8 | 🚧 |
+| IT-173 | A module declaring no `obligations:` source, and one declaring one that derives nothing, both render the zero-population state as itself in every format — never a fabricated empty-but-present matrix (`cli_matrix::it173_*`) | Integration | P0 | FR-026-AC-9 | 🚧 |
+| IT-174 | `--strict` exits 1 when `coverage_matrix` is absent and when a criterion computes `untagged` or `tagged-by-ignored-test`, and exits 0 over a fixture where every criterion computes `tagged`/`method-without-symbol` (`cli_matrix::it174_*`) | Integration | P0 | FR-026-AC-10 | 🚧 |
+| IT-175 | A criterion computing `method-without-symbol` never fails `--strict` regardless of binder count, and renders identically to any other criterion with that status stated verbatim (`cli_matrix::it175_*`) | Integration | P0 | FR-026-AC-11 | 🚧 |
+| IT-176 | `--severity coverage:<check>=<level>` is validated identically to `coverage` (closed vocabulary, rejected before any read) but changes nothing in `matrix`'s rendered output or `--strict` verdict; an `error`-promoted check with findings elsewhere in the same computed report still fails the run (`cli_matrix::it176_*`) | Integration | P0 | FR-026-AC-12 | 🚧 |
+| IT-177 | Running `matrix` in every format against a fixture repository leaves every file under `<scope>/spec` byte-identical before and after; no flag names an output path (`cli_matrix::it177_*`) | Integration | P0 | FR-026-AC-14 | 🚧 |
+| TC-841 | Every exit code `matrix` produces across the cases above is one of 0, 1, 2 — no new code is introduced | Static | P1 | FR-026-AC-13 | 🚧 |
 
 ---
 
@@ -344,3 +358,12 @@ index-incompleteness warn, defaults-to-scope) and FR-014-AC-7 reuses
 untyped-document vocabulary), traced by IT-069. The `artifact_type` → `type`
 discriminator rename was backsynced across FR-003/004/007/013 and spec.md via CR
 notes; every FR-014 AC (1..9) and FR-003-AC-5 carries an IT/AUDIT trace.
+
+**SPEC ONLY, awaiting implementation — `quire matrix` (PLAT-1078, 2026-09-27).**
+FR-026 specifies a new `matrix` subcommand rendering the computed
+`CoverageReport.coverage_matrix` (quire-rs FR-050-AC-47..51/FR-051-AC-27/28,
+merged quire-rs PR #494). Both the upstream engine field (PLAT-1077) and this
+command are still in progress. Traces IT-166..177 and TC-841 are specified
+here but not yet implemented, marked 🚧 rather than ✅ until a recorded passing
+run backs each one (Matrix Rule 7). This replaces the hand-written Test Matrix
+workflow on landing and supersedes `agent-ix/quire-cli#79`.
