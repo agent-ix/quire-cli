@@ -537,6 +537,10 @@ fn it171_json_wraps_the_engine_value_verbatim_with_provenance() {
         engine_matrix(&f),
         "the engine's own value, unmodified"
     );
+    assert!(
+        payload["coverage_matrix"].is_array(),
+        "a bare array of requirement entries: {payload}"
+    );
     for key in ["cli", "engine", "capabilities"] {
         assert!(
             payload["engine"].get(key).is_some(),
@@ -665,9 +669,11 @@ fn it173_both_zero_population_shapes_render_identically() {
             "document\tcriterion\tstatus\tbinders\tstatement\n"
         );
 
-        // JSON passes through whatever the engine emitted for this scope.
+        // Zero population has one shape: the engine omits the key, and so
+        // does this surface.
+        assert_eq!(engine_matrix(&f), None);
         let payload = json(&f.matrix(&["--format", "json"]));
-        assert_eq!(payload.get("coverage_matrix").cloned(), engine_matrix(&f));
+        assert_eq!(payload.get("coverage_matrix"), None, "{payload}");
     }
 }
 
