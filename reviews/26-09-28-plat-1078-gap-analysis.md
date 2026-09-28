@@ -59,3 +59,11 @@ IT-177 snapshots every file under the scope.
 No coverage gap: all 14 ACs are traced and pass. There are no orphan traces,
 no stubs and no untraced production code. One low gap in oracle strength does
 not block merge.
+
+## Dispositions
+
+Reviewed at agent-ix/quire-cli@60338c8085092b4357772e8bf3be252ecfe27165 (round 1).
+
+| FND | Outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | fixed | 60338c8. The new IT-169 test covers the AC-5 Binders pipe-escape, and the new IT-170 test covers the AC-6 structural-character scrub before truncation. Both are traced `// Trace: IT-169/IT-170, FR-026-AC-5/AC-6`, and removing either behaviour now fails a test. |

@@ -66,3 +66,12 @@ Approve. The implementation matches FR-026 AC-1..14 as amended. The
 file and the status-token binding are correct. Both findings are low
 test-oracle gaps, and the behaviour they guard is correct today. They do not
 block merge.
+
+## Dispositions
+
+Reviewed at agent-ix/quire-cli@60338c8085092b4357772e8bf3be252ecfe27165 (round 1). The fix diff touches only tests/cli_matrix.rs (+55 lines, two new tests) and adds the SR copies under reviews/, which are byte-identical to the reviewer's files. The re-run mutants are both killed now. `tests/cli_matrix.rs` passes 15/15.
+
+| FND | Outcome | sha/reason |
+| --- | --- | --- |
+| FND-001 | fixed | 60338c8. `it169_a_pipe_in_a_binder_path_is_escaped` pins the row `\| FR-001-AC-1 \| Bound from a piped path. \| tests/a\\\|b.rs:3:1 \| tagged \|` and a four-cell split. The no-escape mutant now fails that test. |
+| FND-002 | fixed | 60338c8. `it170_structural_characters_become_spaces_before_truncation` feeds 40 a's, a tab and 40 b's (81 scalar values). It asserts the engine keeps the tab and that markdown renders the cell as 40 a's, a space, 36 b's and `...`, with no tab in the output. The no-scrub mutant now fails that test. |
