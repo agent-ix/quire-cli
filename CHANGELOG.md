@@ -9,6 +9,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-09-30
+
+- **Engine: quire-rs 0.49.0.** The pin moves forward to the v0.49.0 release.
+- **`schema_digest` removed from the assurance export (#107).** The assurance export no longer carries a `schema_digest` field.
+- **The `data_schema` reference is `{ schema }` only.** A `data_schema` reference that also names a digest is rejected as ambiguous.
+
 ## [0.34.0] - 2026-09-28
 
 - **Added `quire matrix` (PLAT-1078, FR-026).** Renders the engine's computed `CoverageReport.coverage_matrix` — requirement → criterion → binder symbols → computed status — on stdout as markdown (one `## <document>` table per requirement, statements cut to 80 characters, binders as `path:line:column` with ` (ignored)` markers), `--format json` (the engine's value verbatim plus the `engine` provenance block) or `--format tsv`. It never writes a file. `--strict` exits 1 on zero criteria or on any `untagged`/`tagged-by-ignored-test` criterion; `method-without-symbol` never fails it. `--scope`/`--module` resolve exactly as `coverage` resolves them, through the same shared computation. There is no `--severity` flag.
