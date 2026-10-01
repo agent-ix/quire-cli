@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.35.1] - 2026-10-01
+
+- **Engine: quire-rs 0.49.1.** The pin moves forward to the v0.49.1 release.
+
 ## [0.35.0] - 2026-09-30
 
 - **Engine: quire-rs 0.49.0.** The pin moves forward to the v0.49.0 release.
