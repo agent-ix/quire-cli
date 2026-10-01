@@ -1,6 +1,6 @@
 [package]
 name = "quire-cli"
-version = "0.34.0"
+version = "0.35.0"
 edition = "2021"
 rust-version = "1.98.1"
 description = "Static binary CLI wrapping quire-rs (parse, extract, lookup, edit, validate, schema)."
@@ -17,7 +17,7 @@ name = "quire"
 path = "src/main.rs"
 
 [dependencies]
-quire-rs = { version = "=0.48.0", git = "https://github.com/agent-ix/quire-rs", rev = "4f1af2172943f7b40d4f39b18f79e42da1ae9827" }
+quire-rs = { version = "=0.49.0", git = "https://github.com/agent-ix/quire-rs", rev = "cb9bf45cf5f237c47d59800d9cdb4f3f3c1fe675" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
