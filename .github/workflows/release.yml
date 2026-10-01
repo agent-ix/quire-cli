@@ -10,7 +10,7 @@ on:
       # merge. That left both publish steps, which were gated on
       # `github.event_name == 'push'`, permanently unreachable: a dispatch built
       # four binaries and skipped the GitHub Release and the npm publish alike.
-      # npm sat at 0.4.1 against a 0.11.0 Cargo.toml as a result. Publishing is
+      # Publishing is
       # an explicit input instead, so the trigger stays manual and the default
       # stays a dry run.
       publish:
@@ -42,7 +42,7 @@ jobs:
       GIT_CONFIG_KEY_0: core.protectNTFS
       GIT_CONFIG_VALUE_0: "false"
     # A hung step otherwise blocks for GitHub's 6-hour default. `Install musl
-    # toolchain` hung twice in a row on the x86_64 runner (v0.24.0 and v0.25.0),
+    # toolchain` hung twice in a row on the x86_64 runner,
     # both times leaving the release in_progress with three of four builds
     # green — a release that never finishes and never fails. 25 minutes is
     # comfortably above the ~10 a healthy build takes.
@@ -118,8 +118,7 @@ jobs:
       # Guard: the binary's own version must match the version being released.
       # The smoke test above only proves the binary runs; a release cut without
       # running `make set-version VERSION=...` would otherwise ship binaries that
-      # report a stale version (npm sat at 0.12.0 against a 0.23.0 Cargo.toml
-      # for exactly this class of drift).
+      # report a stale version.
       - name: Assert binary version matches release version
         shell: bash
         run: |
@@ -224,11 +223,11 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "22.15.0"   # exact; OIDC Trusted Publishing requires Node >= 22.14
+          node-version: "22"   # OIDC Trusted Publishing requires Node >= 22.14
 
       # OIDC Trusted Publishing needs npm >= 11.5.1.
       - name: Upgrade npm for Trusted Publishing
-        run: npm install -g npm@11.6.2
+        run: npm install -g npm@11
 
       # Public npm via OIDC: route @agent-ix at registry.npmjs.org with no auth
       # token. `npm publish` performs the tokenless OIDC token exchange (the
