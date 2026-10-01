@@ -163,7 +163,7 @@ fn assurance_does_not_open_inet_socket_or_execute_a_child() {
         for archetype in ["FR", "NFR", "StR"] {
             command
                 .arg("--expect-schema")
-                .arg(format!("assurance-fixture/{archetype}@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"));
+                .arg(format!("assurance-fixture/{archetype}"));
         }
         command.output().expect("strace assurance")
     };

@@ -26,7 +26,7 @@ implemented `assurance-v1` export through a thin offline process boundary.
 quire assurance --scope <DIR> --module <PATH>
                 --repository <IDENTITY> --revision <FULL_SHA>
                 --expect-module <NAME@VERSION>
-                [--expect-schema <MODULE/ARCHETYPE@SHA256>]...
+                [--expect-schema <MODULE/ARCHETYPE>]...
 ```
 
 The exact module and expected premises are mandatory. An explicit empty
@@ -46,7 +46,7 @@ it does not disable schema checking.
 - `--revision` is the caller-selected 40-character lowercase Git object id.
   The command records it but SHALL NOT invoke Git to discover or verify it.
 - `--expect-module` names the only accepted module and semantic version.
-- Each `--expect-schema` names one accepted active-archetype SHA-256 digest.
+- Each `--expect-schema` names one accepted active archetype.
   The supplied set is compared exactly with the set emitted by quire-rs.
 
 ## Behavior
@@ -146,7 +146,7 @@ it does not disable schema checking.
 |----|----------|--------------|
 | FR-020-AC-1 | A pinned fixture containing artifacts, obligations, symbols, resolved and dangling corpus relations, `verifies` and `implements` bindings, locators, relation-kind capabilities, and `available`, `missing`, `not_applicable`, and `unknown` observations emits a complete `quire-assurance` v1 document that validates against `quire_rs::assurance::ASSURANCE_V1_SCHEMA`. | Test (IT-136, IT-137) |
 | FR-020-AC-2 | Two compact runs over identical fixture bytes and arguments produce byte-identical stdout; `--pretty` changes only whitespace and is independently byte-identical across runs. | Test (IT-138) |
-| FR-020-AC-3 | A mismatched module name/version, missing or extra schema premise, wrong schema digest, malformed premise syntax, unnamed/unversioned module, or unsupported source revision exits non-zero with empty stdout and a diagnostic naming the refused premise. | Test (IT-139, IT-140) |
+| FR-020-AC-3 | A mismatched module name/version, missing or extra schema premise, malformed premise syntax, unnamed/unversioned module, or unsupported source revision exits non-zero with empty stdout and a diagnostic naming the refused premise. | Test (IT-139, IT-140) |
 | FR-020-AC-4 | A valid corpus with zero artifacts, obligations, symbols, or relations still emits the complete successful envelope and exits zero. A module without a `traceability:` model exports its static artifacts and symbols with empty obligations and no `verifies`/`implements` relations. A document the corpus walker cannot read remains a successful export with an `unknown` relation observation and non-empty reason as quire-rs FR-068 requires; a missing root, invalid module/source premise, or export-wide upstream error exits non-zero with empty stdout. | Test (IT-141) |
 | FR-020-AC-5 | Module-loader and symbol-extraction diagnostics are emitted on stderr in human or JSON diagnostic form and never enter the assurance payload. | Test (IT-142) |
 | FR-020-AC-6 | The command delegates construction to `build_assurance_export`, validation to `read_assurance_export`, corpus loading to `Spec`, extraction to `extract_tree_scoped`, and binding to `trace::bind`; a static boundary audit rejects a second graph, schema, or direct parser in the CLI. | Inspection (TC-814) |

@@ -34,7 +34,7 @@ fn it_145_help_docs_capability_and_dependency_pin_agree() {
     );
 
     assert!(readme.contains("quire assurance"));
-    assert!(readme.contains("--expect-schema <MODULE/ARCHETYPE@SHA256>"));
+    assert!(readme.contains("--expect-schema <MODULE/ARCHETYPE>"));
     assert!(changelog.contains("assurance_export.v1"));
     assert!(quire_cli::engine::CAPABILITIES.contains(&"assurance_export.v1"));
 }

@@ -16,9 +16,9 @@ use common::quire;
 const REVISION: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const MODULE: &str = "assurance-fixture@1.2.3";
 const SCHEMAS: [&str; 3] = [
-    "assurance-fixture/FR@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "assurance-fixture/NFR@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-    "assurance-fixture/StR@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "assurance-fixture/FR",
+    "assurance-fixture/NFR",
+    "assurance-fixture/StR",
 ];
 
 struct Fixture {
@@ -281,20 +281,10 @@ fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     let cases: Vec<(&str, Vec<&str>, &str)> = vec![
         ("other@1.2.3", SCHEMAS.to_vec(), "module 'assurance-fixture'"),
         ("assurance-fixture@9.9.9", SCHEMAS.to_vec(), "version '1.2.3'"),
-        (MODULE, SCHEMAS[..2].to_vec(), "schema digest"),
         (
             MODULE,
-            vec![SCHEMAS[0], SCHEMAS[1], SCHEMAS[2], "assurance-fixture/US@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"],
+            vec![SCHEMAS[0], SCHEMAS[1], SCHEMAS[2], "assurance-fixture/US"],
             "does not exactly match",
-        ),
-        (
-            MODULE,
-            vec![
-                "assurance-fixture/FR@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-                SCHEMAS[1],
-                SCHEMAS[2],
-            ],
-            "schema digest",
         ),
     ];
     for (expected_module, schemas, message) in cases {

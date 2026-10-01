@@ -47,33 +47,21 @@ impl FromStr for ExpectedModule {
 pub struct ExpectedSchema {
     module: String,
     archetype: String,
-    digest: String,
 }
 
 impl FromStr for ExpectedSchema {
     type Err = String;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let (identity, digest) = value
-            .rsplit_once('@')
-            .ok_or_else(|| "expected MODULE/ARCHETYPE@SHA256".to_string())?;
-        let (module, archetype) = identity
+        let (module, archetype) = value
             .rsplit_once('/')
-            .ok_or_else(|| "expected MODULE/ARCHETYPE@SHA256".to_string())?;
+            .ok_or_else(|| "expected MODULE/ARCHETYPE".to_string())?;
         if module.is_empty() || archetype.is_empty() {
-            return Err("expected non-empty MODULE/ARCHETYPE@SHA256".to_string());
-        }
-        if digest.len() != 64
-            || !digest
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        {
-            return Err("schema digest must be 64 lowercase hexadecimal characters".to_string());
+            return Err("expected non-empty MODULE/ARCHETYPE".to_string());
         }
         Ok(Self {
             module: module.to_string(),
             archetype: archetype.to_string(),
-            digest: digest.to_string(),
         })
     }
 }
@@ -104,7 +92,7 @@ pub struct Args {
 
     /// One accepted active-archetype premise, repeatable. Supplying none means
     /// the expected module has no active archetypes.
-    #[arg(long, value_name = "MODULE/ARCHETYPE@SHA256")]
+    #[arg(long, value_name = "MODULE/ARCHETYPE")]
     pub expect_schema: Vec<ExpectedSchema>,
 }
 
@@ -196,7 +184,6 @@ fn accepted_premises(
         }
         accepted_schemas.push(AssuranceSchemaPremise {
             archetype: schema.archetype,
-            schema_digest: schema.digest,
         });
     }
     accepted_schemas.sort();
@@ -224,24 +211,21 @@ mod tests {
         assert!(ExpectedModule::from_str("@1.2.3").is_err());
         assert!(ExpectedModule::from_str("module@").is_err());
 
-        let digest = "a".repeat(64);
-        assert!(ExpectedSchema::from_str(&format!("module/FR@{digest}")).is_ok());
-        let scoped = ExpectedSchema::from_str(&format!("scope/module/FR@{digest}"))
+        assert!(ExpectedSchema::from_str("module/FR").is_ok());
+        let scoped = ExpectedSchema::from_str("scope/module/FR")
             .expect("rightmost slash separates archetype");
         assert_eq!(scoped.module, "scope/module");
         assert_eq!(scoped.archetype, "FR");
-        assert!(ExpectedSchema::from_str("module/FR@ABC").is_err());
-        assert!(ExpectedSchema::from_str(&format!("module@FR@{digest}")).is_err());
+        assert!(ExpectedSchema::from_str("module@FR").is_err());
     }
 
     #[test]
     fn accepted_set_rejects_cross_module_and_duplicate_schema_tuples() {
         let module = ExpectedModule::from_str("module@1.2.3").expect("module");
-        let digest = "a".repeat(64);
-        let wrong = ExpectedSchema::from_str(&format!("other/FR@{digest}")).expect("schema");
+        let wrong = ExpectedSchema::from_str("other/FR").expect("schema");
         assert!(accepted_premises(module.clone(), vec![wrong]).is_err());
 
-        let duplicate = ExpectedSchema::from_str(&format!("module/FR@{digest}")).expect("schema");
+        let duplicate = ExpectedSchema::from_str("module/FR").expect("schema");
         assert!(accepted_premises(module, vec![duplicate.clone(), duplicate]).is_err());
     }
 }
