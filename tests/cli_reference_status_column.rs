@@ -1,6 +1,4 @@
-//! Native consumer controls for quire-rs#409. The module fixture is copied
-//! byte-for-byte from agent-ix/qa-corpus 7442f2770880a4ade303fb23d725804bdef454db,
-//! modules/variants/reference-status-column-explicit/manifest.yaml.
+//! Native consumer controls for quire-rs#409.
 mod common;
 
 use std::fs;
