@@ -412,8 +412,8 @@ fn npm_scope(package: &str) -> Result<&str> {
 /// npm gives scope config (`@scope:registry=`, from any user or project
 /// `.npmrc`) precedence over the bare `--registry` flag. Every package this
 /// tool checks is `@agent-ix/…`, so a bare `--registry` is silently inert
-/// for all of them: measured directly (npm 10.9.2 and the CI-pinned
-/// 11.6.2), `npm view @agent-ix/…@<version> version --registry
+/// for all of them: measured directly,
+/// `npm view @agent-ix/…@<version> version --registry
 /// http://does-not-exist.invalid/` for a version that is *not* published
 /// still exits 0 and prints the version, because npm resolved the scope
 /// against this host's own `.npmrc`/npmjs.org default and never consulted
@@ -460,8 +460,8 @@ fn verify_package_resolves(
     // itself, so a mismatch here would mean npm's own output disagreed with
     // what it was asked to resolve — defend against that rather than trust
     // a non-empty stdout as proof of anything. Measured: npm exits non-zero
-    // for a genuinely absent version against both npm.ix and public npm on
-    // 10.9.2 and 11.6.2, so this branch is a defensive backstop rather than
+    // for a genuinely absent version against both npm.ix and public npm, so
+    // this branch is a defensive backstop rather than
     // the primary "missing" path — but it is the one guarding against npm
     // itself resolving something other than what was asked for.
     if resolved != version {

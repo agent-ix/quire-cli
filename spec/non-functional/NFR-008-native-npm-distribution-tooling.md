@@ -24,9 +24,9 @@ explicitly named external package manager or release host.
 - Rust owns the typed target catalog, binary identity validation, package
   manifests, version synchronization, parity checks, and test assertions.
 - Node executes only the installed npm `bin` host seam. Local Rust tests invoke
-  an exact Node/npm toolchain to qualify that seam; Node owns no test assertion
+  the installed Node/npm toolchain to qualify that seam; Node owns no test assertion
   or package decision.
-- The manual GitHub workflow may configure credentials and invoke pinned
+- The manual GitHub workflow may configure credentials and invoke
   external actions, Cargo, GitHub CLI, npm, and the Rust distribution tool.
   Generic GitHub release archive/checksum remediation is separately owned by
   `agent-ix/quire-research#63`.
@@ -47,7 +47,7 @@ explicitly named external package manager or release host.
 | `npm/build-packages.mjs` | First-party package generator and manifest mutator | Replace with the Rust distribution tool and remove. |
 | `scripts/set_version.sh` | First-party SemVer validator plus Perl/Node mutator | Replace with the Rust distribution tool and remove. |
 | npm target/version assertions inside `.github/workflows/release.yml` | Executable inline decision and validation logic | Replace with calls to the Rust distribution tool. |
-| Pinned GitHub actions, Cargo builds, artifact transfer, credential setup, `gh release`, and `npm publish` | External release-host orchestration | Retain as manually dispatched host integration; it owns no package semantics or test verdict. |
+| GitHub actions, Cargo builds, artifact transfer, credential setup, `gh release`, and `npm publish` | External release-host orchestration | Retain as manually dispatched host integration; it owns no package semantics or test verdict. |
 | GitHub release archive normalization/checksum shell | Non-npm ecosystem packaging | Preserve in #61 and route remediation to `agent-ix/quire-research#63`. |
 | WASM/browser paths | Deferred product surface | No implementation or qualification work in #61. |
 
@@ -75,9 +75,9 @@ undeclared target catalog, or Quire semantic dependencies appear.
 | NFR-008-AC-1 | The only repository-owned JavaScript executed in npm distribution is `npm/quire-cli/bin/quire.js`, and it remains within every ADR-0002 boundary. | Static/mutation test (TC-815, TC-819) |
 | NFR-008-AC-2 | All distribution test or audit verdicts are asserted by Rust tests carrying `ix-trace-rs` links to the owning acceptance criteria. | Static test (TC-820) |
 | NFR-008-AC-3 | The distribution tool and launcher contain no document, extraction, clause, profile, grammar, temporal, protocol, or source-semantic implementation and the Rust tool has no `quire-rs` dependency. | Static test (TC-820) |
-| NFR-008-AC-4 | Local qualification uses `CARGO_BUILD_JOBS=2` and no hosted-CI dispatch or publication. | Inspection (TC-821) |
-| NFR-008-AC-5 | The retained Node/npm qualification reliance is limited to packing, clean offline installation, dependency resolution, and exercising the launcher process seam; the Rust tests decide every result. | Test/review (IT-159, IT-163, TC-821) |
-| NFR-008-AC-6 | Rust distribution dependencies pass the repository's license/source policy, the launcher imports only Node built-ins, and every emitted npm package declares and carries the repository's `AGPL-3.0-or-later` license. | Test/inspection (IT-163, TC-821) |
+| NFR-008-AC-4 | Local qualification uses `CARGO_BUILD_JOBS=2` and no hosted-CI dispatch or publication. | Inspection |
+| NFR-008-AC-5 | The retained Node/npm qualification reliance is limited to packing, clean offline installation, dependency resolution, and exercising the launcher process seam; the Rust tests decide every result. | Test/review (IT-159, IT-163) |
+| NFR-008-AC-6 | Rust distribution dependencies pass the repository's license/source policy, the launcher imports only Node built-ins, and every emitted npm package declares and carries the repository's `AGPL-3.0-or-later` license. | Test/inspection (IT-163) |
 
 ## Dependencies
 

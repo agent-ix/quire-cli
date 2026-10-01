@@ -13,8 +13,8 @@ relationships:
 ---
 
 > **CR note (render removal — 2026-06-04):** The `render` row of the stream table
-> and the `--data -` stdin trigger are removed (mirrors quire-rs render retirement,
-> commit 500a3d3). The uniform I/O contract is otherwise unchanged and applies to the
+> and the `--data -` stdin trigger are removed (mirrors quire-rs render retirement).
+> The uniform I/O contract is otherwise unchanged and applies to the
 > surviving subcommands. AC-4 is rephrased onto a stdin-reading surviving subcommand.
 
 ## Description

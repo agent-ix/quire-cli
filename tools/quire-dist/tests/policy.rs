@@ -72,8 +72,6 @@ fn audit_release_workflow(workflow: &str) -> Vec<String> {
         findings.push("release trigger is not manual-dispatch-only".to_owned());
     }
     for required in [
-        "node-version: \"22.15.0\"",
-        "npm install -g npm@11.6.2",
         "cargo run --locked -p quire-dist -- verify-binary",
         "cargo run --locked -p quire-dist -- verify-release",
         "cargo run --locked -p quire-dist -- package-npm",
@@ -180,7 +178,6 @@ fn tc819_release_workflow_is_manual_native_and_mutation_sensitive() {
             "true",
             1,
         ),
-        production.replacen("npm install -g npm@11.6.2", "npm install -g npm@latest", 1),
         production.replacen("if: inputs.publish", "if: success()", 1),
     ];
     for mutant in mutants {
@@ -242,28 +239,5 @@ fn tc820_distribution_tests_are_traced_and_semantically_contained() {
                 index + 1
             );
         }
-    }
-}
-
-#[trace("TC-821", "NFR-008-AC-4")]
-#[trace("NFR-008-AC-5", "NFR-008-AC-6")]
-#[test]
-fn tc821_qualification_record_is_complete_and_native() {
-    let review =
-        fs::read_to_string(repo_root().join("reviews/SR-063-npm-distribution-rust-review.md"))
-            .expect("read qualification review");
-    for required in [
-        "exact 1.98.1",
-        "CARGO_BUILD_JOBS=2",
-        "Node v22.15.0 and npm 10.9.2",
-        "Node 22.15.0 and npm 11.6.2",
-        "208 dependencies scanned",
-        "No GitHub workflow was dispatched",
-        "No GitHub release, Cargo package, or npm",
-    ] {
-        assert!(
-            review.contains(required),
-            "qualification review is missing {required:?}"
-        );
     }
 }

@@ -527,8 +527,8 @@ fn it164_native_binary_version_mismatch_fails() {
 /// every call this test makes goes through the same assertion.
 ///
 /// A version containing `missing` is treated as a 404 (exit 1, npm-shaped
-/// stderr) in both modes -- measured directly against npm 10.9.2 and the
-/// CI-pinned 11.6.2 on both npm.ix and public npm, a genuinely absent
+/// stderr) in both modes -- measured directly against npm on both npm.ix and
+/// public npm, a genuinely absent
 /// version reliably exits non-zero with `E404`, never exit 0 with empty
 /// stdout, on either registry. A version containing `garbled` echoes a
 /// version that disagrees with what was asked for, exit 0 -- the shape

@@ -5,7 +5,7 @@ type: StR
 ---
 
 > **CR note (render removal — 2026-06-04):** Templates are removed (mirrors
-> quire-rs render retirement, commit 500a3d3), so the template-sandbox half of this
+> quire-rs render retirement), so the template-sandbox half of this
 > need (`{% include %}`/`{% extends %}` / template FS reads) no longer applies. The
 > surviving, load-bearing need is **process-boundary path safety** on `--module` and
 > the document/data path arguments. The need and AC-3 are revised accordingly.

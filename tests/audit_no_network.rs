@@ -81,7 +81,6 @@ fn clause_module(dir: &TempDir) -> PathBuf {
         id: "widget-assurance".into(),
         title: "Synthetic widget assurance rules".into(),
         version: "1.0.0".into(),
-        digest: String::new(),
         rights: ClauseSetRights {
             structure: StructureRights::Original,
             text: TextRights::None,
@@ -104,7 +103,6 @@ fn clause_module(dir: &TempDir) -> PathBuf {
         }],
         crosswalks: Vec::new(),
     };
-    set.digest = set.computed_digest();
     std::fs::write(
         root.join("clauses/widget.json"),
         serde_json::to_vec_pretty(&set).expect("serialize clause set"),

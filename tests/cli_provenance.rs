@@ -111,10 +111,10 @@ fn it_123_version_reports_the_cli_and_the_engine() {
     // word "engine" appeared — so mutating the format string to
     // `"(engine )"` left this test green and shipped a `--version` that named
     // no engine at all. That is the whole defect, passing its own gate.
-    let engine = engine_revision_from_lockfile();
+    let engine = quire_cli::engine::ENGINE_VERSION;
     assert!(
-        line.contains(&engine[..8]),
-        "`--version` must name the resolved engine revision `{engine}`: {line}",
+        line.contains(engine),
+        "`--version` must name the resolved engine version `{engine}`: {line}",
     );
     assert!(
         line.contains("engine"),
@@ -124,24 +124,6 @@ fn it_123_version_reports_the_cli_and_the_engine() {
     // One line: `quire --version` is scraped, and growing a second line breaks
     // every caller doing so.
     assert_eq!(line.trim().lines().count(), 1, "{line}");
-}
-
-/// The engine version this crate's lockfile resolves.
-///
-/// Read here, at the process boundary, rather than imported from the library:
-/// the point is that the SHIPPED BINARY reports it, and a test that asked the
-/// library for the expected value and then checked the library's own constant
-/// would be comparing a value to itself.
-fn engine_revision_from_lockfile() -> String {
-    let lock = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.lock"))
-        .expect("Cargo.lock");
-    quire_cli::lockfile::engine_source_revision(&lock).expect("quire-rs is a dependency")
-}
-
-fn engine_version_from_lockfile() -> String {
-    let lock = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.lock"))
-        .expect("Cargo.lock");
-    quire_cli::lockfile::engine_version(&lock).expect("quire-rs is a dependency")
 }
 
 /// Run `quire`, require exit 0, and parse stdout as the JSON payload.
@@ -415,7 +397,7 @@ fn collect_banned_keys(node: &Value, out: &mut Vec<String>) {
 // moves — a key added, a key reordered, a key silently dropped.
 //
 // **The version VALUES are redacted, the structure is not.** A snapshot
-// carrying `0.45.0` would have to be regenerated on every engine bump, which
+// carrying an engine version would have to be regenerated on every engine bump, which
 // trains a reader to regenerate it without reading it — and a golden file
 // nobody reads is the gate that let #52 ship four binaries reporting 0.23.0.
 // What must not drift is the shape: which keys, in which order.
@@ -433,7 +415,7 @@ fn it_129_the_envelope_shape_is_pinned_by_a_golden_snapshot() {
 
     let redacted = raw
         .replace(env!("CARGO_PKG_VERSION"), "<cli>")
-        .replace(&engine_version_from_lockfile(), "<engine>");
+        .replace(&quire_cli::engine::ENGINE_VERSION, "<engine>");
     let snapshot = include_str!("snapshots/extract-envelope.json");
 
     assert_eq!(

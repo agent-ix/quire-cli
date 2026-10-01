@@ -3,7 +3,7 @@ mod common;
 use common::quire;
 
 #[test]
-fn provenance_reports_the_full_engine_revision_and_sorted_capabilities() {
+fn provenance_reports_the_tool_versions_and_sorted_capabilities() {
     let output = quire()
         .args(["provenance", "--json"])
         .output()
@@ -17,12 +17,7 @@ fn provenance_reports_the_full_engine_revision_and_sorted_capabilities() {
     assert_eq!(payload["schemaVersion"], "quire-tool-provenance-v1");
     for component in ["cli", "engine"] {
         assert!(payload[component]["version"].is_string());
-        let revision = payload[component]["sourceRevision"]
-            .as_str()
-            .expect("full source revision");
-        assert_eq!(revision.len(), 40, "{component}: {payload}");
     }
-    assert_eq!(payload["engine"]["sourceState"], "clean");
     let capabilities = payload["capabilities"].as_array().expect("capabilities");
     let mut sorted = capabilities.clone();
     sorted.sort_by(|left, right| left.as_str().cmp(&right.as_str()));

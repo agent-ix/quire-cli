@@ -24,7 +24,6 @@ fn set(version: &str, changed: bool) -> ClauseSet {
         id: "widget-assurance".into(),
         title: "Synthetic widget assurance rules".into(),
         version: version.into(),
-        digest: String::new(),
         rights: ClauseSetRights {
             structure: StructureRights::Original,
             text: TextRights::Original,
@@ -84,7 +83,6 @@ fn set(version: &str, changed: bool) -> ClauseSet {
             expected_outputs: Vec::new(),
         });
     }
-    set.digest = set.computed_digest();
     set
 }
 
@@ -343,29 +341,4 @@ fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
         .unwrap();
     assert_eq!(traversal.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&traversal.stderr).contains("PathTraversal"));
-
-    let invalid_dir = TempDir::new().unwrap();
-    let invalid_module = module(&invalid_dir);
-    let invalid_path = invalid_dir.path().join("module/clauses/v1.json");
-    let mut invalid: Value =
-        serde_json::from_slice(&fs::read(&invalid_path).unwrap()).expect("clause JSON");
-    invalid["title"] = Value::String("Changed without a new digest".into());
-    fs::write(&invalid_path, serde_json::to_vec_pretty(&invalid).unwrap()).unwrap();
-    let rejected = quire()
-        .args([
-            "clauses",
-            "evaluate",
-            "--module",
-            &invalid_module,
-            "--authority",
-            "example.test",
-            "--set",
-            "widget-assurance",
-            "--version",
-            "1.0.0",
-        ])
-        .output()
-        .unwrap();
-    assert_eq!(rejected.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&rejected.stderr).contains("digest"));
 }

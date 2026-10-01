@@ -16,7 +16,7 @@ relationships:
 > **markdown-only**. The `--json` context/data mode (which dispatched to quire-rs
 > `validate(&compiled_archetype, &data)` / [FR-002](./FR-002-parse-subcommand.md) over a context JSON object) is
 > **removed** — no backward-compatibility layer, mirroring the quire-rs render
-> retirement (commit 500a3d3). The engine `validate` fn still exists in quire-rs to
+> retirement. The engine `validate` fn still exists in quire-rs to
 > back `validate_document`, but it is no longer reachable from the CLI. The
 > consumed-[FR-002](./FR-002-parse-subcommand.md) relationship is dropped from this FR's frontmatter for that reason.
 > The CLI remains a thin wrapper ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) — no validation logic lives here.

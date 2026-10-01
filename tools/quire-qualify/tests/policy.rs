@@ -131,13 +131,6 @@ fn executable_script_inventory_is_empty_except_for_the_npm_host() {
 #[test]
 fn native_toolchain_trace_and_no_shell_invariants_are_explicit() {
     let root = repo_root();
-    let toolchain = fs::read_to_string(root.join("rust-toolchain.toml")).unwrap();
-    assert!(toolchain.lines().any(|line| line == "channel = \"1.98.1\""));
-
-    let manifest = fs::read_to_string(root.join("tools/quire-qualify/Cargo.toml")).unwrap();
-    assert!(manifest
-        .lines()
-        .any(|line| line == "rust-version = \"1.98.1\""));
     let makefile = fs::read_to_string(root.join("Makefile")).unwrap();
     for line in makefile.lines().filter(|line| line.contains("$(CARGO)")) {
         if [" build", " clippy", " doc", " run", " test", " deny"]

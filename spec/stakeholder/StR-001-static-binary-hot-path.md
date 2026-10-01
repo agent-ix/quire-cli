@@ -5,7 +5,7 @@ type: StR
 ---
 
 > **CR note (render removal — 2026-06-04):** The render half is removed (mirrors
-> quire-rs render retirement, commit 500a3d3). The single-binary hot-path need now
+> quire-rs render retirement). The single-binary hot-path need now
 > covers `validate` / `parse` / `extract` / `lookup` / `edit` (no `render`).
 > Artifacts are authored as markdown directly and checked by `validate`. The
 > stakeholder need below is revised accordingly; AC-1 is updated to the surviving
