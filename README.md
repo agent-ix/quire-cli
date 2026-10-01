@@ -22,7 +22,7 @@ extraction, and structural validation live in `quire-rs`.
 ```bash
 quire assurance --scope <DIR> --module <PATH> --repository <IDENTITY> \
   --revision <FULL_SHA> --expect-module <NAME@VERSION> \
-  [--expect-schema <MODULE/ARCHETYPE@SHA256>]...
+  [--expect-schema <MODULE/ARCHETYPE>]...
 quire parse <DOC|->
 quire lookup <DOC|-> (--heading <TEXT> [--level <1..6>] | --id <ID> | --block-id <BLOCK_ID>) [--content]
 quire edit <DOC|-> (--heading <TEXT> | --block-id <BLOCK_ID>) --content <FILE|-> [--out <PATH>]
@@ -194,13 +194,13 @@ quire assurance \
   --repository agent-ix/example \
   --revision 0123456789abcdef0123456789abcdef01234567 \
   --expect-module spec-artifacts-process@0.1.0 \
-  --expect-schema spec-artifacts-process/FR@<64-lowercase-hex-digest>
+  --expect-schema spec-artifacts-process/FR
 ```
 
 Documents come only from `<scope>/spec`; source symbols come from `<scope>`
 with `spec/` and module-declared source exclusions omitted. The module path,
 repository identity, full revision, module version, and complete active-schema
-digest set are explicit. A missing, extra, or mismatched premise exits non-zero
+set are explicit. A missing, extra, or mismatched premise exits non-zero
 before stdout. A successful corpus may contain empty arrays; an unreadable
 document remains explicit as an `unknown` observation with a reason.
 

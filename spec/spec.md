@@ -163,7 +163,7 @@ removed — see §2bis):
 - `quire lookup` / `quire edit` — read / byte-splice a section or stable block (consumer of `quire-rs` query + `update_section`/`update_block`).
 - `quire assurance --scope <dir> --module <path> --repository <identity>
   --revision <full-sha> --expect-module <name@version>
-  [--expect-schema <module/archetype@sha256>]...` — emit quire-rs's closed
+  [--expect-schema <module/archetype>]...` — emit quire-rs's closed
   `assurance-v1` static projection after exact premise validation; executes no
   test, proof, solver, consumer, package-manager, Git, or network command.
 

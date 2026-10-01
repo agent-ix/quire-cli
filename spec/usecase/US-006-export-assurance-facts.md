@@ -21,8 +21,8 @@ successful one.
 - A producer supplies a bounded repository scope, one exact
   module, a repository identity, and a full immutable revision and receives a
   `quire-assurance` v1 JSON document on stdout.
-- A producer can pin the expected module version and complete
-  active-archetype schema-digest set; any mismatch fails before stdout.
+- A producer can pin the expected module version; any mismatch fails before
+  stdout.
 - Repeating the command over byte-identical inputs emits
   byte-identical compact JSON.
 - The command reads documents and source statically and never
