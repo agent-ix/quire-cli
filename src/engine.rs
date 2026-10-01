@@ -1,16 +1,10 @@
 //! Which instrument produced a payload (agent-ix/quire-cli#68).
 //!
-//! `quire --version` reported the **CLI crate** version. The engine is a git
-//! dependency pinned by tag, and no surface reported it at all — so a current
-//! CLI could link a stale engine and still print a confident number.
-//!
-//! Measured, and the reason this module exists: the installed CLI **0.29.0**
-//! pins engine **v0.42.0**, while `binding_census` — the only signal answering
-//! "did the binder read a single test?" — landed in **v0.43.0**. Four
-//! battle-testing passes reported ecosystem figures from a binary that could
-//! not emit it. Upgrading the binary fixes that instance; this fixes the class,
-//! because the provenance now travels *with the payload* and survives being
-//! saved to disk.
+//! `quire --version` reported the **CLI crate** version only, and no surface
+//! reported the engine at all, so a CLI could link a stale engine and still
+//! print a confident number. The provenance now travels *with the payload* and
+//! survives being saved to disk: the versions of the tools that produced an
+//! output are the provenance.
 //!
 //! This is **not** the contract version. Which schema describes a payload lives
 //! in that schema's `$id` (quire-rs FR-055-CON-2, as narrowed by CR-104); a
@@ -29,9 +23,6 @@ pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// to [`CLI_VERSION`]: a plausible-looking substitute is the failure this
 /// module exists to end.
 pub const ENGINE_VERSION: &str = env!("QUIRE_ENGINE_VERSION");
-pub const ENGINE_MANIFEST_VERSION: &str = env!("QUIRE_ENGINE_MANIFEST_VERSION");
-pub const ENGINE_SOURCE_REVISION: &str = env!("QUIRE_ENGINE_SOURCE_REVISION");
-pub const CLI_SOURCE_REVISION: &str = env!("QUIRE_CLI_SOURCE_REVISION");
 pub const TOOL_PROVENANCE_SCHEMA: &str = "quire-tool-provenance-v1";
 
 /// What this build can emit, as tokens.
@@ -43,7 +34,7 @@ pub const TOOL_PROVENANCE_SCHEMA: &str = "quire-tool-provenance-v1";
 /// are asserted rather than derived from a version comparison.
 ///
 /// **A token, never version arithmetic.** A consumer asserts it needs
-/// `binding_census`; it must not assert `engine >= 0.43.0`. A version
+/// `binding_census`; it must not assert an engine version floor. A version
 /// comparison in a consumer is a second place the contract lives, and it goes
 /// stale in a repository nobody thinks to update.
 ///
@@ -57,7 +48,7 @@ pub const CAPABILITIES: &[&str] = &[
     // assurance-v1 schema (quire-rs FR-067/FR-068, quire-cli FR-020).
     "assurance_export.v1",
     // `CoverageReport.binding_census` — what the trace binder examined and what
-    // bound, per language (quire-rs FR-050-AC-27, v0.43.0).
+    // bound, per language (quire-rs FR-050-AC-27).
     "binding_census",
     // A self-named evidence-symbol subpopulation that comment/attribute
     // bindings cannot mask (quire-rs FR-050-AC-44, #367).
@@ -71,7 +62,7 @@ pub const CAPABILITIES: &[&str] = &[
     // Declaration diagnostics retain the exact authored path and line (#365).
     "declaration_origins",
     // `CoverageReport.metrics` — every headline ratio with its unit,
-    // population, `examined` and `matched` (quire-rs FR-063, v0.44.0).
+    // population, `examined` and `matched` (quire-rs FR-063).
     "metrics_envelope",
     // `CoverageReport.minted_targets` — row identity and backed state behind
     // aggregate coverage totals (quire-rs FR-050-AC-38, #361).
@@ -91,30 +82,10 @@ pub const CAPABILITIES: &[&str] = &[
     "unmatched_tags",
 ];
 
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum SourceState {
-    Clean,
-    Dirty,
-    Unknown,
-}
-
-impl SourceState {
-    fn from_build(value: &str) -> Self {
-        match value {
-            "clean" => Self::Clean,
-            "dirty" => Self::Dirty,
-            _ => Self::Unknown,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ComponentProvenance {
     pub version: &'static str,
-    pub source_revision: Option<&'static str>,
-    pub source_state: SourceState,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -126,10 +97,6 @@ pub struct ToolProvenance {
     pub capabilities: Vec<&'static str>,
 }
 
-fn known_revision(value: &'static str) -> Option<&'static str> {
-    (value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit())).then_some(value)
-}
-
 impl ToolProvenance {
     pub fn current() -> Self {
         let mut capabilities = CAPABILITIES.to_vec();
@@ -138,17 +105,9 @@ impl ToolProvenance {
             schema_version: TOOL_PROVENANCE_SCHEMA,
             cli: ComponentProvenance {
                 version: CLI_VERSION,
-                source_revision: known_revision(CLI_SOURCE_REVISION),
-                source_state: SourceState::from_build(env!("QUIRE_CLI_SOURCE_STATE")),
             },
             engine: ComponentProvenance {
-                version: ENGINE_MANIFEST_VERSION,
-                source_revision: known_revision(ENGINE_SOURCE_REVISION),
-                source_state: if known_revision(ENGINE_SOURCE_REVISION).is_some() {
-                    SourceState::Clean
-                } else {
-                    SourceState::Unknown
-                },
+                version: ENGINE_VERSION,
             },
             capabilities,
         }
@@ -255,12 +214,8 @@ pub fn attach<T: Serialize>(inner: T) -> WithProvenance<T> {
 /// suite green.
 pub const VERSION_LINE: &str = concat!(
     env!("CARGO_PKG_VERSION"),
-    " (cli ",
-    env!("QUIRE_CLI_SOURCE_SHORT"),
-    ", engine ",
-    env!("QUIRE_ENGINE_MANIFEST_VERSION"),
-    "@",
-    env!("QUIRE_ENGINE_SOURCE_SHORT"),
+    " (engine ",
+    env!("QUIRE_ENGINE_VERSION"),
     ")"
 );
 
@@ -286,14 +241,14 @@ mod capability_witnesses {
     // `action_guidance.structured` (#364)
     const _: fn(&quire_rs::coverage::CoverageDiagnostic) -> bool = |d| d.guidance.is_some();
 
-    // `binding_census` (quire-rs FR-050-AC-27, v0.43.0)
+    // `binding_census` (quire-rs FR-050-AC-27)
     const _: fn(&CoverageReport) -> &[quire_rs::symbols::trace::BindingCensus] =
         |r| &r.binding_census;
     // `binding_census.self_named` (quire-rs FR-050-AC-44, #367)
     const _: fn(&CoverageReport) -> usize = |r| r.binding_census.iter().map(|c| c.self_named).sum();
     // `binding_census.tagged` (#271)
     const _: fn(&CoverageReport) -> usize = |r| r.binding_census.iter().map(|c| c.tagged).sum();
-    // `metrics_envelope` (FR-063, v0.44.0)
+    // `metrics_envelope` (FR-063)
     const _: fn(&CoverageReport) -> &[quire_rs::metric::Metric] = |r| &r.metrics;
     // `minted_targets` (FR-050-AC-38, #361)
     const _: fn(&CoverageReport) -> usize = |r| r.minted_targets.len();
@@ -319,48 +274,22 @@ mod capability_witnesses {
 mod tests {
     use super::*;
 
-    // The lockfile pins the engine by tag, and the tag is not the engine
-    // crate's manifest version — `quire-rs`'s own Cargo.toml says 0.33.0 while
-    // it ships v0.45.0. If this ever reports the manifest number, build.rs has
-    // silently started reading the wrong field and every payload is lying
-    // again.
-    // The version this build reports must be the one its own lockfile
-    // resolves. Asserted against the lockfile rather than against
-    // `!= CLI_VERSION`: the review pointed out that comparison encodes a
-    // coincidence, and would start failing spuriously the day the CLI reaches
-    // 0.45.0 with nothing wrong.
     #[test]
-    fn the_reported_engine_version_is_the_one_the_lockfile_resolves() {
+    fn the_reported_engine_version_is_resolved() {
         assert_ne!(ENGINE_VERSION, "", "the engine version must be resolved");
         assert_ne!(
             ENGINE_VERSION, "unknown",
             "the lockfile must be readable at build time",
-        );
-
-        let lock = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.lock"))
-            .expect("Cargo.lock");
-        assert_eq!(
-            Some(ENGINE_VERSION.to_string()),
-            crate::lockfile::engine_version(&lock),
-            "the compiled-in engine version disagrees with this crate's lockfile",
         );
     }
 
     #[test]
     fn the_version_line_names_both_distinctly() {
         // Checked first: `str::contains("")` is unconditionally true, so an
-        // empty ENGINE_VERSION would make the assertion below decorative —
-        // exactly the vacuity this whole module exists to prevent.
+        // empty ENGINE_VERSION would make the assertion below decorative.
         assert!(!ENGINE_VERSION.is_empty());
         assert!(VERSION_LINE.contains(CLI_VERSION), "{VERSION_LINE}");
-        assert!(
-            VERSION_LINE.contains(ENGINE_MANIFEST_VERSION),
-            "{VERSION_LINE}"
-        );
-        assert!(
-            VERSION_LINE.contains(env!("QUIRE_ENGINE_SOURCE_SHORT")),
-            "{VERSION_LINE}"
-        );
+        assert!(VERSION_LINE.contains(ENGINE_VERSION), "{VERSION_LINE}");
         assert!(
             VERSION_LINE.contains("engine"),
             "the engine number must be labelled, or the two are indistinguishable: {VERSION_LINE}",
@@ -478,8 +407,6 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_str(&first).expect("valid JSON");
         assert_eq!(parsed["schemaVersion"], TOOL_PROVENANCE_SCHEMA);
         assert_eq!(parsed["cli"]["version"], CLI_VERSION);
-        assert_eq!(parsed["engine"]["version"], ENGINE_MANIFEST_VERSION);
-        assert_eq!(parsed["engine"]["sourceRevision"], ENGINE_SOURCE_REVISION);
-        assert_eq!(parsed["engine"]["sourceState"], "clean");
+        assert_eq!(parsed["engine"]["version"], ENGINE_VERSION);
     }
 }

@@ -388,7 +388,7 @@ fn tsv_line(kind: &str, cells: [&str; 8]) -> String {
 /// Nine fixed columns — `kind id document reference status method line
 /// targets text` — with the empty string where a kind carries no value. The
 /// `line` column carries the engine's 1-based line where the record has one
-/// (quire-rs v0.42.0, #210 — the arrival #53 reserved the column for), empty
+/// (quire-rs #210 — the arrival #53 reserved the column for), empty
 /// where it does not; `targets` flattens id lists with `,`; obligation
 /// `parameters` are deliberately omitted (a map does not flatten into one
 /// column without an escaping contract). Ordering mirrors the JSON arrays, so
@@ -543,7 +543,7 @@ fn percent_label(backed: usize, total: usize) -> String {
 /// the only identity the record has.
 ///
 /// The parenthesized locus is `document:line` when the record carries the
-/// engine's 1-based line (quire-rs v0.42.0, FR-050-AC-26) — the clickable
+/// engine's 1-based line (quire-rs FR-050-AC-26) — the clickable
 /// `path:line` form `validate` established — and the bare document when it
 /// does not, exactly as before.
 fn finding_identity(

@@ -72,7 +72,7 @@ reconstruct a statement from any other field or any other surface.
 `coverage_matrix` is a JSON array of requirement entries (the
 `requirements[]` of FR-050-AC-47/48 is the array itself), and the engine omits
 the key whenever that array would be empty (FR-050-AC-51: `Vec` with
-`skip_serializing_if = "Vec::is_empty"` at quire-rs 0.48.0). The
+`skip_serializing_if = "Vec::is_empty"` at quire-rs). The
 zero-population state — **zero criteria** — therefore has exactly one shape:
 the key is absent. Markdown renders it as the single empty-state line (§C),
 TSV as the header alone (§F), `--strict` fails it (§G, AC-10), and
@@ -296,7 +296,7 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 >   carries the FR-017-AC-21 resolution-order text (SR-067 FND-001).
 
 > **CR note (implementation, 2026-09-28, PLAT-1078):** §B, §E and AC-7/8/9/10
-> are amended to the shape quire-rs 0.48.0 actually ships. The authored text
+> are amended to the shape quire-rs actually ships. The authored text
 > read `coverage_matrix` as an object carrying `requirements[]` and allowed a
 > present-but-empty shape. The engine serializes the field as a bare array of
 > requirement entries (`Vec<CoverageMatrixRequirement>`) and omits it whenever

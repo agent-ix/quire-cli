@@ -93,7 +93,7 @@ This specification does not govern:
 
 The render/templating half of `quire-rs` is **removed** — **no backward-compatibility
 layer**, no deprecated-but-kept flag, no dual-read (mirrors the upstream quire-rs
-render retirement, commit 500a3d3). `quire-cli` is now a **parse / validate /
+render retirement). `quire-cli` is now a **parse / validate /
 extract / schema / lookup / edit** boundary. Artifacts are authored as markdown
 directly (via the `/specify` flow) and checked structurally by `validate` →
 quire-rs `validate_document` (FR-032). The `validate --json` context/data mode
@@ -354,7 +354,7 @@ FRs are verified by:
 
 BASELINED — v0.2.x released. The surface is seven subcommands: the six in §3.1
 (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`) plus `lint`
-([FR-013](./functional/FR-013-lint-subcommand.md), added in v0.2.0); `render` is removed (§2bis). Under SemVer the
+([FR-013](./functional/FR-013-lint-subcommand.md)); `render` is removed (§2bis). Under SemVer the
 subcommand surface, exit codes, and JSON output schemas are the stable contract
 ([NFR-006](./non-functional/NFR-006-cli-stability.md)). Further changes follow §13 change management.
 

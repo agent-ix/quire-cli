@@ -19,8 +19,8 @@ relationships:
 ---
 
 > **RETIRED (render removal — 2026-06-04):** The render path is **removed** from
-> `quire-rs` (no backward-compatibility layer — mirrors quire-rs [FR-001](ix://agent-ix/quire-rs/FR-001) retirement,
-> commit 500a3d3). There is no `render`/`render_by_name` engine API and no `render`
+> `quire-rs` (no backward-compatibility layer — mirrors quire-rs [FR-001](ix://agent-ix/quire-rs/FR-001) retirement).
+> There is no `render`/`render_by_name` engine API and no `render`
 > subcommand in `quire-cli`. Artifacts are authored as markdown directly (via the
 > `/specify` flow) and checked structurally by `validate` ([FR-004](./FR-004-validate-subcommand.md) →
 > quire-rs `validate_document`/FR-032). This document is kept for history and

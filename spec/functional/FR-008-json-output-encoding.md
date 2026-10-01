@@ -58,7 +58,7 @@ Both inner values are emitted unmodified.
 > no `$schema`, at any level.
 >
 > `capabilities` is a **token list, not version arithmetic**. A consumer asserts
-> it needs `binding_census`; it must not assert `engine >= 0.43.0`, because a
+> it needs `binding_census`; it must not assert an engine version floor, because a
 > version comparison in a consumer is a second place the contract lives. The
 > vocabulary is open, so adding a token cannot break a consumer written against
 > an older list. Each token names an engine surface this binary calls, so a
@@ -90,7 +90,7 @@ Both inner values are emitted unmodified.
 | FR-008-AC-3 | `quire parse doc.md --pretty` produces multi-line indented JSON with the same logical content as compact form | Test |
 | FR-008-AC-4 | Byte-for-byte output of `parse` is identical across runs against the same input (determinism) | Test |
 | FR-008-AC-5 | No bare `version`, `schema_version` or `$schema` key appears at any level of JSON output: a payload never names the contract revision it claims to conform to (CR-104) | Test |
-| FR-008-AC-6 | Every JSON payload — `coverage`, `properties`, `extract` — carries a top-level `engine` object naming the CLI version, the resolved engine version and a capability token list; `quire --version` reports both versions distinctly; the resolved engine version is read from the lockfile and a `-<n>-g<sha>` suffix is reported verbatim rather than rounded to the nearest tag (CR-104) | Test |
+| FR-008-AC-6 | Every JSON payload — `coverage`, `properties`, `extract` — carries a top-level `engine` object naming the CLI version, the resolved engine version and a capability token list; `quire --version` reports both versions distinctly (CR-104) | Test |
 
 ## Dependencies
 

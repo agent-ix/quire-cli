@@ -6,7 +6,7 @@ type: StR
 
 > **RETIRED (render removal — 2026-06-04):** This StR framed the sub-50 ms budget
 > around the render hot path (`cold start → load module → validate → render → write`).
-> With render removed (mirrors quire-rs render retirement, commit 500a3d3), the
+> With render removed (mirrors quire-rs render retirement), the
 > render-centric budget no longer applies. The surviving fast-CLI need for the
 > retained subcommands (`validate`/`parse`/`extract`/`lookup`/`edit`) is carried by
 > the revised [StR-001](./StR-001-static-binary-hot-path.md); the dedicated render-latency [NFR-001](../non-functional/NFR-001-render-latency-budget.md) is also retired. Kept for

@@ -859,7 +859,7 @@ fn it109_human_finding_lines_lead_with_the_row_id() {
 
     // Row id leading, reference kind visible, one line per row — for both
     // finding classes this fixture produces. The locus carries the engine's
-    // 1-based document line (FR-017-AC-16, quire-rs v0.42.0): the two matrix
+    // 1-based document line (FR-017-AC-16, quire-rs): the two matrix
     // rows sit on lines 11 and 12 of the fixture.
     for (row, line) in [("TC-001", 11), ("TC-002", 12)] {
         assert!(
@@ -1107,8 +1107,8 @@ fn it110_severity_pack_projects_and_promotes() {
 
 // IT-111, FR-017-AC-14 (#53): `--format tsv` emits one tab-separated record
 // per line on stdout — nine fixed columns, row id leading the data cells, a
-// `line` column carrying the engine's 1-based line (populated since quire-rs
-// v0.42.0; the column predates the data, so its arrival needed no format
+// `line` column carrying the engine's 1-based line (the column predates
+// the data, so its arrival needed no format
 // change), and byte-identical output across runs. The severity projection
 // applies to it exactly as to the other surfaces.
 #[test]
@@ -1145,7 +1145,7 @@ fn it111_tsv_emits_one_record_per_line_on_stdout() {
     }
     // Two unbacked rows and two status lies, each one line, row id leading.
     // The `line` column now carries the engine's 1-based document line
-    // (FR-017-AC-14, quire-rs v0.42.0) — the arrival the empty column was
+    // (FR-017-AC-14, quire-rs) — the arrival the empty column was
     // reserved for, with no format change: the matrix rows sit on fixture
     // lines 11 and 12.
     for (row, doc_line) in [("TC-001", "11"), ("TC-002", "12")] {
@@ -1332,7 +1332,7 @@ fn self_ref_manifest() -> &'static str {
      \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n"
 }
 
-// IT-113, FR-017-AC-16 (#51 item 3, quire-rs v0.42.0 FR-050-AC-26): when a
+// IT-113, FR-017-AC-16 (#51 item 3, quire-rs FR-050-AC-26): when a
 // finding record carries the engine's 1-based line, the human locus is the
 // clickable `document:line` form. The fixture puts preamble prose ABOVE the
 // table so the asserted numbers can only be document lines — a renderer
@@ -1572,7 +1572,7 @@ fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
     );
 }
 
-// IT-116, FR-017-AC-19 (quire-rs v0.42.0, FR-050-AC-23/CR-087): the advisory
+// IT-116, FR-017-AC-19 (quire-rs FR-050-AC-23/CR-087): the advisory
 // `shared_trace_ids` list passes through `--json` — one status-carrying row
 // id bound by N distinct symbols is reported, so a green row can no longer
 // rot N-1 tests deep invisibly. Reachability, not re-testing the engine: the

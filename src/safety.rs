@@ -14,7 +14,7 @@
 //! NFR-005: violations are expressed as `quire_rs::Diagnostic` so the
 //! caller can render them uniformly on stderr alongside engine-emitted
 //! diagnostics. No parallel `PathSafetyViolation` shape lives here —
-//! that workaround was retired when `quire-rs v0.2.0` added the
+//! that workaround was retired when `quire-rs` added the
 //! `Diagnostic::PathTraversal` variant.
 
 use std::path::{Path, PathBuf};

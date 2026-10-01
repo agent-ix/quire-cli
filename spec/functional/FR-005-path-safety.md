@@ -10,7 +10,7 @@ relationships:
 ---
 
 > **CR note (render removal — 2026-06-04):** `--data`/`--out` belonged to the
-> removed `render` subcommand (mirrors quire-rs render retirement, commit 500a3d3).
+> removed `render` subcommand (mirrors quire-rs render retirement).
 > The path-safety rule itself is unchanged and generic; it now applies to the
 > surviving path arguments — positional `<DOC>` and `--module` (`validate`/`parse`/
 > `extract`/`lookup`/`schema`) and `--out`/`--in-place` targets of `edit`. AC
