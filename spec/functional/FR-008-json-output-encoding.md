@@ -57,22 +57,6 @@ Both inner values are emitted unmodified.
 > that drift. **That ban is unchanged** — no bare `version`, no `schema_version`,
 > no `$schema`, at any level.
 >
-> **Instrument provenance** answers *which build computed these numbers*, and
-> its absence was measured. `quire --version` reported this crate's version
-> while the engine is a git dependency pinned by tag in `Cargo.toml:20` that
-> **no surface reported at all**. The installed CLI **0.29.0** pins engine
-> **v0.42.0**; `binding_census` — the only signal saying whether the trace
-> binder read a single test — landed in **v0.43.0**. Four battle-testing passes
-> reported ecosystem figures from a binary that could not emit it, and nothing
-> in the output said so. This is the same shape as #52, where tags 0.24.0–0.28.0
-> shipped binaries reporting 0.23.0 and three SpecReviews cited a binary nobody
-> checked; `quoin/scripts/check-version-agreement.mjs` exists because of that,
-> and was never applied to the engine-inside-the-CLI seam.
->
-> Upgrading the binary fixes today's instance. Carrying provenance on the
-> payload fixes the class, because it survives being saved to disk — and a saved
-> payload is what a later reader actually reasons from.
->
 > `capabilities` is a **token list, not version arithmetic**. A consumer asserts
 > it needs `binding_census`; it must not assert `engine >= 0.43.0`, because a
 > version comparison in a consumer is a second place the contract lives. The

@@ -12,7 +12,7 @@ relationships:
 
 ## Statement
 
-The repository SHALL implement and qualify FR-025 with exact Rust 1.98.1,
+The repository SHALL implement and qualify FR-025 with
 locked dependency resolution, typed input models, canonical `ix-trace-rs`
 bindings, and no shell-spawned qualification logic.
 
@@ -50,5 +50,3 @@ specification artifacts. The implementation SHALL NOT dispatch hosted CI.
 
 - **Upstream:** [FR-025](../functional/FR-025-rust-qualification-tooling.md)
   defines the owned behaviors.
-- **Upstream:** [NFR-007](./NFR-007-exact-qualified-rust-toolchain.md) selects
-  exact Rust 1.98.1 for the workspace.

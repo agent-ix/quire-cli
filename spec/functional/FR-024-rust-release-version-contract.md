@@ -33,6 +33,5 @@ package decisions.
 
 ## Dependencies
 
-- **Upstream**: NFR-007 exact Rust 1.98.1 qualification.
 - **Downstream**: FR-023 consumes the verified version when assembling npm
   packages.

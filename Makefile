@@ -173,9 +173,5 @@ refresh-fixtures:
 # Composite
 # =============================================================================
 
-.PHONY: audit-tool-drift
-audit-tool-drift:
-	$(CARGO) test --locked --test toolchain_policy
-
 .PHONY: ci
-ci: fmt-check lint test docs dist-test deny cargo-audit audit-unsafe audit-thin-boundary audit-tool-drift spec
+ci: fmt-check lint test docs dist-test deny cargo-audit audit-unsafe audit-thin-boundary spec

@@ -14,8 +14,8 @@ relationships:
 ## Statement
 
 The repository-local distribution tool SHALL implement first-party npm
-distribution decisions, generators, validators, and test assertions in Rust
-1.98.1. The only approved executable foreign-language production file is the
+distribution decisions, generators, validators, and test assertions in Rust.
+The only approved executable foreign-language production file is the
 minimal Node npm-bin host bounded by ADR-0002; all other foreign execution is an
 explicitly named external package manager or release host.
 
@@ -75,7 +75,7 @@ undeclared target catalog, or Quire semantic dependencies appear.
 | NFR-008-AC-1 | The only repository-owned JavaScript executed in npm distribution is `npm/quire-cli/bin/quire.js`, and it remains within every ADR-0002 boundary. | Static/mutation test (TC-815, TC-819) |
 | NFR-008-AC-2 | All distribution test or audit verdicts are asserted by Rust tests carrying `ix-trace-rs` links to the owning acceptance criteria. | Static test (TC-820) |
 | NFR-008-AC-3 | The distribution tool and launcher contain no document, extraction, clause, profile, grammar, temporal, protocol, or source-semantic implementation and the Rust tool has no `quire-rs` dependency. | Static test (TC-820) |
-| NFR-008-AC-4 | Local qualification uses `CARGO_BUILD_JOBS=2`, exact Rust 1.98.1, and no hosted-CI dispatch or publication. | Inspection (TC-821) |
+| NFR-008-AC-4 | Local qualification uses `CARGO_BUILD_JOBS=2` and no hosted-CI dispatch or publication. | Inspection (TC-821) |
 | NFR-008-AC-5 | The retained Node/npm qualification reliance is limited to packing, clean offline installation, dependency resolution, and exercising the launcher process seam; the Rust tests decide every result. | Test/review (IT-159, IT-163, TC-821) |
 | NFR-008-AC-6 | Rust distribution dependencies pass the repository's license/source policy, the launcher imports only Node built-ins, and every emitted npm package declares and carries the repository's `AGPL-3.0-or-later` license. | Test/inspection (IT-163, TC-821) |
 

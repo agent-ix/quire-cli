@@ -35,7 +35,7 @@ The qualification package SHALL deserialize coverage and benchmark reports into
 typed Rust input models before applying assertions.
 
 When assurance traceability is checked, the package SHALL require every
-repository-owned FR-020-AC-1 through FR-020-AC-9, IT-136 through IT-145,
+repository-owned FR-020-AC-1 through FR-020-AC-8, IT-136 through IT-144,
 TC-814, StR-004-VC-2, and StR-004-VC-3 target. When a required target is
 unbacked, the package SHALL reject the report and name that target. When a
 US-006 example row is promoted to binding acceptance, the package SHALL reject
