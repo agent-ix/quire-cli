@@ -54,3 +54,5 @@ This guarantees that downstream pipelines (`quire parse … | jq …`, `quire ex
 
 - **Upstream**: [StR-001](../stakeholder/StR-001-static-binary-hot-path.md) single-binary hot path; quire-rs [FR-017](ix://agent-ix/quire-rs/FR-017) (diagnostic format).
 - **Downstream**: every subcommand (`parse`/`extract`/`validate`/`schema`/`lookup`/`edit`) honours this contract.
+
+> **CR note (2026-10-02, PLAT-111):** Color selection and diagnostic format parsing use ix-cli-kit stream types. Auto remains stderr-terminal AND NO_COLOR unset; Always and Never retain their explicit behavior.

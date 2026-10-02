@@ -219,3 +219,5 @@ silently ignored the flag.
 > The AC text and both `--scope` help strings previously *documented* the
 > footgun ("resolved under --scope when --module is omitted"). Documenting a
 > silent wrong answer does not make it a contract.
+
+> **CR note (2026-10-02, PLAT-111):** Scoped roots use ix-cli-kit::config::SearchPath: scope first unconditionally, scope/.ix/modules if a directory, both module-path environment variables unioned in order with directory filtering, then the default root even before it exists. First-seen path deduplication remains lexical; engine classification policy stays downstream.

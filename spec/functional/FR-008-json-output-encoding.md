@@ -96,3 +96,5 @@ Both inner values are emitted unmodified.
 
 - **Upstream**: [FR-002](./FR-002-parse-subcommand.md) parse, [FR-003](./FR-003-extract-subcommand.md) extract (producers of the JSON output).
 - **Downstream**: `jq`/JSONL pipeline consumers of `parse`/`extract` output.
+
+> **CR note (2026-10-02, PLAT-111):** JSON serialization delegates directly to ix-cli-kit::json::encode, preserving struct declaration order and compact/pretty whitespace. No canonical Value round-trip is introduced.
