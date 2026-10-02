@@ -86,3 +86,5 @@ The first complete make ci gate passed. Real process tests cover successful, inv
 ## Dispositions
 
 - FND-001: fixed 02b668f6a134a32075db49ed8c6fbf17ede51058. Removed the local result emitter, propagated shared writer errors through human report and summary renderers, and expanded the real closed-pipe test to parse and human properties. The complete make ci gate passes after this fix. No diagnostic text is used for outcome classification.
+
+The final utility refinement at f87a2eb7d90a6f204f39d2d8c3d1152ce3e9dda3 delegates newline writing directly to the existing shared `streams::write_result` seam. This removes the remaining local newline mechanism; the original finding and its disposition remain unchanged. The complete first gate passes on this revision.
