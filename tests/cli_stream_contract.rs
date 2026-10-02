@@ -6,13 +6,13 @@
 //! in `RED`. Measured over `agent-ix/filament-ide-rs`:
 //!
 //! ```text
-//! quire coverage --scope . > out.txt                 # 0 bytes; 90,462 to stderr
-//! quire validate --scope . "spec/**/*.md" > out.txt  # 0 bytes; 62,256 to stderr
+//! quire coverage --scope . > out.txt                 # 0 bytes on stdout
+//! quire validate --scope . "spec/**/*.md" > out.txt  # 0 bytes on stdout
 //! quire properties --scope . 'spec/**/*.md' > out.txt # 0 bytes
 //! ```
 //!
 //! So the obvious command produced an empty file, and
-//! `Coverage: 1238/2390 rows backed (51%)` — a census — rendered in the same
+//! `Coverage: N/M rows backed (P%)` — a census — rendered in the same
 //! red as every finding.
 //!
 //! These tests assert the split by **stream**, not by byte-for-byte snapshot of
@@ -173,8 +173,8 @@ fn it_118_properties_census_is_a_result_and_splits_the_catch_all() {
 }
 
 /// IT-119 (#59 defect 2): `--criteria` renders the per-criterion fields
-/// `spec-correctness` consumes, which were `--json`-only — 597,636 bytes on the
-/// pass-2 corpus against an 869-byte census.
+/// `spec-correctness` consumes, which were `--json`-only — hundreds of kilobytes on the
+/// pass-2 corpus against a few-line census.
 #[test]
 fn it_119_criteria_renders_the_fields_the_census_omitted() {
     let dir = TempDir::new().expect("tempdir");
@@ -229,7 +229,7 @@ fn it_119_criteria_renders_the_fields_the_census_omitted() {
 /// something other than the one class that dominated pass 2.
 ///
 /// In that pass all 33 diagnostics were `uncatalogued-verification-method`
-/// while 1,292 unmatched trace symbols went unmentioned — so "diagnostics is
+/// while unmatched trace symbols went unmentioned — so "diagnostics is
 /// non-empty" was true and meant nothing. This asserts a **binding** finding
 /// specifically, the class that was silent.
 #[test]

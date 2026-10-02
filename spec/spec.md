@@ -352,7 +352,7 @@ FRs are verified by:
 
 ## 14. Lifecycle Status
 
-BASELINED — v0.2.x released. The surface is seven subcommands: the six in §3.1
+BASELINED — released. The surface is seven subcommands: the six in §3.1
 (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`) plus `lint`
 ([FR-013](./functional/FR-013-lint-subcommand.md)); `render` is removed (§2bis). Under SemVer the
 subcommand surface, exit codes, and JSON output schemas are the stable contract

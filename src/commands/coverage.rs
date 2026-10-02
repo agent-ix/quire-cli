@@ -355,7 +355,7 @@ fn project_by_severity(
 }
 
 /// A TSV cell: the two structural characters (tab, newline) become spaces.
-/// Measured on a real corpus, 0 of 1,107 statements contain either — the
+/// On a real corpus no statement contains either — the
 /// replacement is the guard, not the common case (#53).
 pub(super) fn tsv_cell(s: &str) -> String {
     s.chars()
@@ -621,8 +621,8 @@ fn metric_lines(report: &quire_rs::CoverageReport) -> Vec<String> {
 
 fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
     // CR-012: the census goes to **stdout**. It is what a caller redirecting
-    // with `>` came for, and it is not a diagnostic — `1238/2390 rows backed
-    // (51%)` rendered in error red was the whole of defect 2 in #59.
+    // with `>` came for, and it is not a diagnostic — `N/M rows backed
+    // (P%)` rendered in error red was the whole of defect 2 in #59.
     let t = &report.totals;
     io::emit_result(&format!(
         "Coverage: {}/{} rows backed ({})",
@@ -876,7 +876,7 @@ mod tests {
     }
 
     // TC-812, FR-017-AC-14 (#57): the TSV escaping guard, pinned. The #53
-    // measurement found 0/1,107 statements carrying a structural character —
+    // measurement found no statement carrying a structural character —
     // which means no corpus fixture can exercise the replacement, and mutating
     // `tsv_cell` to the identity left the whole suite green. A cell carrying
     // all three structural characters must still yield exactly one nine-column
