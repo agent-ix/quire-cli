@@ -50,7 +50,7 @@ Behavior:
 3. Apply the selected lookup against the parsed `QuireDocument`.
 4. On success with default output, serialize the matching `QuireSection` as JSON using the global `--pretty` flag.
 5. On success with `--content`, write the section content exactly as stored in `QuireSection.content`.
-6. On no match, exit 1 with empty stdout and a diagnostic naming the selector.
+6. On no match, exit 3 with empty stdout and a diagnostic naming the selector.
 
 `QuireSection.id` is parser-derived from `<slug>-L<line>` and is not stable across line shifts. Stable machine addressing SHOULD use `--block-id` with authored Pandoc heading attributes such as `## Behavior {#blk-behavior}`.
 

@@ -32,7 +32,7 @@ Before any I/O, the CLI SHALL canonicalize and validate every filesystem path ar
 1. **Reject `..`** literal segments in any user-supplied path argument (`--module`, positional `<DOC>`, and `edit`'s `--out`/`--in-place` target).
 2. **Reject paths that, after `std::fs::canonicalize`, escape the parent of the user-supplied `--module` root.** (Specifically: document and write-target paths MAY be anywhere on the filesystem the invoking user can read/write; `--module` is canonicalized once and the engine operates only on paths within it.)
 3. **Reject symlinks under `--module`** that resolve outside the canonicalized module root. The Registry loader SHALL refuse to follow such links.
-4. Path-safety violations exit 1 with a `PathSafetyViolation` diagnostic on stderr identifying the offending argument and the violated rule. No partial I/O is performed; no module load is attempted.
+4. Path traversal refusals exit 2; missing or wrongly typed paths exit 3 with a `PathSafetyViolation` diagnostic on stderr identifying the offending argument and the violated rule. No partial I/O is performed; no module load is attempted.
 
 The check SHALL run **before** any file is opened.
 

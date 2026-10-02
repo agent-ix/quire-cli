@@ -22,7 +22,7 @@ relationships:
 
 > **CR note (extract diagnostic consistency, 2026-06-16):** `quire extract` on a
 > document with **no `type`** now emits the same `[frontmatter]`-reason
-> `ValidationError`-shaped diagnostic on stderr (then exits 1) that `validate`
+> `ValidationError`-shaped diagnostic on stderr (then exits 3) that `validate`
 > emits, instead of a generic anyhow error — aligning extract's vocabulary with
 > `validate` ([FR-004](./FR-004-validate-subcommand.md) / [FR-014](./FR-014-validate-okf-bundle.md) §B base-concept contract). See FR-003-AC-5. Verified
 > by `tests/cli_okf.rs::okf_untyped_document_is_error` for the shared `[frontmatter]`
@@ -84,10 +84,10 @@ The CLI SHALL NOT mutate, normalize, or filter the upstream extraction or edge o
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-003-AC-1 | `quire extract sample-fr.md --module $ISO` against a fixture document produces JSON with non-empty `extraction` and at least one edge | Test |
-| FR-003-AC-2 | For a document whose frontmatter declares a `type` not present in the module, exit 1 with `UnknownArchetype` on stderr; stdout is empty | Test |
+| FR-003-AC-2 | For a document whose frontmatter declares a `type` not present in the module, exit 3 with `UnknownArchetype` on stderr; stdout is empty | Test |
 | FR-003-AC-3 | ⛔ RETIRED (CR, 2026-08-20) — was: for a document with frontmatter sugar fields, `.edges` contains a `dependencies`-typed edge. No engine ever harvested sugar fields; see the CR note above | Retired |
 | FR-003-AC-4 | Re-running extract on the same input produces byte-identical stdout (determinism, matches upstream) | Test |
-| FR-003-AC-5 | For a document with **no `type`** (the discriminator absent from frontmatter) and no `--archetype`, `extract` exits 1 with a `[frontmatter]`-reason `ValidationError`-shaped diagnostic on stderr naming the missing `type` (the same vocabulary `validate` uses), not a generic anyhow error; stdout is empty | Test |
+| FR-003-AC-5 | For a document with **no `type`** (the discriminator absent from frontmatter) and no `--archetype`, `extract` exits 3 with a `[frontmatter]`-reason `ValidationError`-shaped diagnostic on stderr naming the missing `type` (the same vocabulary `validate` uses), not a generic anyhow error; stdout is empty | Test |
 
 ## Dependencies
 
