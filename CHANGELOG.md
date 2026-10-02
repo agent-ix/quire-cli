@@ -9,6 +9,11 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.36.1] - 2026-10-01
+
+- **Engine: quire-rs 0.50.1** (semantic-schema 0.3.0, quire-code-parse 0.2.2).
+- **Removed recorded versions, SHAs, measurements and pin copies** from specs, tests and comments (#115).
+
 ## [0.36.0] - 2026-10-01
 
 - **Engine: quire-rs 0.50.0.** The pin moves forward to the v0.50.0 release. It embeds semantic-core 0.3.2 only: a module declaring semantic_core 0.3.0 is refused.
