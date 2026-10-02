@@ -415,7 +415,7 @@ fn it_129_the_envelope_shape_is_pinned_by_a_golden_snapshot() {
 
     let redacted = raw
         .replace(env!("CARGO_PKG_VERSION"), "<cli>")
-        .replace(&quire_cli::engine::ENGINE_VERSION, "<engine>");
+        .replace(quire_cli::engine::ENGINE_VERSION, "<engine>");
     let snapshot = include_str!("snapshots/extract-envelope.json");
 
     assert_eq!(

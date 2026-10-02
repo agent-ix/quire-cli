@@ -5,67 +5,12 @@
 //! - JSON output is compact by default; `--pretty` switches to indented.
 //! - `--diagnostics-format=human|json` selects the stderr encoding.
 
-use std::io::{IsTerminal, Read, Write};
+use std::io::Read;
 use std::path::Path;
 
 use serde::Serialize;
 
-/// Format selector for stderr diagnostics.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum DiagnosticsFormat {
-    #[default]
-    Human,
-    Json,
-}
-
-impl std::str::FromStr for DiagnosticsFormat {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "human" => Ok(Self::Human),
-            "json" => Ok(Self::Json),
-            other => Err(format!("unknown diagnostics format: '{other}'")),
-        }
-    }
-}
-
-/// When to colorize human-format stderr diagnostics.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ColorChoice {
-    /// Colorize only when stderr is a terminal and `NO_COLOR` is unset.
-    #[default]
-    Auto,
-    /// Always colorize, even when piped.
-    Always,
-    /// Never colorize.
-    Never,
-}
-
-impl std::str::FromStr for ColorChoice {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "auto" => Ok(Self::Auto),
-            "always" => Ok(Self::Always),
-            "never" => Ok(Self::Never),
-            other => Err(format!("unknown color choice: '{other}'")),
-        }
-    }
-}
-
-impl ColorChoice {
-    /// Resolve the choice into a concrete on/off decision for *this* run.
-    /// `Auto` honours the `NO_COLOR` convention and only colorizes a real
-    /// terminal — so piped/redirected output (and the test harness) stays
-    /// plain, byte-for-byte.
-    pub fn resolve(self) -> bool {
-        match self {
-            Self::Always => true,
-            Self::Never => false,
-            Self::Auto => std::env::var_os("NO_COLOR").is_none() && std::io::stderr().is_terminal(),
-        }
-    }
-}
+use ix_cli_kit::streams::DiagnosticsFormat;
 
 /// Resolved stderr diagnostic settings: the wire format plus whether to
 /// colorize human output. Threaded through [`super`]'s `Ctx`.
@@ -114,29 +59,13 @@ pub fn read_text(arg: &str) -> anyhow::Result<String> {
     }
 }
 
-/// Write the primary subcommand output to stdout.
-pub fn write_primary_stdout(bytes: &[u8]) -> std::io::Result<()> {
-    let mut out = std::io::stdout().lock();
-    out.write_all(bytes)?;
-    out.flush()
-}
-
 /// Write the primary subcommand output either to stdout or to `--out`.
 pub fn write_primary(out_path: Option<&Path>, bytes: &[u8]) -> std::io::Result<()> {
     if let Some(p) = out_path {
         std::fs::write(p, bytes)?;
         Ok(())
     } else {
-        write_primary_stdout(bytes)
-    }
-}
-
-/// Encode a `Serialize` value as JSON, respecting `pretty`.
-pub fn encode_json<T: Serialize>(value: &T, pretty: bool) -> serde_json::Result<String> {
-    if pretty {
-        serde_json::to_string_pretty(value)
-    } else {
-        serde_json::to_string(value)
+        ix_cli_kit::streams::write_primary_stdout(bytes)
     }
 }
 
@@ -365,55 +294,6 @@ pub mod exit {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn diagnostics_format_parses() {
-        use std::str::FromStr;
-        assert_eq!(
-            DiagnosticsFormat::from_str("human").unwrap(),
-            DiagnosticsFormat::Human
-        );
-        assert_eq!(
-            DiagnosticsFormat::from_str("json").unwrap(),
-            DiagnosticsFormat::Json
-        );
-        assert!(DiagnosticsFormat::from_str("yaml").is_err());
-    }
-
-    #[test]
-    fn color_choice_parses() {
-        use std::str::FromStr;
-        assert_eq!(ColorChoice::from_str("auto").unwrap(), ColorChoice::Auto);
-        assert_eq!(
-            ColorChoice::from_str("always").unwrap(),
-            ColorChoice::Always
-        );
-        assert_eq!(ColorChoice::from_str("never").unwrap(), ColorChoice::Never);
-        assert!(ColorChoice::from_str("rainbow").is_err());
-    }
-
-    #[test]
-    fn color_choice_resolves_explicit() {
-        // Always/Never are deterministic regardless of TTY/NO_COLOR.
-        assert!(ColorChoice::Always.resolve());
-        assert!(!ColorChoice::Never.resolve());
-        // Under the test harness stderr is not a terminal, so Auto is off.
-        assert!(!ColorChoice::Auto.resolve());
-    }
-
-    #[test]
-    fn encode_json_compact_default() {
-        let v = serde_json::json!({"a": 1, "b": 2});
-        let s = encode_json(&v, false).unwrap();
-        assert!(!s.contains('\n'));
-    }
-
-    #[test]
-    fn encode_json_pretty_indents() {
-        let v = serde_json::json!({"a": 1});
-        let s = encode_json(&v, true).unwrap();
-        assert!(s.contains('\n'));
-    }
 
     #[test]
     fn validated_json_pretty_print_preserves_non_whitespace_bytes() {

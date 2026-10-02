@@ -13,7 +13,6 @@
 use anyhow::{anyhow, Context};
 use clap::Parser;
 
-use quire_cli::io;
 use quire_cli::safety;
 
 use super::Ctx;
@@ -41,8 +40,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     // `to_json()` produces deterministic, sorted-key JSON (FR-009-AC-4).
     let value = contract.to_json();
-    let payload = io::encode_json(&value, ctx.pretty).context("encoding input contract as JSON")?;
-    io::write_primary_stdout(payload.as_bytes()).context("writing schema output")?;
-    io::write_primary_stdout(b"\n").ok();
+    let payload =
+        ix_cli_kit::json::encode(&value, ctx.pretty).context("encoding input contract as JSON")?;
+    ix_cli_kit::streams::write_primary_stdout(payload.as_bytes())
+        .context("writing schema output")?;
+    ix_cli_kit::streams::write_primary_stdout(b"\n").ok();
     Ok(())
 }

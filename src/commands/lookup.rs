@@ -44,11 +44,14 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let section = select_section(&doc, &args)?;
 
     if args.content {
-        io::write_primary_stdout(section.content.as_bytes()).context("writing lookup content")?;
+        ix_cli_kit::streams::write_primary_stdout(section.content.as_bytes())
+            .context("writing lookup content")?;
     } else {
-        let payload = io::encode_json(section, ctx.pretty).context("encoding lookup section")?;
-        io::write_primary_stdout(payload.as_bytes()).context("writing lookup output")?;
-        io::write_primary_stdout(b"\n").ok();
+        let payload =
+            ix_cli_kit::json::encode(section, ctx.pretty).context("encoding lookup section")?;
+        ix_cli_kit::streams::write_primary_stdout(payload.as_bytes())
+            .context("writing lookup output")?;
+        ix_cli_kit::streams::write_primary_stdout(b"\n").ok();
     }
     Ok(())
 }

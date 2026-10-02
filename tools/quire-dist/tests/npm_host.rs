@@ -357,7 +357,13 @@ fn install_host_link(tree: &Path, target: &DistributionTarget, source: &Path) ->
 fn it161_chmod_refusal_is_tolerated_and_spawn_failure_is_named() {
     let host = host_target().expect("admitted host");
     let success = launcher_tree(TARGETS);
-    install_host_link(success.path(), &host, Path::new("/bin/true"));
+    // macOS ships true in /usr/bin; Linux ships it in /bin.
+    let executable = if cfg!(target_os = "macos") {
+        Path::new("/usr/bin/true")
+    } else {
+        Path::new("/bin/true")
+    };
+    install_host_link(success.path(), &host, executable);
     let output = run_launcher(success.path(), &[]);
     assert!(
         output.status.success(),

@@ -11,7 +11,6 @@
 
 use anyhow::bail;
 use clap::Parser;
-use quire_cli::io;
 use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixRequirement, CoverageMatrixStatus};
 use serde::Serialize;
 
@@ -74,7 +73,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         Format::Tsv => print!("{}", render_tsv(&matrix)),
         Format::Json => println!(
             "{}",
-            io::encode_json(
+            ix_cli_kit::json::encode(
                 &quire_cli::engine::attach(Payload {
                     coverage_matrix: matrix
                 }),

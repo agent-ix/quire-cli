@@ -8,7 +8,8 @@
 
 use clap::{Parser, Subcommand};
 
-use quire_cli::io::{self, exit, ColorChoice, DiagnosticsFormat};
+use ix_cli_kit::streams::{ColorChoice, DiagnosticsFormat};
+use quire_cli::io::{self, exit};
 
 mod commands;
 
@@ -79,7 +80,7 @@ enum Command {
 fn main() {
     let cli = Cli::parse();
     let ctx = commands::Ctx {
-        diagnostics: io::Diagnostics::new(cli.diagnostics_format, cli.color.resolve()),
+        diagnostics: io::Diagnostics::new(cli.diagnostics_format, cli.color.resolve().enabled),
         pretty: cli.pretty,
     };
     let result = match cli.command {

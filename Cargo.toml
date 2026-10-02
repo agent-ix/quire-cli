@@ -17,6 +17,7 @@ name = "quire"
 path = "src/main.rs"
 
 [dependencies]
+ix-cli-kit = { git = "https://github.com/agent-ix/ix-cli-kit", rev = "cc69a934f887966f955440bff8c356e3da449bee" }
 quire-rs = { version = "=0.50.1", git = "https://github.com/agent-ix/quire-rs", rev = "8ab0d509db3a067eafd5c03f657b51eb2aaab7f2" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }

@@ -152,11 +152,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // a generated property test is derived from; a record whose classifier
         // version is unknowable is a record nobody can re-derive.
         let payload = quire_cli::engine::attach(json!({ "documents": documents }));
-        let rendered = if ctx.pretty {
-            serde_json::to_string_pretty(&payload)?
-        } else {
-            serde_json::to_string(&payload)?
-        };
+        let rendered = ix_cli_kit::json::encode(&payload, ctx.pretty)?;
         println!("{rendered}");
     } else {
         census.emit(ctx);

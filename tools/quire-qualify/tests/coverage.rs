@@ -20,11 +20,42 @@ fn check(report: &Value) -> quire_qualify::Result<String> {
 
 #[trace("TC-828", "FR-025-AC-1")]
 #[test]
+fn required_population_matches_current_specification() {
+    let expected = [
+        "FR-020-AC-1",
+        "FR-020-AC-2",
+        "FR-020-AC-3",
+        "FR-020-AC-4",
+        "FR-020-AC-5",
+        "FR-020-AC-6",
+        "FR-020-AC-7",
+        "FR-020-AC-8",
+        "IT-136",
+        "IT-137",
+        "IT-138",
+        "IT-139",
+        "IT-140",
+        "IT-141",
+        "IT-142",
+        "IT-143",
+        "IT-144",
+        "TC-814",
+        "StR-004-VC-2",
+        "StR-004-VC-3",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect();
+    assert_eq!(quire_qualify::coverage::required_targets(), expected);
+}
+
+#[trace("TC-828", "FR-025-AC-1")]
+#[test]
 fn complete_backed_population_passes() {
     let observation = check(&complete_report()).expect("complete report");
     assert_eq!(
         observation,
-        "assurance traceability ok: 22/22 required targets backed"
+        "assurance traceability ok: 20/20 required targets backed"
     );
 }
 

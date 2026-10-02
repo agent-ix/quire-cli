@@ -279,8 +279,16 @@ fn it_138_compact_pretty_and_golden_bytes_are_deterministic() {
 fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     let fixture = fixture(false);
     let cases: Vec<(&str, Vec<&str>, &str)> = vec![
-        ("other@1.2.3", SCHEMAS.to_vec(), "module 'assurance-fixture'"),
-        ("assurance-fixture@9.9.9", SCHEMAS.to_vec(), "version '1.2.3'"),
+        (
+            "other@1.2.3",
+            SCHEMAS.to_vec(),
+            "module 'assurance-fixture'",
+        ),
+        (
+            "assurance-fixture@9.9.9",
+            SCHEMAS.to_vec(),
+            "version '1.2.3'",
+        ),
         (
             MODULE,
             vec![SCHEMAS[0], SCHEMAS[1], SCHEMAS[2], "assurance-fixture/US"],

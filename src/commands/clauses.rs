@@ -99,9 +99,13 @@ fn evaluate(ctx: &Ctx, args: EvaluateArgs) -> anyhow::Result<()> {
     let set = exact_set(&registry, &args.authority, &args.set_id, &args.version)?;
     let report = set.evaluate(&parse_context(&args.context)?);
     match selected_format(args.format, args.json) {
-        OutputFormat::Human => io::write_primary_stdout(render_binding_human(&report).as_bytes())?,
+        OutputFormat::Human => {
+            ix_cli_kit::streams::write_primary_stdout(render_binding_human(&report).as_bytes())?
+        }
         OutputFormat::Json => write_json(ctx, &report)?,
-        OutputFormat::Tsv => io::write_primary_stdout(render_binding_tsv(&report).as_bytes())?,
+        OutputFormat::Tsv => {
+            ix_cli_kit::streams::write_primary_stdout(render_binding_tsv(&report).as_bytes())?
+        }
     }
     Ok(())
 }
@@ -122,9 +126,13 @@ fn diff(ctx: &Ctx, args: DiffArgs) -> anyhow::Result<()> {
     )?;
     let report = diff_clause_sets(before, after).map_err(|error| anyhow::anyhow!(error))?;
     match selected_format(args.format, args.json) {
-        OutputFormat::Human => io::write_primary_stdout(render_diff_human(&report).as_bytes())?,
+        OutputFormat::Human => {
+            ix_cli_kit::streams::write_primary_stdout(render_diff_human(&report).as_bytes())?
+        }
         OutputFormat::Json => write_json(ctx, &report)?,
-        OutputFormat::Tsv => io::write_primary_stdout(render_diff_tsv(&report).as_bytes())?,
+        OutputFormat::Tsv => {
+            ix_cli_kit::streams::write_primary_stdout(render_diff_tsv(&report).as_bytes())?
+        }
     }
     Ok(())
 }
@@ -192,8 +200,8 @@ fn selected_format(format: OutputFormat, json: bool) -> OutputFormat {
 }
 
 fn write_json<T: serde::Serialize>(ctx: &Ctx, value: &T) -> anyhow::Result<()> {
-    let body = io::encode_json(&engine::attach(value), ctx.pretty)?;
-    io::write_primary_stdout(format!("{body}\n").as_bytes())?;
+    let body = ix_cli_kit::json::encode(&engine::attach(value), ctx.pretty)?;
+    ix_cli_kit::streams::write_primary_stdout(format!("{body}\n").as_bytes())?;
     Ok(())
 }
 
