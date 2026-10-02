@@ -35,7 +35,7 @@ const RESET: &str = "\x1b[0m";
 /// Read a `--data` argument: a filesystem path or `-` for stdin.
 ///
 /// Returns the parsed `serde_json::Value`. JSON parse errors surface as
-/// a user error (exit 1) at the caller.
+/// an invalid-request outcome at the caller.
 pub fn read_data(arg: &str) -> anyhow::Result<serde_json::Value> {
     let bytes = if arg == "-" {
         let mut buf = Vec::new();
@@ -281,14 +281,6 @@ where
             .unwrap_or("Diagnostic");
         emit_diagnostic(out, kind, &d.to_string());
     }
-}
-
-/// Exit codes per FR-007. Anything else is a bug.
-pub mod exit {
-    pub const OK: i32 = 0;
-    pub const USER_ERROR: i32 = 1;
-    pub const ARGV_ERROR: i32 = 2;
-    // 134 is reserved for SIGABRT panics; we don't emit it ourselves.
 }
 
 #[cfg(test)]

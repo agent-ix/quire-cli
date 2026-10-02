@@ -4,7 +4,7 @@
 //! surface for heading lookup. ID and block-id lookup are direct walks
 //! over the parsed `QuireSection` tree.
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::Context;
 use clap::Parser;
 
 use quire_cli::io;
@@ -39,7 +39,9 @@ pub struct Args {
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let text = io::read_text(&args.doc).with_context(|| format!("reading '{}'", args.doc))?;
+    let text = io::read_text(&args.doc)
+        .map_err(super::failure::input)
+        .with_context(|| format!("reading '{}'", args.doc))?;
     let doc = quire_rs::parse_document(&text);
     let section = select_section(&doc, &args)?;
 
@@ -51,7 +53,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             ix_cli_kit::json::encode(section, ctx.pretty).context("encoding lookup section")?;
         ix_cli_kit::streams::write_primary_stdout(payload.as_bytes())
             .context("writing lookup output")?;
-        ix_cli_kit::streams::write_primary_stdout(b"\n").ok();
+        ix_cli_kit::streams::write_primary_stdout(b"\n")?;
     }
     Ok(())
 }
@@ -66,7 +68,7 @@ fn select_section<'d>(doc: &'d QuireDocument, args: &Args) -> anyhow::Result<&'d
     .filter(|present| *present)
     .count();
     if selector_count != 1 {
-        bail!("lookup requires exactly one of --heading, --id, or --block-id");
+        invalid_request!("lookup requires exactly one of --heading, --id, or --block-id");
     }
 
     if let Some(heading) = args.heading.as_deref() {
@@ -75,12 +77,13 @@ fn select_section<'d>(doc: &'d QuireDocument, args: &Args) -> anyhow::Result<&'d
         } else {
             quire_rs::section(doc, heading)
         };
-        return found.ok_or_else(|| anyhow!("section not found for --heading '{}'", heading));
+        return found
+            .ok_or_else(|| invalid_error!("section not found for --heading '{}'", heading));
     }
 
     if let Some(id) = args.id.as_deref() {
         return find_by_id(&doc.sections, id)
-            .ok_or_else(|| anyhow!("section not found for --id '{}'", id));
+            .ok_or_else(|| invalid_error!("section not found for --id '{}'", id));
     }
 
     let block_id = args
@@ -88,7 +91,7 @@ fn select_section<'d>(doc: &'d QuireDocument, args: &Args) -> anyhow::Result<&'d
         .as_deref()
         .expect("selector count already proved block_id is present");
     find_by_block_id(&doc.sections, block_id)
-        .ok_or_else(|| anyhow!("section not found for --block-id '{}'", block_id))
+        .ok_or_else(|| invalid_error!("section not found for --block-id '{}'", block_id))
 }
 
 fn find_by_heading_at_level<'d>(

@@ -12,7 +12,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::Context;
 use clap::Parser;
 use serde::Serialize;
 
@@ -57,7 +57,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let module = safety::validate_module_path(&args.module)
         .with_context(|| format!("validating --module '{}'", args.module))?;
 
-    let text = io::read_text(&args.doc).with_context(|| format!("reading '{}'", args.doc))?;
+    let text = io::read_text(&args.doc)
+        .map_err(super::failure::input)
+        .with_context(|| format!("reading '{}'", args.doc))?;
     let parsed = quire_rs::parse_document(&text);
 
     let archetype_name = match args.archetype.as_deref() {
@@ -76,7 +78,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
                         args.doc
                     ),
                 );
-                bail!("missing required 'type'");
+                invalid_request!("missing required 'type'");
             }
         },
     };
@@ -84,20 +86,22 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let registry = super::load_module_registry(ctx, &module)?;
 
     let compiled = registry.archetype(&archetype_name).ok_or_else(|| {
-        anyhow!(
+        invalid_error!(
             "archetype '{}' not registered in module '{}'",
             archetype_name,
             module.display()
         )
     })?;
     let dsl = compiled.body_extraction().ok_or_else(|| {
-        anyhow!(
+        invalid_error!(
             "archetype '{}' has no 'body_extraction' DSL — nothing to extract",
             archetype_name
         )
     })?;
 
-    let extraction = quire_rs::extract(&parsed, dsl).context("evaluating extraction DSL")?;
+    let extraction = quire_rs::extract(&parsed, dsl)
+        .map_err(super::failure::invalid)
+        .context("evaluating extraction DSL")?;
     emit_quire_diagnostics(ctx.diagnostics, extraction.diagnostics.iter());
 
     // Wrap the parsed doc in a `LoadedDocument` so `harvest_edges` can
@@ -132,6 +136,6 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         ix_cli_kit::json::encode(&envelope, ctx.pretty).context("encoding extract envelope")?;
     ix_cli_kit::streams::write_primary_stdout(payload.as_bytes())
         .context("writing extract output")?;
-    ix_cli_kit::streams::write_primary_stdout(b"\n").ok();
+    ix_cli_kit::streams::write_primary_stdout(b"\n")?;
     Ok(())
 }

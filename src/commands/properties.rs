@@ -17,7 +17,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 use quire_cli::io;
 use quire_cli::safety;
@@ -113,7 +113,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         let archetype = match registry.archetype(&archetype_name) {
             Some(a) => a,
             None if args.archetype.is_some() => {
-                bail!("UnknownArchetype: '{archetype_name}' is not registered");
+                invalid_request!("UnknownArchetype: '{archetype_name}' is not registered");
             }
             None => {
                 emit_frontmatter_failure(
@@ -153,7 +153,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // version is unknowable is a record nobody can re-derive.
         let payload = quire_cli::engine::attach(json!({ "documents": documents }));
         let rendered = ix_cli_kit::json::encode(&payload, ctx.pretty)?;
-        println!("{rendered}");
+        primary_line!("{rendered}");
     } else {
         census.emit(ctx);
         if args.criteria {
@@ -162,7 +162,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     if failures > 0 {
-        bail!("{failures} document(s) could not be resolved to an archetype");
+        partial_report!("{failures} document(s) could not be resolved to an archetype");
     }
     Ok(())
 }

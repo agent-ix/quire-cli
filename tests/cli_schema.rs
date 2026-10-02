@@ -66,7 +66,7 @@ fn it_062_schema_unknown_archetype_errors() {
         .arg(iso_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(predicate::str::contains("UnknownArchetype"));
 }
@@ -104,6 +104,6 @@ fn it_058_schema_module_path_safety() {
         .arg("../nope")
         .assert()
         .failure()
-        .code(1)
+        .code(2)
         .stderr(predicate::str::contains("--module"));
 }

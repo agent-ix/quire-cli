@@ -247,6 +247,6 @@ fn extract_no_dsl_archetype_errors_cleanly() {
         .arg(common::iso_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stderr(predicate::str::contains("FR"));
 }

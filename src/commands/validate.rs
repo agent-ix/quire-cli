@@ -18,7 +18,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 use glob::glob;
 
@@ -131,7 +131,7 @@ pub(crate) fn apply_severity_overrides(
         registry.grammar_severity(),
         entries.iter().map(String::as_str),
     )
-    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    .map_err(|e| invalid_error!("{e}"))?;
     Ok(registry.with_grammar_severity(merged))
 }
 
@@ -173,7 +173,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let mut criteria_candidate = 0usize;
     for input in inputs {
         let label = input.label();
-        let text = input.read().with_context(|| format!("reading '{label}'"))?;
+        let text = input
+            .read()
+            .map_err(super::failure::input)
+            .with_context(|| format!("reading '{label}'"))?;
         // Discriminator resolution (the one piece that must be code: a
         // schema can't select itself). Missing/unknown `type` is a
         // per-document validation failure surfaced as a `frontmatter`
@@ -199,7 +202,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             // An explicit `--archetype` that doesn't exist is a usage
             // error, not document data → fail fast (IT-013/IT-050).
             None if args.archetype.is_some() => {
-                bail!("UnknownArchetype: '{archetype_name}' is not registered");
+                invalid_request!("UnknownArchetype: '{archetype_name}' is not registered");
             }
             // Resolved from frontmatter `type` but unregistered: a
             // per-document data error, surfaced like any frontmatter fault.
@@ -267,12 +270,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     if failures > 0 {
-        bail!("{failures} document(s) failed structural validation");
+        invalid_request!("{failures} document(s) failed structural validation");
     }
     // --strict escalates advisory warnings to a failing exit code; warnings
     // were already printed above (FR-004-AC-10/AC-11).
     if args.strict && warned > 0 {
-        bail!("{warned} document(s) emitted warnings (--strict)");
+        invalid_request!("{warned} document(s) emitted warnings (--strict)");
     }
     Ok(())
 }
@@ -368,7 +371,7 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
     }
 
     if errors > 0 {
-        bail!("{errors} OKF bundle validation error(s)");
+        invalid_request!("{errors} OKF bundle validation error(s)");
     }
     Ok(())
 }
@@ -420,15 +423,15 @@ pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Res
     io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
     if registry.module_names().count() == 0 {
         if let Some(f) = registry.failures().first() {
-            bail!("module load failed: {} ({})", f.reason, f.path.display());
+            invalid_request!("module load failed: {} ({})", f.reason, f.path.display());
         }
         if installed {
-            bail!(
+            invalid_request!(
                 "no modules found after installing the default set via quoin; \
                  check `quoin plugin ensure-defaults`"
             );
         }
-        bail!(
+        invalid_request!(
             "no modules found for scoped validation, and automatic install via \
              quoin was unavailable; install quoin and run `quoin plugin \
              ensure-defaults` (modules install to ~/.ix/filament/modules), or set \
@@ -442,7 +445,9 @@ pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Res
 fn load_scoped_registry(scope: &Path) -> anyhow::Result<Registry> {
     let roots = scoped_registry_roots(scope);
     let refs: Vec<&Path> = roots.iter().map(PathBuf::as_path).collect();
-    Registry::load_from(&refs).context("loading scoped module registry")
+    Registry::load_from(&refs)
+        .map_err(super::failure::invalid)
+        .context("loading scoped module registry")
 }
 
 /// Best-effort lazy install of the default Filament module set by shelling out
@@ -559,8 +564,9 @@ pub(crate) fn expand_documents(
             let pattern = scoped_path(scope, raw);
             let pattern_string = pattern.display().to_string();
             let mut matched = 0usize;
-            for entry in
-                glob(&pattern_string).with_context(|| format!("expanding document glob '{raw}'"))?
+            for entry in glob(&pattern_string)
+                .map_err(super::failure::invalid)
+                .with_context(|| format!("expanding document glob '{raw}'"))?
             {
                 let path = entry.with_context(|| format!("reading document glob '{raw}'"))?;
                 if !path.is_file() {
@@ -574,7 +580,7 @@ pub(crate) fn expand_documents(
                 matched += 1;
             }
             if matched == 0 {
-                bail!("document glob matched no files: '{raw}'");
+                invalid_request!("document glob matched no files: '{raw}'");
             }
             continue;
         }

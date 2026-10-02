@@ -4,11 +4,10 @@
 //! diagnostic channels, and stdout. Quire-rs owns the corpus, symbol graph,
 //! projection, schema, and fail-closed reader.
 
-use std::io::Write;
 use std::path::Path;
 use std::str::FromStr;
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 use quire_cli::{io, safety};
 use quire_rs::assurance::{AssuranceModulePremise, AssuranceSchemaPremise};
@@ -140,16 +139,15 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             revision: args.revision,
         },
     })
-    .map_err(|error| anyhow::anyhow!(error))?;
+    .map_err(classify_assurance_error)?;
 
     let accepted = accepted_premises(args.expect_module, args.expect_schema)?;
     let compact = export
         .to_json_bytes()
         .map_err(|error| anyhow::anyhow!(error))?;
-    let validated =
-        read_assurance_export(&compact, &accepted).map_err(|error| anyhow::anyhow!(error))?;
+    let validated = read_assurance_export(&compact, &accepted).map_err(classify_assurance_error)?;
     if validated.modules != accepted.modules {
-        bail!(
+        policy_refusal!(
             "assurance premise set does not exactly match the emitted module/schema set: expected {:?}, emitted {:?}",
             accepted.modules,
             validated.modules
@@ -162,11 +160,37 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         compact
     };
     output.push(b'\n');
-    std::io::stdout()
-        .lock()
-        .write_all(&output)
+    ix_cli_kit::streams::write_primary_stdout(&output)
         .context("writing assurance JSON to stdout")?;
     Ok(())
+}
+
+fn classify_assurance_error(error: quire_rs::assurance::AssuranceError) -> anyhow::Error {
+    use quire_rs::assurance::AssuranceError;
+    let outcome = match &error {
+        AssuranceError::Serialization { .. } => ix_cli_kit::exit::Outcome::Internal,
+        AssuranceError::PathOutsideRoot { .. }
+        | AssuranceError::UnacceptedModule { .. }
+        | AssuranceError::UnacceptedModuleVersion { .. } => ix_cli_kit::exit::Outcome::Refused,
+        AssuranceError::EmptyRepository
+        | AssuranceError::InvalidRevision { .. }
+        | AssuranceError::MissingModuleName { .. }
+        | AssuranceError::MissingModuleVersion { .. }
+        | AssuranceError::ArchetypeLoadFailure { .. }
+        | AssuranceError::MissingArtifactId { .. }
+        | AssuranceError::MissingArtifactType { .. }
+        | AssuranceError::MissingSourceBytes { .. }
+        | AssuranceError::MissingStatement { .. }
+        | AssuranceError::InvalidJson { .. }
+        | AssuranceError::UnsupportedFormat { .. }
+        | AssuranceError::UnsupportedFormatVersion { .. }
+        | AssuranceError::SchemaViolation { .. }
+        | AssuranceError::DuplicateModulePremise { .. }
+        | AssuranceError::DuplicateSchemaPremise { .. } => ix_cli_kit::exit::Outcome::Invalid,
+        // Upstream is non-exhaustive: new unclassified failures fail internally.
+        _ => ix_cli_kit::exit::Outcome::Internal,
+    };
+    super::failure::classified(outcome, error.into())
 }
 
 fn accepted_premises(
@@ -176,7 +200,7 @@ fn accepted_premises(
     let mut accepted_schemas = Vec::with_capacity(schemas.len());
     for schema in schemas {
         if schema.module != module.name {
-            bail!(
+            invalid_request!(
                 "schema premise module '{}' does not match expected module '{}'",
                 schema.module,
                 module.name
@@ -188,7 +212,7 @@ fn accepted_premises(
     }
     accepted_schemas.sort();
     if accepted_schemas.windows(2).any(|pair| pair[0] == pair[1]) {
-        bail!("assurance schema premise set contains a duplicate tuple");
+        invalid_request!("assurance schema premise set contains a duplicate tuple");
     }
     Ok(AcceptedAssurancePremises {
         format_version: 1,

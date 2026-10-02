@@ -14,9 +14,9 @@ pub struct Args {
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     if !args.json {
-        anyhow::bail!("provenance is a machine contract; use --json")
+        invalid_request!("provenance is a machine contract; use --json")
     }
-    println!(
+    primary_line!(
         "{}",
         ix_cli_kit::json::encode(&quire_cli::engine::ToolProvenance::current(), ctx.pretty)?
     );

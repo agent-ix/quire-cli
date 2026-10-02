@@ -13,7 +13,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 use quire_cli::io;
 use quire_cli::safety;
@@ -164,11 +164,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // carries no way to learn which build produced it — the defect that let
         // four battletest passes cite figures from a binary that could not emit
         // `binding_census`.
-        OutputFormat::Json => println!(
+        OutputFormat::Json => primary_line!(
             "{}",
             ix_cli_kit::json::encode(&quire_cli::engine::attach(&report), ctx.pretty)?
         ),
-        OutputFormat::Tsv => print!("{}", render_tsv(&report)),
+        OutputFormat::Tsv => primary!("{}", render_tsv(&report)),
         OutputFormat::Human => emit_human(ctx, &report),
     }
 
@@ -181,12 +181,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         .map(|(check, n)| format!("{n} coverage:{check} finding(s)"))
         .collect();
     if !promoted.is_empty() {
-        bail!("{} at severity `error` (--severity)", promoted.join(", "));
+        partial_report!("{} at severity `error` (--severity)", promoted.join(", "));
     }
 
     if args.strict {
         if !unread_measurements.is_empty() {
-            bail!(
+            partial_report!(
                 "coverage could not evaluate its declared input: {} (--strict)",
                 unread_measurements.join(", ")
             );
@@ -196,7 +196,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // first, and reported as itself — a gate told "0 unbacked rows" learns
         // the opposite of the truth.
         if report.totals.total == 0 {
-            bail!(
+            partial_report!(
                 "the declared traceability model matched no rows in this scope, \
                  so nothing was reconciled (--strict); check that the model's \
                  trace targets name documents and sections this repo actually has"
@@ -204,7 +204,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         }
         let (unbacked, lies) = (full_counts[0].1, full_counts[1].1);
         if unbacked > 0 || lies > 0 {
-            bail!("{unbacked} unbacked row(s) and {lies} contradicted status(es) (--strict)");
+            partial_report!(
+                "{unbacked} unbacked row(s) and {lies} contradicted status(es) (--strict)"
+            );
         }
     }
     Ok(())
@@ -273,7 +275,7 @@ pub(super) fn compute_report(
     }
     let graph = quire_rs::symbols::trace::bind(&extraction, model);
 
-    compute_coverage(&spec, registry, &graph, scope).map_err(|e| anyhow::anyhow!("{e}"))
+    compute_coverage(&spec, registry, &graph, scope).map_err(|e| invalid_error!("{e}"))
 }
 
 /// The four checks the `coverage` severity pack owns (FR-017-AC-13). The
@@ -300,7 +302,7 @@ fn reject_unknown_pack_checks(entries: &[String]) -> anyhow::Result<()> {
         };
         let check = rest.split('=').next().unwrap_or(rest);
         if !PACK_CHECKS.contains(&check) {
-            bail!(
+            invalid_request!(
                 "--severity entry '{entry}' names no coverage check: the coverage \
                  pack's checks are {}",
                 PACK_CHECKS.join(", ")
@@ -766,7 +768,9 @@ pub(super) fn load_registry_for(
     if scope.join("manifest.yaml").is_file() {
         return super::load_module_registry(ctx, scope);
     }
-    let registry = Registry::from_env().context("loading modules")?;
+    let registry = Registry::from_env()
+        .map_err(super::failure::invalid)
+        .context("loading modules")?;
     io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
     Ok(registry)
 }

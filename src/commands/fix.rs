@@ -12,7 +12,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 
 use quire_cli::io;
@@ -92,7 +92,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             }
         }
         if !auto.is_empty() {
-            bail!(
+            invalid_request!(
                 "{} unlinked reference(s) can be auto-fixed; re-run with --write",
                 auto.len()
             );

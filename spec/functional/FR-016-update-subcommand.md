@@ -64,7 +64,7 @@ quire update [--check] [--registry <URL>]
    subcommand's primary output on **stdout**; any npm/cargo progress is the
    child process's own inherited output.
 6. Exit codes: **0** on success (including `--check` and the unknown-source
-   manual path); **1** when an invoked `npm`/`cargo` command fails or the
+   manual path); **4** when an invoked `npm`/`cargo` command fails or the
    registry cannot be reached.
 
 ## Acceptance Criteria

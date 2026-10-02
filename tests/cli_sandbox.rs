@@ -23,7 +23,7 @@ fn it_005_module_dotdot_rejected() {
         .arg("foo/../bar")
         .assert()
         .failure()
-        .code(1)
+        .code(2)
         .stderr(predicate::str::contains("PathTraversal"));
 }
 
@@ -42,7 +42,7 @@ fn it_022_out_dotdot_rejected() {
         .arg("../escape.md")
         .assert()
         .failure()
-        .code(1)
+        .code(2)
         .stderr(predicate::str::contains("PathTraversal"));
 }
 
@@ -67,7 +67,7 @@ fn it_006_symlink_escape_refused_at_load() {
         .arg(&link)
         .assert()
         .failure()
-        .code(1);
+        .code(3);
 }
 
 // IT-023, FR-005-AC-5: a positional `-` reads the document from stdin; the

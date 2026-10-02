@@ -137,7 +137,7 @@ fn lookup_missing_selector_exits_1_without_stdout() {
         .arg("does-not-exist")
         .output()
         .unwrap();
-    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(out.status.code(), Some(3));
     assert!(out.stdout.is_empty());
     assert!(String::from_utf8_lossy(&out.stderr).contains("--block-id 'does-not-exist'"));
 }
@@ -156,6 +156,6 @@ fn lookup_rejects_multiple_selectors_as_argv_error() {
         .arg("blk-behavior")
         .assert()
         .failure()
-        .code(2)
+        .code(3)
         .stderr(predicate::str::contains("cannot be used with"));
 }

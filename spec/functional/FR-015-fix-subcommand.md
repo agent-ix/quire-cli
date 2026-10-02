@@ -54,13 +54,13 @@ the loaded `Spec` corpus alone (id index + path→id), with no archetype registr
    supplies no suggestion for them). Report `fixed <N> reference(s) in <path>`
    per touched file on stderr, where `<N>` counts only the applied fixes.
 5. Exit codes:
-   - **dry-run**: exit **0** when there are zero `AutoFix` findings; exit **1**
+   - **dry-run**: exit **0** when there are zero `AutoFix` findings; exit **3**
      when one or more `AutoFix` findings remain (an actionable CI gate —
      "specs carry no unlinked references"). `WarnOnly` findings are advisory and
      do NOT affect the exit code.
    - **`--write`**: exit **0** after a successful apply (and on a clean re-run,
-     since applying every suggestion is idempotent per FR-039); exit **1** only
-     on an I/O / path-safety failure.
+     since applying every suggestion is idempotent per FR-039); exit according to FR-007 on
+     an I/O / path-safety failure.
 
 The bundle / detection / suggestion logic is wholly upstream (quire-rs [FR-039](ix://agent-ix/quire-rs/FR-039) +
 writeback [FR-008](./FR-008-json-output-encoding.md)); the CLI is a thin process boundary ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)).

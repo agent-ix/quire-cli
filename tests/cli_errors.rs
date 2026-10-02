@@ -28,10 +28,10 @@ fn it_012_malformed_frontmatter_still_parses() {
     );
     let out = quire().arg("parse").arg(&doc).output().unwrap();
     // parse() returns a QuireDocument even on malformed frontmatter — we
-    // accept either a clean success or a clean exit-1 with diagnostics,
-    // but NEVER a panic (134).
+    // require a clean successful parsed document,
+    // and never a panic (134).
     assert_ne!(out.status.code(), Some(134), "parse panicked");
-    assert!(matches!(out.status.code(), Some(0) | Some(1)));
+    assert_eq!(out.status.code(), Some(0));
 }
 
 // IT-026, FR-007-AC-1: exit code 0 on success.
@@ -51,7 +51,7 @@ fn it_026_exit_code_0_on_success() {
 // path-safety and AC-3 unknown-archetype are their own failure modes, traced by
 // `cli_sandbox::it_005_*` and `cli_validate::it_050_*`.)
 #[test]
-fn it_026_exit_code_1_on_validation_failure() {
+fn it_026_exit_code_3_on_validation_failure() {
     quire()
         .arg("validate")
         .arg(iso_doc("FR-invalid.md"))
@@ -59,14 +59,14 @@ fn it_026_exit_code_1_on_validation_failure() {
         .arg(iso_module())
         .assert()
         .failure()
-        .code(1);
+        .code(3);
 }
 
-// IT-026, FR-007-AC-5, FR-014-AC-7: an argv error exits 2 — bare `validate`
+// IT-026, FR-007-AC-5, FR-014-AC-7: an argv error exits 3 — bare `validate`
 // with no positional and no `--okf` trips the `required_unless_present` rule.
 #[test]
-fn it_026_exit_code_2_on_argv_error() {
-    quire().arg("validate").assert().failure().code(2);
+fn it_026_exit_code_3_on_argv_error() {
+    quire().arg("validate").assert().failure().code(3);
 }
 
 // IT-027, FR-007-AC-6: no panic on malformed input — a doc full of NUL bytes,
@@ -96,7 +96,7 @@ fn it_027_no_panic_on_random_garbage_input() {
 // matches `//` + id + a delimiter, and only the trailing prose saves the
 // mentions above from binding. Reflowing this comment could make one bind.
 #[test]
-fn unknown_archetype_exits_1_with_named_error() {
+fn unknown_archetype_exits_3_with_named_error() {
     quire()
         .arg("validate")
         .arg(validate_doc("valid-fr.md"))
@@ -106,6 +106,29 @@ fn unknown_archetype_exits_1_with_named_error() {
         .arg("DEFINITELY_NOT_AN_ARCHETYPE")
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stderr(predicate::str::contains("UnknownArchetype"));
+}
+
+// Trace: FR-007-AC-8
+#[test]
+fn failed_primary_output_returns_internal_without_panicking() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let mut child = Command::new(env!("CARGO_BIN_EXE_quire"))
+        .args(["parse", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("CLI launches");
+    drop(child.stdout.take().expect("owned output pipe"));
+    let mut input = child.stdin.take().expect("owned input pipe");
+    input
+        .write_all(b"# Fictional document\nFictional content.\n")
+        .expect("input written");
+    drop(input);
+    let result = child.wait_with_output().expect("CLI completes");
+    assert_eq!(result.status.code(), Some(4));
+    assert!(String::from_utf8_lossy(&result.stderr).contains("writing parse output"));
 }

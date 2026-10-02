@@ -60,7 +60,7 @@ fn lint_error_finding_exits_1() {
         .arg(lint_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(
             predicate::str::contains("error: configuration-scope")
@@ -97,7 +97,7 @@ fn missing_manifest_reports_real_reason_not_unknown_archetype() {
         .arg(empty.path())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stderr(
             predicate::str::contains("manifest.yaml not found")
                 .and(predicate::str::contains("UnknownArchetype").not()),
@@ -116,6 +116,6 @@ fn lint_missing_manifest_fails_fast_too() {
         .arg(empty.path())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stderr(predicate::str::contains("manifest.yaml not found"));
 }

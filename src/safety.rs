@@ -22,8 +22,8 @@ use std::path::{Path, PathBuf};
 use quire_rs::{Diagnostic, PathTraversalReason};
 
 /// Either a `PathTraversal` (sandbox refusal) or a plain `io::Error`
-/// (missing file, not-a-dir, unreadable). Both flow to exit-1 user-error
-/// at the caller, but only the first must use the `Diagnostic` shape.
+/// (missing file, not-a-dir, unreadable). The CLI maps these typed conditions
+/// to shared outcomes; only traversal uses the `Diagnostic` shape.
 #[derive(Debug)]
 pub enum PathError {
     Traversal(Diagnostic),

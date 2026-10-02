@@ -9,7 +9,6 @@
 //! The rendering is a view, never an artifact: it goes to stdout and nowhere
 //! else. There is no output-path flag and no write anywhere under the scope.
 
-use anyhow::bail;
 use clap::Parser;
 use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixRequirement, CoverageMatrixStatus};
 use serde::Serialize;
@@ -69,9 +68,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let verdict = strict_verdict(&matrix);
 
     match args.format {
-        Format::Markdown => print!("{}", render_markdown(&matrix)),
-        Format::Tsv => print!("{}", render_tsv(&matrix)),
-        Format::Json => println!(
+        Format::Markdown => primary!("{}", render_markdown(&matrix)),
+        Format::Tsv => primary!("{}", render_tsv(&matrix)),
+        Format::Json => primary_line!(
             "{}",
             ix_cli_kit::json::encode(
                 &quire_cli::engine::attach(Payload {
@@ -85,11 +84,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     if args.strict {
         match verdict {
             Verdict::Pass => {}
-            Verdict::Empty => bail!("no obligations matched this scope, so nothing was measured (--strict)"),
+            Verdict::Empty => partial_report!("no obligations matched this scope, so nothing was measured (--strict)"),
             Verdict::Gaps {
                 untagged,
                 ignored_only,
-            } => bail!(
+            } => partial_report!(
                 "{untagged} untagged criterion(s) and {ignored_only} criterion(s) tagged only by ignored tests (--strict)"
             ),
         }

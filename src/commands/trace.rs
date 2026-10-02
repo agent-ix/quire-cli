@@ -51,7 +51,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 use serde::Serialize;
 
@@ -252,7 +252,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     .filter(|present| *present)
     .count();
     if selector_count != 1 {
-        bail!("trace requires exactly one of --id, --symbol, or --file");
+        invalid_request!("trace requires exactly one of --id, --symbol, or --file");
     }
 
     let exclude_globs = compile_exclude_globs(&args.exclude_path)?;
@@ -329,11 +329,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         None => OutputFormat::Human,
     };
     match format {
-        OutputFormat::Json => println!(
+        OutputFormat::Json => primary_line!(
             "{}",
             ix_cli_kit::json::encode(&quire_cli::engine::attach(&report), ctx.pretty)?
         ),
-        OutputFormat::Tsv => print!("{}", render_tsv(&report)),
+        OutputFormat::Tsv => primary!("{}", render_tsv(&report)),
         OutputFormat::Human => emit_human(ctx, &report),
     }
     Ok(())
@@ -600,7 +600,9 @@ fn compile_exclude_globs(patterns: &[String]) -> anyhow::Result<Vec<glob::Patter
     patterns
         .iter()
         .map(|p| {
-            glob::Pattern::new(p).with_context(|| format!("parsing --exclude-path glob '{p}'"))
+            glob::Pattern::new(p)
+                .map_err(super::failure::invalid)
+                .with_context(|| format!("parsing --exclude-path glob '{p}'"))
         })
         .collect()
 }

@@ -43,7 +43,7 @@ fn it_048_broken_markdown_exits_1_with_line_numbered_diagnostic() {
         .arg(validate_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stderr(
             predicate::str::is_match(r"line \d+")
                 .unwrap()
@@ -67,7 +67,7 @@ fn it_136_json_validation_error_is_locatable_and_actionable() {
         .output()
         .expect("run quire validate");
 
-    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.status.code(), Some(3));
     let stderr = String::from_utf8(output.stderr).expect("utf-8 stderr");
     let finding = stderr
         .lines()
@@ -112,7 +112,7 @@ fn it_049_archetype_flag_overrides_frontmatter_resolution() {
         .arg(validate_module())
         .assert()
         .failure()
-        .code(1);
+        .code(3);
 
     // With override → resolves to FR, validates clean.
     quire()
@@ -140,7 +140,7 @@ fn it_050_unknown_archetype_reports_unknown() {
         .arg("NONEXISTENT")
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(predicate::str::contains("UnknownArchetype"));
 }
@@ -156,7 +156,7 @@ fn it_051_placeholder_section_reports_placeholder() {
         .arg(validate_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stderr(predicate::str::contains("placeholder"));
 }
 
@@ -171,7 +171,7 @@ fn it_052_missing_section_reports_missing() {
         .arg(validate_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stderr(predicate::str::contains("missing").and(predicate::str::contains("Specification")));
 }
 
@@ -186,7 +186,7 @@ fn it_053_bad_table_reports_assert() {
         .arg(validate_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stderr(predicate::str::contains("assert"));
 }
 
@@ -201,7 +201,7 @@ fn it_054_structural_failure_empty_stdout_nonempty_stderr() {
         .arg(validate_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(predicate::str::is_empty().not());
 }
@@ -244,7 +244,7 @@ fn it_014_markdown_sweep_each_iso_archetype() {
             .arg(iso_module())
             .assert()
             .failure()
-            .code(1);
+            .code(3);
     }
 }
 
@@ -264,7 +264,7 @@ fn it_056_no_frontmatter_names_archetype_remedy() {
         .arg(iso_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(
             predicate::str::contains("frontmatter").and(predicate::str::contains("--archetype")),
@@ -283,7 +283,7 @@ fn it_057_no_type_names_archetype() {
         .arg(iso_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(
             predicate::str::contains("type")
@@ -303,7 +303,7 @@ fn it_055_dotdot_document_path_rejected() {
         .arg(iso_module())
         .assert()
         .failure()
-        .code(1)
+        .code(2)
         .stderr(
             predicate::str::contains("PathTraversal").and(predicate::str::contains("document")),
         );
@@ -321,7 +321,7 @@ fn it_058_path_safety_diagnostic_names_arg_label() {
         .arg("../nope")
         .assert()
         .failure()
-        .code(1)
+        .code(2)
         .stderr(predicate::str::contains("--module"));
 }
 
@@ -378,7 +378,7 @@ fn it_102_scope_glob_surfaces_invalid_document() {
         .arg(validate_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(
             predicate::str::contains("broken-fr.md")
@@ -412,7 +412,7 @@ fn it_082_scoped_no_modules_without_quoin_reports_actionable_error() {
         .arg(&scope)
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(predicate::str::contains("quoin plugin ensure-defaults"));
 
@@ -462,7 +462,7 @@ fn it_074_strict_escalates_warning_to_exit_1() {
         .arg("--strict")
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(
             predicate::str::contains("warning:").and(predicate::str::contains("totally-unknown")),
@@ -549,7 +549,7 @@ fn it_106_ears_grammar_warnings_fail_under_strict() {
         .arg("--strict")
         .assert()
         .failure()
-        .code(1);
+        .code(3);
 }
 
 // IT-121, FR-004-AC-19 (CR-011, #63): `--scope` decides where a relative glob

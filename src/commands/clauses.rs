@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use quire_rs::{
     diff_clause_sets, BindingOutcome, Clause, ClauseBindingReport, ClauseForce, ClauseSetDiff,
@@ -124,7 +124,7 @@ fn diff(ctx: &Ctx, args: DiffArgs) -> anyhow::Result<()> {
         &args.set_id,
         &args.after_version,
     )?;
-    let report = diff_clause_sets(before, after).map_err(|error| anyhow::anyhow!(error))?;
+    let report = diff_clause_sets(before, after).map_err(|error| invalid_error!(error))?;
     match selected_format(args.format, args.json) {
         OutputFormat::Human => {
             ix_cli_kit::streams::write_primary_stdout(render_diff_human(&report).as_bytes())?
@@ -140,10 +140,12 @@ fn diff(ctx: &Ctx, args: DiffArgs) -> anyhow::Result<()> {
 fn load_registry(ctx: &Ctx, raw: &str) -> anyhow::Result<Registry> {
     let module = safety::validate_module_path(raw)
         .with_context(|| format!("validating --module {raw:?}"))?;
-    let registry = Registry::load_module_strict(&module).context("loading clause-set module")?;
+    let registry = Registry::load_module_strict(&module)
+        .map_err(super::failure::invalid)
+        .context("loading clause-set module")?;
     io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
     if let Some(failure) = registry.failures().first() {
-        bail!(
+        invalid_request!(
             "module load failed: {} ({})",
             failure.reason,
             failure.path.display()
@@ -163,7 +165,7 @@ fn exact_set<'a>(
             .clause_sets()
             .map(|set| format!("{}/{}/{}", set.authority, set.id, set.version))
             .collect::<Vec<_>>();
-        anyhow::anyhow!(
+        invalid_error!(
             "clause set {authority}/{id}/{version} is not loaded; available exact sets: {}",
             if available.is_empty() {
                 "none".to_string()
@@ -178,14 +180,14 @@ fn parse_context(entries: &[String]) -> anyhow::Result<BTreeMap<String, String>>
     let mut context = BTreeMap::new();
     for entry in entries {
         let Some((key, value)) = entry.split_once('=') else {
-            bail!("--context {entry:?} must be KEY=VALUE");
+            invalid_request!("--context {entry:?} must be KEY=VALUE");
         };
         if key.trim().is_empty() || value.trim().is_empty() {
-            bail!("--context {entry:?} must have a non-empty key and value");
+            invalid_request!("--context {entry:?} must have a non-empty key and value");
         }
         let (key, value) = (key.trim(), value.trim());
         if context.insert(key.to_string(), value.to_string()).is_some() {
-            bail!("--context declares {key:?} more than once");
+            invalid_request!("--context declares {key:?} more than once");
         }
     }
     Ok(context)
