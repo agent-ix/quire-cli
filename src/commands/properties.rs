@@ -17,7 +17,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 use quire_cli::io;
 use quire_cli::safety;
@@ -113,7 +113,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         let archetype = match registry.archetype(&archetype_name) {
             Some(a) => a,
             None if args.archetype.is_some() => {
-                bail!("UnknownArchetype: '{archetype_name}' is not registered");
+                invalid_request!("UnknownArchetype: '{archetype_name}' is not registered");
             }
             None => {
                 emit_frontmatter_failure(
@@ -153,16 +153,16 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // version is unknowable is a record nobody can re-derive.
         let payload = quire_cli::engine::attach(json!({ "documents": documents }));
         let rendered = ix_cli_kit::json::encode(&payload, ctx.pretty)?;
-        println!("{rendered}");
+        primary_line!("{rendered}");
     } else {
-        census.emit(ctx);
+        census.emit(ctx)?;
         if args.criteria {
-            emit_criteria(&rendered_criteria, args.all);
+            emit_criteria(&rendered_criteria, args.all)?;
         }
     }
 
     if failures > 0 {
-        bail!("{failures} document(s) could not be resolved to an archetype");
+        partial_report!("{failures} document(s) could not be resolved to an archetype");
     }
     Ok(())
 }
@@ -174,7 +174,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 /// generator needs. A span that was not extracted prints nothing rather than
 /// an empty label — `domain: ` with no value reads as an empty domain, which
 /// is a different claim from "not decomposed".
-fn emit_criteria(documents: &[(String, Vec<AcClassification>)], all: bool) {
+fn emit_criteria(documents: &[(String, Vec<AcClassification>)], all: bool) -> anyhow::Result<()> {
     for (label, records) in documents {
         for r in records {
             // The default set is what somebody could sit down and write a
@@ -191,22 +191,26 @@ fn emit_criteria(documents: &[(String, Vec<AcClassification>)], all: bool) {
                 Some(line) => format!("{label}:{line}"),
                 None => label.clone(),
             };
-            io::emit_result(&format!(
-                "{id} ({locus}) {} [{}]",
-                r.property.as_str(),
-                r.extraction.as_str()
-            ));
+            primary_line!(
+                "{}",
+                &format!(
+                    "{id} ({locus}) {} [{}]",
+                    r.property.as_str(),
+                    r.extraction.as_str()
+                )
+            );
             for (field, span) in [
                 ("domain", r.domain.as_ref()),
                 ("precondition", r.precondition.as_ref()),
                 ("oracle", r.oracle.as_ref()),
             ] {
                 if let Some(span) = span {
-                    io::emit_result(&format!("  {field}: {}", span.text));
+                    primary_line!("{}", &format!("  {field}: {}", span.text));
                 }
             }
         }
     }
+    Ok(())
 }
 
 /// Project one record to JSON.
@@ -306,17 +310,20 @@ impl Census {
     /// 515 extractable criteria were the `universal` catch-all and the honest
     /// figure for "the classifier said what property to write" was 78/951, 8%.
     /// One clause stops the overread, and it is the clause a reader repeats.
-    fn emit(&self, _ctx: &Ctx) {
+    fn emit(&self, _ctx: &Ctx) -> anyhow::Result<()> {
         let pct = |n: usize| (n * 100).checked_div(self.criteria).unwrap_or(0);
-        io::emit_result(&format!(
-            "{}/{} criteria extractable ({}%); {} with a specific shape ({}%), {} candidate",
-            self.extractable,
-            self.criteria,
-            pct(self.extractable),
-            self.specific,
-            pct(self.specific),
-            self.candidate
-        ));
+        primary_line!(
+            "{}",
+            &format!(
+                "{}/{} criteria extractable ({}%); {} with a specific shape ({}%), {} candidate",
+                self.extractable,
+                self.criteria,
+                pct(self.extractable),
+                self.specific,
+                pct(self.specific),
+                self.candidate
+            )
+        );
         if self.criteria > 0 {
             let histogram = self
                 .by_property
@@ -324,8 +331,9 @@ impl Census {
                 .map(|(shape, n)| format!("{shape}={n}"))
                 .collect::<Vec<_>>()
                 .join(" ");
-            io::emit_result(&histogram);
+            primary_line!("{}", &histogram);
         }
+        Ok(())
     }
 }
 

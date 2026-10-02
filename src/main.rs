@@ -8,8 +8,9 @@
 
 use clap::{Parser, Subcommand};
 
+use ix_cli_kit::exit::Outcome;
 use ix_cli_kit::streams::{ColorChoice, DiagnosticsFormat};
-use quire_cli::io::{self, exit};
+use quire_cli::io;
 
 mod commands;
 
@@ -78,7 +79,20 @@ enum Command {
 }
 
 fn main() {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(error) => {
+            let outcome = if error.use_stderr() {
+                Outcome::Invalid
+            } else {
+                Outcome::Ok
+            };
+            if error.print().is_err() {
+                std::process::exit(i32::from(Outcome::Internal.code()));
+            }
+            std::process::exit(i32::from(outcome.code()));
+        }
+    };
     let ctx = commands::Ctx {
         diagnostics: io::Diagnostics::new(cli.diagnostics_format, cli.color.resolve().enabled),
         pretty: cli.pretty,
@@ -103,7 +117,7 @@ fn main() {
         Command::Update(a) => commands::update::run(&ctx, a),
     };
     match result {
-        Ok(()) => std::process::exit(exit::OK),
+        Ok(()) => std::process::exit(i32::from(Outcome::Ok.code())),
         Err(e) => {
             // Emit the chain as a single human-readable line (or JSON
             // line) — every command translates upstream errors into
@@ -121,7 +135,7 @@ fn main() {
                 .map(|d| d.kind())
                 .unwrap_or("QuireError");
             io::emit_diagnostic(ctx.diagnostics, kind, &msg);
-            std::process::exit(exit::USER_ERROR);
+            std::process::exit(i32::from(commands::failure::outcome(&e).code()));
         }
     }
 }

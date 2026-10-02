@@ -41,7 +41,7 @@ fn okf_untyped_document_is_error() {
         .arg(validate_module())
         .assert()
         .failure()
-        .code(1)
+        .code(3)
         .stderr(predicate::str::contains("type").and(predicate::str::contains("[frontmatter]")));
 }
 

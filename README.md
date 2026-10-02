@@ -229,7 +229,7 @@ quire validate ./FR-001.md --module ./iso --archetype FR
 cat FR-001.md | quire validate - --module ./iso --archetype FR
 ```
 
-On success `validate` exits 0 with no output. On failure it exits 1 and writes
+On success `validate` exits 0 with no output. On invalid input it exits 3 and writes
 the line-numbered quire-rs diagnostics (naming the archetype, section/assert, and
 reason: `missing`/`empty`/`placeholder`/`assert`/`frontmatter`/`duplicate-heading`)
 to stderr — verbatim, the CLI adds no validation logic of its own.
@@ -281,7 +281,7 @@ quire schema FR --module ./iso
 quire --pretty schema FR --module ./iso
 ```
 
-Unknown archetypes exit 1 with `UnknownArchetype` on stderr.
+Unknown archetypes exit 3 with `UnknownArchetype` on stderr.
 
 ## Agent Skills
 

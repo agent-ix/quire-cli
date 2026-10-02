@@ -35,7 +35,7 @@ const RESET: &str = "\x1b[0m";
 /// Read a `--data` argument: a filesystem path or `-` for stdin.
 ///
 /// Returns the parsed `serde_json::Value`. JSON parse errors surface as
-/// a user error (exit 1) at the caller.
+/// an invalid-request outcome at the caller.
 pub fn read_data(arg: &str) -> anyhow::Result<serde_json::Value> {
     let bytes = if arg == "-" {
         let mut buf = Vec::new();
@@ -130,26 +130,6 @@ pub fn pretty_validated_json_bytes(compact: &[u8]) -> Vec<u8> {
     }
 
     output
-}
-
-/// Emit one **result** line — a census figure, a per-row record, anything a
-/// caller redirecting with `>` came for (FR-006-AC-5, CR-012).
-///
-/// Goes to **stdout**, never colorized. This is the other half of
-/// [`emit_diagnostic`], and the split is the contract: results on stdout,
-/// diagnostics on stderr.
-///
-/// Before this existed, `write_diagnostic_human` was `eprintln!` wrapped in
-/// `RED` and every human surface used it for everything. Measured over
-/// `agent-ix/filament-ide-rs`, `quire coverage --scope . > out.txt` produced a
-/// **0-byte file** while all output went to stderr — and
-/// `Coverage: N/M rows backed (P%)`, a census, rendered in the same red
-/// as every finding.
-///
-/// Never colorized even when color is on: a number is not a severity, and the
-/// whole defect was a census that looked like a failure.
-pub fn emit_result(msg: &str) {
-    println!("{msg}");
 }
 
 /// Write a single diagnostic line to stderr, optionally in red.
@@ -281,14 +261,6 @@ where
             .unwrap_or("Diagnostic");
         emit_diagnostic(out, kind, &d.to_string());
     }
-}
-
-/// Exit codes per FR-007. Anything else is a bug.
-pub mod exit {
-    pub const OK: i32 = 0;
-    pub const USER_ERROR: i32 = 1;
-    pub const ARGV_ERROR: i32 = 2;
-    // 134 is reserved for SIGABRT panics; we don't emit it ourselves.
 }
 
 #[cfg(test)]

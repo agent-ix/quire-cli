@@ -158,7 +158,7 @@ fn it_043_content_names_a_file_to_read_not_the_text_to_insert() {
         .arg(&missing)
         .output()
         .unwrap();
-    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(out.status.code(), Some(3));
     assert!(out.stdout.is_empty(), "no partial document on stdout");
     assert!(
         String::from_utf8_lossy(&out.stderr).contains("--content"),
@@ -182,7 +182,7 @@ fn edit_missing_heading_exits_1_without_writing() {
         .arg(&content)
         .output()
         .unwrap();
-    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(out.status.code(), Some(3));
     assert!(out.stdout.is_empty());
     // The input file is left untouched.
     assert_eq!(std::fs::read_to_string(&doc).unwrap(), EDIT_DOC);
@@ -204,7 +204,7 @@ fn edit_rejects_both_selectors_as_argv_error() {
         .arg(&content)
         .assert()
         .failure()
-        .code(2)
+        .code(3)
         .stderr(predicate::str::contains("cannot be used with"));
 }
 
@@ -221,7 +221,7 @@ fn edit_requires_a_selector() {
         .arg(&content)
         .output()
         .unwrap();
-    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(out.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&out.stderr).contains("exactly one of --heading or --block-id"));
 }
 
@@ -247,6 +247,6 @@ fn edit_rejects_doc_and_content_both_stdin() {
     // the exit code and the stderr message, so don't let the race panic.
     let _ = child.stdin.take().unwrap().write_all(b"x");
     let out = child.wait_with_output().unwrap();
-    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(out.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&out.stderr).contains("both <doc> and --content from stdin"));
 }

@@ -179,7 +179,7 @@ fn path_traversal_rejected() {
     let out = quire().arg("fix").arg("../etc").output().expect("fix runs");
     assert_eq!(
         out.status.code(),
-        Some(1),
+        Some(2),
         "a path-safety rejection is the FR-007 user-error exit code"
     );
     let err = String::from_utf8_lossy(&out.stderr);

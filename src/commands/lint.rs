@@ -12,7 +12,7 @@
 //! writes stdout. All rule evaluation lives in quire-rs (StR-004 thin
 //! boundary).
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 
 use quire_cli::io;
@@ -45,8 +45,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         safety::validate_input_path("document", &args.document)
             .with_context(|| format!("validating document '{}'", args.document))?;
     }
-    let text =
-        io::read_text(&args.document).with_context(|| format!("reading '{}'", args.document))?;
+    let text = io::read_text(&args.document)
+        .map_err(super::failure::input)
+        .with_context(|| format!("reading '{}'", args.document))?;
     let doc = quire_rs::parse_document(&text);
 
     // Tolerant archetype resolution (FR-036-AC-3): scoping only —
@@ -82,7 +83,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     if errors > 0 {
-        bail!("{errors} error-severity lint finding(s)");
+        invalid_request!("{errors} error-severity lint finding(s)");
     }
     Ok(())
 }

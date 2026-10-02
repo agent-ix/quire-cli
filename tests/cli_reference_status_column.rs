@@ -80,7 +80,7 @@ fn it152_native_default_and_override_are_independently_readable() {
     assert_eq!(strict_report, report);
 }
 
-// Trace: IT-153, FR-017-AC-21
+// Trace: FR-007-AC-7, IT-153, FR-017-AC-21
 #[test]
 fn it153_each_missing_header_reports_then_fails_strict_without_fallback() {
     for (default_header, alternate_header, declaration, setting) in [

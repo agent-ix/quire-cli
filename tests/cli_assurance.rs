@@ -114,10 +114,10 @@ fn success(fixture: &Fixture) -> (Output, Value) {
     (output, value)
 }
 
-fn assert_refused(output: &Output, expected: &str) {
+fn assert_refused(output: &Output, code: i32, expected: &str) {
     assert_eq!(
         output.status.code(),
-        Some(1),
+        Some(code),
         "stderr: {}",
         String::from_utf8_lossy(&output.stderr)
     );
@@ -278,24 +278,27 @@ fn it_138_compact_pretty_and_golden_bytes_are_deterministic() {
 #[test]
 fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     let fixture = fixture(false);
-    let cases: Vec<(&str, Vec<&str>, &str)> = vec![
+    let cases: Vec<(&str, Vec<&str>, i32, &str)> = vec![
         (
             "other@1.2.3",
             SCHEMAS.to_vec(),
+            3,
             "module 'assurance-fixture'",
         ),
         (
             "assurance-fixture@9.9.9",
             SCHEMAS.to_vec(),
+            2,
             "version '1.2.3'",
         ),
         (
             MODULE,
             vec![SCHEMAS[0], SCHEMAS[1], SCHEMAS[2], "assurance-fixture/US"],
+            2,
             "does not exactly match",
         ),
     ];
-    for (expected_module, schemas, message) in cases {
+    for (expected_module, schemas, code, message) in cases {
         let mut command = quire();
         command
             .arg("assurance")
@@ -312,7 +315,7 @@ fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
         for schema in schemas {
             command.arg("--expect-schema").arg(schema);
         }
-        assert_refused(&command.output().expect("refusal run"), message);
+        assert_refused(&command.output().expect("refusal run"), code, message);
     }
 }
 
@@ -336,13 +339,13 @@ fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
         ])
         .output()
         .expect("malformed run");
-    assert_eq!(malformed.status.code(), Some(2));
+    assert_eq!(malformed.status.code(), Some(3));
     assert!(malformed.stdout.is_empty());
 
     let invalid_revision = command_with_source(&base, "agent-ix/fixture", "main")
         .output()
         .expect("revision run");
-    assert_refused(&invalid_revision, "not a full lowercase Git object id");
+    assert_refused(&invalid_revision, 3, "not a full lowercase Git object id");
 
     for (needle, replacement, expected) in [
         ("name: assurance-fixture\n", "", "no authored name"),
@@ -357,7 +360,7 @@ fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
         let manifest_path = fixture.module.join("manifest.yaml");
         let manifest = fs::read_to_string(&manifest_path).expect("manifest");
         write(&manifest_path, manifest.replacen(needle, replacement, 1));
-        assert_refused(&output(&fixture), expected);
+        assert_refused(&output(&fixture), 3, expected);
     }
 }
 
@@ -383,13 +386,13 @@ fn it_141_empty_unknown_and_unavailable_are_three_distinct_outcomes() {
 
     let missing = fixture(false);
     fs::remove_dir_all(missing.scope.join("spec")).expect("remove spec");
-    assert_refused(&output(&missing), "no document root");
+    assert_refused(&output(&missing), 3, "no document root");
 
     let invalid_source = fixture(false);
     let refused = command_with_source(&invalid_source, "", REVISION)
         .output()
         .expect("empty repository run");
-    assert_refused(&refused, "repository is empty");
+    assert_refused(&refused, 3, "repository is empty");
 
     let no_model = fixture(false);
     let manifest_path = no_model.module.join("manifest.yaml");

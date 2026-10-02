@@ -13,7 +13,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 use quire_cli::io;
 use quire_cli::safety;
@@ -164,12 +164,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // carries no way to learn which build produced it — the defect that let
         // four battletest passes cite figures from a binary that could not emit
         // `binding_census`.
-        OutputFormat::Json => println!(
+        OutputFormat::Json => primary_line!(
             "{}",
             ix_cli_kit::json::encode(&quire_cli::engine::attach(&report), ctx.pretty)?
         ),
-        OutputFormat::Tsv => print!("{}", render_tsv(&report)),
-        OutputFormat::Human => emit_human(ctx, &report),
+        OutputFormat::Tsv => primary!("{}", render_tsv(&report)),
+        OutputFormat::Human => emit_human(ctx, &report)?,
     }
 
     // An `error`-promoted kind fails the run even without --strict — the
@@ -181,12 +181,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         .map(|(check, n)| format!("{n} coverage:{check} finding(s)"))
         .collect();
     if !promoted.is_empty() {
-        bail!("{} at severity `error` (--severity)", promoted.join(", "));
+        partial_report!("{} at severity `error` (--severity)", promoted.join(", "));
     }
 
     if args.strict {
         if !unread_measurements.is_empty() {
-            bail!(
+            partial_report!(
                 "coverage could not evaluate its declared input: {} (--strict)",
                 unread_measurements.join(", ")
             );
@@ -196,7 +196,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // first, and reported as itself — a gate told "0 unbacked rows" learns
         // the opposite of the truth.
         if report.totals.total == 0 {
-            bail!(
+            partial_report!(
                 "the declared traceability model matched no rows in this scope, \
                  so nothing was reconciled (--strict); check that the model's \
                  trace targets name documents and sections this repo actually has"
@@ -204,7 +204,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         }
         let (unbacked, lies) = (full_counts[0].1, full_counts[1].1);
         if unbacked > 0 || lies > 0 {
-            bail!("{unbacked} unbacked row(s) and {lies} contradicted status(es) (--strict)");
+            partial_report!(
+                "{unbacked} unbacked row(s) and {lies} contradicted status(es) (--strict)"
+            );
         }
     }
     Ok(())
@@ -273,7 +275,7 @@ pub(super) fn compute_report(
     }
     let graph = quire_rs::symbols::trace::bind(&extraction, model);
 
-    compute_coverage(&spec, registry, &graph, scope).map_err(|e| anyhow::anyhow!("{e}"))
+    compute_coverage(&spec, registry, &graph, scope).map_err(|e| invalid_error!("{e}"))
 }
 
 /// The four checks the `coverage` severity pack owns (FR-017-AC-13). The
@@ -300,7 +302,7 @@ fn reject_unknown_pack_checks(entries: &[String]) -> anyhow::Result<()> {
         };
         let check = rest.split('=').next().unwrap_or(rest);
         if !PACK_CHECKS.contains(&check) {
-            bail!(
+            invalid_request!(
                 "--severity entry '{entry}' names no coverage check: the coverage \
                  pack's checks are {}",
                 PACK_CHECKS.join(", ")
@@ -619,41 +621,50 @@ fn metric_lines(report: &quire_rs::CoverageReport) -> Vec<String> {
         .collect()
 }
 
-fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
+fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()> {
     // CR-012: the census goes to **stdout**. It is what a caller redirecting
     // with `>` came for, and it is not a diagnostic — `N/M rows backed
     // (P%)` rendered in error red was the whole of defect 2 in #59.
     let t = &report.totals;
-    io::emit_result(&format!(
-        "Coverage: {}/{} rows backed ({})",
-        t.backed,
-        t.total,
-        percent_label(t.backed, t.total)
-    ));
+    primary_line!(
+        "{}",
+        &format!(
+            "Coverage: {}/{} rows backed ({})",
+            t.backed,
+            t.total,
+            percent_label(t.backed, t.total)
+        )
+    );
     for line in census_lines(report) {
-        io::emit_result(&line);
+        primary_line!("{}", &line);
     }
     for g in &report.groups {
-        io::emit_result(&format!(
-            "{}: {}/{} ({})",
-            g.document,
-            g.backed,
-            g.total,
-            percent_label(g.backed, g.total)
-        ));
+        primary_line!(
+            "{}",
+            &format!(
+                "{}: {}/{} ({})",
+                g.document,
+                g.backed,
+                g.total,
+                percent_label(g.backed, g.total)
+            )
+        );
     }
     // FR-017-AC-18 (#51, quire-rs #215): what `source_exclude` subtracted is
     // part of the census. An over-broad glob otherwise reads exactly like
     // tests that were never written. Zero — the state every conformant repo
     // without the declaration is in — prints nothing.
     if report.excluded_source_files > 0 {
-        io::emit_result(&format!(
-            "{} source file(s) excluded by source_exclude",
-            report.excluded_source_files
-        ));
+        primary_line!(
+            "{}",
+            &format!(
+                "{} source file(s) excluded by source_exclude",
+                report.excluded_source_files
+            )
+        );
     }
     for line in metric_lines(report) {
-        io::emit_result(&line);
+        primary_line!("{}", &line);
     }
     // Alerts nobody saw. `report.diagnostics` rendered in the TSV path and
     // nowhere else, so 11 `uncatalogued-verification-method` findings on
@@ -746,6 +757,7 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
             ),
         );
     }
+    Ok(())
 }
 
 /// The module-resolution `coverage` performs, taking the flag rather than the
@@ -766,7 +778,9 @@ pub(super) fn load_registry_for(
     if scope.join("manifest.yaml").is_file() {
         return super::load_module_registry(ctx, scope);
     }
-    let registry = Registry::from_env().context("loading modules")?;
+    let registry = Registry::from_env()
+        .map_err(super::failure::invalid)
+        .context("loading modules")?;
     io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
     Ok(registry)
 }

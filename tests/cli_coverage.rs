@@ -1091,7 +1091,7 @@ fn it110_severity_pack_projects_and_promotes() {
         .expect("run");
     assert_eq!(
         typo.status.code(),
-        Some(1),
+        Some(3),
         "an unknown coverage check must be rejected"
     );
     let terr = String::from_utf8_lossy(&typo.stderr);

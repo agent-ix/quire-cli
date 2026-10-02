@@ -185,7 +185,7 @@ no data rows.
 `matrix` does not run the `coverage` severity pack's checks (`unbacked-row`,
 `status-lie`, `untracked-symbol`, `undeclared-status`) and does not accept
 `--severity` — the flag is absent from its argv surface entirely, so passing
-it is an ordinary clap unknown-argument failure (FR-007-AC-5, exit 2), not a
+it is an ordinary clap unknown-argument failure (FR-007-AC-5, exit 3), not a
 recognized-but-rejected flag. A module's own `grammar_severity` promotions of
 those four checks have **no effect** on `matrix`'s exit code:
 `coverage_matrix` carries none of those checks' record kinds to project or
@@ -204,7 +204,7 @@ from any other part of the same `CoverageReport`.
   exemption, FR-050-AC-16) and wins over every other case — a criterion
   computing it is exempt from tagging by declaration, not tagged and not a
   gap (AC-10, AC-11).
-- the **FR-007** refusal exits: 1 for a load/resolution failure
+- the **FR-007** invalid-request exits: 3 for a load/resolution failure
   (`MissingDocumentRoot`, no `traceability:` model, a corrupt module), 2 for
   an argv parse error — identically to every other subcommand.
 
@@ -230,7 +230,7 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-026-AC-1 | `quire matrix --scope <DIR> --module $M` over a repository whose module declares an `obligations:` source that derives a non-empty population exits 0 and renders every requirement's criteria in every format | Test |
-| FR-026-AC-2 | `matrix` shares `coverage`'s refusals verbatim: no `spec/` under `--scope` exits 1 as `MissingDocumentRoot` (FR-017-AC-5); no `traceability:` model in scope exits 1 naming the missing declaration (FR-017-AC-6); `--module` is repeatable and closed exactly as FR-017-AC-20/21 specify, and `quire matrix --help` states the identical `--module` resolution-order text FR-017-AC-21 requires of `coverage --help` | Test |
+| FR-026-AC-2 | `matrix` shares `coverage`'s refusals verbatim: no `spec/` under `--scope` exits 3 as `MissingDocumentRoot` (FR-017-AC-5); no `traceability:` model in scope exits 3 naming the missing declaration (FR-017-AC-6); `--module` is repeatable and closed exactly as FR-017-AC-20/21 specify, and `quire matrix --help` states the identical `--module` resolution-order text FR-017-AC-21 requires of `coverage --help` | Test |
 | FR-026-AC-3 | Markdown requirement tables render in the engine's own `requirements[]` order (sorted by `document`); the CLI performs no additional sort, group or alphabetization | Test |
 | FR-026-AC-4 | Each requirement renders as the exact heading `## <document>` with the requirement's own `document` value verbatim (no link, no backticks), followed by one table with header `Criterion \| Statement \| Binders \| Status`, rows in the engine's own per-document criteria order | Test |
 | FR-026-AC-5 | A criterion's `Binders` cell lists each `(path, line, column)` binder as `path:line:column`, separated by `, `, in the engine's own binder order — never collapsing two same-line binders that differ only by column; a binder the engine marks `ignored` carries a trailing ` (ignored)`; a criterion with zero binders renders the literal `(none)` | Test |
@@ -240,8 +240,8 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 | FR-026-AC-9 | The zero-population state — `coverage_matrix` absent, whether the module declares no `obligations:` source or declares one that derives nothing — renders in markdown as the single line `No obligations matched this scope.` (no heading, no table) and in TSV as the header alone; `--format json` omits the key, as the engine does | Test |
 | FR-026-AC-10 | `--strict`'s pass condition requires **at least one** criterion, all `tagged`/`method-without-symbol`: it exits 1 on the zero-population state (§B) exactly as it exits 1 on an `untagged`/`tagged-by-ignored-test` criterion — a report measuring nothing must not exit 0 (FR-050-AC-14/CR-035 argument, applied to the derived-obligation population) | Test |
 | FR-026-AC-11 | A criterion computing `method-without-symbol` never fails `--strict` on its own, regardless of its binder count, and renders in every format exactly like any other criterion — its own `Status`/`status` cell/field states `method-without-symbol` verbatim | Test |
-| FR-026-AC-12 | `matrix` does not accept `--severity` (an attempt is an ordinary clap argv error, exit 2, FR-007-AC-5) and runs none of the `unbacked-row`/`status-lie`/`untracked-symbol`/`undeclared-status` checks; a module's `grammar_severity` promotion of any of those checks has no effect on `matrix`'s exit code, because `coverage_matrix` carries none of their record kinds. `matrix` also does not inherit `coverage`'s FR-017-AC-22 unread-measurement gate (`status-column-matches-nothing`/`hollow-denominator`): `coverage_matrix` reads no status column, so there is no unread-column state for it to gate on | Test |
-| FR-026-AC-13 | `matrix` uses only the FR-007 exit codes — 0, 1, 2 — across every case above, including an unrecognized `--severity` flag (exit 2); no new code is introduced | Test |
+| FR-026-AC-12 | `matrix` does not accept `--severity` (an attempt is an ordinary clap argv error, exit 3, FR-007-AC-5) and runs none of the `unbacked-row`/`status-lie`/`untracked-symbol`/`undeclared-status` checks; a module's `grammar_severity` promotion of any of those checks has no effect on `matrix`'s exit code, because `coverage_matrix` carries none of their record kinds. `matrix` also does not inherit `coverage`'s FR-017-AC-22 unread-measurement gate (`status-column-matches-nothing`/`hollow-denominator`): `coverage_matrix` reads no status column, so there is no unread-column state for it to gate on | Test |
+| FR-026-AC-13 | `matrix` uses only the FR-007 exit codes — 0, 1, 2, 3, 4 — across every case above, including an unrecognized `--severity` flag (exit 3); the shared taxonomy is authoritative | Test |
 | FR-026-AC-14 | `matrix` never opens a file for writing: no flag names an output path, and running it in every format against a fixture repository leaves every file anywhere under `<scope>` — not only under `<scope>/spec` — byte-identical before and after the run | Test |
 
 ## Dependencies

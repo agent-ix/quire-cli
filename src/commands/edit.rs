@@ -6,7 +6,7 @@
 
 use std::path::PathBuf;
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use clap::Parser;
 
 use quire_cli::io;
@@ -42,7 +42,7 @@ pub struct Args {
 
 pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     if args.doc == "-" && args.content == "-" {
-        bail!("edit cannot read both <doc> and --content from stdin");
+        invalid_request!("edit cannot read both <doc> and --content from stdin");
     }
 
     let out_path: Option<PathBuf> = match args.out.as_deref() {
@@ -52,17 +52,22 @@ pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         None => None,
     };
 
-    let text = io::read_text(&args.doc).with_context(|| format!("reading '{}'", args.doc))?;
+    let text = io::read_text(&args.doc)
+        .map_err(super::failure::input)
+        .with_context(|| format!("reading '{}'", args.doc))?;
     let new_content = io::read_text(&args.content)
+        .map_err(super::failure::input)
         .with_context(|| format!("reading --content '{}'", args.content))?;
     let doc = quire_rs::parse_document(&text);
 
     let updated = match (args.heading.as_deref(), args.block_id.as_deref()) {
         (Some(heading), None) => quire_rs::update_section(&doc, heading, &new_content)
+            .map_err(super::failure::invalid)
             .with_context(|| format!("updating section --heading '{heading}'"))?,
         (None, Some(block_id)) => quire_rs::update_block(&doc, block_id, &new_content)
+            .map_err(super::failure::invalid)
             .with_context(|| format!("updating block --block-id '{block_id}'"))?,
-        _ => bail!("edit requires exactly one of --heading or --block-id"),
+        _ => invalid_request!("edit requires exactly one of --heading or --block-id"),
     };
 
     io::write_primary(out_path.as_deref(), updated.as_bytes()).context("writing edit output")?;

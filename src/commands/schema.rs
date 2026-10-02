@@ -10,7 +10,7 @@
 //! Unknown archetypes exit 1 with `UnknownArchetype` on stderr; stdout is
 //! empty. All contract derivation lives in quire-rs (StR-004 thin boundary).
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use clap::Parser;
 
 use quire_cli::safety;
@@ -35,7 +35,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let contract = quire_rs::input_contract_for(&registry, &args.archetype).map_err(|e| {
         // Surface `UnknownArchetype` (and any other contract error) on the
         // error path; the leaf message carries the load-bearing identifier.
-        anyhow!("{e}")
+        invalid_error!("{e}")
     })?;
 
     // `to_json()` produces deterministic, sorted-key JSON (FR-009-AC-4).
@@ -44,6 +44,6 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         ix_cli_kit::json::encode(&value, ctx.pretty).context("encoding input contract as JSON")?;
     ix_cli_kit::streams::write_primary_stdout(payload.as_bytes())
         .context("writing schema output")?;
-    ix_cli_kit::streams::write_primary_stdout(b"\n").ok();
+    ix_cli_kit::streams::write_primary_stdout(b"\n")?;
     Ok(())
 }

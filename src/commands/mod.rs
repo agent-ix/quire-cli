@@ -2,6 +2,39 @@
 //! The quire-rs-backed verbs stay thin wrappers over the engine; `update` is a
 //! thin wrapper over the package-agnostic `self_update` engine instead.
 
+macro_rules! primary_line {
+    ($($arg:tt)*) => {
+        ix_cli_kit::streams::write_result(&mut std::io::stdout().lock(), &format!($($arg)*))?
+    };
+}
+macro_rules! primary {
+    ($($arg:tt)*) => {
+        ix_cli_kit::streams::write_primary_stdout(format!($($arg)*).as_bytes())?
+    };
+}
+macro_rules! invalid_error {
+    ($($arg:tt)*) => {
+        crate::commands::failure::invalid(anyhow::anyhow!($($arg)*))
+    };
+}
+macro_rules! invalid_request {
+    ($($arg:tt)*) => {
+        return Err(crate::commands::failure::invalid(anyhow::anyhow!($($arg)*)))
+    };
+}
+macro_rules! partial_report {
+    ($($arg:tt)*) => {
+        return Err(crate::commands::failure::classified(ix_cli_kit::exit::Outcome::Partial, anyhow::anyhow!($($arg)*)))
+    };
+}
+macro_rules! policy_refusal {
+    ($($arg:tt)*) => {
+        return Err(crate::commands::failure::refused(anyhow::anyhow!($($arg)*)))
+    };
+}
+
+pub(crate) mod failure;
+
 pub mod assurance;
 pub mod clauses;
 pub mod coverage;
@@ -22,7 +55,7 @@ pub mod validate;
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use quire_cli::io::{emit_quire_diagnostics, Diagnostics};
 use quire_rs::Registry;
 
@@ -131,22 +164,26 @@ pub fn load_module_set_registry(ctx: &Ctx, modules: &[String]) -> anyhow::Result
         })
         .collect::<anyhow::Result<_>>()?;
     let refs: Vec<&Path> = roots.iter().map(|p| p.as_path()).collect();
-    let registry = Registry::load_module_set(&refs).context("loading module set")?;
+    let registry = Registry::load_module_set(&refs)
+        .map_err(failure::invalid)
+        .context("loading module set")?;
     emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
     if registry.module_names().count() == 0 {
         if let Some(f) = registry.failures().first() {
-            bail!("module load failed: {} ({})", f.reason, f.path.display());
+            invalid_request!("module load failed: {} ({})", f.reason, f.path.display());
         }
     }
     Ok(registry)
 }
 
 pub fn load_module_registry(ctx: &Ctx, module: &Path) -> anyhow::Result<Registry> {
-    let registry = Registry::load_module(module).context("loading module registry")?;
+    let registry = Registry::load_module(module)
+        .map_err(failure::invalid)
+        .context("loading module registry")?;
     emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
     if registry.module_names().count() == 0 {
         if let Some(f) = registry.failures().first() {
-            bail!("module load failed: {} ({})", f.reason, f.path.display());
+            invalid_request!("module load failed: {} ({})", f.reason, f.path.display());
         }
     }
     Ok(registry)
@@ -163,7 +200,7 @@ pub fn require_traceability_model(
     registry: &Registry,
 ) -> anyhow::Result<&quire_rs::traceability::TraceabilityModel> {
     registry.traceability().ok_or_else(|| {
-        anyhow::anyhow!(
+        invalid_error!(
             "no module in scope declares a `traceability:` model, so there is \
              nothing to reconcile; install a module that declares one (e.g. \
              spec-artifacts-process) or pass --module"

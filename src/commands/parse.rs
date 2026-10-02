@@ -16,7 +16,9 @@ pub struct Args {
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let text = io::read_text(&args.doc).with_context(|| format!("reading '{}'", args.doc))?;
+    let text = io::read_text(&args.doc)
+        .map_err(super::failure::input)
+        .with_context(|| format!("reading '{}'", args.doc))?;
     let doc = quire_rs::parse_document(&text);
     let payload =
         ix_cli_kit::json::encode(&doc, ctx.pretty).context("encoding QuireDocument as JSON")?;
@@ -24,6 +26,6 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         .context("writing parse output")?;
     // Trailing newline keeps line-oriented consumers happy without
     // changing the JSON document.
-    ix_cli_kit::streams::write_primary_stdout(b"\n").ok();
+    ix_cli_kit::streams::write_primary_stdout(b"\n")?;
     Ok(())
 }

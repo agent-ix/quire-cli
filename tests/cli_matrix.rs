@@ -207,7 +207,7 @@ fn it167_matrix_shares_coverage_refusals_and_module_resolution() {
         .args([f.scope(), "--module".to_string(), f.module()])
         .output()
         .expect("run");
-    assert_eq!(code(&out), 1);
+    assert_eq!(code(&out), 3);
     assert!(out.stdout.is_empty(), "a refusal renders nothing");
     let line = stderr(&out)
         .lines()
@@ -222,7 +222,7 @@ fn it167_matrix_shares_coverage_refusals_and_module_resolution() {
         "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n- name: FR\n",
     );
     let out = bare.matrix(&[]);
-    assert_eq!(code(&out), 1);
+    assert_eq!(code(&out), 3);
     assert!(
         stderr(&out).contains("`traceability:` model"),
         "{}",
@@ -839,7 +839,7 @@ fn it175_method_without_symbol_never_fails_strict() {
 fn it176_no_severity_pack_and_no_unread_measurement_gate() {
     let f = populated();
     let out = f.matrix(&["--severity", "coverage:unbacked-row=error"]);
-    assert_eq!(code(&out), 2, "--severity is not a matrix flag");
+    assert_eq!(code(&out), 3, "--severity is not a matrix flag");
     assert!(stderr(&out).contains("--severity"), "{}", stderr(&out));
 
     // A module promoting a coverage check to `error`, over a scope that trips
@@ -970,5 +970,5 @@ fn tc841_every_matrix_exit_code_is_in_the_fr007_taxonomy() {
             seen.insert(code(&f.matrix(args)));
         }
     }
-    assert_eq!(seen.into_iter().collect::<Vec<_>>(), [0, 1, 2]);
+    assert_eq!(seen.into_iter().collect::<Vec<_>>(), [0, 1, 3]);
 }

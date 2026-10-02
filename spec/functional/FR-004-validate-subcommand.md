@@ -41,7 +41,7 @@ relationships:
 > `Registry::failures()` and died later with a misleading
 > `UnknownArchetype: 'FR' is not registered`. All module-loading subcommands
 > (`validate`, `extract`, `schema`, `lint`) now share a loader helper that fails
-> fast — exit 1 with the real reason, e.g.
+> fast — exit 3 with the real reason, e.g.
 > `module load failed: manifest.yaml not found in module root (<path>/manifest.yaml)`
 > — whenever the load yields zero modules and at least one failure. Surfaced by the
 > spec-objects format walkthrough (issue #5). Verified by
@@ -118,13 +118,13 @@ lazy-installs the default module set by shelling out once to
 `quoin plugin ensure-defaults` and reloading the registry a single time; only
 this child performs network I/O (the [NFR-004](../non-functional/NFR-004-no-network.md)
 exception, [ADR-0001](../assets/adr/0001-validate-lazy-init-module-bootstrap.md)).
-When the set is still empty (e.g. `quoin` not installed), it exits 1 with an
+When the set is still empty (e.g. `quoin` not installed), it exits 3 with an
 actionable diagnostic. `--module` remains the exact-module path and never
 triggers discovery or lazy-init; it is **repeatable**, and the roots it declares
 are used in the order given and REPLACE discovery rather than adding to it
 (upstream [FR-013](ix://agent-ix/quire-rs/FR-013) closed module set).
 
-**Archetype-resolution failure paths** (all exit 1, structured diagnostic on
+**Archetype-resolution failure paths** (all exit 3, structured diagnostic on
 stderr, no stdout):
 - No frontmatter block at all → error that the document has no frontmatter from which to resolve the archetype (and `--archetype` was not supplied).
 - Frontmatter present but no string `type` key (absent, or non-string) and no `--archetype` → error directing the author to add `type` or pass `--archetype`.
@@ -149,7 +149,7 @@ the merge itself is quire-rs `grammar::merge_severity_overrides`
 (upstream FR-048), not CLI logic ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)
 thin boundary). `off` SHALL suppress the check entirely — no warning, no error,
 and no row in the `--summary` histogram. `error` SHALL promote the check so a
-run that would otherwise exit 0 exits 1 on it, a per-check lever `--strict`
+run that would otherwise exit 0 exits 3 on it, a per-check lever `--strict`
 cannot express. The CLI SHALL reject a malformed entry before it reads any
 document, so a mistyped override is a usage error rather than a run that
 silently ignored the flag.
@@ -161,28 +161,28 @@ silently ignored the flag.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-004-AC-1 | `quire validate valid-fr.md --module $ISO` exits 0 with no output (frontmatter valid, all required structure present) | Test |
-| FR-004-AC-2 | `quire validate broken-fr.md --module $ISO` exits 1; stderr contains a line-numbered diagnostic naming the failing section/assert | Test |
+| FR-004-AC-2 | `quire validate broken-fr.md --module $ISO` exits 3; stderr contains a line-numbered diagnostic naming the failing section/assert | Test |
 | FR-004-AC-3 | `quire validate fr.md --module $ISO --archetype FR` overrides frontmatter-derived archetype resolution | Test |
-| FR-004-AC-4 | A document with **no frontmatter** and no `--archetype` exits 1; stderr names the missing frontmatter / `type` and points at `--archetype` as the remedy. No stdout | Test |
-| FR-004-AC-5 | A document whose frontmatter is present but has **no string `type`** (key absent, or a non-string value) and no `--archetype` exits 1; the diagnostic names `--archetype` (or `type`) as the way to resolve the archetype. No stdout | Test |
-| FR-004-AC-6 | When the resolved or `--archetype`-overridden name is unknown to the loaded module, `validate` exits 1 with quire-rs `UnknownArchetype` on stderr; empty stdout | Test |
-| FR-004-AC-7 | A path-safety violation on the document or `--module` exits 1 with a `PathSafetyViolation` ([FR-005](./FR-005-path-safety.md)) whose diagnostic names the offending argument label (the positional `document`, or `--module`) | Test |
+| FR-004-AC-4 | A document with **no frontmatter** and no `--archetype` exits 3; stderr names the missing frontmatter / `type` and points at `--archetype` as the remedy. No stdout | Test |
+| FR-004-AC-5 | A document whose frontmatter is present but has **no string `type`** (key absent, or a non-string value) and no `--archetype` exits 3; the diagnostic names `--archetype` (or `type`) as the way to resolve the archetype. No stdout | Test |
+| FR-004-AC-6 | When the resolved or `--archetype`-overridden name is unknown to the loaded module, `validate` exits 3 with quire-rs `UnknownArchetype` on stderr; empty stdout | Test |
+| FR-004-AC-7 | A path-safety violation on the document or `--module` exits 3 with a `PathSafetyViolation` ([FR-005](./FR-005-path-safety.md)) whose diagnostic names the offending argument label (the positional `document`, or `--module`) | Test |
 | FR-004-AC-8 | `quire validate - --module $ISO` reads the document from stdin and is **not** subject to path-safety on the document argument (stdin is path-safety-exempt, [FR-005-AC-5](./FR-005-path-safety.md)); the markdown is still validated structurally | Test |
 | FR-004-AC-9 | All validation logic is delegated to quire-rs; an audit confirms the CLI crate contains no structural-validation logic of its own ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md) thin boundary) | Inspection |
 | FR-004-AC-10 | A document that is otherwise conformant but declares a frontmatter `object:` the registry cannot resolve produces a quire-rs **warning**. Without `--strict`, `validate` exits **0** and prints the warning to stderr, clearly marked (`warning:` prefix in human format) and distinct from any error; stdout stays empty | Test |
-| FR-004-AC-11 | With `--strict`, the same unknown-`object:` warning becomes exit-failing: `validate` exits **1**, the warning still appears on stderr; stdout stays empty. A document with NO warnings and no errors still exits 0 under `--strict` | Test |
+| FR-004-AC-11 | With `--strict`, the same unknown-`object:` warning becomes exit-failing: `validate` exits **3**, the warning still appears on stderr; stdout stays empty. A document with NO warnings and no errors still exits 0 under `--strict` | Test |
 | FR-004-AC-12 | Under `--diagnostics-format json`, a warning is emitted as a distinct JSON object carrying a `severity`/`kind` field marking it a warning (not an error), so machine consumers can tell warnings from errors. An error retains its error `kind` | Test |
 | FR-004-AC-13 | Scoped validation discovers modules from the default install root `~/.ix/filament/modules` and from `IX_FILAMENT_MODULES_PATH` (in addition to `--scope`, `--scope/.ix/modules`, and the legacy `IX_SCHEMA_PATH`) with no env var required and no network: a document validates against a module provided only via the default-root/env discovery path, and the run opens no inet socket | Test |
-| FR-004-AC-14 | When scoped discovery finds zero modules and `quoin` is not available on PATH, `validate` exits 1 with an actionable diagnostic naming `quoin plugin ensure-defaults` (and `IX_FILAMENT_MODULES_PATH`); empty stdout. When `quoin` IS available, the empty-discovery path shells out to `quoin plugin ensure-defaults` once and reloads before validating (the [NFR-004](../non-functional/NFR-004-no-network.md) network exception, [ADR-0001](../assets/adr/0001-validate-lazy-init-module-bootstrap.md)) | Test (quoin-absent path) + Demonstration (lazy install) |
+| FR-004-AC-14 | When scoped discovery finds zero modules and `quoin` is not available on PATH, `validate` exits 3 with an actionable diagnostic naming `quoin plugin ensure-defaults` (and `IX_FILAMENT_MODULES_PATH`); empty stdout. When `quoin` IS available, the empty-discovery path shells out to `quoin plugin ensure-defaults` once and reloads before validating (the [NFR-004](../non-functional/NFR-004-no-network.md) network exception, [ADR-0001](../assets/adr/0001-validate-lazy-init-module-bootstrap.md)) | Test (quoin-absent path) + Demonstration (lazy install) |
 | FR-004-AC-15 | With `--summary`, a run over a bundle whose documents emit findings from two different grammars prints a histogram containing a row for **each** grammar (`[ears:*]` and `[ac:*]` both appear), and the exit code is identical to the same run without `--summary` | Test |
 | FR-004-AC-16 | `--severity <grammar>:<check>=off` suppresses that check entirely: the warning disappears from stderr AND its row disappears from the `--summary` histogram, while every other check's row is unchanged | Test |
-| FR-004-AC-17 | `--severity <grammar>:<check>=error` promotes that check: a run that exits 0 without the override exits 1 with the override, and the finding is reported as an error rather than a warning | Test |
+| FR-004-AC-17 | `--severity <grammar>:<check>=error` promotes that check: a run that exits 0 without the override exits 3 with the override, and the finding is reported as an error rather than a warning | Test |
 | FR-004-AC-18 | A malformed `--severity` entry (no `<grammar>:<check>=<level>` shape, an unknown level, or an empty grammar/check segment) exits non-zero with a usage diagnostic **before any document is read**, never a silently ignored flag | Test |
 | FR-004-AC-19 | A **relative document path** given with `--scope <DIR>` resolves under that scope and validates against the module the scope itself carries — the `--scope`-contains-`manifest.yaml` exact-module branch, not the search-root discovery branch, which is AC-13's — with no `--module` argument: a conformant document exits **0** with empty stdout and empty stderr | Test |
-| FR-004-AC-20 | A **relative glob** given with `--scope <DIR>` expands under that scope, and a matching non-conformant document exits **1** with a line-numbered diagnostic on stderr naming the offending file; stdout stays empty | Test |
+| FR-004-AC-20 | A **relative glob** given with `--scope <DIR>` expands under that scope, and a matching non-conformant document exits **3** with a line-numbered diagnostic on stderr naming the offending file; stdout stays empty | Test |
 | FR-004-AC-23 | `--scope` decides where a relative path or glob resolves **regardless of `--module`**. Passing `--module` pins the module set and never moves document resolution to the process directory; a run with and without it selects the same documents, and a decoy file of the same relative name in the current directory is not read. | Test (IT-121, IT-122) |
 | FR-004-AC-21 | Requirement-**grammar** findings are advisory, distinct from the `object:` warning of AC-10: a structurally valid document carrying grammar violations exits **0**, and each finding appears on stderr under its `[<grammar>:<check>]` label; stdout stays empty | Test |
-| FR-004-AC-22 | `--strict` escalates grammar findings the same way it escalates the AC-11 `object:` warning — the same document that exits 0 without it exits **1** with it. This is the per-repo promotion lever: a converted repo flips its grammar to blocking in CI without a module change | Test |
+| FR-004-AC-22 | `--strict` escalates grammar findings the same way it escalates the AC-11 `object:` warning — the same document that exits 0 without it exits **3** with it. This is the per-repo promotion lever: a converted repo flips its grammar to blocking in CI without a module change | Test |
 
 ## Dependencies
 
@@ -198,7 +198,7 @@ silently ignored the flag.
 > `scoped_path`, so the two flags fought and the undocumented one won.
 > Measured: `quire validate --scope <clean 2-document corpus> --module <m>
 > "spec/*.md"`, run from a repository root, reported **7 failures belonging to
-> that repository** — exit 1, well-formed line-numbered diagnostics, and
+> that repository** — exit 3, well-formed line-numbered diagnostics, and
 > nothing anywhere saying which tree had been read. The same command without
 > `--module` was silent, correctly.
 >

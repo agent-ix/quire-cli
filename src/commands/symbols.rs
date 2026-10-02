@@ -130,11 +130,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         None => OutputFormat::Human,
     };
     match format {
-        OutputFormat::Json => println!(
+        OutputFormat::Json => primary_line!(
             "{}",
             ix_cli_kit::json::encode(&quire_cli::engine::attach(&report), ctx.pretty)?
         ),
-        OutputFormat::Tsv => print!("{}", render_tsv(&report)),
+        OutputFormat::Tsv => primary!("{}", render_tsv(&report)),
         OutputFormat::Human => emit_human(ctx, &report, model.is_some()),
     }
     Ok(())

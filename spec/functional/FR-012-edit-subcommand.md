@@ -51,7 +51,7 @@ Behavior:
    `quire_rs::update_block`.
 4. Emit the updated full-file markdown to `--out` or stdout. Frontmatter and every
    untouched section/block stay byte-identical.
-5. On no match, exit 1 with empty stdout and a diagnostic naming the selector; the
+5. On no match, exit 3 with empty stdout and a diagnostic naming the selector; the
    input file is left untouched.
 
 `<DOC>` and `--content` SHALL NOT both read from stdin (exactly one stdin source).
@@ -63,7 +63,7 @@ Behavior:
 | FR-012-AC-1 | `quire edit doc.md --heading Description --content body.txt` replaces the Description body and leaves frontmatter and all other sections byte-identical | Test |
 | FR-012-AC-2 | `quire edit doc.md --block-id blk-behavior --content block.txt` replaces the full `{#blk-behavior}` block | Test |
 | FR-012-AC-3 | `--out` pointing at the input path edits the document in place | Test |
-| FR-012-AC-4 | A selector that matches no section exits 1 without writing; the input file is unchanged | Test |
+| FR-012-AC-4 | A selector that matches no section exits 3 without writing; the input file is unchanged | Test |
 | FR-012-AC-5 | Passing both `--heading` and `--block-id` is an argv error; passing neither is a user error | Test |
 | FR-012-AC-6 | Passing `-` for both `<DOC>` and `--content` is a user error | Test |
 

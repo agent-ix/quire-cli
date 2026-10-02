@@ -11,34 +11,43 @@ relationships:
 
 ## Description
 
-The CLI SHALL use a uniform exit-code contract across all subcommands — 0
-success, 1 user error, 2 argv error, 134 internal panic — and no other code, so
-callers can branch reliably on outcome. The behavioral surface is specified
-below.
+The CLI SHALL use ix-cli-kit outcomes uniformly across subcommands, so callers
+can branch on typed outcomes without parsing diagnostics.
 
 ## Behavior
 
-The CLI SHALL use the following exit codes uniformly across all subcommands:
-
 | Code | Meaning |
-|------|---------|
-| 0 | Success. Primary result on stdout (or empty for `validate`). |
-| 1 | **User error** — recoverable by the caller: path-safety violation, unknown archetype, structural-validation failure, archetype-resolution failure (no frontmatter / no `type`), missing file, module load failure. Diagnostic on stderr. |
-| 2 | **Argument parsing error** — `clap` could not parse argv. clap-generated message on stderr. |
-| 134 | Internal panic (SIGABRT). Indicates a bug; should never happen in normal operation. |
+| --- | --- |
+| 0 | Successful completion, including help and version requests. |
+| 1 | Partial result: a complete requested report was emitted, but strict coverage/matrix or property resolution found incomplete or failing records. |
+| 2 | Refusal: path traversal or an explicit domain policy prevented the operation. |
+| 3 | Invalid request: invalid argv, missing or incorrectly typed input paths, malformed input, unknown archetypes, unresolved selection, module load or structural validation failures. |
+| 4 | Internal failure: unexpected implementation, serialization or output I/O failure. |
 
-The CLI SHALL NOT use any other exit code. In particular, structural-validation failures, archetype-resolution failures, and parse errors all exit 1 — the diagnostic on stderr discriminates among them.
+The CLI SHALL derive outcomes from typed errors and explicit domain verdicts,
+never diagnostic text. Input permission refusals SHALL use 2; missing input
+SHALL use 3. Output and unclassified I/O failures SHALL use 4. A validation or
+lint failure that emits diagnostics without a complete primary report SHALL
+use 3. Empty strict matrix reports SHALL use 1 because the requested complete
+zero-population report was emitted. Existing diagnostics and payload schemas
+SHALL remain unchanged. No compatibility mapping SHALL be provided.
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
-|----|----------|--------------|
-| FR-007-AC-1 | For each subcommand, success exits 0 | Test |
-| FR-007-AC-2 | Path-safety violation exits 1 | Test |
-| FR-007-AC-3 | Unknown archetype exits 1 | Test |
-| FR-007-AC-4 | Structural-validation failure (`validate_document`) exits 1 | Test |
-| FR-007-AC-5 | `quire --bogus-flag` exits 2 | Test |
-| FR-007-AC-6 | No test triggers exit 134 (no panics on any covered input) | Test |
+| --- | --- | --- |
+| FR-007-AC-1 | Successful commands, help and version exit 0. | Test |
+| FR-007-AC-2 | Path traversal and explicit policy refusals exit 2 with diagnostics. | Test |
+| FR-007-AC-3 | Unknown archetypes and invalid or missing input exit 3. | Test |
+| FR-007-AC-4 | Structural validation failures without a primary report exit 3. | Test |
+| FR-007-AC-5 | Invalid argv exits 3 with clap diagnostics. | Test |
+| FR-007-AC-6 | Covered invalid inputs return a classified failure without panicking. | Test |
+| FR-007-AC-7 | Strict coverage/matrix and unresolved property reports exit 1 with the complete requested payload. | Test |
+| FR-007-AC-8 | A failed output write exits 4; typed classification is independent of human diagnostic wording. | Test |
+
+> CR-001 (2026-10-02, PLAT-111): Peter explicitly approved the shared
+> outcomes in this workspace. Domain policy remains downstream; this replaces
+> the former generic user-error code and clap's default argv code.
 
 ## Dependencies
 

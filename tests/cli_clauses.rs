@@ -302,7 +302,7 @@ fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
         ])
         .output()
         .unwrap();
-    assert_eq!(malformed.status.code(), Some(1));
+    assert_eq!(malformed.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&malformed.stderr).contains("KEY=VALUE"));
 
     let missing = quire()
@@ -320,7 +320,7 @@ fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
         ])
         .output()
         .unwrap();
-    assert_eq!(missing.status.code(), Some(1));
+    assert_eq!(missing.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&missing.stderr).contains("available exact sets"));
 
     let traversing_module = format!("{module_path}/../module");
@@ -339,6 +339,6 @@ fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
         ])
         .output()
         .unwrap();
-    assert_eq!(traversal.status.code(), Some(1));
+    assert_eq!(traversal.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&traversal.stderr).contains("PathTraversal"));
 }
