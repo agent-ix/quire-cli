@@ -3,11 +3,9 @@
 //! thin wrapper over the package-agnostic `self_update` engine instead.
 
 macro_rules! primary_line {
-    ($($arg:tt)*) => {{
-        let mut line = format!($($arg)*);
-        line.push('\n');
-        ix_cli_kit::streams::write_primary_stdout(line.as_bytes())?
-    }};
+    ($($arg:tt)*) => {
+        ix_cli_kit::streams::write_result(&mut std::io::stdout().lock(), &format!($($arg)*))?
+    };
 }
 macro_rules! primary {
     ($($arg:tt)*) => {
