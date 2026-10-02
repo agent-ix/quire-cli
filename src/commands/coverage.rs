@@ -169,7 +169,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             ix_cli_kit::json::encode(&quire_cli::engine::attach(&report), ctx.pretty)?
         ),
         OutputFormat::Tsv => primary!("{}", render_tsv(&report)),
-        OutputFormat::Human => emit_human(ctx, &report),
+        OutputFormat::Human => emit_human(ctx, &report)?,
     }
 
     // An `error`-promoted kind fails the run even without --strict — the
@@ -621,41 +621,50 @@ fn metric_lines(report: &quire_rs::CoverageReport) -> Vec<String> {
         .collect()
 }
 
-fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
+fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()> {
     // CR-012: the census goes to **stdout**. It is what a caller redirecting
     // with `>` came for, and it is not a diagnostic — `N/M rows backed
     // (P%)` rendered in error red was the whole of defect 2 in #59.
     let t = &report.totals;
-    io::emit_result(&format!(
-        "Coverage: {}/{} rows backed ({})",
-        t.backed,
-        t.total,
-        percent_label(t.backed, t.total)
-    ));
+    primary_line!(
+        "{}",
+        &format!(
+            "Coverage: {}/{} rows backed ({})",
+            t.backed,
+            t.total,
+            percent_label(t.backed, t.total)
+        )
+    );
     for line in census_lines(report) {
-        io::emit_result(&line);
+        primary_line!("{}", &line);
     }
     for g in &report.groups {
-        io::emit_result(&format!(
-            "{}: {}/{} ({})",
-            g.document,
-            g.backed,
-            g.total,
-            percent_label(g.backed, g.total)
-        ));
+        primary_line!(
+            "{}",
+            &format!(
+                "{}: {}/{} ({})",
+                g.document,
+                g.backed,
+                g.total,
+                percent_label(g.backed, g.total)
+            )
+        );
     }
     // FR-017-AC-18 (#51, quire-rs #215): what `source_exclude` subtracted is
     // part of the census. An over-broad glob otherwise reads exactly like
     // tests that were never written. Zero — the state every conformant repo
     // without the declaration is in — prints nothing.
     if report.excluded_source_files > 0 {
-        io::emit_result(&format!(
-            "{} source file(s) excluded by source_exclude",
-            report.excluded_source_files
-        ));
+        primary_line!(
+            "{}",
+            &format!(
+                "{} source file(s) excluded by source_exclude",
+                report.excluded_source_files
+            )
+        );
     }
     for line in metric_lines(report) {
-        io::emit_result(&line);
+        primary_line!("{}", &line);
     }
     // Alerts nobody saw. `report.diagnostics` rendered in the TSV path and
     // nowhere else, so 11 `uncatalogued-verification-method` findings on
@@ -748,6 +757,7 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) {
             ),
         );
     }
+    Ok(())
 }
 
 /// The module-resolution `coverage` performs, taking the flag rather than the

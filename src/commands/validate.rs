@@ -265,8 +265,8 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     if args.summary {
-        emit_grammar_summary(ctx, docs_scanned, docs_grammar_clean, &grammar_checks);
-        emit_property_summary(ctx, criteria_seen, criteria_extractable, criteria_candidate);
+        emit_grammar_summary(ctx, docs_scanned, docs_grammar_clean, &grammar_checks)?;
+        emit_property_summary(ctx, criteria_seen, criteria_extractable, criteria_candidate)?;
     }
 
     if failures > 0 {
@@ -288,7 +288,7 @@ fn emit_grammar_summary(
     docs_scanned: usize,
     docs_clean: usize,
     checks: &std::collections::BTreeMap<String, usize>,
-) {
+) -> anyhow::Result<()> {
     let total_findings: usize = checks.values().sum();
     let pct = (docs_clean * 100).checked_div(docs_scanned).unwrap_or(100);
     let histogram = if checks.is_empty() {
@@ -308,7 +308,8 @@ fn emit_grammar_summary(
     );
     // CR-012: a census on stdout. `755/797 docs grammar-clean (94%)` is a
     // number, not a failure, and it rendered in the same red as every finding.
-    io::emit_result(&message);
+    primary_line!("{}", &message);
+    Ok(())
 }
 
 /// Emit the FR-052 property-extractable ratio for `--summary`.
@@ -317,16 +318,22 @@ fn emit_grammar_summary(
 /// specific scenarios, which is a legitimate way to write them. This never
 /// affects the exit code, and it is deliberately *not* a grammar check —
 /// classification has no severity key and no promotion path (FR-052-CON-1).
-fn emit_property_summary(_ctx: &Ctx, seen: usize, extractable: usize, candidate: usize) {
+fn emit_property_summary(
+    _ctx: &Ctx,
+    seen: usize,
+    extractable: usize,
+    candidate: usize,
+) -> anyhow::Result<()> {
     if seen == 0 {
-        return;
+        return Ok(());
     }
     let pct = (extractable * 100).checked_div(seen).unwrap_or(0);
     let message = format!(
         "{extractable}/{seen} criteria property-extractable ({pct}%); \
          {candidate} candidate (metamorphic, needs review)"
     );
-    io::emit_result(&message);
+    primary_line!("{}", &message);
+    Ok(())
 }
 
 /// OKF bundle validation (permissive posture). Validates each bundle

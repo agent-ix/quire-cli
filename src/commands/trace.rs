@@ -334,7 +334,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             ix_cli_kit::json::encode(&quire_cli::engine::attach(&report), ctx.pretty)?
         ),
         OutputFormat::Tsv => primary!("{}", render_tsv(&report)),
-        OutputFormat::Human => emit_human(ctx, &report),
+        OutputFormat::Human => emit_human(ctx, &report)?,
     }
     Ok(())
 }
@@ -645,8 +645,8 @@ fn confidence_suffix(confidence: Option<&str>) -> String {
     }
 }
 
-fn emit_human(ctx: &Ctx, report: &TraceReport) {
-    io::emit_result(&format!("resolved: {}", report.resolved));
+fn emit_human(ctx: &Ctx, report: &TraceReport) -> anyhow::Result<()> {
+    primary_line!("{}", &format!("resolved: {}", report.resolved));
 
     // `--prefix` unions however many concrete ids matched — the exact thing
     // H1/H2 got wrong, and the exact thing a `--prefix` user most needs to
@@ -657,56 +657,71 @@ fn emit_human(ctx: &Ctx, report: &TraceReport) {
         ..
     } = &report.query
     {
-        io::emit_result(&format!(
-            "matched ids ({}): {}",
-            matched_ids.len(),
-            if matched_ids.is_empty() {
-                "(none)".to_string()
-            } else {
-                matched_ids.join(", ")
-            }
-        ));
+        primary_line!(
+            "{}",
+            &format!(
+                "matched ids ({}): {}",
+                matched_ids.len(),
+                if matched_ids.is_empty() {
+                    "(none)".to_string()
+                } else {
+                    matched_ids.join(", ")
+                }
+            )
+        );
     }
 
     let claim_count = report.claims.verifies.len() + report.claims.implements.len();
-    io::emit_result(&format!("Claims ({claim_count})"));
+    primary_line!("{}", &format!("Claims ({claim_count})"));
     for v in &report.claims.verifies {
-        io::emit_result(&format!(
-            "  verifies    {} {}:{} {} [{}]{}",
-            v.trace_id,
-            v.path,
-            v.line,
-            v.symbol,
-            v.form,
-            confidence_suffix(v.confidence)
-        ));
+        primary_line!(
+            "{}",
+            &format!(
+                "  verifies    {} {}:{} {} [{}]{}",
+                v.trace_id,
+                v.path,
+                v.line,
+                v.symbol,
+                v.form,
+                confidence_suffix(v.confidence)
+            )
+        );
     }
     for i in &report.claims.implements {
-        io::emit_result(&format!(
-            "  implements  {} {} {} [{}]{}",
-            i.trace_id,
-            i.path,
-            i.symbol,
-            i.form,
-            confidence_suffix(i.confidence)
-        ));
+        primary_line!(
+            "{}",
+            &format!(
+                "  implements  {} {} {} [{}]{}",
+                i.trace_id,
+                i.path,
+                i.symbol,
+                i.form,
+                confidence_suffix(i.confidence)
+            )
+        );
     }
 
-    io::emit_result("");
-    io::emit_result(&format!(
-        "Citations ({}) — NOT verification evidence",
-        report.citations.len()
-    ));
-    emit_citations(&report.citations);
+    primary_line!("{}", "");
+    primary_line!(
+        "{}",
+        &format!(
+            "Citations ({}) — NOT verification evidence",
+            report.citations.len()
+        )
+    );
+    emit_citations(&report.citations)?;
 
     if !report.ambiguous_matches.is_empty() {
-        io::emit_result("");
-        io::emit_result(&format!(
-            "Ambiguous matches ({}) — every candidate, none picked:",
-            report.ambiguous_matches.len()
-        ));
+        primary_line!("{}", "");
+        primary_line!(
+            "{}",
+            &format!(
+                "Ambiguous matches ({}) — every candidate, none picked:",
+                report.ambiguous_matches.len()
+            )
+        );
         for m in &report.ambiguous_matches {
-            io::emit_result(&format!("  {m}"));
+            primary_line!("{}", &format!("  {m}"));
         }
     }
 
@@ -730,12 +745,14 @@ fn emit_human(ctx: &Ctx, report: &TraceReport) {
              treat with the same caution as a grep hit, not as AST-grounded evidence",
         );
     }
+    Ok(())
 }
 
-fn emit_citations(citations: &[CitationRecord]) {
+fn emit_citations(citations: &[CitationRecord]) -> anyhow::Result<()> {
     for line in citation_lines(citations) {
-        io::emit_result(&line);
+        primary_line!("{}", &line);
     }
+    Ok(())
 }
 
 /// Full detail inline under [`CITATION_INLINE_LIMIT`]; above it, grouped by

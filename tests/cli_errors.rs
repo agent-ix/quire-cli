@@ -115,20 +115,35 @@ fn unknown_archetype_exits_3_with_named_error() {
 fn failed_primary_output_returns_internal_without_panicking() {
     use std::io::Write;
     use std::process::{Command, Stdio};
-    let mut child = Command::new(env!("CARGO_BIN_EXE_quire"))
-        .args(["parse", "-"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("CLI launches");
-    drop(child.stdout.take().expect("owned output pipe"));
-    let mut input = child.stdin.take().expect("owned input pipe");
-    input
-        .write_all(b"# Fictional document\nFictional content.\n")
-        .expect("input written");
-    drop(input);
-    let result = child.wait_with_output().expect("CLI completes");
-    assert_eq!(result.status.code(), Some(4));
-    assert!(String::from_utf8_lossy(&result.stderr).contains("writing parse output"));
+    for args in [
+        vec!["parse".to_owned(), "-".to_owned()],
+        vec![
+            "properties".to_owned(),
+            "-".to_owned(),
+            "--module".to_owned(),
+            common::iso_module().display().to_string(),
+            "--archetype".to_owned(),
+            "FR".to_owned(),
+        ],
+    ] {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_quire"))
+            .args(&args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("CLI launches");
+        drop(child.stdout.take().expect("owned output pipe"));
+        let mut input = child.stdin.take().expect("owned input pipe");
+        input
+            .write_all(b"# Fictional document\nFictional content.\n")
+            .expect("input written");
+        drop(input);
+        let result = child.wait_with_output().expect("CLI completes");
+        assert_eq!(result.status.code(), Some(4));
+        assert!(
+            !result.stderr.is_empty(),
+            "output failure must produce a diagnostic: {args:?}"
+        );
+    }
 }
