@@ -87,10 +87,10 @@ FR-052-CON-4).
 > **CR-012 note (2026-08-22):** AC-10 is new — the compact surface can drive
 > `spec-correctness`. `agent-ix/quire-cli#59`; epic `agent-ix/quoin#197`.
 >
-> The entire default output was two lines — **869 bytes** on a 951-criterion
+> The entire default output was two lines on a 951-criterion
 > corpus — and carried no `row_id`, `domain`, `precondition`, `oracle` or
 > `signals`. Those fields were `--json`-only, and `--json` over the same corpus
-> was **597,636 bytes (~149k tokens)**. quoin's `spec-correctness` skill
+> was hundreds of kilobytes. quoin's `spec-correctness` skill
 > consumes exactly the omitted fields, so the compact surface could not drive it
 > at all and the only thing keeping the JSON tractable was the skill's own
 > advice to scope per module.

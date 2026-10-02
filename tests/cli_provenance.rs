@@ -399,7 +399,7 @@ fn collect_banned_keys(node: &Value, out: &mut Vec<String>) {
 // **The version VALUES are redacted, the structure is not.** A snapshot
 // carrying an engine version would have to be regenerated on every engine bump, which
 // trains a reader to regenerate it without reading it — and a golden file
-// nobody reads is the gate that let #52 ship four binaries reporting 0.23.0.
+// nobody reads is a gate that lets a stale value ship unnoticed.
 // What must not drift is the shape: which keys, in which order.
 #[test]
 fn it_129_the_envelope_shape_is_pinned_by_a_golden_snapshot() {

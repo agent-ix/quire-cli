@@ -59,9 +59,9 @@ pub struct Args {
     /// Render one block per criterion — id, locus, shape, and the extraction
     /// spans — after the census (FR-018-AC-10, CR-012).
     ///
-    /// The census alone is 869 bytes on a 951-criterion corpus and carries no
+    /// The census alone is a few lines and carries no
     /// `row_id`, `domain`, `precondition` or `oracle`; `--json` there is
-    /// 597,636 bytes (~149k tokens). quoin's `spec-correctness` skill consumes
+    /// hundreds of kilobytes. quoin's `spec-correctness` skill consumes
     /// exactly the fields the compact surface omitted, so it could not be
     /// driven from anything but the JSON.
     ///

@@ -213,8 +213,8 @@ pub fn pretty_validated_json_bytes(compact: &[u8]) -> Vec<u8> {
 /// Before this existed, `write_diagnostic_human` was `eprintln!` wrapped in
 /// `RED` and every human surface used it for everything. Measured over
 /// `agent-ix/filament-ide-rs`, `quire coverage --scope . > out.txt` produced a
-/// **0-byte file** while 90,462 bytes went to stderr — and
-/// `Coverage: 1238/2390 rows backed (51%)`, a census, rendered in the same red
+/// **0-byte file** while all output went to stderr — and
+/// `Coverage: N/M rows backed (P%)`, a census, rendered in the same red
 /// as every finding.
 ///
 /// Never colorized even when color is on: a number is not a severity, and the

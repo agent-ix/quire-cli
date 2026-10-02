@@ -273,7 +273,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-117 | `coverage`'s census reaches stdout uncolorized and its findings do not; the unbacked row is still reported, on stderr (`cli_stream_contract::it_117_*`) (CR-012) | Integration | P0 | FR-006-AC-5, FR-017-AC-1 | ✅ |
 | IT-118 | `properties`' census is a result on stdout and leads with the specific-shape split alongside the extractable figure (`cli_stream_contract::it_118_*`) (CR-012) | Integration | P0 | FR-006-AC-5 | ✅ |
 | IT-119 | `--criteria` renders per-criterion blocks carrying the row id and the extraction spans the census omits; the catch-all is outside the default set and `--all` includes it; the census is unchanged by the flag (`cli_stream_contract::it_119_*`) (CR-012) | Integration | P0 | FR-018-AC-10 | ✅ |
-| IT-120 | The diagnostics channel reports a binder that read nothing: a tree of real tests carrying an undeclared marker spelling yields a `binding_census` with candidates and zero bound, and a `no-symbol-bound` diagnostic — the class that was silent while 1,292 symbols went unmentioned in pass 2 (`cli_stream_contract::it_120_*`) | Integration | P0 | FR-006-AC-5 | ✅ |
+| IT-120 | The diagnostics channel reports a binder that read nothing: a tree of real tests carrying an undeclared marker spelling yields a `binding_census` with candidates and zero bound, and a `no-symbol-bound` diagnostic — the class that was silent while symbols went unmentioned (`cli_stream_contract::it_120_*`) | Integration | P0 | FR-006-AC-5 | ✅ |
 | IT-109 | Human unbacked-row / status-lie / undeclared-status lines lead with the row's `row_id` (reference kind kept visible in a bracketed trailer); two rows in the same document render distinguishable lines (`cli_coverage::it109_*`) | Integration | P0 | FR-017-AC-12 | ✅ |
 | IT-110 | `--severity coverage:<check>=off` drops the kind from human AND `--json` output with the suppression announced and totals still full-computation; `--strict` is unaffected by projection; `=error` exits 1 without `--strict`; a malformed entry — or a typo'd coverage check (#57) — is rejected before any read (`cli_coverage::it110_*`) | Integration | P0 | FR-017-AC-13 | ✅ |
 | IT-111 | `--format tsv` emits one tab-separated record per line on stdout: nine-column header, every record fully columned, row id leading, the `line` column carrying the engine's 1-based document line (quire-rs), byte-identical across runs, severity projection applies (`cli_coverage::it111_*`) | Integration | P0 | FR-017-AC-14 | ✅ |
@@ -282,7 +282,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-114 | A `no_symbol_rows` record renders in the human census — row id leading, `document:line` locus, exempting test-type value named, reference kind in the trailer — while a symbol-minting row does not; the TSV projection carries its method and line (`cli_coverage::it114_*`) | Integration | P0 | FR-017-AC-17 | ✅ |
 | IT-115 | A declared `source_exclude` that removes one file renders `1 source file(s) excluded by source_exclude` in the census, an undeclared scope renders nothing, and an unreadable source file's `SymbolExtraction` diagnostic reaches stderr; stdout stays empty throughout (`cli_coverage::it115_*`) | Integration | P0 | FR-017-AC-18 | ✅ |
 | IT-116 | One status-carrying row id bound by two distinct symbols surfaces as a `shared_trace_ids` record in `--json` with both binders listed; an empty `vocabulary_coverage` stays off the wire (`cli_coverage::it116_*`) | Integration | P1 | FR-017-AC-19 | ✅ |
-| TC-812 | A TSV cell carrying tab/newline/CR still yields exactly one nine-column record — the AC-14 escaping guard pinned, which no corpus fixture can exercise (0/1,107 statements carry a structural character) (`commands::coverage::tests::tc812_*`, #57) | Unit | P1 | FR-017-AC-14 | ✅ |
+| TC-812 | A TSV cell carrying tab/newline/CR still yields exactly one nine-column record — the AC-14 escaping guard pinned, which no corpus fixture can exercise (`commands::coverage::tests::tc812_*`, #57) | Unit | P1 | FR-017-AC-14 | ✅ |
 | TC-813 | The binding census renders one line per language directly under the coverage headline — the number and the premise it rests on read together — carrying the forms consulted and an unbound example ONLY where something is unread; measured ratio metrics render their FR-063 envelope and counts do not, a count's value and its `matched` being the same fact (`commands::coverage::tests::tc813_*`, #66) | Unit | P0 | FR-017-AC-18 | ✅ |
 | TC-828 | A typed complete assurance report containing every required backed target passes | Unit | P0 | FR-025-AC-1 | ✅ |
 | TC-829 | Missing and unbacked required assurance targets fail with the exact target ids | Unit | P0 | FR-025-AC-1 | ✅ |
@@ -315,7 +315,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 
 ## Verification Status
 
-GREEN for the v0.1 surface — every IT / BENCH / AUDIT through IT-046 has landed
+GREEN for the shipped surface — every IT / BENCH / AUDIT through IT-046 has landed
 and passes `make test` + `make bench` on a Linux dev box (WSL2). `make ci` runs
 the full gauntlet locally; CI lanes (rust / licenses / bench) mirror the same
 gates. Observed `TC-088` p95 is 4.87 ms, well under the 50 ms NFR-001 budget.

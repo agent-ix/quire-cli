@@ -37,8 +37,8 @@ quire coverage [--scope <DIR>] [--module <PATH>]... [--json | --format <human|js
                [--strict] [--severity coverage:<check>=<level>]...
 ```
 
-This command shipped in v0.13.0 and was authored as a requirement only in
-2026-08-16 (see the CR note below). Its criteria are **read off working code**,
+This command shipped before it was authored as a requirement
+(2026-08-16, see the CR note below). Its criteria are **read off working code**,
 not proposed: it is the most behavior-visible surface this CLI has added in
 three releases, and it had no FR, no acceptance criteria and no matrix rows of
 its own.
@@ -170,25 +170,24 @@ a consumer needs the whole rollup.
 > `agent-ix/quoin#197`.
 >
 > **This corrects a contradiction, it does not introduce a new contract.**
-> [FR-006](./FR-006-io-contract.md) has said since v0.1 that every subcommand
+> [FR-006](./FR-006-io-contract.md) has always said that every subcommand
 > puts the *primary result on stdout, all diagnostics on stderr*, and
 > FR-006-AC-2 requires a success case to produce **non-empty stdout** (except
 > `validate`). AC-1 said the opposite for the human surface, and the
 > implementation followed AC-1: `write_diagnostic_human` is `eprintln!` wrapped
 > in `RED`, and every human line went through it.
 >
-> **What that cost, measured** over `agent-ix/filament-ide-rs` under
-> `quire 0.29.0`:
+> **What that cost** over a real spec repository:
 >
 > ```text
-> quire coverage --scope . > out.txt                  # 0 bytes; 90,462 to stderr
-> quire validate --scope . "spec/**/*.md" > out.txt   # 0 bytes; 62,256 to stderr
+> quire coverage --scope . > out.txt                  # 0 bytes on stdout; all output to stderr
+> quire validate --scope . "spec/**/*.md" > out.txt   # 0 bytes on stdout; all output to stderr
 > quire properties --scope . 'spec/**/*.md' > out.txt # 0 bytes
 > ```
 >
 > Three consequences: the obvious command silently produced an empty file; a
-> census — `Coverage: 1238/2390 rows backed (51%)`, `755/797 docs grammar-clean
-> (94%)` — rendered in the **same red as every finding**; and a caller could not
+> census — `Coverage: N/M rows backed (P%)`, `N/M docs grammar-clean
+> (P%)` — rendered in the **same red as every finding**; and a caller could not
 > pipe findings without the summary interleaved.
 >
 > **The #51 WONTFIX is not overturned.** That decision declined *"findings to
@@ -261,14 +260,14 @@ a consumer needs the whole rollup.
 >    promotion-is-a-measured-decision posture as AC-10's `--strict` stance.
 
 > **CR note (pre-release review fixes, 2026-08-21, #57 / SR-007):** two
-> AC-13/AC-14 hardenings out of the v0.29.0 review gate. (1) AC-13's check
+> AC-13/AC-14 hardenings out of the pre-release review gate. (1) AC-13's check
 > vocabulary is **closed**: FR-048 validates only a `--severity` key's shape
 > (deliberate for `validate`, where grammars are module-declared and open),
 > so a typo'd coverage check merged, matched nothing, and silently did not
 > project — the entry is now rejected before any document is read, naming
 > the four valid checks. Entries for other grammars keep the FR-048 open
 > posture unchanged. (2) AC-14's tab/newline-replacement clause gains a
-> pinning test (TC-812): the #53 measurement found 0/1,107 statements
+> pinning test (TC-812): a corpus measurement found no statement
 > carrying a structural character, so no corpus fixture could exercise the
 > guard and mutating it to the identity left the suite green.
 
