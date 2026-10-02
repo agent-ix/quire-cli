@@ -128,8 +128,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // order, which is the FR-008 rule that this crate adds structure around
     // engine output and never rewrites it.
     let envelope = quire_cli::engine::attach(&envelope);
-    let payload = io::encode_json(&envelope, ctx.pretty).context("encoding extract envelope")?;
-    io::write_primary_stdout(payload.as_bytes()).context("writing extract output")?;
-    io::write_primary_stdout(b"\n").ok();
+    let payload =
+        ix_cli_kit::json::encode(&envelope, ctx.pretty).context("encoding extract envelope")?;
+    ix_cli_kit::streams::write_primary_stdout(payload.as_bytes())
+        .context("writing extract output")?;
+    ix_cli_kit::streams::write_primary_stdout(b"\n").ok();
     Ok(())
 }

@@ -18,7 +18,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
     println!(
         "{}",
-        quire_cli::io::encode_json(&quire_cli::engine::ToolProvenance::current(), ctx.pretty)?
+        ix_cli_kit::json::encode(&quire_cli::engine::ToolProvenance::current(), ctx.pretty)?
     );
     Ok(())
 }

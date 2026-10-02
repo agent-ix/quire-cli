@@ -483,42 +483,19 @@ fn lazy_init_default_modules(ctx: &Ctx) -> bool {
 }
 
 fn scoped_registry_roots(scope: &Path) -> Vec<PathBuf> {
-    let mut roots = Vec::new();
-    let mut seen = HashSet::new();
-    push_root(&mut roots, &mut seen, scope.to_path_buf());
+    use ix_cli_kit::config::{EnvVar, SearchPath};
 
-    let ix_modules = scope.join(".ix").join("modules");
-    if ix_modules.is_dir() {
-        push_root(&mut roots, &mut seen, ix_modules);
-    }
-
-    // Honour the engine's module-path env vars: IX_FILAMENT_MODULES_PATH is
-    // preferred, IX_SCHEMA_PATH is the legacy alias (mirrors quire-rs
-    // loader::paths::module_path_env). Both are unioned into the search set.
-    for var in ["IX_FILAMENT_MODULES_PATH", "IX_SCHEMA_PATH"] {
-        if let Some(paths) = std::env::var_os(var) {
-            for path in std::env::split_paths(&paths) {
-                if path.is_dir() {
-                    push_root(&mut roots, &mut seen, path);
-                }
-            }
-        }
-    }
-
-    // The canonical install root quoin materializes the default module set
-    // into, and the same directory quire-rs reads by default. Including it
-    // here lets scoped validation find installed defaults with no env var set.
+    let mut roots = SearchPath::new()
+        .push(scope)
+        .push_if_dir(scope.join(".ix").join("modules"))
+        .push_envs(&[
+            EnvVar::current("IX_FILAMENT_MODULES_PATH"),
+            EnvVar::current("IX_SCHEMA_PATH"),
+        ]);
     if let Some(root) = quire_rs::loader::paths::default_module_root() {
-        push_root(&mut roots, &mut seen, root);
+        roots = roots.push(root);
     }
-
-    roots
-}
-
-fn push_root(roots: &mut Vec<PathBuf>, seen: &mut HashSet<PathBuf>, root: PathBuf) {
-    if seen.insert(root.clone()) {
-        roots.push(root);
-    }
+    roots.roots().to_vec()
 }
 
 #[derive(Debug)]

@@ -166,7 +166,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // `binding_census`.
         OutputFormat::Json => println!(
             "{}",
-            io::encode_json(&quire_cli::engine::attach(&report), ctx.pretty)?
+            ix_cli_kit::json::encode(&quire_cli::engine::attach(&report), ctx.pretty)?
         ),
         OutputFormat::Tsv => print!("{}", render_tsv(&report)),
         OutputFormat::Human => emit_human(ctx, &report),

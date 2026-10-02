@@ -7,7 +7,6 @@
 
 use clap::Parser;
 
-use quire_cli::io;
 use quire_cli::self_update::{self, SelfUpdateConfig, SelfUpdateOpts};
 
 use super::Ctx;
@@ -45,7 +44,7 @@ pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // The engine already let npm/cargo draw their own progress to the inherited
     // streams; here we print the summary lines as the command's primary output.
     for line in &report.messages {
-        io::write_primary_stdout(format!("{line}\n").as_bytes())?;
+        ix_cli_kit::streams::write_primary_stdout(format!("{line}\n").as_bytes())?;
     }
     Ok(())
 }

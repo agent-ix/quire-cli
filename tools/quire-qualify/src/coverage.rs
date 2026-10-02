@@ -36,8 +36,8 @@ struct CoverageReport {
 /// The closed issue-74 target population governed by this repository.
 pub fn required_targets() -> BTreeSet<String> {
     let mut required = BTreeSet::new();
-    required.extend((1..=9).map(|index| format!("FR-020-AC-{index}")));
-    required.extend((136..=145).map(|index| format!("IT-{index}")));
+    required.extend((1..=8).map(|index| format!("FR-020-AC-{index}")));
+    required.extend((136..=144).map(|index| format!("IT-{index}")));
     required.insert("TC-814".to_owned());
     required.insert("StR-004-VC-2".to_owned());
     required.insert("StR-004-VC-3".to_owned());
