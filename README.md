@@ -5,7 +5,7 @@
 # quire-cli
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/6qsdhSPE)
-[![Agent IX Plugins](https://img.shields.io/badge/Agent%20IX-Plugins-0052CC)](https://github.com/agent-ix/agent-plugins)
+[![Agent IX Plugins](https://github.com/agent-ix/agent-plugins/raw/refs/heads/main/assets/agent-ix-plugins.svg)](https://github.com/agent-ix/agent-plugins)
 
 `quire-cli` is a static command-line wrapper around
 [`quire-rs`](https://github.com/agent-ix/quire-rs). It gives agents and
@@ -389,6 +389,10 @@ to integration tests, benchmarks, or static audits.
 ## License
 
 AGPL-3.0-or-later
+
+The standalone marketplace remains available for existing installations. When
+switching an installed plugin, follow the [migration guide](https://github.com/agent-ix/agent-plugins/blob/main/docs/migration.md)
+to avoid loading the old and new identities together.
 
 ## Related Agent IX plugins
 
