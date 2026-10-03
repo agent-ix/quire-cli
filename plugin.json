@@ -1,0 +1,30 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "quire-cli",
+  "version": "0.1.0",
+  "description": "Explore, write, validate, link, and trace Markdown artifacts with Quire CLI.",
+  "author": {
+    "name": "Agent IX",
+    "url": "https://github.com/agent-ix"
+  },
+  "homepage": "https://github.com/agent-ix/quire-cli",
+  "repository": "https://github.com/agent-ix/quire-cli",
+  "license": "AGPL-3.0-or-later",
+  "keywords": ["markdown", "traceability", "validation", "agent-skills"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Quire CLI",
+        "shortDescription": "Explore and validate structured Markdown with Quire.",
+        "developerName": "Agent IX",
+        "category": "Productivity",
+        "capabilities": ["Skills", "Read", "Write"],
+        "defaultPrompt": [
+          "Explore this Markdown artifact.",
+          "Validate this document with its Quire module.",
+          "Trace this requirement to its tests."
+        ]
+      }
+    }
+  }
+}

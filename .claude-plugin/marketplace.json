@@ -1,0 +1,13 @@
+{
+  "name": "quire-cli",
+  "owner": {
+    "name": "Agent IX"
+  },
+  "plugins": [
+    {
+      "name": "quire-cli",
+      "source": "./",
+      "description": "Explore, write, validate, link, and trace Markdown artifacts with Quire CLI."
+    }
+  ]
+}

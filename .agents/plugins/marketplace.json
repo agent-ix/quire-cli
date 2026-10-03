@@ -1,0 +1,20 @@
+{
+  "name": "quire-cli",
+  "interface": {
+    "displayName": "Quire CLI"
+  },
+  "plugins": [
+    {
+      "name": "quire-cli",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
