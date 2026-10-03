@@ -5,6 +5,7 @@
 # quire-cli
 
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2?logo=discord&logoColor=white)](https://discord.gg/6qsdhSPE)
+[![Agent IX Plugins](https://github.com/agent-ix/agent-plugins/raw/refs/heads/main/assets/agent-ix-plugins.svg)](https://github.com/agent-ix/agent-plugins)
 
 `quire-cli` is a static command-line wrapper around
 [`quire-rs`](https://github.com/agent-ix/quire-rs). It gives agents and
@@ -39,19 +40,19 @@ quire trace (--id <ID> [--prefix] | --symbol <PATH#NAME> | --file <PATH>) --modu
 
 Global flags:
 
-| Flag | Default | Purpose |
-|------|---------|---------|
-| `--diagnostics-format <human\|json>` | `human` | stderr diagnostic encoding |
-| `--pretty` | off | indented JSON output for JSON-emitting commands, including `assurance` |
+| Flag                                 | Default | Purpose                                                                |
+| ------------------------------------ | ------- | ---------------------------------------------------------------------- |
+| `--diagnostics-format <human\|json>` | `human` | stderr diagnostic encoding                                             |
+| `--pretty`                           | off     | indented JSON output for JSON-emitting commands, including `assurance` |
 
 Exit codes:
 
-| Code | Meaning |
-|------|---------|
-| 0 | success |
-| 1 | user error: parse failure, schema violation, unknown archetype, I/O error, lookup miss |
-| 2 | argv error: missing required flag, unknown flag, invalid flag combination |
-| 134 | panic, never expected |
+| Code | Meaning                                                                                |
+| ---- | -------------------------------------------------------------------------------------- |
+| 0    | success                                                                                |
+| 1    | user error: parse failure, schema violation, unknown archetype, I/O error, lookup miss |
+| 2    | argv error: missing required flag, unknown flag, invalid flag combination              |
+| 134  | panic, never expected                                                                  |
 
 ## Install
 
@@ -87,6 +88,32 @@ cargo build --release && target/release/quire --help
 ```
 
 During development, `target/debug/quire` is fine for local testing.
+
+### Agent plugin
+
+After installing the `quire` binary above, add the skills to your coding agent.
+The plugin uses the shared `skills/` tree and installs five skills:
+`explore-markdown`, `link-markdown`, `trace`, `validate-markdown`, and `write-markdown`.
+It does not install the binary or Quire modules. Commands that use a module
+require its `manifest.yaml` and schemas to be installed separately.
+
+Claude Code:
+
+```bash
+claude plugin marketplace add agent-ix/agent-plugins
+claude plugin install quire-cli@agent-ix-public
+```
+
+Codex:
+
+```bash
+codex plugin marketplace add agent-ix/agent-plugins
+codex plugin add quire-cli@agent-ix-public
+```
+
+A standalone `agent-ix/quire-cli` marketplace is also available. Plugin package
+versions are independent of the CLI's Cargo/npm versions; bump the plugin
+version in all three manifests when releasing changed skills or plugin metadata.
 
 ## Usage Instructions
 
@@ -241,7 +268,7 @@ present.
 
 ### Validate An OKF Bundle (`--okf`)
 
-`--okf` reads a *foreign* OKF bundle directory under a permissive posture for
+`--okf` reads a _foreign_ OKF bundle directory under a permissive posture for
 portability. `type` is still required and non-empty, but unknown types, broken
 `ix://` links, and `index.md` completeness gaps (every sibling artifact must be
 listed; the bundle-root `index.md` must carry `okf_version`) are reported as
@@ -291,13 +318,13 @@ the CLI consistently without relearning command patterns.
 
 Available skills:
 
-| Skill | Slash-style name | Purpose |
-|-------|------------------|---------|
-| `explore-markdown` | `/explore-markdown` | Outline Markdown and fetch targeted sections with `parse` and `lookup`. |
-| `write-markdown` | `/write-markdown` | Author Markdown artifacts against an archetype's input contract via `schema` + `validate`. |
-| `validate-markdown` | `/validate-markdown` | Check authored Markdown structure with `validate`, `parse`, and `lookup`. |
-| `link-markdown` | `/link-markdown` | Inspect relationships, `ix://` links, and blast radius with `extract`. |
-| `trace` | `/trace` | Structural forward/inverse trace lookup — "what backs this id" / "what does this file verify" — with `trace`, never a hand-rolled grep pipeline. |
+| Skill               | Slash-style name     | Purpose                                                                                                                                          |
+| ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `explore-markdown`  | `/explore-markdown`  | Outline Markdown and fetch targeted sections with `parse` and `lookup`.                                                                          |
+| `write-markdown`    | `/write-markdown`    | Author Markdown artifacts against an archetype's input contract via `schema` + `validate`.                                                       |
+| `validate-markdown` | `/validate-markdown` | Check authored Markdown structure with `validate`, `parse`, and `lookup`.                                                                        |
+| `link-markdown`     | `/link-markdown`     | Inspect relationships, `ix://` links, and blast radius with `extract`.                                                                           |
+| `trace`             | `/trace`             | Structural forward/inverse trace lookup — "what backs this id" / "what does this file verify" — with `trace`, never a hand-rolled grep pipeline. |
 
 Each skill has:
 
@@ -362,3 +389,21 @@ to integration tests, benchmarks, or static audits.
 ## License
 
 AGPL-3.0-or-later
+
+The standalone marketplace remains available for existing installations. When
+switching an installed plugin, follow the [migration guide](https://github.com/agent-ix/agent-plugins/blob/main/docs/migration.md)
+to avoid loading the old and new identities together.
+
+## Related Agent IX plugins
+
+Browse the [Agent IX public marketplace](https://github.com/agent-ix/agent-plugins)
+for independently installable Claude Code and Codex plugins:
+
+- [Quoin](https://github.com/agent-ix/quoin) authors, reviews, and plans specifications.
+- [Quire CLI](https://github.com/agent-ix/quire-cli) explores, writes, validates, links, and traces Markdown artifacts.
+- [Engineering Assurance](https://github.com/agent-ix/engineering-assurance) prepares governed assurance decisions and evidence.
+- [IX Flow](https://github.com/agent-ix/ix-flow) runs and authors resumable agent workflows.
+- [CLI Agent Evals](https://github.com/agent-ix/cli-agent-evals) runs and authors coding-agent evaluation suites.
+
+Plugin installation adds agent skills. Install each tool's CLI and any required
+Quire modules separately, following its own installation instructions.
