@@ -7,6 +7,8 @@ metadata:
 
 # Explore Markdown
 
+If this plugin is not initialized or an Agent IX command fails, read [the quire-cli setup guide](https://github.com/agent-ix/quire-cli/blob/main/setup.md) for its prerequisites and local diagnosis.
+
 Use `quire` for structure-aware Markdown exploration. Prefer it over grep/sed when you need headings, frontmatter, section bodies, generated section IDs, or stable `{#block-id}` addressing.
 
 ## First Checks

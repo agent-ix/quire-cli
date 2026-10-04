@@ -7,6 +7,8 @@ metadata:
 
 # Validate Markdown
 
+If this plugin is not initialized or an Agent IX command fails, read [the quire-cli setup guide](https://github.com/agent-ix/quire-cli/blob/main/setup.md) for its prerequisites and local diagnosis.
+
 Use this skill to check structure and schema. Do not turn this into domain review; report concrete CLI failures and missing sections.
 
 ## Validate a Markdown Document

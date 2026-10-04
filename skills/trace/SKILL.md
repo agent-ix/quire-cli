@@ -7,6 +7,8 @@ metadata:
 
 # Trace
 
+If this plugin is not initialized or an Agent IX command fails, read [the quire-cli setup guide](https://github.com/agent-ix/quire-cli/blob/main/setup.md) for its prerequisites and local diagnosis.
+
 Use this skill instead of hand-rolling `grep`/`rg`/`jq` for "what backs FR-047" or
 "what does this file verify." `quire trace` is the default path for both
 questions — reach for it first, and only fall back to a manual pipeline when

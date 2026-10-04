@@ -7,6 +7,8 @@ metadata:
 
 # Link Markdown
 
+If this plugin is not initialized or an Agent IX command fails, read [the quire-cli setup guide](https://github.com/agent-ix/quire-cli/blob/main/setup.md) for its prerequisites and local diagnosis.
+
 Use this skill to inspect artifact relationships and link blast radius. It is for graph and dependency questions, not prose review.
 
 ## Extract Edges

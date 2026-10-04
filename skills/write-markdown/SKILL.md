@@ -7,6 +7,8 @@ metadata:
 
 # Write Markdown
 
+If this plugin is not initialized or an Agent IX command fails, read [the quire-cli setup guide](https://github.com/agent-ix/quire-cli/blob/main/setup.md) for its prerequisites and local diagnosis.
+
 Use this skill to author Markdown artifacts for a quire module by hand, guided by the archetype's input contract. Keep domain decisions in the calling workflow; this skill only covers the CLI path. There is no `render` step — quire-cli does not generate Markdown from data; you write the Markdown directly and validate it.
 
 ## Workflow

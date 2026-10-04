@@ -17,6 +17,14 @@ clause sets.
 The crate is intentionally a thin process boundary: Markdown parsing,
 extraction, and structural validation live in `quire-rs`.
 
+## Setup
+
+If this plugin is uninitialized or a command fails, follow the [plugin setup guide](setup.md) for its required CLIs, configuration, and local diagnosis.
+
+## Community help
+
+If the setup checks leave a reproducible Agent IX quire-cli bug that blocks progress, [join the Agent IX Discord](https://discord.gg/k8DVhuYBR2). Community help is a last resort for Agent IX product bugs, not a help desk for local credentials, machine setup, third party tools, or unrelated projects. See [setup.md](setup.md#community-help) for what to include.
+
 ## Commands
 
 ```bash
@@ -288,6 +296,10 @@ Unknown archetypes exit 3 with `UnknownArchetype` on stderr.
 This repository ships Codex-style agent skills under `skills/`. They are
 intended to be packaged with or installed from `quire-cli` so agents can use
 the CLI consistently without relearning command patterns.
+
+For Claude Code and Codex, register the [Agent IX marketplace](https://github.com/agent-ix/agent-plugins)
+from `agent-ix/agent-plugins`, then install `quire-cli@agent-ix`. Install the
+`quire` executable separately using the instructions above.
 
 Available skills:
 
