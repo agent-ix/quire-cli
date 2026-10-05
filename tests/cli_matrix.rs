@@ -972,3 +972,58 @@ fn tc841_every_matrix_exit_code_is_in_the_fr007_taxonomy() {
     }
     assert_eq!(seen.into_iter().collect::<Vec<_>>(), [0, 1, 3]);
 }
+
+/// Trace: FR-026-AC-15
+/// Provenance: PLAT-1150
+#[test]
+fn matrix_explains_ranges_and_partially_read_trace_lists_in_every_format() {
+    for (language, path, source) in [
+        ("rust", "src/lib.rs", "/// Trace: FR-001-AC-1 and FR-001-AC-2\n#[test]\nfn partial() {}\n/// Trace: FR-001-AC-3..FR-001-AC-4\n#[test]\nfn range() {}\n"),
+        ("python", "src/test_cases.py", "# Trace: FR-001-AC-1 and FR-001-AC-2\ndef test_partial():\n    pass\n# Trace: FR-001-AC-3..FR-001-AC-4\ndef test_range():\n    pass\n"),
+        ("typescript", "src/cases.test.ts", "import { it } from 'vitest';\n// Trace: FR-001-AC-1 and FR-001-AC-2\nit('partial', () => {});\n// Trace: FR-001-AC-3..FR-001-AC-4\nit('range', () => {});\n"),
+    ] {
+        let legacy = format!("  trace_tags:\n    legacy:\n    - name: trace-line\n      language: {language}\n      pattern: 'Trace:\\s*(FR-\\d+-AC-\\d+(?:\\s*,\\s*FR-\\d+-AC-\\d+)*)'\n");
+        let f = Fixture::new(&manifest(true, "", "").replace(TRACE_TAGS, &legacy));
+        f.write("spec/FR-001.md", &fr_doc("FR-001", &[
+            ("FR-001-AC-1", "Accept input.", "Test"),
+            ("FR-001-AC-2", "Reject input.", "Test"),
+            ("FR-001-AC-3", "Accept a boundary.", "Test"),
+            ("FR-001-AC-4", "Reject beyond a boundary.", "Test"),
+        ]));
+        f.write(path, source);
+        for format in ["markdown", "json", "tsv"] {
+            let out = f.matrix(&["--format", format]);
+            assert_eq!(code(&out), 0, "{language}/{format}: {}", stderr(&out));
+            let warnings = stderr(&out);
+            assert!(warnings.contains("range-in-trace-tag"), "{language}/{format}: {warnings}");
+            assert!(warnings.contains("FR-001-AC-3..FR-001-AC-4"));
+            assert!(warnings.contains("FR-001-AC-2"), "{language}/{format}: {warnings}");
+            assert!(warnings.contains(path));
+            assert!(!stdout(&out).contains("was not read by the declared trace grammar"));
+            assert!(warnings.contains("was not read by the declared trace grammar"));
+            if format == "json" {
+                let report = json(&out);
+                let criteria = report["coverage_matrix"][0]["criteria"].as_array().unwrap();
+                assert_eq!(criteria[0]["status"], "tagged");
+                for row in &criteria[1..] { assert_eq!(row["status"], "untagged"); }
+            }
+        }
+        let machine = f.matrix(&["--format", "json", "--diagnostics-format", "json"]);
+        assert_eq!(code(&machine), 0);
+        let diagnostics: Vec<Value> = stderr(&machine).lines()
+            .map(|line| serde_json::from_str(line).expect("typed diagnostic JSON"))
+            .collect();
+        for reason in ["range-in-trace-tag", "unmatched-trace-tag"] {
+            let diagnostic = diagnostics.iter().find(|d| d["reason"] == reason)
+                .unwrap_or_else(|| panic!("missing {reason}: {diagnostics:?}"));
+            assert_eq!(diagnostic["severity"], "warning");
+            assert_eq!(diagnostic["path"], path);
+            assert!(diagnostic["line"].as_u64().is_some_and(|line| line > 0));
+        }
+        f.write(path, &source.replace(" and ", ", ").replace("FR-001-AC-3..FR-001-AC-4", "FR-001-AC-3, FR-001-AC-4"));
+        let repaired = f.matrix(&["--format", "json", "--strict"]);
+        assert_eq!(code(&repaired), 0, "{language}: {}", stderr(&repaired));
+        assert!(!stderr(&repaired).contains("range-in-trace-tag"));
+        assert!(!stderr(&repaired).contains("was not read by the declared trace grammar"));
+    }
+}

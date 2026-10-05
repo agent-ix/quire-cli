@@ -244,6 +244,14 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 | FR-026-AC-13 | `matrix` uses only the FR-007 exit codes — 0, 1, 2, 3, 4 — across every case above, including an unrecognized `--severity` flag (exit 3); the shared taxonomy is authoritative | Test |
 | FR-026-AC-14 | `matrix` never opens a file for writing: no flag names an output path, and running it in every format against a fixture repository leaves every file anywhere under `<scope>` — not only under `<scope>/spec` — byte-identical before and after the run | Test |
 
+| FR-026-AC-15 | In every output format, `matrix` SHALL emit engine coverage diagnostics and unmatched annotation IDs on stderr with the authored file and line when available. A forbidden source-tag range retains its `range-in-trace-tag` explanation; an ID not read by the module's declared trace grammar is named with the symbol and guidance to use the declared form (comma-separated lists for `Trace:`). These advisories do not alter the engine's bindings, stdout matrix payload, or strict verdict. Correct comma-list controls emit neither range nor unmatched-tag warnings. | Test |
+
+> **PLAT-1150 change note (2026-10-05):** At quire-driver `e7f6e89`, the
+> engine already records source ranges and IDs dropped after `and`, but matrix
+> selected `coverage_matrix` and discarded those explanations. Surface the
+> existing facts rather than expanding the declared grammar: source ranges
+> remain refused under quire-rs FR-050-AC-50 and FR-051-AC-28.
+
 ## Dependencies
 
 - **Upstream**: [FR-017](./FR-017-coverage-subcommand.md) `coverage` (shared scope/module resolution, shared `CoverageReport` computation, shared help-text resolution-order requirement); [FR-008](./FR-008-json-output-encoding.md) JSON provenance envelope (`engine::attach`); [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md) thin boundary; quire-rs [FR-050](ix://agent-ix/quire-rs/FR-050)-AC-47..51 (`coverage_matrix` computation, CR-187, `statement` field per PLAT-1077), [FR-051](ix://agent-ix/quire-rs/FR-051)-AC-27/28 (binder `ignored` marking, range-in-trace-tag).
