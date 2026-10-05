@@ -75,7 +75,7 @@ fn clause_module(dir: &TempDir) -> PathBuf {
         "name: synthetic-clause-module\nclause_sets:\n  - clauses/widget.json\n",
     )
     .expect("write manifest");
-    let mut set = ClauseSet {
+    let set = ClauseSet {
         schema_version: "clause-set-v1".into(),
         authority: "example.test".into(),
         id: "widget-assurance".into(),
