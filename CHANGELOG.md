@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.36.2] - 2026-10-07
+
+- Update to quire-rs 0.50.2, which retires the ISO log archetype's special index handling.
+
 ## [0.36.1] - 2026-10-01
 
 - **Engine: quire-rs 0.50.1** (semantic-schema 0.3.0, quire-code-parse 0.2.2).
