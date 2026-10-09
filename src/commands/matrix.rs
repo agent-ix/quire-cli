@@ -15,6 +15,7 @@ use serde::Serialize;
 
 use crate::commands::coverage::{compute_report, tsv_cell, Target};
 use crate::commands::Ctx;
+use quire_cli::io;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -64,7 +65,45 @@ struct Payload {
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let (scope, registry) = args.target.load(ctx)?;
-    let matrix = compute_report(ctx, &scope, &registry)?.coverage_matrix;
+    let report = compute_report(ctx, &scope, &registry)?;
+    // FR-026-AC-15 / PLAT-1150: selecting one view must not discard the
+    // engine's explanation of tags it refused or could only partly read.
+    for diagnostic in &report.diagnostics {
+        let locus = match (diagnostic.path.as_deref(), diagnostic.line) {
+            (Some(path), Some(line)) => format!("{path}:{line}"),
+            (Some(path), None) => path.to_string(),
+            (None, _) => "scope".to_string(),
+        };
+        io::emit_warning_with_fields(
+            ctx.diagnostics,
+            &format!("[{}] {} ({locus})", diagnostic.reason, diagnostic.message),
+            &io::DiagnosticFields {
+                reason: Some(&diagnostic.reason),
+                path: diagnostic.path.as_deref(),
+                line: diagnostic.line,
+                declaration: Some(&diagnostic.declaration),
+                ..Default::default()
+            },
+        );
+    }
+    for tag in &report.unmatched_tags {
+        io::emit_warning_with_fields(
+            ctx.diagnostics,
+            &format!(
+                "{}:{}: `{}` on `{}` was not read by the declared trace grammar; \
+                 use the module's declared tag form (comma-separated IDs for Trace: lists)",
+                tag.path, tag.line, tag.trace_id, tag.symbol,
+            ),
+            &io::DiagnosticFields {
+                reason: Some("unmatched-trace-tag"),
+                path: Some(&tag.path),
+                line: Some(tag.line),
+                subject: Some(&tag.trace_id),
+                ..Default::default()
+            },
+        );
+    }
+    let matrix = report.coverage_matrix;
     let verdict = strict_verdict(&matrix);
 
     match args.format {
