@@ -539,3 +539,14 @@ Inherited unbound criterion IDs (computed, not an authored matrix):
 ## Verdict
 
 CONDITIONAL. No native build, cargo, metadata, fmt or Kani execution was performed. This review does not qualify the not-yet-implemented command.
+
+## Dispositions
+
+Round 1, reviewed frozen fix head `50213ffa4fc4d841f9bfb96073a701f84c1a3830`.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | deferred | The subsequent coding stage of the SAME open IR-736 ticket owns the real command, all ten FR-027 AC bindings, original old-AWK/new-command mutation control and per-host normal installation qualification. Explicit handoff comment 68dae7fb-4715-413b-9540-136ee32df841 read back. This spec-only merge delivers none of those results; IR-736 remains open and IR-641 remains separate adoption. |
+| FND-002 | deferred | Actual upstream CLI-owner follow-up PLAT-1177 is created in Quire Engine Implementation (P-PLAT-15), with description/project read back. It owns triage and meaningful evidence fixes for the 49 inherited unbound rows, explicitly excluding the ten new IR-736 command ACs. No blanket repository coverage PASS is claimed. |
+
+The original findings and original verdict above remain historical. Both actual coverage findings have explicit follow-up owners; the coverage gaps remain, and this is not a repository-wide coverage PASS. Implementation, native tests, mutation demonstration, release publication and host installation remain unqualified by this Markdown review. No heavy command or frozen-branch edit was performed.

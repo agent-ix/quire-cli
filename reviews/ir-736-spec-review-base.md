@@ -512,3 +512,14 @@ All new FR-027 IDs and local references resolve, all ten criteria and three cons
 ## Verdict
 
 CONDITIONAL. No native build, cargo, metadata, fmt or Kani execution was performed. This review does not qualify the not-yet-implemented command.
+
+## Dispositions
+
+Round 1, reviewed frozen fix head `50213ffa4fc4d841f9bfb96073a701f84c1a3830`.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Both actual Given/When/Then examples now exist, link authoritative FR-027-AC-1/2 and explicitly leave normative acceptance in FR-027 rather than restating gate rules. |
+| FND-002 | fixed | A grounded Dependencies section names actual quire-rs FR-073/FR-055 and existing local process/boundary contracts; no clauses AC or behavior changed. Independent whole-spec quire validate now exits 0. |
+
+The original findings and original verdict above remain historical. Specification acceptance is clear after both verified fixes. Implementation, native tests, mutation demonstration, release publication and host installation remain unqualified by this Markdown review. No heavy command or frozen-branch edit was performed.
