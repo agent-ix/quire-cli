@@ -71,6 +71,8 @@ This specification governs:
   source-grounded assurance export, including explicit source/module/schema
   premises and fail-closed drift checks
 
+- The owned, offline Cargo.lock developer gate [FR-027](./functional/FR-027-check-lock-subcommand.md), distributed as `quire check-lock <Cargo.lock>...`; consumer adoption and copied-script removal remain IR-641.
+
 ### 2.2 Out of Scope
 
 This specification does not govern:
@@ -362,7 +364,7 @@ subcommand surface, exit codes, and JSON output schemas are the stable contract
 
 ## 15. Governance Notes
 
-- This CLI is a **thin process boundary**. Substantive parse/render/extract/validate logic belongs in `quire-rs`. If a feature request cannot be satisfied by adding flags or composition over existing `quire-rs` APIs, file the upstream FR first.
+- Artifact operations remain a **thin process boundary**: substantive Markdown parse/render/extract/validate logic belongs in `quire-rs`. The narrow developer-gate exception is [FR-027](./functional/FR-027-check-lock-subcommand.md), as scoped by [StR-004](./stakeholder/StR-004-thin-boundary-over-quire-rs.md); it owns no engine artifact behavior.
 - The CLI MUST remain a single static binary. No optional dynamic linking, no plugin loading, no eval-from-env code paths.
 - No network calls of any kind (matches `quire-rs` [StR-001](./stakeholder/StR-001-static-binary-hot-path.md) hard rule).
 
