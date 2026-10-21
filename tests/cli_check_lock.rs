@@ -15,7 +15,10 @@ fn package(name: &str, source: &str) -> String {
 }
 
 fn git(name: &str, revision: &str) -> String {
-    package(name, &format!("git+https://github.com/agent-ix/fixture#{revision}"))
+    package(
+        name,
+        &format!("git+https://github.com/agent-ix/fixture#{revision}"),
+    )
 }
 
 fn lock(dir: &Path, name: &str, text: &str) -> String {
@@ -53,8 +56,10 @@ fn aligned_empty_path_registry_and_other_owner_locks_pass() {
         "package = []".into(),
         "[[package]]\nname = \"workspace\"".into(),
         git("core", A) + &git("derive", A),
-        package("repeat", "registry+https://github.com/rust-lang/crates.io-index")
-            + &package("repeat", "sparse+https://index.crates.io/"),
+        package(
+            "repeat",
+            "registry+https://github.com/rust-lang/crates.io-index",
+        ) + &package("repeat", "sparse+https://index.crates.io/"),
         package("repeat", "git+https://github.com/other/fixture#short")
             + &package("repeat", "git+ssh://git@example.test/other/fixture"),
     ] {
@@ -72,14 +77,22 @@ fn every_split_lock_and_affected_package_is_reported_in_order() {
     let output = run(&[&z, &a]);
     assert_code(&output, 2);
     let stderr = String::from_utf8(output.stderr.clone()).unwrap();
-    assert!(stderr.find(&a).unwrap() < stderr.find(&z).unwrap(), "{stderr}");
+    assert!(
+        stderr.find(&a).unwrap() < stderr.find(&z).unwrap(),
+        "{stderr}"
+    );
     for path in [&a, &z] {
         for revision in [A, B] {
-            assert!(stderr.lines().any(|line| line.contains(path) && line.contains(revision)));
+            assert!(stderr
+                .lines()
+                .any(|line| line.contains(path) && line.contains(revision)));
         }
     }
     for name in ["alpha", "beta", "zeta"] {
-        assert!(stderr.contains(&format!("package {name} revision")), "{stderr}");
+        assert!(
+            stderr.contains(&format!("package {name} revision")),
+            "{stderr}"
+        );
     }
     assert!(stderr.contains("github.com/agent-ix/fixture"));
     let repeated = run(&[&z, &a]);
@@ -91,7 +104,13 @@ fn every_split_lock_and_affected_package_is_reported_in_order() {
 #[trace("FR-027-AC-3")]
 fn duplicate_agent_names_are_refused_even_with_identical_or_different_repositories() {
     let dir = TempDir::new().unwrap();
-    for second in [git("same", A), package("same", &format!("git+https://github.com/agent-ix/other#{A}"))] {
+    for second in [
+        git("same", A),
+        package(
+            "same",
+            &format!("git+https://github.com/agent-ix/other#{A}"),
+        ),
+    ] {
         let path = lock(dir.path(), "Cargo.lock", &(git("same", A) + &second));
         let output = run(&[&path]);
         assert_code(&output, 2);
@@ -112,7 +131,10 @@ fn transport_case_query_and_terminal_variants_share_repository_identity() {
     ];
     let mut aligned = String::new();
     for (index, url) in variants.iter().enumerate() {
-        aligned += &package(&format!("crate-{index}"), &format!("git+{url}#{}", A.to_uppercase()));
+        aligned += &package(
+            &format!("crate-{index}"),
+            &format!("git+{url}#{}", A.to_uppercase()),
+        );
     }
     let path = lock(dir.path(), "Cargo.lock", &aligned);
     assert_code(&run(&[&path]), 0);
@@ -128,22 +150,39 @@ fn transport_case_query_and_terminal_variants_share_repository_identity() {
 fn malformed_fragments_urls_toml_and_typed_package_fields_are_invalid() {
     let dir = TempDir::new().unwrap();
     for fragment in ["", "#", "#abc", "#gggggggggggggggggggggggggggggggggggggggg"] {
-        let text = package("bad", &format!("git+https://github.com/agent-ix/fixture{fragment}"));
+        let text = package(
+            "bad",
+            &format!("git+https://github.com/agent-ix/fixture{fragment}"),
+        );
         let path = lock(dir.path(), "Cargo.lock", &text);
         assert_code(&run(&[&path]), 3);
     }
     for url in [
-        "not-a-url", "https://", "file:///agent-ix/fixture", "https://github.com:123/agent-ix/fixture",
-        "https://github.com/agent-ix/", "https://github.com/agent-ix/.git",
-        "https://github.com/agent-ix/fixture/extra", "https://github.com/agent-ix/fixture%2fextra",
-        "https://github.com/agent-ix/fixture%5cextra", "https://github.com/agent-ix%2ffixture",
+        "not-a-url",
+        "https://",
+        "file:///agent-ix/fixture",
+        "https://github.com:123/agent-ix/fixture",
+        "https://github.com/agent-ix/",
+        "https://github.com/agent-ix/.git",
+        "https://github.com/agent-ix/fixture/extra",
+        "https://github.com/agent-ix/fixture%2fextra",
+        "https://github.com/agent-ix/fixture%5cextra",
+        "https://github.com/agent-ix%2ffixture",
     ] {
-        let path = lock(dir.path(), "Cargo.lock", &package("bad", &format!("git+{url}#{A}")));
+        let path = lock(
+            dir.path(),
+            "Cargo.lock",
+            &package("bad", &format!("git+{url}#{A}")),
+        );
         assert_code(&run(&[&path]), 3);
     }
     for text in [
-        "not toml", "package = 3", "package = {}", "[[package]]\nversion = '1'",
-        "[[package]]\nname = 2", "[[package]]\nname = 'a'\nsource = 3",
+        "not toml",
+        "package = 3",
+        "package = {}",
+        "[[package]]\nversion = '1'",
+        "[[package]]\nname = 2",
+        "[[package]]\nname = 'a'\nsource = 3",
         "[[package]]\nname = 'a'\nsource = 'unknown+https://example.test'",
     ] {
         let path = lock(dir.path(), "Cargo.lock", text);
@@ -175,20 +214,30 @@ fn global_format_color_and_pretty_use_existing_stream_contract() {
     let dir = TempDir::new().unwrap();
     let path = lock(dir.path(), "Cargo.lock", &(git("one", A) + &git("two", B)));
     let output = Command::new(env!("CARGO_BIN_EXE_quire"))
-        .args(["--diagnostics-format=json", "--color=never", "check-lock", &path])
-        .output().unwrap();
+        .args([
+            "--diagnostics-format=json",
+            "--color=never",
+            "check-lock",
+            &path,
+        ])
+        .output()
+        .unwrap();
     assert_code(&output, 2);
     let record: serde_json::Value = serde_json::from_slice(&output.stderr).unwrap();
     assert_eq!(record["kind"], "QuireError");
     assert!(record["message"].as_str().unwrap().contains(&path));
     let color = Command::new(env!("CARGO_BIN_EXE_quire"))
-        .args(["--color=always", "check-lock", &path]).output().unwrap();
+        .args(["--color=always", "check-lock", &path])
+        .output()
+        .unwrap();
     assert_code(&color, 2);
     assert!(color.stderr.contains(&0x1b));
     fs::write(&path, git("one", A)).unwrap();
     let plain = run(&[&path]);
     let pretty = Command::new(env!("CARGO_BIN_EXE_quire"))
-        .args(["--pretty", "check-lock", &path]).output().unwrap();
+        .args(["--pretty", "check-lock", &path])
+        .output()
+        .unwrap();
     assert_code(&pretty, 0);
     assert_eq!(plain.stdout, pretty.stdout);
 }
@@ -206,9 +255,15 @@ fn input_permission_refusal_is_distinct_from_output_failure() {
     assert_code(&output, 2);
     #[cfg(target_os = "linux")]
     {
-        let full = fs::OpenOptions::new().write(true).open("/dev/full").unwrap();
+        let full = fs::OpenOptions::new()
+            .write(true)
+            .open("/dev/full")
+            .unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_quire"))
-            .args(["check-lock", &path]).stdout(full).output().unwrap();
+            .args(["check-lock", &path])
+            .stdout(full)
+            .output()
+            .unwrap();
         assert_code(&output, 4);
     }
 }
@@ -224,13 +279,22 @@ fn gate_leaves_inputs_unchanged_and_opens_no_network_or_child_process() {
         let trace = dir.path().join("trace.txt");
         let output = Command::new("strace")
             .args(["-f", "-e", "trace=network,execve", "-o"])
-            .arg(&trace).arg(env!("CARGO_BIN_EXE_quire"))
-            .args(["--color=never", "check-lock", &path]).output()
+            .arg(&trace)
+            .arg(env!("CARGO_BIN_EXE_quire"))
+            .args(["--color=never", "check-lock", &path])
+            .output()
             .expect("FR-027-AC-9 qualification requires strace");
         assert_code(&output, code);
         assert_eq!(fs::read(&path).unwrap(), before);
         let syscalls = fs::read_to_string(trace).unwrap();
-        assert_eq!(syscalls.lines().filter(|line| line.contains("execve(")).count(), 1, "{syscalls}");
+        assert_eq!(
+            syscalls
+                .lines()
+                .filter(|line| line.contains("execve("))
+                .count(),
+            1,
+            "{syscalls}"
+        );
         assert!(!syscalls.contains("socket(AF_INET"), "{syscalls}");
     }
 }

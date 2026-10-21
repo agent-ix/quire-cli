@@ -43,7 +43,10 @@ struct Violations(Vec<(String, BTreeSet<Entry>)>);
 
 impl fmt::Display for Violations {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "agent-ix Git coherence refused (duplicate package name or split repository revision)")?;
+        writeln!(
+            f,
+            "agent-ix Git coherence refused (duplicate package name or split repository revision)"
+        )?;
         for (path, entries) in &self.0 {
             for entry in entries {
                 writeln!(
@@ -92,7 +95,10 @@ fn agent_source(source: &str) -> anyhow::Result<Option<(String, String)>> {
     if !is_agent {
         return Ok(None);
     }
-    let repository_path = path.trim_start_matches('/').strip_suffix('/').unwrap_or(path.trim_start_matches('/'));
+    let repository_path = path
+        .trim_start_matches('/')
+        .strip_suffix('/')
+        .unwrap_or(path.trim_start_matches('/'));
     let parts: Vec<_> = repository_path.split('/').collect();
     if url.port().is_some_and(|port| port != default_port)
         || parts.len() != 2
@@ -107,7 +113,9 @@ fn agent_source(source: &str) -> anyhow::Result<Option<(String, String)>> {
     }
     let revision = url.fragment().unwrap_or_default();
     if revision.len() != 40 || !revision.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        invalid_request!("agent-ix source requires a 40-digit resolved commit fragment: {source:?}");
+        invalid_request!(
+            "agent-ix source requires a 40-digit resolved commit fragment: {source:?}"
+        );
     }
     Ok(Some((
         format!("github.com/agent-ix/{name}"),
@@ -130,8 +138,14 @@ fn check(packages: Vec<Package>) -> anyhow::Result<BTreeSet<Entry>> {
             package: package.name,
             revision,
         };
-        by_name.entry(entry.package.clone()).or_default().push(entry.clone());
-        by_repository.entry(entry.repository.clone()).or_default().push(entry);
+        by_name
+            .entry(entry.package.clone())
+            .or_default()
+            .push(entry.clone());
+        by_repository
+            .entry(entry.repository.clone())
+            .or_default()
+            .push(entry);
     }
     let mut failures = BTreeSet::new();
     for entries in by_name.values() {
@@ -140,7 +154,13 @@ fn check(packages: Vec<Package>) -> anyhow::Result<BTreeSet<Entry>> {
         }
     }
     for entries in by_repository.values() {
-        if entries.iter().map(|entry| &entry.revision).collect::<BTreeSet<_>>().len() > 1 {
+        if entries
+            .iter()
+            .map(|entry| &entry.revision)
+            .collect::<BTreeSet<_>>()
+            .len()
+            > 1
+        {
             failures.extend(entries.iter().cloned());
         }
     }
