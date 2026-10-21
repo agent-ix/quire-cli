@@ -33,3 +33,4 @@ description: "Index of artifacts in this directory."
 * [FR-024: Rust-owned npm release version contract](./FR-024-rust-release-version-contract.md)
 * [FR-025: Rust-owned CLI qualification tooling](./FR-025-rust-qualification-tooling.md)
 * [FR-026: quire matrix subcommand](./FR-026-matrix-subcommand.md)
+* [FR-027: Cargo.lock Git-revision coherence gate](./FR-027-check-lock-subcommand.md)
