@@ -160,6 +160,8 @@ fn malformed_fragments_urls_toml_and_typed_package_fields_are_invalid() {
     for url in [
         "not-a-url",
         "https://",
+        "https://github.com",
+        "https://github.com//agent-ix/fixture",
         "file:///agent-ix/fixture",
         "https://github.com:123/agent-ix/fixture",
         "https://github.com/agent-ix/",

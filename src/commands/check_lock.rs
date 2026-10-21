@@ -85,7 +85,11 @@ fn agent_source(source: &str) -> anyhow::Result<Option<(String, String)>> {
     if lower_path.contains("%2f") || lower_path.contains("%5c") {
         invalid_request!("encoded path separator in Git URL {source:?}");
     }
-    let components: Vec<_> = path.trim_start_matches('/').split('/').collect();
+    let relative = path.strip_prefix('/').unwrap_or(path);
+    if relative.is_empty() || relative.starts_with('/') {
+        invalid_request!("missing repository path in Git URL {source:?}");
+    }
+    let components: Vec<_> = relative.split('/').collect();
     let is_agent = url
         .host_str()
         .is_some_and(|host| host.eq_ignore_ascii_case("github.com"))
@@ -95,10 +99,7 @@ fn agent_source(source: &str) -> anyhow::Result<Option<(String, String)>> {
     if !is_agent {
         return Ok(None);
     }
-    let repository_path = path
-        .trim_start_matches('/')
-        .strip_suffix('/')
-        .unwrap_or(path.trim_start_matches('/'));
+    let repository_path = relative.strip_suffix('/').unwrap_or(relative);
     let parts: Vec<_> = repository_path.split('/').collect();
     if url.port().is_some_and(|port| port != default_port)
         || parts.len() != 2

@@ -58,8 +58,10 @@ Exit codes:
 | Code | Meaning |
 |------|---------|
 | 0 | success |
-| 1 | user error: parse failure, schema violation, unknown archetype, I/O error, lookup miss |
-| 2 | argv error: missing required flag, unknown flag, invalid flag combination |
+| 1 | complete report with partial or strict-coverage failure |
+| 2 | path, permission, or domain-policy refusal |
+| 3 | invalid arguments, malformed input, missing or wrongly typed paths |
+| 4 | internal, serialization, or output I/O failure |
 | 134 | panic, never expected |
 
 `check-lock` checks each supplied lock independently, without fetching sources or
