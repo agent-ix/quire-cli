@@ -31,6 +31,7 @@ If the setup checks leave a reproducible Agent IX quire-cli bug that blocks prog
 quire assurance --scope <DIR> --module <PATH> --repository <IDENTITY> \
   --revision <FULL_SHA> --expect-module <NAME@VERSION> \
   [--expect-schema <MODULE/ARCHETYPE>]...
+quire check-lock <Cargo.lock>...
 quire parse <DOC|->
 quire lookup <DOC|-> (--heading <TEXT> [--level <1..6>] | --id <ID> | --block-id <BLOCK_ID>) [--content]
 quire edit <DOC|-> (--heading <TEXT> | --block-id <BLOCK_ID>) --content <FILE|-> [--out <PATH>]
@@ -60,6 +61,12 @@ Exit codes:
 | 1 | user error: parse failure, schema violation, unknown archetype, I/O error, lookup miss |
 | 2 | argv error: missing required flag, unknown flag, invalid flag combination |
 | 134 | panic, never expected |
+
+`check-lock` checks each supplied lock independently, without fetching sources or
+changing files. It rejects duplicate agent-ix Git package names and split resolved
+commits within one canonical GitHub agent-ix repository. Aligned locks print one
+summary on stdout; policy refusals use exit 2 and stderr, invalid input uses 3,
+and unexpected I/O uses 4. It honours global diagnostic formatting and color.
 
 ## Install
 
