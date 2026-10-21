@@ -98,7 +98,7 @@ Download, verify, and drop `quire` on your `PATH`.
 from GitHub at build time, so configure `cargo` with `net.git-fetch-with-cli = true`.
 
 ```bash
-cargo install --git https://github.com/agent-ix/quire-cli
+cargo install --git https://github.com/agent-ix/quire-cli quire-cli
 # or, from a checkout:
 cargo build --release && target/release/quire --help
 ```
