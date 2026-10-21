@@ -1,0 +1,11 @@
+version = 4
+
+[[package]]
+name = "quire-fixture-core"
+version = "1.0.0"
+source = "git+https://github.com/agent-ix/fixture?branch=main#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+[[package]]
+name = "quire-fixture-derive"
+version = "1.0.0"
+source = "git+https://github.com/agent-ix/fixture?branch=main#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

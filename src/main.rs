@@ -4,7 +4,8 @@
 //! `edit`, `validate`, `schema`, `lint`, `fix`. Each is a thin wrapper over
 //! `quire-rs` — no markdown parsing or structural-validation logic lives in
 //! this crate (StR-004). `update` is the one exception: it wraps the
-//! shared ix-cli-kit `self_update` engine instead of `quire-rs`.
+//! shared ix-cli-kit `self_update` engine instead of `quire-rs`. `check-lock`
+//! owns the separate read-only developer Git coherence policy (FR-027).
 
 use clap::{Parser, Subcommand};
 
@@ -43,6 +44,8 @@ struct Cli {
 enum Command {
     /// Emit source-grounded assurance facts through quire-rs assurance-v1.
     Assurance(commands::assurance::Args),
+    /// Check agent-ix Git dependency coherence in Cargo.lock files.
+    CheckLock(commands::check_lock::Args),
     /// Evaluate or compare rights-aware module clause sets.
     Clauses(commands::clauses::Args),
     /// Parse a markdown document to JSON.
@@ -98,6 +101,7 @@ fn main() {
     };
     let result = match cli.command {
         Command::Assurance(a) => commands::assurance::run(&ctx, a),
+        Command::CheckLock(a) => commands::check_lock::run(&ctx, a),
         Command::Clauses(a) => commands::clauses::run(&ctx, a),
         Command::Parse(a) => commands::parse::run(&ctx, a),
         Command::Extract(a) => commands::extract::run(&ctx, a),
