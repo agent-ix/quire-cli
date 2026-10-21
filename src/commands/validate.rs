@@ -386,7 +386,7 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
 /// Surface a [`BundleReport`] on stderr: warnings first (non-fatal),
 /// then errors, both in the shared `quire_rs` diagnostic shape.
 ///
-/// Warnings go through [`io::emit_warning`], not `emit_diagnostic`. They
+/// Warnings go through [`ix_cli_kit::streams::Record::warning`]. They
 /// used to take the error path, which hardcodes `"severity": "error"` in
 /// the JSON shape — so every non-fatal bundle warning was emitted as an
 /// error while the exit code correctly said otherwise, and a machine
@@ -395,17 +395,18 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
 /// (upstream agent-ix/quire-rs#110).
 fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
     for w in &report.warnings {
-        io::emit_warning(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::warning(
+            "ValidationWarning",
             &format!("{}: {} [{}]", w.path.display(), w.message, w.reason),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     for e in &report.errors {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "ValidationError",
             &format!("{}: {} [{}]", e.path.display(), e.message, e.reason),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
 }
 
@@ -463,32 +464,32 @@ fn load_scoped_registry(scope: &Path) -> anyhow::Result<Registry> {
 /// the caller falls through to the standard "no modules" guidance. The child's
 /// stdout is captured (never forwarded) to preserve the stdout-silent contract.
 fn lazy_init_default_modules(ctx: &Ctx) -> bool {
-    io::emit_diagnostic(
-        ctx.diagnostics,
+    ix_cli_kit::streams::Record::error(
         "Diagnostic",
         "no spec modules found; installing the default set via `quoin plugin ensure-defaults`",
-    );
+    )
+    .emit(ctx.diagnostics);
     let output = match std::process::Command::new("quoin")
         .args(["plugin", "ensure-defaults"])
         .output()
     {
         Ok(output) => output,
         Err(_) => {
-            io::emit_diagnostic(
-                ctx.diagnostics,
+            ix_cli_kit::streams::Record::error(
                 "Diagnostic",
                 "quoin not found on PATH; cannot auto-install default modules",
-            );
+            )
+            .emit(ctx.diagnostics);
             return false;
         }
     };
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "Diagnostic",
             &format!("quoin failed to install default modules: {}", stderr.trim()),
-        );
+        )
+        .emit(ctx.diagnostics);
         return false;
     }
     true
@@ -639,7 +640,7 @@ pub(crate) fn archetype_from_frontmatter(text: &str) -> Option<String> {
 /// `frontmatter`, so callers see one consistent diagnostic vocabulary.
 pub(crate) fn emit_frontmatter_failure(ctx: &Ctx, label: &str, message: &str) {
     let subject = format!("document frontmatter for {label}");
-    let fields = io::DiagnosticFields {
+    let fields = ix_cli_kit::streams::DiagnosticFields {
         reason: Some("frontmatter"),
         path: Some(label),
         subject: Some(&subject),
@@ -649,12 +650,12 @@ pub(crate) fn emit_frontmatter_failure(ctx: &Ctx, label: &str, message: &str) {
         ),
         ..Default::default()
     };
-    io::emit_diagnostic_with_fields(
-        ctx.diagnostics,
+    ix_cli_kit::streams::Record::error(
         "ValidationError",
         &format!("{label}: {message} [frontmatter]"),
-        &fields,
-    );
+    )
+    .with_fields(fields)
+    .emit(ctx.diagnostics);
 }
 
 /// What a single document's validation surfaced.
@@ -678,16 +679,17 @@ fn surface_result(ctx: &Ctx, label: &str, result: &ValidationResult) -> SurfaceO
         );
         let subject = format!("document validation of {label}");
         let change_target = change_target(label, error.line);
-        let fields = io::DiagnosticFields {
+        let fields = ix_cli_kit::streams::DiagnosticFields {
             reason: Some(error.reason.as_str()),
             path: Some(label),
             line: error.line,
             subject: Some(&subject),
             change_target: Some(&change_target),
             remedy: Some(validation_remedy(error.reason)),
-            ..Default::default()
         };
-        io::emit_diagnostic_with_fields(ctx.diagnostics, "ValidationError", &message, &fields);
+        ix_cli_kit::streams::Record::error("ValidationError", &message)
+            .with_fields(fields)
+            .emit(ctx.diagnostics);
     }
     for warning in &result.warnings {
         let line = line_prefix(warning.line);
@@ -698,16 +700,17 @@ fn surface_result(ctx: &Ctx, label: &str, result: &ValidationResult) -> SurfaceO
         );
         let subject = format!("document validation of {label}");
         let change_target = change_target(label, warning.line);
-        let fields = io::DiagnosticFields {
+        let fields = ix_cli_kit::streams::DiagnosticFields {
             reason: Some(warning.reason.as_str()),
             path: Some(label),
             line: warning.line,
             subject: Some(&subject),
             change_target: Some(&change_target),
             remedy: Some(validation_remedy(warning.reason)),
-            ..Default::default()
         };
-        io::emit_warning_with_fields(ctx.diagnostics, &message, &fields);
+        ix_cli_kit::streams::Record::warning("ValidationWarning", &message)
+            .with_fields(fields)
+            .emit(ctx.diagnostics);
     }
     SurfaceOutcome {
         had_errors: !result.errors.is_empty(),
