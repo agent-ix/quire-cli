@@ -42,3 +42,16 @@ quire clauses diff --module <PATH> --authority <ID> --set <ID>
 The repository and its fixtures SHALL contain only original synthetic clause
 content. Restricted source material is not a CLI fixture and is not required
 to exercise this interface.
+
+## Dependencies
+
+- **Upstream:** [quire-rs FR-073](ix://agent-ix/quire-rs/FR-073) owns the
+  generic clause-set model, rights validation, applicability, and comparison.
+- **Upstream:** [quire-rs FR-055](ix://agent-ix/quire-rs/FR-055) owns the
+  published binding and diff output contracts.
+- **Local boundary:** [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)
+  keeps engine semantics outside the CLI.
+- **Local process contract:** [FR-005](./FR-005-path-safety.md),
+  [FR-006](./FR-006-io-contract.md), [FR-007](./FR-007-exit-codes.md), and
+  [NFR-005](../non-functional/NFR-005-diagnostic-format.md) govern path checks,
+  streams, typed outcomes, and diagnostic formatting.
