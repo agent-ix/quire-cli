@@ -4,13 +4,12 @@
 //! `edit`, `validate`, `schema`, `lint`, `fix`. Each is a thin wrapper over
 //! `quire-rs` — no markdown parsing or structural-validation logic lives in
 //! this crate (StR-004). `update` is the one exception: it wraps the
-//! package-agnostic `self_update` engine instead of `quire-rs`.
+//! shared ix-cli-kit `self_update` engine instead of `quire-rs`.
 
 use clap::{Parser, Subcommand};
 
 use ix_cli_kit::exit::Outcome;
-use ix_cli_kit::streams::{ColorChoice, DiagnosticsFormat};
-use quire_cli::io;
+use ix_cli_kit::streams::{ColorChoice, Diagnostics, DiagnosticsFormat};
 
 mod commands;
 
@@ -94,7 +93,7 @@ fn main() {
         }
     };
     let ctx = commands::Ctx {
-        diagnostics: io::Diagnostics::new(cli.diagnostics_format, cli.color.resolve().enabled),
+        diagnostics: Diagnostics::resolved(cli.diagnostics_format, cli.color),
         pretty: cli.pretty,
     };
     let result = match cli.command {
@@ -134,7 +133,7 @@ fn main() {
                 .downcast_ref::<commands::DocumentRootError>()
                 .map(|d| d.kind())
                 .unwrap_or("QuireError");
-            io::emit_diagnostic(ctx.diagnostics, kind, &msg);
+            ix_cli_kit::streams::Record::error(kind, &msg).emit(ctx.diagnostics);
             std::process::exit(i32::from(commands::failure::outcome(&e).code()));
         }
     }

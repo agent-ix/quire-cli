@@ -97,15 +97,10 @@ fn tc092_every_unsafe_block_is_documented_and_the_gate_catches_violations() {
         .expect("the gate must accept the documented block");
 }
 
-// TC-093, FR-016-AC-5, FR-016-AC-6, StR-004-AC-2: the `self_update` engine is
-// package-agnostic — it is driven by a config struct and imports nothing from
-// quire's `io` or command context, so `commands/update.rs` stays the only
-// quire-specific glue. Source inspection is the only way to reach this: no
-// runtime path can observe an import that isn't there.
-//
-// The gate matches expanded module paths, not bare substrings (#56, SR-006
-// FND-003): the previous `contains("crate::io")` check was evaded by any
-// grouped import (`use crate::{io, …}`), which contains no needle at all.
+// TC-093, FR-016-AC-5, FR-016-AC-6, StR-004-AC-2: the update command imports
+// the shared engine, supplies quire's coordinates, and contains no parser,
+// renderer, or validator logic. The source audit also rejects a local copy of
+// the engine.
 #[test]
 fn tc093_self_update_engine_is_package_agnostic() {
     quire_qualify::source::check_thin_boundary(&repo_root())

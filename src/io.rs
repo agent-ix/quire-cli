@@ -1,41 +1,13 @@
-//! Stdin / stdout / stderr wiring (FR-006, FR-007, FR-008).
-//!
-//! - Subcommand primary output goes to stdout; nothing else does.
-//! - Diagnostics + errors go to stderr.
-//! - JSON output is compact by default; `--pretty` switches to indented.
-//! - `--diagnostics-format=human|json` selects the stderr encoding.
+//! CLI-specific input and output placement around ix-cli-kit's stream contract.
 
 use std::io::Read;
 use std::path::Path;
 
-use serde::Serialize;
-
-use ix_cli_kit::streams::DiagnosticsFormat;
-
-/// Resolved stderr diagnostic settings: the wire format plus whether to
-/// colorize human output. Threaded through [`super`]'s `Ctx`.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct Diagnostics {
-    pub format: DiagnosticsFormat,
-    pub color: bool,
-}
-
-impl Diagnostics {
-    pub fn new(format: DiagnosticsFormat, color: bool) -> Self {
-        Self { format, color }
-    }
-}
-
-// ANSI SGR codes. Diagnostics are the only colorized surface, so a tiny
-// hand-rolled palette beats pulling in a color crate (leaf-binary, deny.toml).
-const RED: &str = "\x1b[31m";
-const BOLD_YELLOW: &str = "\x1b[1;33m";
-const RESET: &str = "\x1b[0m";
+use ix_cli_kit::streams::{Diagnostics, Record};
 
 /// Read a `--data` argument: a filesystem path or `-` for stdin.
 ///
-/// Returns the parsed `serde_json::Value`. JSON parse errors surface as
-/// an invalid-request outcome at the caller.
+/// JSON parse errors surface as an invalid-request outcome at the caller.
 pub fn read_data(arg: &str) -> anyhow::Result<serde_json::Value> {
     let bytes = if arg == "-" {
         let mut buf = Vec::new();
@@ -44,222 +16,42 @@ pub fn read_data(arg: &str) -> anyhow::Result<serde_json::Value> {
     } else {
         std::fs::read(Path::new(arg))?
     };
-    let value: serde_json::Value = serde_json::from_slice(&bytes)?;
-    Ok(value)
+    Ok(serde_json::from_slice(&bytes)?)
 }
 
 /// Read a `<doc|->` positional argument as a UTF-8 string.
 pub fn read_text(arg: &str) -> anyhow::Result<String> {
     if arg == "-" {
-        let mut s = String::new();
-        std::io::stdin().read_to_string(&mut s)?;
-        Ok(s)
+        let mut text = String::new();
+        std::io::stdin().read_to_string(&mut text)?;
+        Ok(text)
     } else {
         Ok(std::fs::read_to_string(Path::new(arg))?)
     }
 }
 
-/// Write the primary subcommand output either to stdout or to `--out`.
+/// Write primary subcommand output either to stdout or to `--out`.
 pub fn write_primary(out_path: Option<&Path>, bytes: &[u8]) -> std::io::Result<()> {
-    if let Some(p) = out_path {
-        std::fs::write(p, bytes)?;
-        Ok(())
+    if let Some(path) = out_path {
+        std::fs::write(path, bytes)
     } else {
         ix_cli_kit::streams::write_primary_stdout(bytes)
     }
 }
 
-/// Indent compact JSON without changing any non-whitespace byte or key order.
-///
-/// The caller must first validate `compact` as JSON. This is deliberately a
-/// lexical formatter, not another object serialization path: whitespace inside
-/// strings is copied verbatim and only insignificant whitespace is inserted.
-pub fn pretty_validated_json_bytes(compact: &[u8]) -> Vec<u8> {
-    let mut output = Vec::with_capacity(compact.len() + compact.len() / 4);
-    let mut depth = 0usize;
-    let mut in_string = false;
-    let mut escaped = false;
-
-    for (index, &byte) in compact.iter().enumerate() {
-        if in_string {
-            output.push(byte);
-            if escaped {
-                escaped = false;
-            } else if byte == b'\\' {
-                escaped = true;
-            } else if byte == b'"' {
-                in_string = false;
-            }
-            continue;
-        }
-
-        match byte {
-            b'"' => {
-                in_string = true;
-                output.push(byte);
-            }
-            b'{' | b'[' => {
-                output.push(byte);
-                depth += 1;
-                let matching_close = if byte == b'{' { b'}' } else { b']' };
-                if compact.get(index + 1) != Some(&matching_close) {
-                    output.push(b'\n');
-                    output.extend(std::iter::repeat_n(b' ', depth * 2));
-                }
-            }
-            b'}' | b']' => {
-                depth = depth.saturating_sub(1);
-                let matching_open = if byte == b'}' { b'{' } else { b'[' };
-                if index > 0 && compact[index - 1] != matching_open {
-                    output.push(b'\n');
-                    output.extend(std::iter::repeat_n(b' ', depth * 2));
-                }
-                output.push(byte);
-            }
-            b',' => {
-                output.push(byte);
-                output.push(b'\n');
-                output.extend(std::iter::repeat_n(b' ', depth * 2));
-            }
-            b':' => {
-                output.push(byte);
-                output.push(b' ');
-            }
-            _ => output.push(byte),
-        }
-    }
-
-    output
-}
-
-/// Write a single diagnostic line to stderr, optionally in red.
-pub fn write_diagnostic_human(msg: &str, color: bool) {
-    if color {
-        eprintln!("{RED}{msg}{RESET}");
-    } else {
-        eprintln!("{msg}");
-    }
-}
-
-/// Write a diagnostic as a JSON line on stderr.
-pub fn write_diagnostic_json(kind: &str, message: &str) {
-    write_diagnostic_json_with_fields(kind, message, &DiagnosticFields::default());
-}
-
-/// Optional typed fields carried by a machine-readable diagnostic.
-///
-/// Human diagnostics continue to render from `message`; these fields are the
-/// stable interface for consumers that must locate or act on a finding without
-/// parsing that prose.
-#[derive(Debug, Default, Serialize)]
-pub struct DiagnosticFields<'a> {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub path: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub line: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub archetype: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub declaration: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub row_id: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub subject: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub change_target: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub remedy: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub next_diagnostic_step: Option<&'a str>,
-}
-
-#[derive(Serialize)]
-struct JsonDiagnostic<'a> {
-    kind: &'a str,
-    message: &'a str,
-    severity: &'a str,
-    #[serde(flatten)]
-    fields: &'a DiagnosticFields<'a>,
-}
-
-fn write_json_diagnostic(kind: &str, message: &str, severity: &str, fields: &DiagnosticFields<'_>) {
-    let line = JsonDiagnostic {
-        kind,
-        message,
-        severity,
-        fields,
-    };
-    eprintln!(
-        "{}",
-        serde_json::to_string(&line).expect("diagnostic fields serialize")
-    );
-}
-
-/// Write a diagnostic JSON line with stable typed fields alongside the
-/// backwards-compatible human message.
-pub fn write_diagnostic_json_with_fields(kind: &str, message: &str, fields: &DiagnosticFields<'_>) {
-    write_json_diagnostic(kind, message, "error", fields);
-}
-
-/// Emit a diagnostic according to the configured format. Errors carry
-/// `severity: "error"` in the JSON shape (see [`emit_warning`] for the
-/// warning counterpart). Human errors are printed red when color is on;
-/// the JSON shape is never colorized.
-pub fn emit_diagnostic(out: Diagnostics, kind: &str, message: &str) {
-    emit_diagnostic_with_fields(out, kind, message, &DiagnosticFields::default());
-}
-
-/// Emit an error with typed machine fields. Human output remains byte-for-byte
-/// the supplied `message`.
-pub fn emit_diagnostic_with_fields(
-    out: Diagnostics,
-    kind: &str,
-    message: &str,
-    fields: &DiagnosticFields<'_>,
-) {
-    match out.format {
-        DiagnosticsFormat::Human => write_diagnostic_human(message, out.color),
-        DiagnosticsFormat::Json => write_diagnostic_json_with_fields(kind, message, fields),
-    }
-}
-
-/// Emit an advisory **warning** according to the configured format.
-///
-/// Human format prefixes the line with `warning:` so warnings are
-/// visually distinct from errors; JSON format emits a distinct object
-/// carrying `severity: "warning"` and `kind: "ValidationWarning"`, so
-/// machine consumers can separate warnings from errors (FR-004-AC-10/12).
-pub fn emit_warning(out: Diagnostics, message: &str) {
-    emit_warning_with_fields(out, message, &DiagnosticFields::default());
-}
-
-/// Emit an advisory warning with typed machine fields.
-pub fn emit_warning_with_fields(out: Diagnostics, message: &str, fields: &DiagnosticFields<'_>) {
-    match out.format {
-        DiagnosticsFormat::Human if out.color => {
-            eprintln!("{BOLD_YELLOW}warning:{RESET} {message}")
-        }
-        DiagnosticsFormat::Human => eprintln!("warning: {message}"),
-        DiagnosticsFormat::Json => {
-            write_json_diagnostic("ValidationWarning", message, "warning", fields)
-        }
-    }
-}
-
-/// Emit every diagnostic in `iter` according to the configured format.
+/// Emit engine diagnostics through the shared record renderer.
 pub fn emit_quire_diagnostics<'a, I>(out: Diagnostics, iter: I)
 where
     I: IntoIterator<Item = &'a quire_rs::Diagnostic>,
 {
-    for d in iter {
-        let json = d.to_json();
+    for diagnostic in iter {
+        let json = diagnostic.to_json();
         let kind = json
             .get("kind")
-            .and_then(|k| k.as_str())
+            .and_then(serde_json::Value::as_str)
             .unwrap_or("Diagnostic");
-        emit_diagnostic(out, kind, &d.to_string());
+        let message = diagnostic.to_string();
+        Record::error(kind, &message).emit(out);
     }
 }
 
@@ -268,45 +60,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn validated_json_pretty_print_preserves_non_whitespace_bytes() {
-        let compact = br#"{"z":"spaces, braces { } and an escaped quote: \"","a":[{},[],true]}"#;
-        let pretty = pretty_validated_json_bytes(compact);
-        assert_eq!(
-            String::from_utf8(pretty.clone()).unwrap(),
-            "{\n  \"z\": \"spaces, braces { } and an escaped quote: \\\"\",\n  \"a\": [\n    {},\n    [],\n    true\n  ]\n}"
-        );
-
-        let mut in_string = false;
-        let mut escaped = false;
-        let restored: Vec<u8> = pretty
-            .into_iter()
-            .filter(|&byte| {
-                if in_string {
-                    if escaped {
-                        escaped = false;
-                    } else if byte == b'\\' {
-                        escaped = true;
-                    } else if byte == b'"' {
-                        in_string = false;
-                    }
-                    true
-                } else if byte == b'"' {
-                    in_string = true;
-                    true
-                } else {
-                    !byte.is_ascii_whitespace()
-                }
-            })
-            .collect();
-        assert_eq!(restored, compact);
-    }
-
-    #[test]
     fn read_data_from_file() {
         use std::io::Write;
-        let mut f = tempfile::NamedTempFile::new().unwrap();
-        writeln!(f, "{{\"x\": 1}}").unwrap();
-        let v = read_data(f.path().to_str().unwrap()).unwrap();
-        assert_eq!(v["x"], serde_json::json!(1));
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        writeln!(file, "{{\"x\": 1}}").unwrap();
+        let value = read_data(file.path().to_str().unwrap()).unwrap();
+        assert_eq!(value["x"], serde_json::json!(1));
     }
 }

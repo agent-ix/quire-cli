@@ -55,7 +55,6 @@ use anyhow::Context;
 use clap::Parser;
 use serde::Serialize;
 
-use quire_cli::io;
 use quire_cli::safety;
 use quire_rs::symbols::trace::{ImplementsRelation, Mention, SymbolGraph, VerifiesRelation};
 use quire_rs::symbols::trace_search::{self, language_confidence, symbol_language, Query};
@@ -275,11 +274,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         &model.source_exclude,
     );
     for d in &extraction.diagnostics {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "SymbolExtraction",
             &format!("{}: {}", d.path, d.reason),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
 
     let graph = quire_rs::symbols::trace::bind(&extraction, model);
@@ -726,24 +725,24 @@ fn emit_human(ctx: &Ctx, report: &TraceReport) -> anyhow::Result<()> {
     }
 
     if report.citations_excluded_by_path_filter > 0 {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "TraceCitationsExcluded",
             &format!(
                 "{} citation(s) dropped by --exclude-path",
                 report.citations_excluded_by_path_filter
             ),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
 
     if has_line_heuristic_record(report) {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "TraceConfidence",
             "this result set includes line_heuristic record(s): matched by a \
              pre-structural line/indentation scanner, not a parsed syntax tree — \
              treat with the same caution as a grep hit, not as AST-grounded evidence",
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     Ok(())
 }

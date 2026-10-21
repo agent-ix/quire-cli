@@ -118,11 +118,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             .unwrap_or(&empty_excludes),
     );
     for diagnostic in &extraction.diagnostics {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "SymbolExtraction",
             &format!("{}: {}", diagnostic.path, diagnostic.reason),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     let graph = model
         .map(|traceability| quire_rs::symbols::trace::bind(&extraction, traceability))
@@ -155,7 +155,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     let mut output = if ctx.pretty {
-        io::pretty_validated_json_bytes(&compact)
+        ix_cli_kit::json::pretty_validated_json_bytes(&compact)
     } else {
         compact
     };
