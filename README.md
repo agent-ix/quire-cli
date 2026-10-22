@@ -383,3 +383,5 @@ to integration tests, benchmarks, or static audits.
 ## License
 
 AGPL-3.0-or-later
+
+<!-- STD-30 language-boundary canary: inert README change. -->
