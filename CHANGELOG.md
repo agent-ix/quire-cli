@@ -17,7 +17,6 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 - **Added `quire check-lock` (IR-736, US-008).** Checks distributed Git `Cargo.lock` revision coherence across repositories under the normalized agent-ix policy; typed `Cargo.lock` intake, no network access.
 - Adopt shared `ix-cli-kit` self-update and CLI helpers.
-- Add a Rust language boundary caller.
 
 ## [0.36.2] - 2026-10-07
 
