@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.37.1] - 2026-10-28
+
+- Update to quire-rs 0.50.3, which honors optional trace targets whose archetype is absent from the corpus.
+
 ## [0.37.0] - 2026-10-24
 
 - **Added `quire check-lock` (IR-736, US-008).** Checks distributed Git `Cargo.lock` revision coherence across repositories under the normalized agent-ix policy; typed `Cargo.lock` intake, no network access.
