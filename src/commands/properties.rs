@@ -247,7 +247,6 @@ fn obligation_json(obligation: Option<&quire_rs::obligation::CriterionObligation
         Some(o) => {
             let mut out = json!({
                 "source": o.source,
-                "statement_hash": o.statement_hash,
                 "method": o.method,
                 "criticality": o.criticality,
             });
