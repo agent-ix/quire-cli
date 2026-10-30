@@ -210,9 +210,7 @@ fn write_json<T: serde::Serialize>(ctx: &Ctx, value: &T) -> anyhow::Result<()> {
 fn render_binding_human(report: &ClauseBindingReport) -> String {
     let mut out = format!(
         "Clause set {}/{}/{}\n",
-        report.clause_set.authority,
-        report.clause_set.id,
-        report.clause_set.version
+        report.clause_set.authority, report.clause_set.id, report.clause_set.version
     );
     for clause in &report.clauses {
         out.push_str(&format!(
