@@ -7,6 +7,7 @@
 mod common;
 
 use assert_cmd::prelude::*;
+use ix_trace_rs::trace;
 use predicates::prelude::*;
 
 use common::{iso_module, quire, validate_module};
@@ -30,6 +31,49 @@ fn it_060_schema_fr_emits_frontmatter_schema_and_asserts() {
                 .and(predicate::str::contains("Specification"))
                 .and(predicate::str::contains("Acceptance Criteria")),
         );
+}
+
+// Keep schema discovery working for an artifact type when the module carries
+// semantic-core 0.3.3 in its semantic block.
+#[trace("FR-009-AC-1")]
+#[test]
+fn it_064_schema_accepts_semantic_core_033_module() {
+    quire()
+        .arg("schema")
+        .arg("FR")
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"archetype\":\"FR\""));
+}
+
+// Keep schema discovery working for an object module carrying semantic-core
+// 0.3.2 while newer module manifests may carry 0.3.3.
+#[trace("FR-009-AC-1")]
+#[test]
+fn it_065_schema_accepts_semantic_core_032_module() {
+    let temp = tempfile::tempdir().expect("temporary module root");
+    let source = validate_module();
+    std::fs::create_dir_all(temp.path().join("schemas")).expect("schema directory");
+    for relative in ["manifest.yaml", "schemas/fr-frontmatter.schema.json"] {
+        std::fs::copy(source.join(relative), temp.path().join(relative))
+            .expect("copy fixture file");
+    }
+    let manifest = temp.path().join("manifest.yaml");
+    let original = std::fs::read_to_string(&manifest).expect("read fixture manifest");
+    assert!(original.contains("semantic_core: 0.3.3"));
+    let contents = original.replace("semantic_core: 0.3.3", "semantic_core: 0.3.2");
+    std::fs::write(&manifest, contents).expect("write fixture manifest");
+
+    quire()
+        .arg("schema")
+        .arg("FR")
+        .arg("--module")
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"archetype\":\"FR\""));
 }
 
 // IT-061, FR-009-AC-2: the JSON describes per-section asserts (headings /
