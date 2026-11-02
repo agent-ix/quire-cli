@@ -11,10 +11,11 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 - **Breaking: digests and hashes removed from outputs.** `quire properties --json` no longer emits `statement_hash` on a criterion obligation. The `quire assurance` v1 export locator is `{path, line}` only (no `digest`), obligations carry no `statement_hash`, and symbol ids are JSON-array identity parts rather than SHA-256 hex. `quire clauses` human binding output no longer prints a clause-set digest. Follows quire-rs assurance-v1 edited in place.
 
-## [0.37.2] - 2026-11-02
+## [0.38.0] - 2026-11-02
 
+- **Breaking:** align `quire assurance` with the current quire-rs assurance-v1 contract by removing `--repository` and `--revision` inputs and the `source` output premise.
 - Keep `quire schema` loading current semantic module manifests that carry the legacy informational `semantic_core` field; the embedded bundle remains authoritative.
-- Pin quire-rs to the reviewed compatibility fix and align the release package versions.
+- Pin quire-rs 0.50.4, including the reviewed semantic-loader and matrix performance fixes, and align native/npm release package versions.
 
 ## [0.37.1] - 2026-10-28
 

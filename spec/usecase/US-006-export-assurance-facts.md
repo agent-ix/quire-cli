@@ -18,8 +18,7 @@ successful one.
 
 ## Acceptance Examples (Illustrative)
 
-- A producer supplies a bounded repository scope, one exact
-  module, a repository identity, and a full immutable revision and receives a
+- A producer supplies a bounded repository scope and one exact module and receives a
   `quire-assurance` v1 JSON document on stdout.
 - A producer can pin the expected module version; any mismatch fails before
   stdout.

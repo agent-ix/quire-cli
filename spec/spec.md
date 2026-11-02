@@ -163,8 +163,7 @@ removed — see §2bis):
 - `quire validate <doc.md|glob|->... [--scope <dir>] [--module <path>] [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. In scoped mode, relative globs are resolved under `--scope` and frontmatter `type` selects the archetype. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032). A `--okf` flag ([FR-014](./functional/FR-014-validate-okf-bundle.md)) validates a directory as an OKF bundle under the permissive posture (unknown types / broken `ix://` links / index-completeness gaps warn; untyped docs are hard errors) via `quire_rs::validate_bundle_at`.
 - `quire schema <archetype> --module <path>` — emit the asserts-based input contract (FR-029) as JSON.
 - `quire lookup` / `quire edit` — read / byte-splice a section or stable block (consumer of `quire-rs` query + `update_section`/`update_block`).
-- `quire assurance --scope <dir> --module <path> --repository <identity>
-  --revision <full-sha> --expect-module <name@version>
+- `quire assurance --scope <dir> --module <path> --expect-module <name@version>
   [--expect-schema <module/archetype>]...` — emit quire-rs's closed
   `assurance-v1` static projection after exact premise validation; executes no
   test, proof, solver, consumer, package-manager, Git, or network command.
