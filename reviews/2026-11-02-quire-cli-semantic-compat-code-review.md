@@ -1,9 +1,9 @@
 ---
 id: SR-14564
-title: "Code review of quire-cli semantic compatibility fix"
+title: "Code review of quire-cli 0.38.0 compatibility release"
 type: SpecReview
 analysis: code-review
-scope: "CHANGELOG.md, Cargo.toml, Cargo.lock, npm/quire-cli/package.json, tests/cli_schema.rs, tests/fixtures/validate-mod/manifest.yaml"
+scope: "CHANGELOG.md, Cargo.toml, Cargo.lock, npm/quire-cli/package.json, src/commands/assurance.rs, spec/functional/FR-020-assurance-export-subcommand.md, spec/spec.md, spec/tests.md, spec/usecase/US-006-export-assurance-facts.md, tests/audit_no_network.rs, tests/cli_assurance.rs, tests/fixtures/assurance/v1.json, tests/cli_schema.rs, tests/fixtures/validate-mod/manifest.yaml"
 review_set: subset
 relationships:
   - target: "ix://agent-ix/quire-cli/FR-009"
@@ -12,11 +12,11 @@ relationships:
 
 ## Summary
 
-Code review examined the CLI release pin, Cargo/npm version alignment, the semantic-core fixtures, and schema command tests. No open code findings remain.
+Code review examined the current semantic manifest loader fix, matrix engine pin, Cargo/npm version alignment, the assurance-v1 CLI contract update, and regression tests. The CLI source/revision arguments and output premise are removed to match quire-rs 0.50.4; no open code findings remain.
 
 ## Verdict
 
-**PASS** — no open code findings in the reviewed change; all 7 schema integration tests pass. Hosted CI remains required before merge.
+**PASS** — no open code findings; all 7 assurance integration tests pass locally, Clippy passes, and hosted CI passes on the release candidate.
 
 ## Assurance Context
 
@@ -30,4 +30,4 @@ No applicable AssuranceProfile was found in the Quire CLI spec tree for this rel
 
 ## Rust Review
 
-Rust review: version metadata is aligned at 0.37.2 across Cargo and npm packages; the CLI pins the Quire-RS fix commit and Cargo.lock records the same revision. The changelog records the release behavior. The regression tests exercise the real CLI process with semantic-core 0.3.2 and 0.3.3 manifests; the replacement test asserts its fixture precondition and both added tests carry the FR-009 trace tag. `cargo fmt` and Clippy pass; all 7 `cli_schema` tests pass. Full `make ci` is blocked locally because the Python cross-language test environment lacks the `jsonschema` module. Hosted CI remains the release gate.
+Rust review: version metadata is aligned at 0.38.0 across Cargo and npm packages; the CLI pins the merged Quire-RS 0.50.4 commit and Cargo.lock records the same revision. The changelog describes the breaking assurance-v1 source-premise removal. Tests exercise the real CLI process for both current semantic manifest compatibility and assurance export behavior. `cargo fmt`, Clippy, and all 7 assurance integration tests pass locally. The full local suite's cross-language probe could not run because Python lacks the `jsonschema` module; hosted CI passes on the release candidate.
