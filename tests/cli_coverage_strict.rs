@@ -155,7 +155,10 @@ fn retired_fixture(retirement_declared: bool, rows: &str) -> TempDir {
              \x20 document_references:\n  - name: verification\n    archetype: FR\n\
              \x20   section: Acceptance Criteria\n    column: Verification\n\
              \x20   row_id_column: ID\n    pattern: '(FR-\\d+-AC-\\d+)'\n\
-             \x20   targets: [criterion]\n  status:\n    column: Status\n\
+             \x20   targets: [criterion]\n  obligations:\n\
+             \x20 - name: acceptance-criterion\n    target: criterion\n\
+             \x20   statement_column: Criteria\n    method_column: Verification\n\
+             \x20 status:\n    column: Status\n\
              \x20   complete: [done]\n    pending: [planned]\n{vocabulary}"
         ),
     )
@@ -275,4 +278,65 @@ fn strict_undeclared_and_misspelled_retirement_values_stay_live() {
         assert!(report.get("retired_rows").is_none(), "{report}");
         assert_eq!(report["unbacked_rows"][0]["row_id"], "FR-038-AC-92");
     }
+}
+
+#[trace("FR-026-AC-7", "FR-026-AC-10", "FR-050-AC-56")]
+#[test]
+fn matrix_retains_retired_status_without_hiding_a_live_gap() {
+    let dir = retired_fixture(true, &tombstone_row("Withdrawn"));
+    for format in ["markdown", "json", "tsv"] {
+        let out = common::quire()
+            .arg("matrix")
+            .arg("--scope")
+            .arg(dir.path())
+            .arg("--module")
+            .arg(dir.path().join("m"))
+            .args(["--strict", "--format", format])
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{format}: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let text = String::from_utf8_lossy(&out.stdout);
+        match format {
+            "json" => {
+                let payload: Value = serde_json::from_slice(&out.stdout).unwrap();
+                let criterion = &payload["coverage_matrix"][0]["criteria"][0];
+                assert_eq!(criterion["id"], "FR-038-AC-92");
+                assert_eq!(criterion["statement"], WITHDRAWAL_REASON);
+                assert_eq!(criterion["status"], "retired");
+                assert!(criterion["binders"].as_array().unwrap().is_empty());
+            }
+            "markdown" => assert!(text.contains("| retired |"), "{text}"),
+            "tsv" => assert!(text.contains("\tretired\t"), "{text}"),
+            _ => unreachable!(),
+        }
+    }
+    retired_document(
+        &dir,
+        &format!(
+            "{}| FR-038-AC-93 | Planned until a named follow-up lands. | Test | planned |\n",
+            tombstone_row("Withdrawn")
+        ),
+    );
+    let out = common::quire()
+        .arg("matrix")
+        .arg("--scope")
+        .arg(dir.path())
+        .arg("--module")
+        .arg(dir.path().join("m"))
+        .args(["--strict", "--format", "json"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("1 untagged criterion(s)"));
+    let payload: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let criteria = payload["coverage_matrix"][0]["criteria"]
+        .as_array()
+        .unwrap();
+    assert_eq!(criteria.len(), 2);
+    assert_eq!(criteria[0]["status"], "retired");
+    assert_eq!(criteria[1]["status"], "untagged");
 }
