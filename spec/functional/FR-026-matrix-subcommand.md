@@ -13,6 +13,16 @@ relationships:
 
 ## Description
 
+> **CR note (retained retirement rows, PLAT-1236, 2026-11-02):**
+> The engine now retains explicitly retired criteria with status `retired`.
+> `matrix` SHALL render that status verbatim in each format and preserve the
+> historical criterion as a nonempty population without claiming source backing.
+> A retired criterion alone SHALL NOT fail `--strict`; live untagged and
+> ignored-only criteria SHALL retain their failures beside it. The population
+> remains the engine's derived obligations. Its exact retirement metadata may
+> come from the engine's locus-scoped reconciliation join; `matrix` does not
+> independently read or interpret document-reference status columns.
+
 The CLI SHALL provide a `matrix` subcommand that renders the quire-rs
 **computed** coverage matrix (upstream
 [FR-050](ix://agent-ix/quire-rs/FR-050)-AC-47..51, `CoverageReport.coverage_matrix`)
@@ -197,7 +207,7 @@ from any other part of the same `CoverageReport`.
 - **`--strict`** exits 1 when any criterion in `coverage_matrix` computes
   `untagged` or `tagged-by-ignored-test`, or when the population is zero
   criteria (§B); it exits 0 only when there is **at
-  least one** criterion and every one computes `tagged` or
+  least one** criterion and every one computes `tagged`, `retired`, or
   `method-without-symbol`. `method-without-symbol` **never** fails `--strict`
   on its own, regardless of its binder count: FR-050-AC-49 defines it as the
   declared-method exemption (mirroring `coverage`'s `no_source_symbol`
@@ -212,10 +222,11 @@ from any other part of the same `CoverageReport`.
 measurement gate (`status-column-matches-nothing` / `hollow-denominator`):
 that gate exists because `coverage` reconciles a document-reference **status
 column** against test evidence, and a column nothing could read invalidates
-that specific measurement. `coverage_matrix` reads no status column at all —
-it is built solely from the module's `obligations:`-derived criteria and
-their binders (FR-050-AC-47) — so there is no unread-column state for
-`matrix` to have an opinion about (AC-12).
+that specific measurement. `matrix` does not independently read a status column. Its population is the
+module's `obligations:`-derived criteria and their binders, with locus-scoped
+retirement metadata supplied by the engine (FR-050-AC-47). The command does not
+add the coverage report's unread-measurement gate to its matrix-status verdict
+(AC-12).
 
 ### §H — Exit codes
 
@@ -238,9 +249,9 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 | FR-026-AC-7 | `--format json` emits `{"coverage_matrix": <value>, "engine": {cli, engine, capabilities}}` on stdout; the `coverage_matrix` key carries the engine's own value unmodified — a bare array of requirement entries, never re-wrapped in an object — and is absent when the engine omits it (zero population), never present-but-empty; two runs over identical inputs are byte-identical | Test |
 | FR-026-AC-8 | `--format tsv` emits header `document\tcriterion\tstatus\tbinders\tstatement`, one untruncated, unescaped record per criterion in the JSON/markdown order, `binders` comma-separated as `path:line:column` with the same `(ignored)` marker and empty (not `(none)`) at zero; a zero-criteria report (§B) emits the header alone | Test |
 | FR-026-AC-9 | The zero-population state — `coverage_matrix` absent, whether the module declares no `obligations:` source or declares one that derives nothing — renders in markdown as the single line `No obligations matched this scope.` (no heading, no table) and in TSV as the header alone; `--format json` omits the key, as the engine does | Test |
-| FR-026-AC-10 | `--strict`'s pass condition requires **at least one** criterion, all `tagged`/`method-without-symbol`: it exits 1 on the zero-population state (§B) exactly as it exits 1 on an `untagged`/`tagged-by-ignored-test` criterion — a report measuring nothing must not exit 0 (FR-050-AC-14/CR-035 argument, applied to the derived-obligation population) | Test |
+| FR-026-AC-10 | `--strict`'s pass condition requires **at least one** criterion, all `tagged`/`retired`/`method-without-symbol`: it exits 1 on the zero-population state (§B) exactly as it exits 1 on an `untagged`/`tagged-by-ignored-test` criterion — a report measuring nothing must not exit 0 (FR-050-AC-14/CR-035 argument, applied to the derived-obligation population) | Test |
 | FR-026-AC-11 | A criterion computing `method-without-symbol` never fails `--strict` on its own, regardless of its binder count, and renders in every format exactly like any other criterion — its own `Status`/`status` cell/field states `method-without-symbol` verbatim | Test |
-| FR-026-AC-12 | `matrix` does not accept `--severity` (an attempt is an ordinary clap argv error, exit 3, FR-007-AC-5) and runs none of the `unbacked-row`/`status-lie`/`untracked-symbol`/`undeclared-status` checks; a module's `grammar_severity` promotion of any of those checks has no effect on `matrix`'s exit code, because `coverage_matrix` carries none of their record kinds. `matrix` also does not inherit `coverage`'s FR-017-AC-22 unread-measurement gate (`status-column-matches-nothing`/`hollow-denominator`): `coverage_matrix` reads no status column, so there is no unread-column state for it to gate on | Test |
+| FR-026-AC-12 | `matrix` does not accept `--severity` (an attempt is an ordinary clap argv error, exit 3, FR-007-AC-5) and runs none of the `unbacked-row`/`status-lie`/`untracked-symbol`/`undeclared-status` checks; a module's `grammar_severity` promotion of any of those checks has no effect on `matrix`'s exit code, because `coverage_matrix` carries none of their record kinds. `matrix` also does not inherit `coverage`'s FR-017-AC-22 unread-measurement gate (`status-column-matches-nothing`/`hollow-denominator`): `matrix` consumes the engine's computed status, including locus-scoped retirement metadata, without independently evaluating a status column | Test |
 | FR-026-AC-13 | `matrix` uses only the FR-007 exit codes — 0, 1, 2, 3, 4 — across every case above, including an unrecognized `--severity` flag (exit 3); the shared taxonomy is authoritative | Test |
 | FR-026-AC-14 | `matrix` never opens a file for writing: no flag names an output path, and running it in every format against a fixture repository leaves every file anywhere under `<scope>` — not only under `<scope>/spec` — byte-identical before and after the run | Test |
 
