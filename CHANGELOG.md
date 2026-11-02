@@ -13,6 +13,7 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [0.38.1] - 2026-11-02
 
+- Adopt quire-rs 0.51.0 for explicit module-declared retirement and separately reported historical coverage rows.
 - Preserve explicitly retired coverage declarations and their withdrawal reasons without counting them as live unbacked rows. Strict coverage distinguishes an all-retired scope from a scope with no matched declarations; live and Planned gaps still fail.
 - Show the separate retired count in the human coverage census, using `no live rows` for an all-retired denominator.
 
