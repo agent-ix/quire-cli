@@ -41,3 +41,15 @@ Scoped source and spec review; no workflow diff. Plan completion: not assessed. 
 ## Verdict
 
 CONDITIONAL / NEEDS FIX: resolve the committed dependency and final-head qualification before merge.
+
+## Dispositions
+
+### Round 1
+
+Rechecked frozen CLI head `7e677e9bfd753c017b52bd71820d1e515cff5714`. Manifest and lock now resolve the actual merged/released engine 0.51.0 at c0fa4135c754437ed8aa4370f0faf62cbb2a09eb, including quire-rust-extraction from that same Git source. No path patch remains. Inspected final-dependency-receipt.json and actual final logs: formatting and touched Clippy pass; strict coverage 6/6 and matrix 15/15 pass against the committed dependency. The retained binary reports CLI 0.38.1 / engine 0.51.0. Source comparison confirms the released API supplies retired counts and the closed Retired matrix variant. Parent owns the final hosted aggregate after artifact import; no aggregate, wheel publication or CLI release claim is made by this disposition. No additional code finding was introduced by the dependency-only change. No Cargo or source edits.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Manifest and matching lock adopt released engine 0.51.0 at c0fa4135; actual final-dependency focused qualification passes without a candidate patch. |
+
+Round 1 verdict: finding resolved; review is mergeable after the parent-run qualifying hosted aggregate.
