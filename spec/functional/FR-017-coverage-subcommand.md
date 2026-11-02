@@ -10,6 +10,22 @@ relationships:
 
 ## Description
 
+> **CR note (retained retirement rows, PLAT-1236, 2026-11-02):**
+> quire-rs FR-050 distinguishes explicitly retired declarations from live
+> coverage gaps. The engine retains their identities and withdrawal reasons,
+> counts retired targets separately, and excludes them from live unbacked rows
+> and contradicted statuses. The CLI SHALL preserve that report rather than
+> reinterpret verification cells. The zero-matched-rows strict premise SHALL
+> consider both live and retired minted targets: an all-retired scope has
+> historical declarations, whereas an empty scope has none. Live and Planned
+> unbacked rows, contradicted live statuses and unread measurements SHALL retain
+> their existing strict failures beside retired rows.
+> The human census SHALL name the separate retired count when nonzero and say
+> `no live rows` for an all-retired denominator, rather than claiming no rows
+> matched or 100% backing. With no retired rows its existing rendering SHALL
+> remain unchanged. Retired row history is exposed by the complete JSON report;
+> this change adds no TSV record kind.
+
 > **CR note (explicit reference status selection, quire-rs#409, 2026-09-06):**
 > A document reference may select its exact status header with `status_column`;
 > omission retains the global `traceability.status.column`. Both use the same
@@ -96,9 +112,12 @@ contradicted; it is **off by default**, because whether a gap blocks is the
 consuming workflow's policy, not this command's
 ([FR-050-CON-1](ix://agent-ix/quire-rs/FR-050)).
 
-A model matching **zero** rows is reported as itself and fails `--strict`
+A model matching **zero live and zero retired** rows is reported as itself and fails `--strict`
 separately from a clean run — "found nothing" and "all covered" are opposite
-states (quire-rs FR-050-AC-14, CR-035).
+states (quire-rs FR-050-AC-14, CR-035). A nonempty all-retired population passes
+this nonempty-population premise; other strict failures still apply. The JSON
+payload preserves the engine's retired records, their authored cells and
+separate counts without manufacturing backing evidence.
 
 ### §D — Agent-sized projection (#53)
 
@@ -132,8 +151,8 @@ a consumer needs the whole rollup.
 | FR-017-AC-4 | The code walk excludes the document root: a trace-tagged source file under `<DIR>/spec` contributes no symbol, while the same file outside it does | Test (IT-087) |
 | FR-017-AC-5 | A `--scope` holding no `spec/` exits non-zero with a diagnostic naming the missing document root by path, carrying machine `kind` `MissingDocumentRoot` under `--diagnostics-format json` | Test (TC-811, IT-086) |
 | FR-017-AC-6 | With no `traceability:` model in scope the command exits non-zero naming the missing declaration, and computes nothing | Test (TC-740) |
-| FR-017-AC-7 | `--strict` exits 1 when a row is unbacked or a status is contradicted, and exits 0 on the same repository without it | Test (IT-092) |
-| FR-017-AC-8 | A model matching zero rows fails `--strict` with a diagnostic distinct from the unbacked-rows one, rather than reporting full coverage | Test (TC-797) |
+| FR-017-AC-7 | `--strict` exits 1 when a live row is unbacked or a live status is contradicted, including beside explicitly retired rows, and exits 0 on the same repository without it. Retired records and their authored withdrawal reasons remain in the JSON report without being counted as backing evidence. | Test (IT-092) |
+| FR-017-AC-8 | A model matching zero live and zero retired rows fails `--strict` with a diagnostic distinct from the unbacked-rows one, rather than reporting full coverage. A nonempty all-retired population passes this premise when no other strict failure applies. | Test (TC-797) |
 | FR-017-AC-9 | (thin boundary) reconciliation is delegated entirely to quire-rs (`compute_coverage`, `extract_tree_scoped`, `trace::bind`); the CLI resolves the two roots, applies path-safety, and renders ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)) | Inspection (TC-090) |
 | FR-017-AC-10 | A row whose status value the module's `traceability.status` classes as nothing is reported on **both** surfaces — as an `undeclared_statuses` entry in `--json` and as a rendered line in the default human census — carrying the authored value verbatim. `--strict` does not gate on it: the exit code for a report whose only finding is an undeclared status is the same with and without the flag (CR-083) | Test (IT-107) |
 | FR-017-AC-11 | A module-declared `traceability.source_exclude` glob reaches the source walk: a tagged file matching one contributes no symbol, a tagged file outside every glob still does, and a scope whose module declares none behaves exactly as before (CR-085) | Test (IT-108) |
