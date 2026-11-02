@@ -32,6 +32,20 @@ fn it_060_schema_fr_emits_frontmatter_schema_and_asserts() {
         );
 }
 
+// Current public modules declare semantic-core 0.3.3. Keep schema discovery
+// working for an artifact type when that semantic block is present.
+#[test]
+fn it_064_schema_accepts_semantic_core_033_module() {
+    quire()
+        .arg("schema")
+        .arg("FR")
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"archetype\":\"FR\""));
+}
+
 // IT-061, FR-009-AC-2: the JSON describes per-section asserts (headings /
 // columns / id-patterns) — the asserts-based contract — and carries NO
 // template-variable list.
