@@ -33,8 +33,9 @@ fn it_060_schema_fr_emits_frontmatter_schema_and_asserts() {
         );
 }
 
-// Current public modules declare semantic-core 0.3.3. Keep schema discovery
-// working for an artifact type when that semantic block is present.
+// Keep schema discovery working for an artifact type when the module carries
+// semantic-core 0.3.3 in its semantic block.
+#[trace("FR-009-AC-1")]
 #[test]
 fn it_064_schema_accepts_semantic_core_033_module() {
     quire()
@@ -47,8 +48,8 @@ fn it_064_schema_accepts_semantic_core_033_module() {
         .stdout(predicate::str::contains("\"archetype\":\"FR\""));
 }
 
-// Existing public object modules still declare semantic-core 0.3.2. Keep
-// accepting that manifest while newer artifact modules declare 0.3.3.
+// Keep schema discovery working for an object module carrying semantic-core
+// 0.3.2 while newer module manifests may carry 0.3.3.
 #[trace("FR-009-AC-1")]
 #[test]
 fn it_065_schema_accepts_semantic_core_032_module() {
