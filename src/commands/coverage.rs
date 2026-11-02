@@ -195,7 +195,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // where the two lists below are empty for the *wrong* reason. Checked
         // first, and reported as itself — a gate told "0 unbacked rows" learns
         // the opposite of the truth.
-        if report.totals.total == 0 {
+        if report.totals.total == 0 && report.totals.retired == 0 {
             partial_report!(
                 "the declared traceability model matched no rows in this scope, \
                  so nothing was reconciled (--strict); check that the model's \
@@ -536,6 +536,14 @@ fn percent_label(backed: usize, total: usize) -> String {
     }
 }
 
+fn coverage_percent_label(backed: usize, total: usize, retired: usize) -> String {
+    if total == 0 && retired > 0 {
+        "no live rows".to_string()
+    } else {
+        percent_label(backed, total)
+    }
+}
+
 /// The lead and trailer of a human finding line (#51, FR-017-AC-12/AC-16).
 ///
 /// With a row id — the declaration names a `row_id_column` — the id leads
@@ -632,9 +640,12 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()
             "Coverage: {}/{} rows backed ({})",
             t.backed,
             t.total,
-            percent_label(t.backed, t.total)
+            coverage_percent_label(t.backed, t.total, t.retired)
         )
     );
+    if t.retired > 0 {
+        primary_line!("{} retired historical row(s)", t.retired);
+    }
     for line in census_lines(report) {
         primary_line!("{}", &line);
     }
@@ -646,7 +657,7 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()
                 g.document,
                 g.backed,
                 g.total,
-                percent_label(g.backed, g.total)
+                coverage_percent_label(g.backed, g.total, g.retired)
             )
         );
     }

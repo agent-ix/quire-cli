@@ -28,7 +28,7 @@ pub struct Args {
     pub format: Format,
 
     /// Exit 1 unless there is at least one criterion and every criterion
-    /// computes `tagged` or `method-without-symbol`.
+    /// computes `tagged`, `retired`, or `method-without-symbol`.
     #[arg(long)]
     pub strict: bool,
 }
@@ -99,7 +99,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 /// What `--strict` concludes from the matrix alone.
 #[derive(Debug, PartialEq, Eq)]
 enum Verdict {
-    /// At least one criterion, every one `tagged` or `method-without-symbol`.
+    /// At least one criterion, every one `tagged`, `retired`, or `method-without-symbol`.
     Pass,
     /// Zero criteria: a report that measured nothing.
     Empty,
@@ -116,7 +116,9 @@ fn strict_verdict(matrix: &[CoverageMatrixRequirement]) -> Verdict {
     for criterion in matrix.iter().flat_map(|r| &r.criteria) {
         total += 1;
         match criterion.status {
-            CoverageMatrixStatus::Tagged | CoverageMatrixStatus::MethodWithoutSymbol => {}
+            CoverageMatrixStatus::Tagged
+            | CoverageMatrixStatus::Retired
+            | CoverageMatrixStatus::MethodWithoutSymbol => {}
             CoverageMatrixStatus::Untagged => untagged += 1,
             CoverageMatrixStatus::TaggedByIgnoredTest => ignored_only += 1,
         }
@@ -136,6 +138,7 @@ fn strict_verdict(matrix: &[CoverageMatrixRequirement]) -> Verdict {
 /// The status as the engine spells it on the wire.
 fn status_token(status: CoverageMatrixStatus) -> &'static str {
     match status {
+        CoverageMatrixStatus::Retired => "retired",
         CoverageMatrixStatus::Tagged => "tagged",
         CoverageMatrixStatus::Untagged => "untagged",
         CoverageMatrixStatus::TaggedByIgnoredTest => "tagged-by-ignored-test",
@@ -257,6 +260,7 @@ mod tests {
     #[test]
     fn status_tokens_match_the_engine_wire_spelling() {
         for status in [
+            CoverageMatrixStatus::Retired,
             CoverageMatrixStatus::Tagged,
             CoverageMatrixStatus::Untagged,
             CoverageMatrixStatus::TaggedByIgnoredTest,
@@ -291,6 +295,7 @@ mod tests {
             strict_verdict(&[requirement(vec![
                 criterion("A", CoverageMatrixStatus::Tagged),
                 criterion("B", CoverageMatrixStatus::MethodWithoutSymbol),
+                criterion("C", CoverageMatrixStatus::Retired),
             ])]),
             Verdict::Pass
         );
