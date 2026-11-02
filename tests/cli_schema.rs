@@ -7,6 +7,7 @@
 mod common;
 
 use assert_cmd::prelude::*;
+use ix_trace_rs::trace;
 use predicates::prelude::*;
 
 use common::{iso_module, quire, validate_module};
@@ -48,6 +49,7 @@ fn it_064_schema_accepts_semantic_core_033_module() {
 
 // Existing public object modules still declare semantic-core 0.3.2. Keep
 // accepting that manifest while newer artifact modules declare 0.3.3.
+#[trace("FR-009-AC-1")]
 #[test]
 fn it_065_schema_accepts_semantic_core_032_module() {
     let temp = tempfile::tempdir().expect("temporary module root");
@@ -58,8 +60,9 @@ fn it_065_schema_accepts_semantic_core_032_module() {
             .expect("copy fixture file");
     }
     let manifest = temp.path().join("manifest.yaml");
-    let contents = std::fs::read_to_string(&manifest).expect("read fixture manifest");
-    let contents = contents.replace("semantic_core: 0.3.3", "semantic_core: 0.3.2");
+    let original = std::fs::read_to_string(&manifest).expect("read fixture manifest");
+    assert!(original.contains("semantic_core: 0.3.3"));
+    let contents = original.replace("semantic_core: 0.3.3", "semantic_core: 0.3.2");
     std::fs::write(&manifest, contents).expect("write fixture manifest");
 
     quire()
