@@ -3,7 +3,7 @@ id: SR-14564
 title: "Code review of quire-cli semantic compatibility fix"
 type: SpecReview
 analysis: code-review
-scope: "Cargo.toml, Cargo.lock, npm/quire-cli/package.json, tests/cli_schema.rs, tests/fixtures/validate-mod/manifest.yaml"
+scope: "CHANGELOG.md, Cargo.toml, Cargo.lock, npm/quire-cli/package.json, tests/cli_schema.rs, tests/fixtures/validate-mod/manifest.yaml"
 review_set: subset
 relationships:
   - target: "ix://agent-ix/quire-cli/FR-009"
@@ -30,4 +30,4 @@ No applicable AssuranceProfile was found in the Quire CLI spec tree for this rel
 
 ## Rust Review
 
-Rust review: version metadata is aligned at 0.37.2 across Cargo and npm packages; the CLI pins the Quire-RS fix commit and Cargo.lock records the same revision. The regression tests exercise the real CLI process with semantic-core 0.3.2 and 0.3.3 manifests; the replacement test asserts its fixture precondition and both added tests carry the FR-009 trace tag. `cargo fmt` and Clippy pass; all 7 `cli_schema` tests pass. Full `make ci` is blocked locally because the Python cross-language test environment lacks the `jsonschema` module. Hosted CI remains the release gate.
+Rust review: version metadata is aligned at 0.37.2 across Cargo and npm packages; the CLI pins the Quire-RS fix commit and Cargo.lock records the same revision. The changelog records the release behavior. The regression tests exercise the real CLI process with semantic-core 0.3.2 and 0.3.3 manifests; the replacement test asserts its fixture precondition and both added tests carry the FR-009 trace tag. `cargo fmt` and Clippy pass; all 7 `cli_schema` tests pass. Full `make ci` is blocked locally because the Python cross-language test environment lacks the `jsonschema` module. Hosted CI remains the release gate.
