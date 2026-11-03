@@ -11,6 +11,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 - **Breaking: digests and hashes removed from outputs.** `quire properties --json` no longer emits `statement_hash` on a criterion obligation. The `quire assurance` v1 export locator is `{path, line}` only (no `digest`), obligations carry no `statement_hash`, and symbol ids are JSON-array identity parts rather than SHA-256 hex. `quire clauses` human binding output no longer prints a clause-set digest. Follows quire-rs assurance-v1 edited in place.
 
+## [0.38.2] - 2026-11-03
+
+- Adopt quire-rs 0.52.0, which reads module-declared composition metadata for semantic relationship extraction.
+
 ## [0.38.1] - 2026-11-02
 
 - Adopt quire-rs 0.51.0 for explicit module-declared retirement and separately reported historical coverage rows.
