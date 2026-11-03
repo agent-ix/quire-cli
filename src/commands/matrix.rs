@@ -246,6 +246,8 @@ mod tests {
             statement: "s".to_string(),
             method: None,
             binders: Vec::new(),
+            record_binders: None,
+            identity: None,
             status,
         }
     }
