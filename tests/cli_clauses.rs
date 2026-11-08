@@ -30,17 +30,26 @@ fn set(version: &str, changed: bool) -> ClauseSet {
             clearance_ref: None,
         },
         source: None,
-        classification_dimensions: BTreeMap::from([(
-            "impact".into(),
-            ClassificationDimension {
-                values: vec!["low".into(), "medium".into(), "high".into()],
-                order: vec![
-                    vec!["low".into()],
-                    vec!["medium".into()],
-                    vec!["high".into()],
-                ],
-            },
-        )]),
+        classification_dimensions: BTreeMap::from([
+            (
+                "impact".into(),
+                ClassificationDimension {
+                    values: vec!["low".into(), "medium".into(), "high".into()],
+                    order: vec![
+                        vec!["low".into()],
+                        vec!["medium".into()],
+                        vec!["high".into()],
+                    ],
+                },
+            ),
+            (
+                "audience".into(),
+                ClassificationDimension {
+                    values: vec!["internal".into(), "external".into()],
+                    order: vec![vec!["internal".into()], vec!["external".into()]],
+                },
+            ),
+        ]),
         output_catalog: BTreeMap::from([(
             "test-result".into(),
             ExpectedOutput {
@@ -61,9 +70,17 @@ fn set(version: &str, changed: bool) -> ClauseSet {
             obligated_actors: vec!["release-owner".into()],
             approval_roles: vec!["reviewer".into()],
             styles: BTreeMap::new(),
-            applicability: Some(ApplicabilityExpr::AtLeast {
-                dimension: "impact".into(),
-                value: "medium".into(),
+            applicability: Some(ApplicabilityExpr::All {
+                terms: vec![
+                    ApplicabilityExpr::AtLeast {
+                        dimension: "impact".into(),
+                        value: "medium".into(),
+                    },
+                    ApplicabilityExpr::Eq {
+                        dimension: "audience".into(),
+                        value: "internal".into(),
+                    },
+                ],
             }),
             expected_outputs: vec!["test-result".into()],
         }],
@@ -97,6 +114,38 @@ fn module(dir: &TempDir) -> String {
     fs::write(
         root.join("clauses/v1.json"),
         serde_json::to_vec_pretty(&set("1.0.0", false)).unwrap(),
+    )
+    .expect("write v1");
+    fs::write(
+        root.join("clauses/v2.json"),
+        serde_json::to_vec_pretty(&set("2.0.0", true)).unwrap(),
+    )
+    .expect("write v2");
+    root.to_string_lossy().into_owned()
+}
+
+fn module_with_tsv_delimiter(dir: &TempDir) -> String {
+    let root = dir.path().join("module");
+    fs::create_dir_all(root.join("clauses")).expect("create clause directory");
+    fs::write(
+        root.join("manifest.yaml"),
+        "name: synthetic-clause-module\nclause_sets:\n  - clauses/v1.json\n  - clauses/v2.json\n",
+    )
+    .expect("write manifest");
+
+    let expected_output = "test\tresult";
+    let mut first = set("1.0.0", false);
+    first.output_catalog = BTreeMap::from([(
+        expected_output.into(),
+        ExpectedOutput {
+            kind: "record".into(),
+            description: "A synthetic test result".into(),
+        },
+    )]);
+    first.clauses[0].expected_outputs = vec![expected_output.into()];
+    fs::write(
+        root.join("clauses/v1.json"),
+        serde_json::to_vec_pretty(&first).unwrap(),
     )
     .expect("write v1");
     fs::write(
@@ -147,6 +196,7 @@ fn assert_conforms(payload: &Value, schema_name: &str) {
 }
 
 // IT-154, FR-021-AC-1..3, AC-6.
+/// Trace: FR-021-AC-1, FR-021-AC-2, FR-021-AC-3, FR-021-AC-6, IT-154
 #[test]
 fn it137_evaluate_emits_three_valued_provenanced_contract() {
     let dir = TempDir::new().unwrap();
@@ -165,6 +215,8 @@ fn it137_evaluate_emits_three_valued_provenanced_contract() {
             "1.0.0",
             "--context",
             "impact=high",
+            "--context",
+            "audience=internal",
             "--format",
             "json",
         ])
@@ -184,6 +236,30 @@ fn it137_evaluate_emits_three_valued_provenanced_contract() {
         .iter()
         .any(|value| value == "clause_sets"));
     assert_conforms(&payload, "clause-binding-v1.schema.json");
+
+    let not_binding = quire()
+        .args([
+            "clauses",
+            "evaluate",
+            "--module",
+            &module,
+            "--authority",
+            "example.test",
+            "--set",
+            "widget-assurance",
+            "--version",
+            "1.0.0",
+            "--context",
+            "impact=low",
+            "--context",
+            "audience=internal",
+            "--json",
+        ])
+        .output()
+        .expect("run non-binding evaluate");
+    assert!(not_binding.status.success());
+    let payload: Value = serde_json::from_slice(&not_binding.stdout).expect("non-binding JSON");
+    assert_eq!(payload["clauses"][0]["outcome"], "not_binding");
 
     let unresolved = quire()
         .args([
@@ -210,6 +286,7 @@ fn it137_evaluate_emits_three_valued_provenanced_contract() {
 }
 
 // IT-155, FR-021-AC-4, AC-6.
+/// Trace: FR-021-AC-4, FR-021-AC-6, IT-155
 #[test]
 fn it138_diff_emits_exact_version_schema_conformant_contract() {
     let dir = TempDir::new().unwrap();
@@ -245,17 +322,44 @@ fn it138_diff_emits_exact_version_schema_conformant_contract() {
 }
 
 // IT-156, FR-021-AC-5.
+/// Trace: FR-021-AC-5, IT-156
 #[test]
 fn it139_tsv_is_stable_and_machine_columned() {
     let dir = TempDir::new().unwrap();
     let module = module(&dir);
+    let human = quire()
+        .args([
+            "clauses",
+            "evaluate",
+            "--module",
+            &module,
+            "--authority",
+            "example.test",
+            "--set",
+            "widget-assurance",
+            "--version",
+            "1.0.0",
+            "--context",
+            "impact=high",
+            "--context",
+            "audience=internal",
+        ])
+        .output()
+        .expect("run human output");
+    assert!(human.status.success());
+    let human_body = String::from_utf8(human.stdout).unwrap();
+    assert!(human_body.contains("Clause set example.test/widget-assurance/1.0.0"));
+    assert!(human_body.contains("W-1\tmandatory\tbinding"));
+
+    let escaped_dir = TempDir::new().unwrap();
+    let escaped_module = module_with_tsv_delimiter(&escaped_dir);
     let run = || {
         quire()
             .args([
                 "clauses",
                 "evaluate",
                 "--module",
-                &module,
+                &escaped_module,
                 "--authority",
                 "example.test",
                 "--set",
@@ -264,6 +368,8 @@ fn it139_tsv_is_stable_and_machine_columned() {
                 "1.0.0",
                 "--context",
                 "impact=low",
+                "--context",
+                "audience=internal",
                 "--format",
                 "tsv",
             ])
@@ -275,12 +381,19 @@ fn it139_tsv_is_stable_and_machine_columned() {
     assert_eq!(first.stdout, second.stdout);
     let body = String::from_utf8(first.stdout).unwrap();
     let lines = body.lines().collect::<Vec<_>>();
+    assert_eq!(
+        lines.len(),
+        2,
+        "one clause remains one physical row: {body:?}"
+    );
     assert_eq!(lines[0].split('\t').count(), 5);
     assert_eq!(lines[1].split('\t').count(), 5);
     assert!(lines[1].contains("not_binding"));
+    assert!(lines[1].contains("test\\tresult"), "{body:?}");
 }
 
 // IT-157, FR-021-AC-1, AC-7.
+/// Trace: FR-021-AC-1, FR-021-AC-2, IT-157
 #[test]
 fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
     let dir = TempDir::new().unwrap();
@@ -304,6 +417,28 @@ fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
         .unwrap();
     assert_eq!(malformed.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&malformed.stderr).contains("KEY=VALUE"));
+
+    let duplicate = quire()
+        .args([
+            "clauses",
+            "evaluate",
+            "--module",
+            &module_path,
+            "--authority",
+            "example.test",
+            "--set",
+            "widget-assurance",
+            "--version",
+            "1.0.0",
+            "--context",
+            "impact=low",
+            "--context",
+            "impact=high",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(duplicate.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&duplicate.stderr).contains("more than once"));
 
     let missing = quire()
         .args([
@@ -341,4 +476,32 @@ fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
         .unwrap();
     assert_eq!(traversal.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&traversal.stderr).contains("PathTraversal"));
+}
+
+/// The CLI resolves caller inputs and renders the engine's result; clause
+/// applicability, rights validation, and comparison remain upstream.
+/// Trace: FR-021-AC-7, IT-157
+#[test]
+fn clause_command_delegates_semantics_to_the_engine() {
+    let source = include_str!("../src/commands/clauses.rs");
+    assert!(
+        source.contains("set.evaluate(&parse_context(&args.context)?)"),
+        "evaluation must use the engine's clause-set operation"
+    );
+    assert!(
+        source.contains("diff_clause_sets(before, after)"),
+        "comparison must use the engine's diff operation"
+    );
+    assert!(
+        source.contains("Registry::load_module_strict(&module)"),
+        "rights and module validation must come from strict engine loading"
+    );
+    assert!(
+        source.contains("registry.clause_set(authority, id, version)"),
+        "exact set selection must be delegated to the engine registry"
+    );
+    assert!(
+        !source.contains("ApplicabilityExpr") && !source.contains("ClauseSetRights"),
+        "the CLI must not implement clause semantics or rights policy"
+    );
 }

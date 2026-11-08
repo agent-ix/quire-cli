@@ -182,7 +182,7 @@ fn tombstone_row(method: &str) -> String {
     format!("| FR-038-AC-92 | {WITHDRAWAL_REASON} | {method} | planned |\n")
 }
 
-#[trace("FR-017-AC-7", "FR-050-AC-53")]
+#[trace("FR-017-AC-7")]
 #[test]
 fn strict_retired_rows_preserve_history_without_hiding_live_gaps() {
     let rows = format!(
@@ -226,7 +226,7 @@ fn strict_retired_rows_preserve_history_without_hiding_live_gaps() {
         .contains("2 unbacked row(s) and 1 contradicted status(es)"));
 }
 
-#[trace("FR-017-AC-8", "FR-050-AC-54")]
+#[trace("FR-017-AC-8")]
 #[test]
 fn strict_all_retired_scope_is_distinct_from_an_empty_scope() {
     let dir = retired_fixture(true, &tombstone_row("Withdrawn"));
@@ -265,7 +265,7 @@ fn strict_all_retired_scope_is_distinct_from_an_empty_scope() {
         .contains("the declared traceability model matched no rows"));
 }
 
-#[trace("FR-017-AC-7", "FR-050-AC-55")]
+#[trace("FR-017-AC-7")]
 #[test]
 fn strict_undeclared_and_misspelled_retirement_values_stay_live() {
     for (declared, method) in [(false, "Withdrawn"), (true, "Withdrawnn")] {
@@ -280,7 +280,7 @@ fn strict_undeclared_and_misspelled_retirement_values_stay_live() {
     }
 }
 
-#[trace("FR-026-AC-7", "FR-026-AC-10", "FR-050-AC-56")]
+#[trace("FR-026-AC-7", "FR-026-AC-10")]
 #[test]
 fn matrix_retains_retired_status_without_hiding_a_live_gap() {
     let dir = retired_fixture(true, &tombstone_row("Withdrawn"));

@@ -11,6 +11,11 @@ allow = [
     "Unicode-3.0",
     "Zlib",
 ]
+# MIT-0 is permitted only for this transitive crate; keep it out of the
+# workspace-wide license allow-list.
+exceptions = [
+    { allow = ["MIT-0"], crate = "borrow-or-share" },
+]
 confidence-threshold = 0.9
 
 [bans]

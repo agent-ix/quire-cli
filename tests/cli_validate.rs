@@ -561,6 +561,7 @@ fn it_106_ears_grammar_warnings_fail_under_strict() {
 // repo** — exit 1, plausible diagnostics, wrong tree, nothing saying so. The
 // two invocations below must agree; before the fix the second one read
 // whatever `spec/` happened to sit in the cwd.
+/// Trace: FR-004-AC-23, FR-018-AC-5, IT-121
 #[test]
 fn it_121_module_does_not_move_glob_resolution_off_scope() {
     let expected = quire()
@@ -595,6 +596,7 @@ fn it_121_module_does_not_move_glob_resolution_off_scope() {
 //
 // A glob is the case that bit: `--scope <corpus> --module <m> "docs/*.md"`
 // expanded against the cwd, so the run graded a repository nobody named.
+/// Trace: FR-004-AC-23, IT-122
 #[test]
 fn it_122_scoped_glob_ignores_the_process_directory() {
     let elsewhere = tempfile::tempdir().expect("temp cwd");
