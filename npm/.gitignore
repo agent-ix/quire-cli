@@ -1,5 +1,0 @@
-# Generated per-platform packages (built from CI artifacts at release time).
-dist/
-
-# LICENSE copied into the launcher by the Rust quire-dist tool at release time.
-quire-cli/LICENSE

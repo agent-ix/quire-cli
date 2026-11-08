@@ -6,7 +6,7 @@ type: ADR
 
 # ADR 0002: Retain a minimal Node host for the cross-platform npm launcher
 
-**Status**: decided (v1) — owner-approved 2026-09-09
+**Status**: superseded by [ADR-0003](./0003-publish-npm-through-shared-action.md) (originally decided v1, owner-approved 2026-09-09)
 **Date**: 2026-09-09
 **Decision authority**: repository owner
 

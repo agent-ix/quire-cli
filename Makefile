@@ -17,14 +17,7 @@ help:
 	@echo "  make clean            - cargo clean"
 	@echo "  make deny             - cargo deny check (advisories, bans, licenses, sources)"
 	@echo "  make audit-unsafe     - Enforce // SAFETY: comments on unsafe blocks"
-	@echo "  make dist-test        - Test native npm distribution tooling"
-	@echo "  make dist-verify      - Verify committed Cargo/npm release versions"
-	@echo "  make dist-package     - Build npm packages from artifacts/"
-	@echo "  make dist-verify-published VERSION=X.Y.Z REGISTRY=<url> - Post-publish"
-	@echo "                          gate: the published launcher and every platform"
-	@echo "                          package its optionalDependencies declares"
-	@echo "                          resolve on REGISTRY"
-	@echo "  make set-version VERSION=X.Y.Z - Update Cargo/npm versions"
+	@echo "  make dist-test        - Test the release tooling (verify-binary)"
 	@echo "  make bench            - Latency budget (NFR-001): p95 of a quire invocation ≤ 50 ms (needs hyperfine)"
 	@echo "  make ci               - All CI gates locally, including specification traceability"
 
@@ -75,27 +68,6 @@ cargo-audit:
 .PHONY: dist-test
 dist-test:
 	$(CARGO) test --locked -p quire-dist
-
-.PHONY: dist-verify
-dist-verify:
-	$(CARGO) run --locked -p quire-dist -- verify-release --version $(VERSION)
-
-.PHONY: dist-package
-dist-package:
-	$(CARGO) run --locked -p quire-dist -- package-npm --version $(VERSION)
-
-# Post-publish gate (PLAT-885): after `npm publish` for every generated
-# platform package and the launcher, assert each optionalDependency the
-# launcher declares actually resolves at its pinned version on REGISTRY.
-# Not part of `make ci` — like dist-verify/dist-package, it runs against a
-# real release and a real registry, never in the offline unit-test lane.
-.PHONY: dist-verify-published
-dist-verify-published:
-	$(CARGO) run --locked -p quire-dist -- verify-published --version $(VERSION) --registry $(REGISTRY)
-
-.PHONY: set-version
-set-version:
-	$(CARGO) run --locked -p quire-dist -- set-version --version $(VERSION)
 
 .PHONY: audit-unsafe
 audit-unsafe:

@@ -9,6 +9,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **npm publishing moves to the shared `publish-native-npm` action (PLAT-1012).** `release.yml` now publishes `@agent-ix/quire-cli` and its four platform packages through `agent-ix/nodejs-actions/publish-native-npm` (`static-musl`, so the Linux packages carry no libc restriction). The repository-owned launcher `npm/quire-cli/bin/quire.js`, `quire-dist package-npm`, `verify-published`, `set-version` and `verify-release`, and the `make dist-package`, `dist-verify`, `dist-verify-published` and `set-version` targets are removed; `quire-dist verify-binary` stays. The documented local `npm.ix` publish path, which depended on those commands, is removed. FR-023, FR-024 and NFR-008 are removed, FR-022 and US-007 are rewritten, and ADR-0003 supersedes ADR-0002.
+
 - **Breaking: digests and hashes removed from outputs.** `quire properties --json` no longer emits `statement_hash` on a criterion obligation. The `quire assurance` v1 export locator is `{path, line}` only (no `digest`), obligations carry no `statement_hash`, and symbol ids are JSON-array identity parts rather than SHA-256 hex. `quire clauses` human binding output no longer prints a clause-set digest. Follows quire-rs assurance-v1 edited in place.
 
 ## [0.38.3] - 2026-11-04

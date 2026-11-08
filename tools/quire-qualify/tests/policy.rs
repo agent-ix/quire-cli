@@ -71,9 +71,9 @@ fn make_recipes_only_orchestrate_native_qualification() {
     }
 }
 
-#[trace("TC-839", "FR-025-AC-7", "FR-025-CON-4", "FR-025-CON-5")]
+#[trace("TC-839", "FR-025-AC-7", "FR-025-CON-4")]
 #[test]
-fn executable_script_inventory_is_empty_except_for_the_npm_host() {
+fn executable_script_inventory_is_empty() {
     let root = repo_root();
     let mut files = Vec::new();
     walk_files(
@@ -110,21 +110,10 @@ fn executable_script_inventory_is_empty_except_for_the_npm_host() {
         .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("js"))
         .map(|path| path.strip_prefix(&root).unwrap().to_path_buf())
         .collect();
-    assert_eq!(javascript, [PathBuf::from("npm/quire-cli/bin/quire.js")]);
-    let launcher = fs::read_to_string(root.join(&javascript[0])).unwrap();
-    for forbidden in [
-        "coverage",
-        "benchmark",
-        "bench-p95",
-        "unsafe-comment",
-        "thin-boundary",
-        "qualification",
-    ] {
-        assert!(
-            !launcher.contains(forbidden),
-            "npm distribution host acquired qualification semantic {forbidden:?}"
-        );
-    }
+    assert!(
+        javascript.is_empty(),
+        "repository-owned JavaScript remains: {javascript:?}"
+    );
 }
 
 #[trace("TC-840", "NFR-009")]

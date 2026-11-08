@@ -18,6 +18,6 @@ ownership in the engine.
 - Does any new logic belong upstream in `quire-rs`?
 - Does the change preserve stdout/stderr and exit-code contracts?
 - Are new behavioral claims backed by executable tests and `make spec`?
-- Does npm distribution policy remain in the Rust `quire-dist` tool, with the
-  ADR-0002 Node launcher limited to transparent host selection and execution?
+- Does npm packaging stay in the shared `publish-native-npm` action (ADR-0003),
+  with no packaging or launcher code in this repository?
 - Were `make ci` and the relevant release build run locally?
