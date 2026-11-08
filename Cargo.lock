@@ -1132,7 +1132,7 @@ dependencies = [
 
 [[package]]
 name = "quire-cli"
-version = "0.38.3"
+version = "0.38.4"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1192,7 +1192,7 @@ dependencies = [
 [[package]]
 name = "quire-rs"
 version = "0.53.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=ce172a7ddcec21815f852c06fa5a0e340b79e57b#ce172a7ddcec21815f852c06fa5a0e340b79e57b"
+source = "git+https://github.com/agent-ix/quire-rs?rev=b2fe4b4b1514fd23f156d81b313cb3b32abbdb87#b2fe4b4b1514fd23f156d81b313cb3b32abbdb87"
 dependencies = [
  "agent-ix-semantic-schema",
  "globset",
@@ -1213,7 +1213,7 @@ dependencies = [
 [[package]]
 name = "quire-rust-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=ce172a7ddcec21815f852c06fa5a0e340b79e57b#ce172a7ddcec21815f852c06fa5a0e340b79e57b"
+source = "git+https://github.com/agent-ix/quire-rs?rev=b2fe4b4b1514fd23f156d81b313cb3b32abbdb87#b2fe4b4b1514fd23f156d81b313cb3b32abbdb87"
 dependencies = [
  "quire-code-parse",
 ]
