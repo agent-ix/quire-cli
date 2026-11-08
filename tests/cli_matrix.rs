@@ -973,7 +973,7 @@ fn tc841_every_matrix_exit_code_is_in_the_fr007_taxonomy() {
     assert_eq!(seen.into_iter().collect::<Vec<_>>(), [0, 1, 3]);
 }
 
-/// Trace: FR-026-AC-15
+/// Trace: FR-026-AC-16
 /// Provenance: PLAT-1150
 #[test]
 fn matrix_explains_ranges_and_partially_read_trace_lists_in_every_format() {
