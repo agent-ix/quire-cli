@@ -786,9 +786,6 @@ fn validation_remedy(reason: ValidationReason) -> &'static str {
         ValidationReason::Assert => {
             "change the cited value or structure so it satisfies the named archetype assertion"
         }
-        ValidationReason::Regex => {
-            "change the cited value so it matches the archetype's declared pattern"
-        }
         ValidationReason::Frontmatter => {
             "correct the cited frontmatter field so it satisfies the archetype schema"
         }
