@@ -265,6 +265,7 @@ fn it_119_criteria_renders_the_fields_the_census_omitted() {
 
 /// IT-120 (#60): the diagnostics channel is actually exercised, and by
 /// something other than the one class that dominated pass 2.
+/// Trace: IT-120
 ///
 /// In that pass all 33 diagnostics were `uncatalogued-verification-method`
 /// while unmatched trace symbols went unmentioned — so "diagnostics is
