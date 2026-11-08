@@ -158,6 +158,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // Scans only glossary-bearing docs — never a full-corpus parse.
     let project_terms = quire_rs::glossary_terms_from_path(&scope);
     let lexicon = registry.lexicon_with(&project_terms);
+    let bundle_package = repo_bundle_package(&scope);
 
     let mut failures = 0usize;
     let mut warned = 0usize;
@@ -219,9 +220,21 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
         // Composed type+object validation (FR-032-AC-11..13): the registry
         // is available, so resolve the frontmatter `object:` archetype too.
-        let result = quire_rs::validate_document_in_registry_with_lexicon(
-            &registry, archetype, &text, &lexicon,
-        );
+        // quire-rs FR-076: relationship targets qualify under the document's
+        // bundle package (`<org>/<repo>`). Without one every relationships
+        // table reports `no-bundle-package` and no row is checked.
+        let result = match bundle_package.as_deref() {
+            Some(package) => quire_rs::validate_document_in_bundle(
+                &registry,
+                archetype,
+                &text,
+                package,
+                Some(&lexicon),
+            ),
+            None => quire_rs::validate_document_in_registry_with_lexicon(
+                &registry, archetype, &text, &lexicon,
+            ),
+        };
         let outcome = surface_result(ctx, &label, &result);
         if outcome.had_errors {
             failures += 1;
@@ -408,6 +421,34 @@ fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
         )
         .emit(ctx.diagnostics);
     }
+}
+
+/// The repository identity (`<org>/<repo>`) taken from the scope's `origin`
+/// git remote, or `None` when the scope is not a git checkout with a remote.
+fn repo_bundle_package(scope: &Path) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(scope)
+        .args(["remote", "get-url", "origin"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    parse_remote_package(String::from_utf8_lossy(&output.stdout).trim())
+}
+
+/// Extract `<org>/<repo>` from an https, ssh or scp-style git remote URL.
+fn parse_remote_package(url: &str) -> Option<String> {
+    let url = url.trim_end_matches('/').trim_end_matches(".git");
+    let path = match url.split_once("://") {
+        Some((_, rest)) => rest.split_once('/')?.1,
+        None => url.split_once(':')?.1,
+    };
+    let mut parts = path.rsplit('/');
+    let repo = parts.next().filter(|p| !p.is_empty())?;
+    let org = parts.next().filter(|p| !p.is_empty())?;
+    Some(format!("{org}/{repo}"))
 }
 
 pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
@@ -772,6 +813,9 @@ fn validation_remedy(reason: ValidationReason) -> &'static str {
         ValidationReason::Semantic => {
             "correct the declaration named by the cited `semantic.*` diagnostic"
         }
+        ValidationReason::Regex => {
+            "change the cited value so it matches the locator's declared regex"
+        }
     }
 }
 
@@ -801,5 +845,28 @@ mod tests {
                 "default install root {default_root:?} missing from {roots:?}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod bundle_package_tests {
+    use super::*;
+
+    // PLAT-50: the bundle package comes from the origin remote in any URL form.
+    #[test]
+    fn remote_urls_yield_org_and_repo() {
+        for url in [
+            "https://github.com/agent-ix/quire-cli.git",
+            "https://github.com/agent-ix/quire-cli",
+            "git@github.com:agent-ix/quire-cli.git",
+            "ssh://git@github.com/agent-ix/quire-cli.git",
+        ] {
+            assert_eq!(
+                parse_remote_package(url).as_deref(),
+                Some("agent-ix/quire-cli"),
+                "{url}"
+            );
+        }
+        assert_eq!(parse_remote_package("not-a-url"), None);
     }
 }
