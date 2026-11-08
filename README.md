@@ -374,6 +374,112 @@ make ci                  # local CI gauntlet
 The release binary is audited to link only baseline system libraries on
 Linux. See `tests/audit_ldd.rs`.
 
+## Local publish to npm.ix
+
+This is the procedure for the local, manual publish to the internal `npm.ix`
+registry. It exists so the publish is repeatable and the steps are written
+down. It is not what keeps a release correct. Two checks in `quire-dist` do
+that, whichever way the publish is run:
+
+- `package-npm` writes the launcher's `optionalDependencies` from the
+  executables actually present in `artifacts/`, one entry per platform built.
+  It cannot write a pin for a platform it did not build, so a partial local
+  build produces a smaller, consistent package set.
+- `make dist-verify-published` reads the launcher as the registry serves it
+  and fails unless every platform package it declares resolves there.
+
+The manually dispatched `.github/workflows/release.yml` is the other publish
+path. It targets public npm, builds all four platforms in one run, and runs the
+same `verify-release`, `package-npm` and `verify-published` steps. The commands
+below are the local equivalent for one host.
+
+Prerequisites: a clean checkout of the commit being released, a Rust toolchain
+(see `rust-toolchain.toml`), `npm` on `PATH`, and an `~/.npmrc` auth token for
+`//npm.ix/`. Set `VERSION` to the release version (`X.Y.Z`, no leading `v`).
+
+1. Set the version and commit it. `set-version` updates `Cargo.toml` and
+   `npm/quire-cli/package.json` together. It does not touch `Cargo.lock`, and
+   the `--locked` builds below need the lock to agree, so refresh the
+   workspace entries (this does not move any dependency).
+
+   ```bash
+   make set-version VERSION=$VERSION
+   cargo update --workspace
+   make dist-verify VERSION=$VERSION
+   git commit -am "release: $VERSION"
+   git status --porcelain   # must print nothing
+   ```
+
+   Commit before you build. The binary records the source revision and
+   whether the tree was clean, and `0.32.2` shipped a binary that reported a
+   dirty tree and a commit that no longer existed (see `CHANGELOG.md`,
+   `0.32.3`).
+
+2. Build the release binary for each platform this machine can build, and
+   confirm it reports `VERSION`. Use the Rust target names from `TARGETS` in
+   `tools/quire-dist/src/lib.rs`; `aarch64-apple-darwin` is the example here.
+
+   ```bash
+   TARGET=aarch64-apple-darwin
+   cargo build --locked --release --target $TARGET
+   cargo run --locked -p quire-dist -- verify-binary \
+     --version $VERSION --binary target/$TARGET/release/quire
+   ```
+
+3. Stage each binary as `artifacts/<rust-target>/quire` (`quire.exe` for
+   Windows). The directory must hold only that file, and only catalog target
+   names are accepted.
+
+   ```bash
+   rm -rf artifacts && mkdir -p artifacts/$TARGET
+   cp target/$TARGET/release/quire artifacts/$TARGET/quire
+   ```
+
+4. Generate the npm packages. `package-npm` checks each executable's format
+   and rewrites `npm/quire-cli/package.json` (so the working tree is dirty
+   after this step) and `npm/dist/`.
+
+   ```bash
+   make dist-test
+   make dist-package VERSION=$VERSION
+   git diff npm/quire-cli/package.json   # optionalDependencies = platforms built
+   ```
+
+5. Publish the platform packages, then the launcher. Every generated
+   `package.json` carries `publishConfig.registry` set to
+   `https://registry.npmjs.org/`, and `~/.npmrc` may scope `@agent-ix` to a
+   different registry. Pass the scope override explicitly, as `quire-dist`
+   itself does when it queries a registry, and run `--dry-run` first to read
+   the target registry from npm's own output before the real publish.
+
+   ```bash
+   REGISTRY=http://npm.ix/
+   for pkg in npm/dist/*/; do
+     (cd "$pkg" && npm publish --dry-run --@agent-ix:registry=$REGISTRY)
+   done
+   (cd npm/quire-cli && npm publish --dry-run --@agent-ix:registry=$REGISTRY)
+   # when the dry runs name $REGISTRY, repeat without --dry-run
+   ```
+
+   Platform packages go first so the launcher's `optionalDependencies`
+   resolve as soon as it appears.
+
+6. Check what the registry now serves.
+
+   ```bash
+   make dist-verify-published VERSION=$VERSION REGISTRY=$REGISTRY
+   ```
+
+   A failure here means the registry and the package set disagree. Do not
+   reuse the version; publish a new one.
+
+7. Restore the working tree. `npm/dist/` is ignored; delete `artifacts/`. The
+   rewritten `npm/quire-cli/package.json` lists only the platforms this run
+   built, so do not commit it; `git checkout npm/quire-cli` restores it.
+
+This procedure has not been walked end to end against a live registry as
+written. Record the first full run here, including any step that had to change.
+
 ## Spec And Plan
 
 Requirements live in `spec/`; the implementation plan and task index live in
