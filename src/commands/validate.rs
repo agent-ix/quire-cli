@@ -419,6 +419,14 @@ pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Res
         return super::load_module_registry(ctx, scope);
     }
 
+    load_scoped_with_defaults(ctx, scope)
+}
+
+/// Scoped module discovery shared by every command whose `--module` is
+/// omitted (`validate`, `coverage`, `symbols`): `<scope>`, `<scope>/.ix/modules`,
+/// the module env vars and the default install root, with a one-shot lazy
+/// install of the default set when nothing is found.
+pub(crate) fn load_scoped_with_defaults(ctx: &Ctx, scope: &Path) -> anyhow::Result<Registry> {
     // Scoped discovery. Load once; if nothing is found, lazy-install the
     // default module set via quoin and reload exactly once before failing —
     // so a fresh machine validates without any manual `quoin` step or env var.
@@ -736,6 +744,9 @@ fn validation_remedy(reason: ValidationReason) -> &'static str {
         }
         ValidationReason::Assert => {
             "change the cited value or structure so it satisfies the named archetype assertion"
+        }
+        ValidationReason::Regex => {
+            "change the cited value so it matches the archetype's declared pattern"
         }
         ValidationReason::Frontmatter => {
             "correct the cited frontmatter field so it satisfies the archetype schema"

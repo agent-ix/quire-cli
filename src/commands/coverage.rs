@@ -15,7 +15,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use clap::Parser;
-use quire_cli::io;
 use quire_cli::safety;
 use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
 use quire_rs::{compute_coverage, Registry, Spec};
@@ -789,11 +788,7 @@ pub(super) fn load_registry_for(
     if scope.join("manifest.yaml").is_file() {
         return super::load_module_registry(ctx, scope);
     }
-    let registry = Registry::from_env()
-        .map_err(super::failure::invalid)
-        .context("loading modules")?;
-    io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
-    Ok(registry)
+    super::validate::load_scoped_with_defaults(ctx, scope)
 }
 
 #[cfg(test)]

@@ -56,7 +56,9 @@ use clap::Parser;
 use serde::Serialize;
 
 use quire_cli::safety;
-use quire_rs::symbols::trace::{ImplementsRelation, Mention, SymbolGraph, VerifiesRelation};
+use quire_rs::symbols::trace::{
+    trace_id_segments, ImplementsRelation, Mention, SymbolGraph, VerifiesRelation,
+};
 use quire_rs::symbols::trace_search::{self, language_confidence, symbol_language, Query};
 use quire_rs::symbols::SymbolExtraction;
 
@@ -140,9 +142,12 @@ pub enum OutputFormat {
 }
 
 /// What was asked, echoed back so a JSON consumer never has to re-derive it
-/// from argv. `matched_ids` is populated only under `--prefix`: it is the set
-/// of concrete ids the prefix actually matched, present so a caller can see
-/// exactly what got unioned into one result.
+/// from argv. `matched_ids` is populated only under `--prefix`: every concrete
+/// id spelling present in the result rows, so a caller can see exactly what
+/// got unioned into one result. It is the ids the prefix matched by segment
+/// boundary plus any other spelling the engine's exact `Query::Id` search
+/// folded onto them (`FR047` folds onto `FR-047`), so it always covers the
+/// payload it describes.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum QueryDescription {
@@ -417,7 +422,7 @@ fn describe_query(query: &Query) -> QueryDescription {
 }
 
 /// `--id --prefix`: union every distinct id in the graph whose
-/// [`id_segments`] start with `prefix`'s segments, running the engine's own
+/// [`trace_id_segments`] start with `prefix`'s segments, running the engine's own
 /// exact `Query::Id` search once per **normalized-equivalence class** of
 /// matched id and concatenating.
 ///
@@ -438,7 +443,7 @@ fn search_by_prefix(
     ids.extend(graph.verifies.iter().map(|v| v.trace_id.as_str()));
     ids.extend(graph.implements.iter().map(|i| i.trace_id.as_str()));
     ids.extend(graph.mentions.iter().map(|m| m.trace_id.as_str()));
-    let matched_ids: Vec<String> = ids
+    let boundary_matched: Vec<String> = ids
         .into_iter()
         .filter(|id| prefix_matches(id, prefix))
         .map(String::from)
@@ -448,7 +453,7 @@ fn search_by_prefix(
     let mut implements = Vec::new();
     let mut citations = Vec::new();
     let mut searched_normalized: BTreeSet<String> = BTreeSet::new();
-    for id in &matched_ids {
+    for id in &boundary_matched {
         // The one representative per normalized-equivalence class. A second
         // raw spelling that normalizes the same is skipped here, not
         // searched-then-deduplicated after the fact — the engine's search
@@ -462,6 +467,19 @@ fn search_by_prefix(
         implements.extend(r.implements);
         citations.extend(r.citations);
     }
+    // `Query::Id` matches by the engine's fold, which discards separators, so
+    // it can return rows spelled differently from every boundary match.
+    // Report those spellings too: `matched_ids` must cover its payload.
+    let matched_ids: Vec<String> = boundary_matched
+        .iter()
+        .map(String::as_str)
+        .chain(verifies.iter().map(|v| v.trace_id.as_str()))
+        .chain(implements.iter().map(|i| i.trace_id.as_str()))
+        .chain(citations.iter().map(|m| m.trace_id.as_str()))
+        .collect::<BTreeSet<&str>>()
+        .into_iter()
+        .map(String::from)
+        .collect();
     let resolved = !(verifies.is_empty() && implements.is_empty() && citations.is_empty());
     let result = trace_search::SearchResult {
         query: Query::Id(prefix.to_string()),
@@ -481,59 +499,24 @@ fn search_by_prefix(
     )
 }
 
-/// Split `value` on runs of non-alphanumeric characters and uppercase each
-/// resulting piece, dropping empty pieces (so a leading/trailing separator —
-/// `FR-047-` — contributes nothing, and consecutive separators collapse).
-///
-/// This is character-for-character the same fold quire-rs's own
-/// `normalized_trace_id` applies (`src/symbols/trace.rs:871`: filter
-/// `is_ascii_alphanumeric`, uppercase) — that function is `pub(crate)` and
-/// unreachable from here, so this duplicates its per-character rule rather
-/// than sharing it (asked for during review; requesting the export be made
-/// `pub` upstream is the preferred long-term fix and does not, by itself,
-/// replace this function even if granted — see below). It is deliberately
-/// NOT a drop-in reimplementation of `normalized_trace_id` itself: that
-/// function concatenates every alphanumeric character into one string,
-/// discarding exactly the segment boundaries `--prefix` needs to tell
-/// `FR-047` (must match `FR-047-AC-1`) apart from `FR-0470` (must not). No
-/// function in the engine currently preserves those boundaries — boundary-
-/// aware prefix matching is CLI-only logic by design (quire-rs
-/// `traceability.rs`: the engine knows nothing of FR/AC/TC hierarchy).
-///
-/// This duplication is a liability by itself: if quire-rs ever changes what
-/// `normalized_trace_id` folds (a new character class, different case
-/// handling), this copy keeps the OLD rule and `--prefix` silently diverges
-/// from exact `--id` again, with every test in this file staying green
-/// because they all check this copy against itself. The integration test
-/// `prefix_fold_tracks_the_engines_own_normalization_across_spellings` in
-/// `tests/cli_trace.rs` is the guard against that: it measures the engine's
-/// fold behaviorally (through exact `--id`, since `normalized_trace_id`
-/// itself is `pub(crate)` and unreachable) and this crate's fold
-/// behaviorally (through `--prefix`) over the same spelling table, so a
-/// drift between the two shows up as a named, failing assertion instead of
-/// silence. Do not replace that test with a doc comment restating this
-/// property — an assertion the code does not enforce is what this note
-/// itself would become.
-fn id_segments(value: &str) -> Vec<String> {
-    value
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .filter(|s| !s.is_empty())
-        .map(str::to_ascii_uppercase)
-        .collect()
-}
-
-/// The engine's own normalized id, reproduced by concatenating
-/// [`id_segments`] — used only to tell whether two RAW spellings are the
+/// The engine's normalized id: the concatenation of its own
+/// [`trace_id_segments`]. Used only to tell whether two RAW spellings are the
 /// same id as far as `Query::Id`'s own match is concerned (H2's dedup key),
-/// never to decide `--prefix` boundaries (which need the segments, not the
-/// concatenation — see [`id_segments`]).
+/// never to decide `--prefix` boundaries, which need the segments.
 fn normalized_id(value: &str) -> String {
-    id_segments(value).concat()
+    trace_id_segments(value).concat()
 }
 
-/// Segment-boundary prefix match, fold-consistent with the engine's own
-/// `normalized_trace_id` equality: `prefix` matches `candidate` when
-/// `candidate`'s [`id_segments`] start with `prefix`'s.
+/// Segment-boundary prefix match: `prefix` matches `candidate` when
+/// `candidate`'s [`trace_id_segments`] (the engine's own fold, shared rather
+/// than copied) start with `prefix`'s.
+///
+/// Known divergence from the engine's exact `--id`, which compares the
+/// CONCATENATED fold: this match is sensitive to where alphanumeric runs
+/// break. `FR047` is one segment (`["FR047"]`), so the engine treats it as
+/// `FR-047` for `--id` but `--prefix FR-047` does not match `FR047-AC-1`.
+/// Closing that gap would re-admit the `FR-0470` decoy (`"FR0470"` starts
+/// with `"FR047"`), so the boundary rule wins.
 ///
 /// `FR-047` (segments `["FR","047"]`) matches `FR-047-AC-1`
 /// (`["FR","047","AC","1"]`, a genuine extra segment) and `FR_047_AC_9`
@@ -544,11 +527,11 @@ fn normalized_id(value: &str) -> String {
 /// segments, not merely as a string-prefix check within one segment) — the
 /// property this flag exists to guarantee.
 fn prefix_matches(candidate: &str, prefix: &str) -> bool {
-    let prefix_segments = id_segments(prefix);
+    let prefix_segments = trace_id_segments(prefix);
     if prefix_segments.is_empty() {
         return false;
     }
-    let candidate_segments = id_segments(candidate);
+    let candidate_segments = trace_id_segments(candidate);
     candidate_segments.len() >= prefix_segments.len()
         && candidate_segments[..prefix_segments.len()] == prefix_segments[..]
 }
@@ -920,7 +903,7 @@ mod tests {
 
     // Review finding H1: the previous raw, case-sensitive `strip_prefix`
     // diverged from the engine's own `normalized_trace_id` fold in three
-    // reproduced ways. Each of these failed before the `id_segments` rewrite.
+    // reproduced ways. Each of these failed before the former `id_segments` rewrite.
     #[test]
     fn tc_prefix_matches_folds_case_like_the_engine() {
         assert!(prefix_matches("FR-047", "fr-047"));
@@ -946,10 +929,13 @@ mod tests {
 
     #[test]
     fn tc_id_segments_splits_on_non_alphanumeric_runs_and_uppercases() {
-        assert_eq!(id_segments("FR-047-AC-1"), vec!["FR", "047", "AC", "1"]);
-        assert_eq!(id_segments("fr_047"), vec!["FR", "047"]);
-        assert_eq!(id_segments("FR-047-"), vec!["FR", "047"]);
-        assert_eq!(id_segments(""), Vec::<String>::new());
+        assert_eq!(
+            trace_id_segments("FR-047-AC-1"),
+            vec!["FR", "047", "AC", "1"]
+        );
+        assert_eq!(trace_id_segments("fr_047"), vec!["FR", "047"]);
+        assert_eq!(trace_id_segments("FR-047-"), vec!["FR", "047"]);
+        assert_eq!(trace_id_segments(""), Vec::<String>::new());
     }
 
     #[test]
