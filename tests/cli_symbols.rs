@@ -78,6 +78,7 @@ fn tree(dir: &TempDir) -> String {
     dir.path().to_string_lossy().into_owned()
 }
 
+/// Trace: FR-019-AC-1, IT-130
 #[test]
 fn it_130_reports_without_a_module_and_leaves_stdout_for_the_payload() {
     // IT-130, FR-019-AC-1.
@@ -97,6 +98,7 @@ fn it_130_reports_without_a_module_and_leaves_stdout_for_the_payload() {
     assert!(out.stderr.contains("symbol(s)"), "stderr: {}", out.stderr);
 }
 
+/// Trace: FR-019-AC-2, IT-131
 #[test]
 fn it_131_the_json_record_carries_every_field_and_is_byte_stable() {
     // IT-131, FR-019-AC-2.
@@ -144,6 +146,7 @@ fn it_131_the_json_record_carries_every_field_and_is_byte_stable() {
     );
 }
 
+/// Trace: FR-019-AC-3, IT-132
 #[test]
 fn it_132_no_module_means_not_asked_rather_than_not_tagged() {
     // IT-132, FR-019-AC-3.
@@ -178,6 +181,7 @@ fn it_132_no_module_means_not_asked_rather_than_not_tagged() {
     );
 }
 
+/// Trace: FR-019-AC-4, IT-133
 #[test]
 fn it_133_both_denominators_are_reported_per_language() {
     // IT-133, FR-019-AC-4.
@@ -204,6 +208,7 @@ fn it_133_both_denominators_are_reported_per_language() {
     assert_eq!(rust["bound"], 0, "nothing was asked, so nothing bound");
 }
 
+/// Trace: FR-019-AC-5, IT-134
 #[test]
 fn it_134_extraction_diagnostics_reach_stderr_in_json_mode() {
     // IT-134, FR-019-AC-5.

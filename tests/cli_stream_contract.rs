@@ -43,14 +43,16 @@ fn bundle(dir: &Path) -> (String, String) {
         "---\nid: FR-001\ntype: FR\n---\n\n## Acceptance Criteria\n\n\
          | ID | Criteria | Verification |\n|----|----------|--------------|\n\
          | FR-001-AC-1 | Every finding shall default to warning. | Test (TC-001) |\n\
-         | FR-001-AC-2 | Every finding whose key is absent from the merged map never defaults to warning. | Test (TC-002) |\n",
+         | FR-001-AC-2 | Every finding whose key is absent from the merged map never defaults to warning. | Test (TC-002) |\n\
+         | FR-001-AC-3 | It works. | Test (TC-003) |\n",
     )
     .expect("write fr");
     fs::write(
         spec.join("tests.md"),
         "---\nid: TM-001\ntype: TestMatrix\n---\n\n## Test Cases\n\n\
          | ID | Traces To | Status |\n|----|-----------|--------|\n\
-         | TC-001 | FR-001-AC-1 | 🚧 |\n",
+         | TC-001 | FR-001-AC-1 | 🚧 |\n\
+         | TC-003 | FR-001-AC-3 | 🚧 |\n",
     )
     .expect("write matrix");
     (
@@ -102,6 +104,7 @@ fn stderr(o: &Output) -> String {
 }
 
 /// IT-117 (CR-012): `coverage`'s census reaches stdout and its findings do not.
+/// Trace: FR-006-AC-5, FR-017-AC-1, IT-117
 #[test]
 fn it_117_coverage_puts_the_census_on_stdout_and_findings_on_stderr() {
     let dir = TempDir::new().expect("tempdir");
@@ -111,12 +114,17 @@ fn it_117_coverage_puts_the_census_on_stdout_and_findings_on_stderr() {
         .args(["coverage", "--scope", &scope, "--module", &module])
         .output()
         .expect("run");
+    assert!(out.status.success(), "{}", stderr(&out));
 
     // The thing a caller redirecting with `>` came for.
     let o = stdout(&out);
     assert!(
         o.contains("rows backed"),
         "the census must reach stdout; stdout was {o:?}"
+    );
+    assert!(
+        o.contains("FR-001.md"),
+        "per-document count is present: {o:?}"
     );
     assert!(
         !o.is_empty(),
@@ -145,6 +153,7 @@ fn it_117_coverage_puts_the_census_on_stdout_and_findings_on_stderr() {
 /// IT-118 (CR-012): `properties`' census reaches stdout, and leads with the
 /// specific-shape split rather than the catch-all-inflated figure alone
 /// (quire-rs CR-095).
+/// Trace: FR-006-AC-5, IT-118
 #[test]
 fn it_118_properties_census_is_a_result_and_splits_the_catch_all() {
     let dir = TempDir::new().expect("tempdir");
@@ -170,11 +179,13 @@ fn it_118_properties_census_is_a_result_and_splits_the_catch_all() {
         o.contains("with a specific shape"),
         "the honest half of the headline travels with the other one: {o:?}"
     );
+    assert!(!o.contains('\u{1b}'), "the result is not colorized: {o:?}");
 }
 
 /// IT-119 (#59 defect 2): `--criteria` renders the per-criterion fields
 /// `spec-correctness` consumes, which were `--json`-only — hundreds of kilobytes on the
 /// pass-2 corpus against a few-line census.
+/// Trace: FR-018-AC-10, IT-119
 #[test]
 fn it_119_criteria_renders_the_fields_the_census_omitted() {
     let dir = TempDir::new().expect("tempdir");
@@ -209,12 +220,39 @@ fn it_119_criteria_renders_the_fields_the_census_omitted() {
         "each block leads with the row id: {with_criteria:?}"
     );
     assert!(
+        with_criteria.contains("FR-001.md:"),
+        "each block carries its document and line locus: {with_criteria:?}"
+    );
+    assert!(
+        with_criteria.contains("invariant [extractable]"),
+        "each block carries its shape and extraction state: {with_criteria:?}"
+    );
+    assert!(
         !with_criteria.contains("FR-001-AC-1 ("),
         "the catch-all is not in the actionable set: {with_criteria:?}"
     );
     // …and `--all` includes it.
     let everything = run(&["--criteria", "--all"]);
     assert!(everything.contains("FR-001-AC-1 ("), "{everything:?}");
+    assert!(everything.contains("FR-001-AC-3 ("), "{everything:?}");
+    for empty_span in ["  domain: \n", "  precondition: \n", "  oracle: \n"] {
+        assert!(!everything.contains(empty_span), "{everything:?}");
+    }
+    let all_without_criteria = quire()
+        .args([
+            "properties",
+            &fr.to_string_lossy(),
+            "--scope",
+            &scope,
+            "--module",
+            &module,
+            "--all",
+        ])
+        .output()
+        .expect("run invalid all-only options");
+    assert_eq!(all_without_criteria.status.code(), Some(3));
+    let option_error = stderr(&all_without_criteria);
+    assert!(option_error.contains("--criteria"), "{option_error:?}");
     assert!(
         with_criteria.contains("domain:"),
         "and carries the spans a generator grounds on: {with_criteria:?}"
@@ -274,5 +312,84 @@ fn it_120_the_diagnostics_channel_reports_a_binder_that_read_nothing() {
     assert!(
         reasons.contains(&"no-symbol-bound"),
         "the class that was silent in pass 2 now fires: {reasons:?}"
+    );
+}
+
+/// This case covers the three human census surfaces together so a summary
+/// cannot silently move back to stderr or render as a diagnostic.
+/// Trace: FR-006-AC-5, IT-120
+#[test]
+fn human_census_figures_stay_on_stdout_without_color() {
+    let dir = TempDir::new().expect("tempdir");
+    let (scope, module) = bundle(dir.path());
+    let fr = dir.path().join("spec/FR-001.md");
+
+    let coverage = quire()
+        .args(["coverage", "--scope", &scope, "--module", &module])
+        .output()
+        .expect("run coverage");
+    assert!(coverage.status.success(), "{}", stderr(&coverage));
+    let coverage_stdout = stdout(&coverage);
+    assert!(
+        coverage_stdout.contains("rows backed"),
+        "{coverage_stdout:?}"
+    );
+    assert!(coverage_stdout.contains("FR-001"), "{coverage_stdout:?}");
+    assert!(
+        !coverage_stdout.contains('\u{1b}'),
+        "coverage census is not colorized: {coverage_stdout:?}"
+    );
+    assert!(
+        stderr(&coverage).contains("has no backing symbol"),
+        "coverage findings stay on stderr: {}",
+        stderr(&coverage)
+    );
+
+    let properties = quire()
+        .args([
+            "properties",
+            &fr.to_string_lossy(),
+            "--scope",
+            &scope,
+            "--module",
+            &module,
+        ])
+        .output()
+        .expect("run properties");
+    assert!(properties.status.success(), "{}", stderr(&properties));
+    let properties_stdout = stdout(&properties);
+    assert!(
+        properties_stdout.contains("criteria extractable"),
+        "{properties_stdout:?}"
+    );
+    assert!(
+        !properties_stdout.contains('\u{1b}'),
+        "properties census is not colorized: {properties_stdout:?}"
+    );
+
+    let fixture_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let iso = fixture_root.join("iso");
+    let validate = quire()
+        .arg("validate")
+        .arg(fixture_root.join("iso-docs/FR-ears-warn.md"))
+        .arg("--module")
+        .arg(&iso)
+        .arg("--summary")
+        .output()
+        .expect("run validate");
+    assert!(validate.status.success(), "{}", stderr(&validate));
+    let validate_stdout = stdout(&validate);
+    assert!(
+        validate_stdout.contains("docs grammar-clean"),
+        "{validate_stdout:?}"
+    );
+    assert!(
+        !validate_stdout.contains('\u{1b}'),
+        "validate censuses are not colorized: {validate_stdout:?}"
+    );
+    assert!(
+        stderr(&validate).contains("[ears:vague-response]"),
+        "validation warnings stay on stderr: {}",
+        stderr(&validate)
     );
 }
