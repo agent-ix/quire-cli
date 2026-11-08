@@ -58,7 +58,7 @@ jobs:
             os: ubuntu-24.04-arm
             musl: true
           - target: aarch64-apple-darwin
-            os: macos-14
+            os: macos-15
           - target: x86_64-pc-windows-msvc
             os: windows-2025
     steps:
