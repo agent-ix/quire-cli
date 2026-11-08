@@ -23,10 +23,9 @@ manager.
 ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)): it manages
 binary lifecycle, not artifact behavior, so it carries no parser/renderer/
 validator logic and wraps no `quire-rs` API. Its logic lives in a deliberately
-**package-agnostic** `self_update` engine (config-struct driven, no quire
-coupling), so the engine can later move verbatim into a shared Rust CLI kit; the
-`update` command itself is a thin wrapper that supplies quire's distribution
-coordinates.
+**package-agnostic** `ix-cli-kit::self_update` engine (config-struct driven, no
+quire coupling). The `update` command is a thin wrapper that supplies quire's
+distribution coordinates.
 
 The npm wrapper version and the Cargo crate version are independently numbered,
 so `update` SHALL NOT compare the running binary's version against a registry —
@@ -76,14 +75,16 @@ quire update [--check] [--registry <URL>]
 | FR-016-AC-3 | On the npm channel, `--check` runs `npm view @agent-ix/quire-cli version` and reports the latest version without installing | Test |
 | FR-016-AC-4 | A `--registry <URL>` override for the scoped package is passed as `--@agent-ix:registry=<URL>` (scope form), not a bare `--registry`; with no override no registry flag is added | Test |
 | FR-016-AC-5 | `update` performs no version comparison against the running binary and shells out to npm/cargo for idempotency (no cross-scheme version diff in `src/`) | Inspection |
-| FR-016-AC-6 | The `self_update` engine is package-agnostic: it takes quire's coordinates via a config struct and imports nothing from quire's `io`/command context, so it is extractable into a shared crate; `commands/update.rs` is the only quire-specific glue | Inspection |
+| FR-016-AC-6 | `commands/update.rs` uses the shared `ix-cli-kit::self_update` engine, supplies quire's coordinates through `SelfUpdateConfig`, and contains no parser, renderer, or validator logic; quire carries no local copy of the engine | Inspection |
 | FR-016-AC-7 | A failing `npm`/`cargo` invocation, or an unreachable registry, exits **4** | Test |
 
-> **CR note (untraced criteria, 2026-08-21, #55):** three paths carry **no
+> **CR note (untraced criteria, updated 2026-10-20, #55):** four paths carry **no
 > automated trace**, because exercising them needs live network access and
 > global-install side effects: the npm-channel `--check`/install of AC-3, the
 > registry-unreachable / failing-`npm`/`cargo` exit-4 of AC-7, and the
-> `cargo install` dispatch half of AC-1. Their `Verification: Test` states the
+> `cargo install` dispatch half of AC-1. The registry-argument construction of
+> AC-4 is tested by `ix-cli-kit`, but its upstream tests do not bind quire's
+> local trace matrix. Their `Verification: Test` states the
 > intended method, not an existing trace. This statement lives here rather
 > than in the Test Matrix's Coverage Status column because that column
 > declares no `column_patterns` and is therefore unenforced — prose there is
@@ -94,9 +95,8 @@ quire update [--check] [--registry <URL>]
 
 ## Dependencies
 
-- **Upstream**: none in `quire-rs` (binary-lifecycle feature, not an engine
-  behavior). The shared `self_update` engine is in-crate today and is the
-  intended extraction unit for a future Rust CLI kit.
+- **Upstream**: `ix-cli-kit` supplies the shared `self_update` engine;
+  `quire-rs` is not involved in this binary-lifecycle feature.
 - **Downstream**: agent/CI setup docs that pin a single binary version
   ([StR-001](../stakeholder/StR-001-static-binary-hot-path.md)) — `update`
   keeps that pinned binary current.

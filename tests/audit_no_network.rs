@@ -152,10 +152,6 @@ fn assurance_does_not_open_inet_socket_or_execute_a_child() {
             .arg(&scope)
             .arg("--module")
             .arg(&module)
-            .arg("--repository")
-            .arg("agent-ix/fixture")
-            .arg("--revision")
-            .arg("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
             .arg("--expect-module")
             .arg(expected_module);
         for archetype in ["FR", "NFR", "StR"] {

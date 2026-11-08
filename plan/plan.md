@@ -29,7 +29,7 @@ preimplementation specification and scope review are committed at `2502617`.
    reuse the existing scope/module path guards. Construct the bounded `Spec`,
    scoped symbol extraction, and binding through quire-rs, then call
    `build_assurance_export` and `read_assurance_export`. Parse
-   `NAME@VERSION`/`MODULE/ARCHETYPE@SHA256` only as CLI premises; compare the
+   `NAME@VERSION`/`MODULE/ARCHETYPE` only as CLI premises; compare the
    complete expected and emitted premise sets before writing stdout.
 3. **T-023 — Prove the process boundary (complete).** Add a non-vacuous fixture and golden
    plus IT-136..144/TC-814: complete records and all availability states,

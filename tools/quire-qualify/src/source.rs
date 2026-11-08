@@ -422,40 +422,24 @@ fn audit_assurance(path: &Path, index: &SyntaxIndex, findings: &mut Vec<Finding>
 fn audit_self_update(root: &Path, findings: &mut Vec<Finding>) {
     let engine_path = root.join("src/self_update/mod.rs");
     let rel = relative(root, &engine_path);
-    if let Some(index) = parse_index(root, &engine_path, findings) {
-        const FORBIDDEN: &[&str] = &[
-            "crate::io",
-            "crate::commands",
-            "crate::Ctx",
-            "quire_cli::io",
-            "quire_cli::commands",
-        ];
-        for reference in index.all_references() {
-            if let Some(resolved) = forbidden_reference(&index, &reference, FORBIDDEN) {
-                findings.push(Finding::new(
-                    &rel,
-                    reference.line,
-                    format!("self-update engine reaches CLI-specific path `{resolved}`"),
-                ));
-            }
-        }
-        for import in &index.imports {
-            if import.glob && matches!(import.full.as_str(), "crate" | "quire_cli") {
-                findings.push(Finding::new(
-                    &rel,
-                    import.line,
-                    format!(
-                        "root glob import `{}` hides CLI-specific dependencies",
-                        import.full
-                    ),
-                ));
-            }
-        }
+    if engine_path.exists() {
+        findings.push(Finding::new(
+            &rel,
+            0,
+            "local self-update engine duplicates ix-cli-kit",
+        ));
     }
 
     let glue_path = root.join("src/commands/update.rs");
     let glue_rel = relative(root, &glue_path);
     if let Some(index) = parse_index(root, &glue_path, findings) {
+        if !index.has_resolved_suffix("ix_cli_kit::self_update") {
+            findings.push(Finding::new(
+                &glue_rel,
+                0,
+                "update command must consume ix-cli-kit's self-update module",
+            ));
+        }
         const FORBIDDEN: &[&str] = &[
             "quire_rs::parse_document",
             "quire_rs::validate",

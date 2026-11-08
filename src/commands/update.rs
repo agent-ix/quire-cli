@@ -1,13 +1,13 @@
 //! `quire update [--check] [--registry <URL>]`
 //!
 //! Thin, quire-specific wrapper over the package-agnostic
-//! [`quire_cli::self_update`] engine. This file is the ONLY place quire's
-//! install coordinates live; the engine itself is reusable and is the unit
-//! intended to move into a shared Rust CLI kit later.
+//! [`ix_cli_kit::self_update`] engine. This file is the ONLY place quire's
+//! install coordinates live; the shared engine returns a report for this
+//! command to render.
 
 use clap::Parser;
 
-use quire_cli::self_update::{self, SelfUpdateConfig, SelfUpdateOpts};
+use ix_cli_kit::self_update::{self, SelfUpdateConfig, SelfUpdateOpts};
 
 use super::Ctx;
 
@@ -18,6 +18,7 @@ const CONFIG: SelfUpdateConfig = SelfUpdateConfig {
     npm_package: "@agent-ix/quire-cli",
     cargo_git: "https://github.com/agent-ix/quire-cli",
     releases_url: "https://github.com/agent-ix/quire-cli/releases",
+    update_command: "quire update",
 };
 
 #[derive(Parser, Debug)]

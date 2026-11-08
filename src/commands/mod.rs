@@ -1,6 +1,7 @@
 //! Subcommand implementations. Each module owns one `quire <verb>` subcommand.
 //! The quire-rs-backed verbs stay thin wrappers over the engine; `update` is a
-//! thin wrapper over the package-agnostic `self_update` engine instead.
+//! thin wrapper over ix-cli-kit's `self_update` engine instead. `check_lock`
+//! owns the explicitly scoped developer policy (FR-027).
 
 macro_rules! primary_line {
     ($($arg:tt)*) => {
@@ -36,6 +37,7 @@ macro_rules! policy_refusal {
 pub(crate) mod failure;
 
 pub mod assurance;
+pub mod check_lock;
 pub mod clauses;
 pub mod coverage;
 pub mod edit;
@@ -56,7 +58,8 @@ pub mod validate;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use quire_cli::io::{emit_quire_diagnostics, Diagnostics};
+use ix_cli_kit::streams::Diagnostics;
+use quire_cli::io::emit_quire_diagnostics;
 use quire_rs::Registry;
 
 /// Cross-command context plumbed in from global flags.

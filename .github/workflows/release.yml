@@ -215,10 +215,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.ver.outputs.tag }}
         run: |
-          gh release create "${TAG}" release/* \
-            --title "${TAG}" \
-            --notes "Automated release ${TAG}. See CHANGELOG.md for details." \
-            --verify-tag
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; keeping its published assets."
+          else
+            gh release create "${TAG}" release/* \
+              --title "${TAG}" \
+              --notes "Automated release ${TAG}. See CHANGELOG.md for details." \
+              --verify-tag
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4

@@ -31,6 +31,7 @@ If the setup checks leave a reproducible Agent IX quire-cli bug that blocks prog
 quire assurance --scope <DIR> --module <PATH> --repository <IDENTITY> \
   --revision <FULL_SHA> --expect-module <NAME@VERSION> \
   [--expect-schema <MODULE/ARCHETYPE>]...
+quire check-lock <Cargo.lock>...
 quire parse <DOC|->
 quire lookup <DOC|-> (--heading <TEXT> [--level <1..6>] | --id <ID> | --block-id <BLOCK_ID>) [--content]
 quire edit <DOC|-> (--heading <TEXT> | --block-id <BLOCK_ID>) --content <FILE|-> [--out <PATH>]
@@ -57,9 +58,17 @@ Exit codes:
 | Code | Meaning |
 |------|---------|
 | 0 | success |
-| 1 | user error: parse failure, schema violation, unknown archetype, I/O error, lookup miss |
-| 2 | argv error: missing required flag, unknown flag, invalid flag combination |
+| 1 | complete report with partial or strict-coverage failure |
+| 2 | path, permission, or domain-policy refusal |
+| 3 | invalid arguments, malformed input, missing or wrongly typed paths |
+| 4 | internal, serialization, or output I/O failure |
 | 134 | panic, never expected |
+
+`check-lock` checks each supplied lock independently, without fetching sources or
+changing files. It rejects duplicate agent-ix Git package names and split resolved
+commits within one canonical GitHub agent-ix repository. Aligned locks print one
+summary on stdout; policy refusals use exit 2 and stderr, invalid input uses 3,
+and unexpected I/O uses 4. It honours global diagnostic formatting and color.
 
 ## Install
 
@@ -89,7 +98,7 @@ Download, verify, and drop `quire` on your `PATH`.
 from GitHub at build time, so configure `cargo` with `net.git-fetch-with-cli = true`.
 
 ```bash
-cargo install --git https://github.com/agent-ix/quire-cli
+cargo install --git https://github.com/agent-ix/quire-cli quire-cli
 # or, from a checkout:
 cargo build --release && target/release/quire --help
 ```

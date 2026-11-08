@@ -29,7 +29,7 @@ relationships:
 > and its ACs use `type` throughout. The base-concept contract (see Behavior §B)
 > requires `type` non-empty in **both** postures; the rename backsync corrected
 > remaining `artifact_type` prose elsewhere in the spec ([FR-003](./FR-003-extract-subcommand.md), [FR-004](./FR-004-validate-subcommand.md), [FR-013](./FR-013-lint-subcommand.md),
-> [FR-007](./FR-007-exit-codes.md), spec.md) — see each artifact's CR note and `spec/log.md`.
+> [FR-007](./FR-007-exit-codes.md), spec.md) — see each artifact's CR note.
 
 ## Description
 

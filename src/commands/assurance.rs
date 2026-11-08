@@ -13,8 +13,7 @@ use quire_cli::{io, safety};
 use quire_rs::assurance::{AssuranceModulePremise, AssuranceSchemaPremise};
 use quire_rs::symbols::trace::SymbolGraph;
 use quire_rs::{
-    build_assurance_export, read_assurance_export, AcceptedAssurancePremises, AssuranceInput,
-    AssuranceSource, Spec,
+    build_assurance_export, read_assurance_export, AcceptedAssurancePremises, AssuranceInput, Spec,
 };
 
 use super::Ctx;
@@ -77,14 +76,6 @@ pub struct Args {
     #[arg(long, value_name = "PATH")]
     pub module: String,
 
-    /// Non-empty repository identity copied into the assurance source premise.
-    #[arg(long, value_name = "IDENTITY")]
-    pub repository: String,
-
-    /// Caller-selected immutable revision: 40 lowercase hexadecimal digits.
-    #[arg(long, value_name = "FULL_SHA")]
-    pub revision: String,
-
     /// The only accepted module premise, as NAME@VERSION.
     #[arg(long, value_name = "NAME@VERSION")]
     pub expect_module: ExpectedModule,
@@ -118,11 +109,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             .unwrap_or(&empty_excludes),
     );
     for diagnostic in &extraction.diagnostics {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "SymbolExtraction",
             &format!("{}: {}", diagnostic.path, diagnostic.reason),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     let graph = model
         .map(|traceability| quire_rs::symbols::trace::bind(&extraction, traceability))
@@ -134,10 +125,6 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         corpus_root: &spec_root,
         symbols: &extraction,
         symbol_graph: &graph,
-        source: AssuranceSource {
-            repository: args.repository,
-            revision: args.revision,
-        },
     })
     .map_err(classify_assurance_error)?;
 
@@ -155,7 +142,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     let mut output = if ctx.pretty {
-        io::pretty_validated_json_bytes(&compact)
+        ix_cli_kit::json::pretty_validated_json_bytes(&compact)
     } else {
         compact
     };
@@ -172,9 +159,7 @@ fn classify_assurance_error(error: quire_rs::assurance::AssuranceError) -> anyho
         AssuranceError::PathOutsideRoot { .. }
         | AssuranceError::UnacceptedModule { .. }
         | AssuranceError::UnacceptedModuleVersion { .. } => ix_cli_kit::exit::Outcome::Refused,
-        AssuranceError::EmptyRepository
-        | AssuranceError::InvalidRevision { .. }
-        | AssuranceError::MissingModuleName { .. }
+        AssuranceError::MissingModuleName { .. }
         | AssuranceError::MissingModuleVersion { .. }
         | AssuranceError::ArchetypeLoadFailure { .. }
         | AssuranceError::MissingArtifactId { .. }

@@ -13,7 +13,6 @@ use tempfile::TempDir;
 
 use common::quire;
 
-const REVISION: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const MODULE: &str = "assurance-fixture@1.2.3";
 const SCHEMAS: [&str; 3] = [
     "assurance-fixture/FR",
@@ -76,10 +75,6 @@ fn fixture(unreadable_document: bool) -> Fixture {
 }
 
 fn command(fixture: &Fixture) -> Command {
-    command_with_source(fixture, "agent-ix/fixture", REVISION)
-}
-
-fn command_with_source(fixture: &Fixture, repository: &str, revision: &str) -> Command {
     let mut command = quire();
     command
         .arg("assurance")
@@ -87,10 +82,6 @@ fn command_with_source(fixture: &Fixture, repository: &str, revision: &str) -> C
         .arg(&fixture.scope)
         .arg("--module")
         .arg(&fixture.module)
-        .arg("--repository")
-        .arg(repository)
-        .arg("--revision")
-        .arg(revision)
         .arg("--expect-module")
         .arg(MODULE);
     for schema in SCHEMAS {
@@ -165,7 +156,6 @@ fn it_136_complete_fixture_exercises_every_assurance_record_family() {
 
     assert_eq!(value["format"], "quire-assurance");
     assert_eq!(value["format_version"], 1);
-    assert_eq!(value["source"]["revision"], REVISION);
     for collection in [
         "artifacts",
         "obligations",
@@ -306,10 +296,6 @@ fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
             .arg(&fixture.scope)
             .arg("--module")
             .arg(&fixture.module)
-            .arg("--repository")
-            .arg("agent-ix/fixture")
-            .arg("--revision")
-            .arg(REVISION)
             .arg("--expect-module")
             .arg(expected_module);
         for schema in schemas {
@@ -330,10 +316,6 @@ fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
             base.scope.to_str().expect("scope"),
             "--module",
             base.module.to_str().expect("module"),
-            "--repository",
-            "agent-ix/fixture",
-            "--revision",
-            REVISION,
             "--expect-module",
             "no-at-sign",
         ])
@@ -341,11 +323,6 @@ fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
         .expect("malformed run");
     assert_eq!(malformed.status.code(), Some(3));
     assert!(malformed.stdout.is_empty());
-
-    let invalid_revision = command_with_source(&base, "agent-ix/fixture", "main")
-        .output()
-        .expect("revision run");
-    assert_refused(&invalid_revision, 3, "not a full lowercase Git object id");
 
     for (needle, replacement, expected) in [
         ("name: assurance-fixture\n", "", "no authored name"),
@@ -387,12 +364,6 @@ fn it_141_empty_unknown_and_unavailable_are_three_distinct_outcomes() {
     let missing = fixture(false);
     fs::remove_dir_all(missing.scope.join("spec")).expect("remove spec");
     assert_refused(&output(&missing), 3, "no document root");
-
-    let invalid_source = fixture(false);
-    let refused = command_with_source(&invalid_source, "", REVISION)
-        .output()
-        .expect("empty repository run");
-    assert_refused(&refused, 3, "repository is empty");
 
     let no_model = fixture(false);
     let manifest_path = no_model.module.join("manifest.yaml");

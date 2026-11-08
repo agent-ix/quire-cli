@@ -1313,6 +1313,80 @@ fn it108_a_declared_source_exclude_scopes_the_code_walk() {
     );
 }
 
+// PLAT-179 (quire-cli#80): with `--module` omitted, `coverage --scope <repo>`
+// discovers modules exactly as `validate` does, which includes
+// `<scope>/.ix/modules`. It used to read only the ambient env, so a repo-local
+// module's `source_exclude` never reached symbol extraction. Ambient discovery
+// is emptied here (no env paths, an empty HOME), so the only place the module
+// can come from is the repository itself.
+#[test]
+fn plat179_scoped_coverage_discovers_repo_local_ix_modules() {
+    let dir = TempDir::new().expect("tempdir");
+    let home = TempDir::new().expect("home");
+    let local = dir.path().join(".ix/modules/local");
+    fs::create_dir_all(&local).expect("mkdir module");
+    fs::write(
+        local.join("manifest.yaml"),
+        "name: local\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: TestMatrix\n\
+         traceability:\n  source_exclude: ['vendor/**']\n  trace_targets:\n  - name: test-case\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+         \x20   id_column: Test ID\n  status:\n    column: Status\n\
+         \x20   complete: [\"\u{2705}\"]\n    pending: [\"\u{1F6A7}\"]\n\
+         \x20   failed: [\"\u{274C}\"]\n    retired: [\"\u{26D4}\"]\n\
+         \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
+         \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n",
+    )
+    .expect("write manifest");
+    fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+    fs::create_dir_all(dir.path().join("vendor")).expect("mkdir vendor");
+    fs::create_dir_all(dir.path().join("tests")).expect("mkdir tests");
+    fs::write(
+        dir.path().join("spec/tests.md"),
+        matrix_doc("TM-001", "TC-001"),
+    )
+    .expect("write matrix");
+    fs::write(
+        dir.path().join("vendor/dep.rs"),
+        "// TC-999\n#[test]\nfn tc999_vendored() {}\n",
+    )
+    .expect("write vendored");
+    fs::write(
+        dir.path().join("tests/real.rs"),
+        "// TC-998\n#[test]\nfn tc998_real() {}\n",
+    )
+    .expect("write source");
+
+    let scope = dir.path().to_string_lossy().into_owned();
+    let out = quire()
+        .args(["coverage", "--scope", &scope, "--json"])
+        .env("HOME", home.path())
+        .env_remove("IX_FILAMENT_MODULES_PATH")
+        .env_remove("IX_SCHEMA_PATH")
+        .output()
+        .expect("run");
+    assert!(
+        out.status.success(),
+        "repo-local module was not discovered: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let report: serde_json::Value = serde_json::from_slice(&out.stdout).expect("json");
+    let ids: Vec<String> = report["untracked_symbols"]
+        .as_array()
+        .expect("array")
+        .iter()
+        .filter_map(|s| s["trace_id"].as_str().map(str::to_string))
+        .collect();
+    assert!(
+        !ids.contains(&"TC-999".to_string()),
+        "the repo-local source_exclude did not reach the walk: {ids:?}"
+    );
+    assert!(
+        ids.contains(&"TC-998".to_string()),
+        "real source lost: {ids:?}"
+    );
+}
+
 /// The it107 manifest (self-referencing TC ids, declared status vocabulary,
 /// legacy comment trace tags), reusable by the #51-batch tests below.
 fn self_ref_manifest() -> &'static str {

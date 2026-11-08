@@ -29,7 +29,7 @@ pub struct Args {
     pub format: Format,
 
     /// Exit 1 unless there is at least one criterion and every criterion
-    /// computes `tagged` or `method-without-symbol`.
+    /// computes `qualified-record`, `tagged`, `retired`, or `method-without-symbol`.
     #[arg(long)]
     pub strict: bool,
 }
@@ -138,7 +138,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 /// What `--strict` concludes from the matrix alone.
 #[derive(Debug, PartialEq, Eq)]
 enum Verdict {
-    /// At least one criterion, every one `tagged` or `method-without-symbol`.
+    /// At least one criterion, every one `qualified-record`, `tagged`, `retired`, or `method-without-symbol`.
     Pass,
     /// Zero criteria: a report that measured nothing.
     Empty,
@@ -155,7 +155,10 @@ fn strict_verdict(matrix: &[CoverageMatrixRequirement]) -> Verdict {
     for criterion in matrix.iter().flat_map(|r| &r.criteria) {
         total += 1;
         match criterion.status {
-            CoverageMatrixStatus::Tagged | CoverageMatrixStatus::MethodWithoutSymbol => {}
+            CoverageMatrixStatus::QualifiedRecord
+            | CoverageMatrixStatus::Tagged
+            | CoverageMatrixStatus::Retired
+            | CoverageMatrixStatus::MethodWithoutSymbol => {}
             CoverageMatrixStatus::Untagged => untagged += 1,
             CoverageMatrixStatus::TaggedByIgnoredTest => ignored_only += 1,
         }
@@ -175,6 +178,8 @@ fn strict_verdict(matrix: &[CoverageMatrixRequirement]) -> Verdict {
 /// The status as the engine spells it on the wire.
 fn status_token(status: CoverageMatrixStatus) -> &'static str {
     match status {
+        CoverageMatrixStatus::QualifiedRecord => "qualified-record",
+        CoverageMatrixStatus::Retired => "retired",
         CoverageMatrixStatus::Tagged => "tagged",
         CoverageMatrixStatus::Untagged => "untagged",
         CoverageMatrixStatus::TaggedByIgnoredTest => "tagged-by-ignored-test",
@@ -280,6 +285,8 @@ mod tests {
             statement: "s".to_string(),
             method: None,
             binders: Vec::new(),
+            record_binders: None,
+            identity: None,
             status,
         }
     }
@@ -296,6 +303,8 @@ mod tests {
     #[test]
     fn status_tokens_match_the_engine_wire_spelling() {
         for status in [
+            CoverageMatrixStatus::QualifiedRecord,
+            CoverageMatrixStatus::Retired,
             CoverageMatrixStatus::Tagged,
             CoverageMatrixStatus::Untagged,
             CoverageMatrixStatus::TaggedByIgnoredTest,
@@ -304,6 +313,69 @@ mod tests {
             assert_eq!(
                 serde_json::to_value(status).expect("serializes"),
                 serde_json::Value::String(status_token(status).to_string())
+            );
+        }
+    }
+
+    /// Trace: FR-026-AC-5, FR-026-AC-7, FR-026-AC-8, FR-026-AC-15
+    #[test]
+    fn qualified_record_renders_verbatim_without_source_binders() {
+        let matrix = vec![requirement(vec![criterion(
+            "FR-001-AC-1",
+            CoverageMatrixStatus::QualifiedRecord,
+        )])];
+        assert!(
+            render_markdown(&matrix).contains("| FR-001-AC-1 | s | (none) | qualified-record |"),
+            "qualified backing must not manufacture a source binder"
+        );
+        assert_eq!(
+            render_tsv(&matrix),
+            "document\tcriterion\tstatus\tbinders\tstatement\n\
+             spec/FR-001.md\tFR-001-AC-1\tqualified-record\t\ts\n"
+        );
+        let payload = serde_json::to_value(Payload {
+            coverage_matrix: matrix,
+        })
+        .expect("matrix payload serializes");
+        let row = &payload["coverage_matrix"][0]["criteria"][0];
+        assert_eq!(row["status"], "qualified-record");
+        assert_eq!(row["binders"], serde_json::json!([]));
+    }
+
+    /// Trace: FR-026-AC-10, FR-026-AC-15
+    #[test]
+    fn qualified_record_passes_strict_without_hiding_live_gaps() {
+        assert_eq!(
+            strict_verdict(&[requirement(vec![criterion(
+                "FR-001-AC-1",
+                CoverageMatrixStatus::QualifiedRecord,
+            )])]),
+            Verdict::Pass,
+            "a nonempty qualified population needs no source binder"
+        );
+        for (status, expected) in [
+            (
+                CoverageMatrixStatus::Untagged,
+                Verdict::Gaps {
+                    untagged: 1,
+                    ignored_only: 0,
+                },
+            ),
+            (
+                CoverageMatrixStatus::TaggedByIgnoredTest,
+                Verdict::Gaps {
+                    untagged: 0,
+                    ignored_only: 1,
+                },
+            ),
+        ] {
+            assert_eq!(
+                strict_verdict(&[requirement(vec![
+                    criterion("FR-001-AC-1", CoverageMatrixStatus::QualifiedRecord),
+                    criterion("FR-001-AC-2", status),
+                ])]),
+                expected,
+                "qualified backing must not exempt another criterion: {status:?}"
             );
         }
     }
@@ -330,6 +402,7 @@ mod tests {
             strict_verdict(&[requirement(vec![
                 criterion("A", CoverageMatrixStatus::Tagged),
                 criterion("B", CoverageMatrixStatus::MethodWithoutSymbol),
+                criterion("C", CoverageMatrixStatus::Retired),
             ])]),
             Verdict::Pass
         );

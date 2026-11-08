@@ -71,6 +71,8 @@ This specification governs:
   source-grounded assurance export, including explicit source/module/schema
   premises and fail-closed drift checks
 
+- The owned, offline Cargo.lock developer gate [FR-027](./functional/FR-027-check-lock-subcommand.md), distributed as `quire check-lock <Cargo.lock>...`; consumer adoption and copied-script removal remain IR-641.
+
 ### 2.2 Out of Scope
 
 This specification does not govern:
@@ -161,8 +163,7 @@ removed — see §2bis):
 - `quire validate <doc.md|glob|->... [--scope <dir>] [--module <path>] [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. In scoped mode, relative globs are resolved under `--scope` and frontmatter `type` selects the archetype. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032). A `--okf` flag ([FR-014](./functional/FR-014-validate-okf-bundle.md)) validates a directory as an OKF bundle under the permissive posture (unknown types / broken `ix://` links / index-completeness gaps warn; untyped docs are hard errors) via `quire_rs::validate_bundle_at`.
 - `quire schema <archetype> --module <path>` — emit the asserts-based input contract (FR-029) as JSON.
 - `quire lookup` / `quire edit` — read / byte-splice a section or stable block (consumer of `quire-rs` query + `update_section`/`update_block`).
-- `quire assurance --scope <dir> --module <path> --repository <identity>
-  --revision <full-sha> --expect-module <name@version>
+- `quire assurance --scope <dir> --module <path> --expect-module <name@version>
   [--expect-schema <module/archetype>]...` — emit quire-rs's closed
   `assurance-v1` static projection after exact premise validation; executes no
   test, proof, solver, consumer, package-manager, Git, or network command.
@@ -362,7 +363,7 @@ subcommand surface, exit codes, and JSON output schemas are the stable contract
 
 ## 15. Governance Notes
 
-- This CLI is a **thin process boundary**. Substantive parse/render/extract/validate logic belongs in `quire-rs`. If a feature request cannot be satisfied by adding flags or composition over existing `quire-rs` APIs, file the upstream FR first.
+- Artifact operations remain a **thin process boundary**: substantive Markdown parse/render/extract/validate logic belongs in `quire-rs`. The narrow developer-gate exception is [FR-027](./functional/FR-027-check-lock-subcommand.md), as scoped by [StR-004](./stakeholder/StR-004-thin-boundary-over-quire-rs.md); it owns no engine artifact behavior.
 - The CLI MUST remain a single static binary. No optional dynamic linking, no plugin loading, no eval-from-env code paths.
 - No network calls of any kind (matches `quire-rs` [StR-001](./stakeholder/StR-001-static-binary-hot-path.md) hard rule).
 

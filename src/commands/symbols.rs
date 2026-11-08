@@ -31,7 +31,6 @@ use std::path::Path;
 
 use anyhow::Context;
 use clap::Parser;
-use quire_cli::io;
 use quire_cli::safety;
 
 use crate::commands::Ctx;
@@ -109,11 +108,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // read is exactly the thing a symbol-table consumer must not silently miss:
     // it looks identical to a file with no declarations in it.
     for d in &extraction.diagnostics {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "SymbolExtraction",
             &format!("{}: {}", d.path, d.reason),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
 
     let graph = model.map(|m| quire_rs::symbols::trace::bind(&extraction, m));
@@ -197,5 +196,5 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::SymbolTableReport, bound: bool) {
             report.excluded_source_files
         ));
     }
-    io::emit_diagnostic(ctx.diagnostics, "SymbolTable", &lines.join("\n"));
+    ix_cli_kit::streams::Record::error("SymbolTable", &lines.join("\n")).emit(ctx.diagnostics);
 }

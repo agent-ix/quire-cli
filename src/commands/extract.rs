@@ -69,15 +69,15 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             // Surface the missing discriminator in the same `frontmatter`
             // diagnostic vocabulary `validate` uses, then exit 1.
             None => {
-                io::emit_diagnostic(
-                    ctx.diagnostics,
+                ix_cli_kit::streams::Record::error(
                     "ValidationError",
                     &format!(
                         "{}: required 'type' is missing from frontmatter \
                          (add `type:`, or pass --archetype <NAME>) [frontmatter]",
                         args.doc
                     ),
-                );
+                )
+                .emit(ctx.diagnostics);
                 invalid_request!("missing required 'type'");
             }
         },

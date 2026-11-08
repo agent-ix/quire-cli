@@ -4,6 +4,7 @@ Usage: quire [OPTIONS] <COMMAND>
 
 Commands:
   assurance   Emit source-grounded assurance facts through quire-rs assurance-v1
+  check-lock  Check agent-ix Git dependency coherence in Cargo.lock files
   clauses     Evaluate or compare rights-aware module clause sets
   parse       Parse a markdown document to JSON
   extract     Extract structured records + edges from a document

@@ -9,6 +9,41 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **Breaking: digests and hashes removed from outputs.** `quire properties --json` no longer emits `statement_hash` on a criterion obligation. The `quire assurance` v1 export locator is `{path, line}` only (no `digest`), obligations carry no `statement_hash`, and symbol ids are JSON-array identity parts rather than SHA-256 hex. `quire clauses` human binding output no longer prints a clause-set digest. Follows quire-rs assurance-v1 edited in place.
+
+## [0.38.3] - 2026-11-04
+
+- Adopt quire-rs 0.52.1, which honors a declared raw `section_body` alongside a semantic model-table locator in the same heading.
+
+## [0.38.2] - 2026-11-03
+
+- Adopt quire-rs 0.52.0, which reads module-declared composition metadata for semantic relationship extraction.
+
+## [0.38.1] - 2026-11-02
+
+- Adopt quire-rs 0.51.0 for explicit module-declared retirement and separately reported historical coverage rows.
+- Preserve explicitly retired coverage declarations and their withdrawal reasons without counting them as live unbacked rows. Strict coverage distinguishes an all-retired scope from a scope with no matched declarations; live and Planned gaps still fail.
+- Show the separate retired count in the human coverage census, using `no live rows` for an all-retired denominator.
+
+## [0.38.0] - 2026-11-02
+
+- **Breaking:** align `quire assurance` with the current quire-rs assurance-v1 contract by removing `--repository` and `--revision` inputs and the `source` output premise.
+- Keep `quire schema` loading current semantic module manifests that carry the legacy informational `semantic_core` field; the embedded bundle remains authoritative.
+- Pin quire-rs 0.50.4, including the reviewed semantic-loader and matrix performance fixes, and align native/npm release package versions.
+
+## [0.37.1] - 2026-10-28
+
+- Update to quire-rs 0.50.3, which honors optional trace targets whose archetype is absent from the corpus.
+
+## [0.37.0] - 2026-10-24
+
+- **Added `quire check-lock` (IR-736, US-008).** Checks distributed Git `Cargo.lock` revision coherence across repositories under the normalized agent-ix policy; typed `Cargo.lock` intake, no network access.
+- Adopt shared `ix-cli-kit` self-update and CLI helpers.
+
+## [0.36.2] - 2026-10-07
+
+- Update to quire-rs 0.50.2, which retires the ISO log archetype's special index handling.
+
 ## [0.36.1] - 2026-10-01
 
 - **Engine: quire-rs 0.50.1** (semantic-schema 0.3.0, quire-code-parse 0.2.2).

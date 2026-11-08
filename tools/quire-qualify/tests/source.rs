@@ -11,8 +11,10 @@ fn write(path: &Path, value: &str) {
 fn minimum_repo(root: &Path) {
     write(&root.join("src/main.rs"), "fn main() {}\n");
     write(&root.join("src/lib.rs"), "pub fn clean() {}\n");
-    write(&root.join("src/self_update/mod.rs"), "pub fn update() {}\n");
-    write(&root.join("src/commands/update.rs"), "pub fn run() {}\n");
+    write(
+        &root.join("src/commands/update.rs"),
+        "use ix_cli_kit::self_update;\npub fn run() {}\n",
+    );
     write(
         &root.join("src/commands/assurance.rs"),
         r#"
@@ -39,6 +41,15 @@ fn rust_ast_catches_direct_aliased_and_nested_group_references() {
     let dir = tempfile::tempdir().unwrap();
     minimum_repo(dir.path());
     quire_qualify::source::check_thin_boundary(dir.path()).expect("clean fixture");
+
+    let local_engine = dir.path().join("src/self_update/mod.rs");
+    write(&local_engine, "pub fn update() {}\n");
+    let findings = quire_qualify::source::thin_boundary_findings(dir.path()).unwrap();
+    assert!(findings.iter().any(|finding| {
+        finding.path == Path::new("src/self_update/mod.rs")
+            && finding.reason.contains("duplicates ix-cli-kit")
+    }));
+    fs::remove_file(local_engine).unwrap();
 
     for mutation in [
         "fn f() { quire_rs::parse_document(); }\n",

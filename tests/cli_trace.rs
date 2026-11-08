@@ -397,29 +397,12 @@ fn prefix_does_not_double_count_ids_that_normalize_the_same() {
     );
 }
 
-// Coordinator follow-up on H1/H2: `id_segments` duplicates the engine's
-// `normalized_trace_id` fold rather than sharing it (that function is
-// `pub(crate)`, and boundary-aware `--prefix` needs the segment structure it
-// discards anyway). A duplicated invariant with nothing comparing the two
-// copies is exactly the defect class this campaign exists to kill — if
-// quire-rs ever changes its fold, this crate's copy keeps the old rule and
-// `--prefix` silently diverges from exact `--id` again, with every other
-// test in this file staying green because they all check this crate's fold
-// against itself.
-//
-// This test measures BOTH folds independently and behaviorally, never by
-// calling the unreachable `normalized_trace_id`:
-//   - the ENGINE's fold, observed through exact `--id` (which already
-//     case/separator-folds internally, per the HIGH 1 repro: `--id fr-047`
-//     found `FR-047`);
-//   - THIS CRATE's fold, observed through `--prefix` (`id_segments` /
-//     `prefix_matches`).
-// Over a table of five spellings of `FR-047` — including one that mixes
-// separator characters within a single spelling (`FR_047-`: underscore
-// internally, dash trailing) — plus the `FR-0470` decoy, which must never
-// enter either set. If the engine's rule ever moves, the exact-`--id`
-// assertions below change while the `--prefix` assertions do not, and this
-// test fails naming the diverging spelling.
+// PLAT-898: `--prefix` no longer carries its own copy of the engine's trace-id
+// fold; it calls quire-rs's exported `trace_id_segments`, the single
+// implementation `normalized_trace_id` is built from. This test still pins the
+// observable agreement: exact `--id` (the engine's concatenated fold) and
+// `--prefix` (its segment fold) must resolve every separator/case spelling of
+// `FR-047` to the same family, and the `FR-0470` decoy must stay out of both.
 #[test]
 fn prefix_fold_tracks_the_engines_own_normalization_across_spellings() {
     let dir = TempDir::new().expect("tempdir");
@@ -479,6 +462,76 @@ fn prefix_fold_tracks_the_engines_own_normalization_across_spellings() {
             prefixed_ids,
             vec!["FR-047".to_string(), "FR-047-AC-1".to_string()],
             "this crate's --prefix fold disagrees for spelling {spelling:?}: {prefixed_payload}"
+        );
+    }
+}
+
+// PLAT-908: the one known place `--prefix` and exact `--id` disagree. The
+// engine folds by concatenation, so `FR047` is `FR-047` to `--id`; `--prefix`
+// compares alphanumeric-run segments (the only way to keep `FR-0470` out), so
+// `FR047` is the single segment `FR047` and `FR047-AC-1` is not under the
+// prefix `FR-047`. This pins that documented behaviour so a change to either
+// fold shows up here, and checks `matched_ids` still covers every id the
+// payload returns (it used to omit `FR047`, which the engine folded in).
+#[test]
+fn prefix_known_divergence_for_ids_without_a_separator() {
+    let dir = TempDir::new().expect("tempdir");
+    let src = dir.path().join("src");
+    fs::create_dir_all(&src).expect("mkdir src");
+    fs::write(
+        src.join("lib.rs"),
+        "#[trace(\"FR-047\")]\n#[test]\nfn tc_dash() {}\n\n\
+         #[trace(\"FR047\")]\n#[test]\nfn tc_no_separator() {}\n\n\
+         #[trace(\"FR047-AC-1\")]\n#[test]\nfn tc_no_separator_child() {}\n",
+    )
+    .expect("write lib.rs");
+    let scope = dir.path().to_string_lossy().into_owned();
+    let m = module(&dir);
+    let ids_of = |payload: &serde_json::Value| -> Vec<String> {
+        let mut v: Vec<String> = payload["claims"]["verifies"]
+            .as_array()
+            .expect("verifies")
+            .iter()
+            .map(|r| r["trace_id"].as_str().unwrap().to_string())
+            .collect();
+        v.sort();
+        v
+    };
+    let run_json = |extra: &[&str]| -> serde_json::Value {
+        let mut args = vec!["trace", "--scope", &scope, "--module", &m, "--json"];
+        args.extend_from_slice(extra);
+        let out = run(&args);
+        assert_eq!(out.code, Some(0), "stderr: {}", out.stderr);
+        serde_json::from_str(&out.stdout).expect("json")
+    };
+
+    // Engine fold: `FR047-AC-1` IS `FR-047-AC-1`, and FR047 IS FR-047.
+    let child = run_json(&["--id", "FR-047-AC-1"]);
+    assert_eq!(ids_of(&child), vec!["FR047-AC-1".to_string()], "{child}");
+    let exact = run_json(&["--id", "FR-047"]);
+    assert_eq!(
+        ids_of(&exact),
+        vec!["FR-047".to_string(), "FR047".to_string()],
+        "{exact}"
+    );
+
+    // Prefix fold: the boundary-differing child is NOT in the family.
+    let prefixed = run_json(&["--id", "FR-047", "--prefix"]);
+    assert_eq!(
+        ids_of(&prefixed),
+        vec!["FR-047".to_string(), "FR047".to_string()],
+        "known divergence changed: {prefixed}"
+    );
+    let matched: Vec<String> = prefixed["query"]["matched_ids"]
+        .as_array()
+        .expect("matched_ids")
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
+    for id in ids_of(&prefixed) {
+        assert!(
+            matched.contains(&id),
+            "matched_ids {matched:?} omits {id} which the payload returned"
         );
     }
 }

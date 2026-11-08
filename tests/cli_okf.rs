@@ -137,7 +137,7 @@ fn okf_missing_spec_root_is_a_named_error() {
 
 // IT-088 (agent-ix/quire-rs#110): a non-fatal bundle warning is emitted as a
 // WARNING in the machine surface. Every `report.warnings` entry used to go
-// through `emit_diagnostic`, which hardcodes `"severity": "error"` — so under
+// through the error diagnostic path, which hardcoded `"severity": "error"` — so under
 // `--diagnostics json` the severity contradicted the exit code, which was
 // correctly 0. The frontmatter-less file is the CR-048 warning that made this
 // visible, and the engine now distinguishes its two flavors by machine reason

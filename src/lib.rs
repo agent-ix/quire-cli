@@ -7,4 +7,3 @@
 pub mod engine;
 pub mod io;
 pub mod safety;
-pub mod self_update;

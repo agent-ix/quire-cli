@@ -15,7 +15,6 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Parser;
 
-use quire_cli::io;
 use quire_cli::safety;
 use quire_rs::{unlinked_references, Spec, UnlinkedFix, UnlinkedReason, UnlinkedReference};
 
@@ -65,10 +64,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
                 }
                 UnlinkedReason::Ambiguous => "ambiguous — resolves to more than one artifact",
             };
-            io::emit_warning(
-                ctx.diagnostics,
+            ix_cli_kit::streams::Record::warning(
+                "ValidationWarning",
                 &format!("{}: {} ({why})", f.path.display(), f.token),
-            );
+            )
+            .emit(ctx.diagnostics);
         }
     }
 
@@ -80,15 +80,15 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     if !args.write {
         for f in &auto {
             if let UnlinkedFix::AutoFix { suggested_link } = &f.fix {
-                io::emit_diagnostic(
-                    ctx.diagnostics,
+                ix_cli_kit::streams::Record::error(
                     "UnlinkedReference",
                     &format!(
                         "would-fix: {}: {} -> {suggested_link}",
                         f.path.display(),
                         f.token
                     ),
-                );
+                )
+                .emit(ctx.diagnostics);
             }
         }
         if !auto.is_empty() {
@@ -128,11 +128,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             }
         }
         std::fs::write(&path, &text).with_context(|| format!("writing '{}'", path.display()))?;
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "Fixed",
             &format!("fixed {applied} reference(s) in {}", path.display()),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     Ok(())
 }

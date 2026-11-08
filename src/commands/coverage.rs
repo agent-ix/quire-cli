@@ -15,7 +15,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use clap::Parser;
-use quire_cli::io;
 use quire_cli::safety;
 use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
 use quire_rs::{compute_coverage, Registry, Spec};
@@ -195,7 +194,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         // where the two lists below are empty for the *wrong* reason. Checked
         // first, and reported as itself — a gate told "0 unbacked rows" learns
         // the opposite of the truth.
-        if report.totals.total == 0 {
+        if report.totals.total == 0 && report.totals.retired == 0 {
             partial_report!(
                 "the declared traceability model matched no rows in this scope, \
                  so nothing was reconciled (--strict); check that the model's \
@@ -267,11 +266,11 @@ pub(super) fn compute_report(
     // less than the operator declared. Stderr on every format: diagnostics
     // are the progress/finding stream, never part of the stdout payload.
     for d in &extraction.diagnostics {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "SymbolExtraction",
             &format!("{}: {}", d.path, d.reason),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     let graph = quire_rs::symbols::trace::bind(&extraction, model);
 
@@ -330,11 +329,11 @@ fn project_by_severity(
 ) -> quire_rs::CoverageReport {
     let note = |check: &str, n: usize| {
         if n > 0 {
-            io::emit_diagnostic(
-                ctx.diagnostics,
+            ix_cli_kit::streams::Record::error(
                 "CoverageProjection",
                 &format!("{n} coverage:{check} finding(s) suppressed by severity `off`"),
-            );
+            )
+            .emit(ctx.diagnostics);
         }
     };
     if pack_level(severity, "unbacked-row") == GrammarSeverityLevel::Off {
@@ -536,6 +535,14 @@ fn percent_label(backed: usize, total: usize) -> String {
     }
 }
 
+fn coverage_percent_label(backed: usize, total: usize, retired: usize) -> String {
+    if total == 0 && retired > 0 {
+        "no live rows".to_string()
+    } else {
+        percent_label(backed, total)
+    }
+}
+
 /// The lead and trailer of a human finding line (#51, FR-017-AC-12/AC-16).
 ///
 /// With a row id — the declaration names a `row_id_column` — the id leads
@@ -632,9 +639,12 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()
             "Coverage: {}/{} rows backed ({})",
             t.backed,
             t.total,
-            percent_label(t.backed, t.total)
+            coverage_percent_label(t.backed, t.total, t.retired)
         )
     );
+    if t.retired > 0 {
+        primary_line!("{} retired historical row(s)", t.retired);
+    }
     for line in census_lines(report) {
         primary_line!("{}", &line);
     }
@@ -646,7 +656,7 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()
                 g.document,
                 g.backed,
                 g.total,
-                percent_label(g.backed, g.total)
+                coverage_percent_label(g.backed, g.total, g.retired)
             )
         );
     }
@@ -676,25 +686,25 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()
             Some(path) => format!(" ({path})"),
             None => String::new(),
         };
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "CoverageDiagnostic",
             &format!("[{}] {}{locus}", d.reason, d.message),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     // Suspicions keep their advisory framing (FR-064): a suspicion is a thing
     // that LOOKS wrong with the measurement that made it look wrong, and the
     // evidence is not decoration — one a reader cannot check in a glance is one
     // they learn to scroll past.
     for s in &report.suspicions {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "Suspicion",
             &format!(
                 "[{}] {} in {}:{} — {} ({})",
                 s.kind, s.symbol, s.path, s.line, s.message, s.evidence
             ),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     // #51: each finding line leads with the row's own id when the record
     // carries one, so a reader can act on the line without going to `--json`
@@ -704,19 +714,19 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()
     // matching no declared row, and its `trace_id` already prints.
     for r in &report.unbacked_rows {
         let (lead, kind) = finding_identity(r.row_id.as_deref(), r.line, &r.reference, &r.document);
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "UnbackedRow",
             &format!("{lead} has no backing symbol{kind}"),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     for l in &report.status_lies {
         let (lead, kind) = finding_identity(l.row_id.as_deref(), l.line, &l.reference, &l.document);
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "StatusLie",
             &format!("{lead} claims `{}` but is not backed{kind}", l.status),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     // FR-017-AC-17 (#51): rendered like every other row-id-carrying kind. It
     // was JSON/TSV-only — but the record is the *explanation* for an unbacked
@@ -724,38 +734,38 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()
     // carries is one nobody reads (the CR-083 argument, unchanged).
     for n in &report.no_symbol_rows {
         let (lead, kind) = finding_identity(n.row_id.as_deref(), n.line, &n.reference, &n.document);
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "NoSymbolRow",
             &format!(
                 "{lead} is verified by `{}`, which mints no source symbol{kind}",
                 n.test_type
             ),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     // CR-083. Rendered rather than left to `--json`, because a finding only the
     // machine surface carries is a finding nobody reads: the whole defect this
     // class reports is a value the engine had an opinion about and never said.
     for s in &report.undeclared_statuses {
         let (lead, kind) = finding_identity(s.row_id.as_deref(), s.line, &s.reference, &s.document);
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "UndeclaredStatus",
             &format!(
                 "{lead} has status `{}`, which the declared vocabulary classes as nothing{kind}",
                 s.status
             ),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     for u in &report.untracked_symbols {
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             "UntrackedSymbol",
             &format!(
                 "{} in {} traces to `{}`, which matches no declared row",
                 u.symbol, u.path, u.trace_id
             ),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
     Ok(())
 }
@@ -778,11 +788,7 @@ pub(super) fn load_registry_for(
     if scope.join("manifest.yaml").is_file() {
         return super::load_module_registry(ctx, scope);
     }
-    let registry = Registry::from_env()
-        .map_err(super::failure::invalid)
-        .context("loading modules")?;
-    io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
-    Ok(registry)
+    super::validate::load_scoped_with_defaults(ctx, scope)
 }
 
 #[cfg(test)]

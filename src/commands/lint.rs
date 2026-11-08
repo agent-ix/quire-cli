@@ -70,8 +70,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         };
         // Severity rides in the message so the human format (which
         // drops `kind`) still shows it; JSON carries both.
-        io::emit_diagnostic(
-            ctx.diagnostics,
+        ix_cli_kit::streams::Record::error(
             kind,
             &format!(
                 "{}: {}: {}",
@@ -79,7 +78,8 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
                 finding.rule,
                 finding.message
             ),
-        );
+        )
+        .emit(ctx.diagnostics);
     }
 
     if errors > 0 {

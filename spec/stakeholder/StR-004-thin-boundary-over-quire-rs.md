@@ -6,13 +6,21 @@ type: StR
 
 ## Stakeholder Need
 
-`quire-rs` is the canonical engine. Any parser/renderer/validator behavior in this CLI that diverges from `quire-rs` creates the exact drift problem `quire-rs` was built to solve.
+`quire-rs` is the canonical engine. Any Markdown parser/renderer/validator behavior in this CLI that diverges from `quire-rs` creates the exact drift problem `quire-rs` was built to solve.
 
-The CLI SHALL be a **thin process boundary** over `quire-rs`. Every observable
+For artifact operations, the CLI SHALL be a **thin process boundary** over `quire-rs`. Every observable
 artifact behavior in `parse`/`extract`/`validate`/`assurance` SHALL trace to a
 `quire-rs` FR. If a feature request cannot be satisfied by adding flags or
 composing existing `quire-rs` APIs, the upstream FR is authored first and this
 CLI is updated to expose the new surface.
+
+The distributed developer gate [FR-027](../functional/FR-027-check-lock-subcommand.md)
+is a narrow exception: quire-cli owns Cargo.lock TOML intake and agent-ix Git
+repository coherence, which are not Markdown artifact or engine semantics.
+This exception authorizes no document parser, engine model, graph, assurance,
+source-analysis, or general qualification-tool duplication. The existing
+private `quire-qualify` package remains repository-local under
+[FR-025](../functional/FR-025-rust-qualification-tooling.md).
 
 ## Priority
 
@@ -23,7 +31,7 @@ Must-Have
 `quire-rs` is the canonical engine; any parser/renderer/validator behavior
 duplicated in the CLI recreates the exact drift problem the engine was built to
 eliminate. Keeping the CLI a thin process boundary — argv parsing, path-safety,
-stream wiring, and calls into `quire-rs` — guarantees observable behavior traces to
+stream wiring, and calls into `quire-rs` — guarantees observable artifact behavior traces to
 an upstream FR and that new features are authored upstream first rather than
 forked into the CLI.
 
@@ -38,5 +46,5 @@ enforces the thin-boundary stance:
 | ID | Criteria | Validation |
 |----|----------|------------|
 | StR-004-VC-1 | **StR-004-AC-1**: Each FR in `quire-cli/spec/functional/` that wraps a `quire-rs` API declares the upstream `quire-rs` FR ID in its frontmatter `relationships:` array (`type: implements`). | Demonstration |
-| StR-004-VC-2 | **StR-004-AC-2**: `src/` contains no markdown parsing, template rendering, graph construction, assurance projection, or JSON Schema definition/validation logic — only argv/premise parsing, path-safety checks, stdin/stdout wiring, and calls into `quire-rs`. | Inspection |
+| StR-004-VC-2 | **StR-004-AC-2**: `src/` contains no markdown parsing, template rendering, graph construction, assurance projection, or JSON Schema definition/validation logic — only argv/premise parsing, path-safety checks, stdin/stdout wiring, calls into `quire-rs`, and the explicitly owned FR-027 Cargo.lock developer gate. | Inspection |
 | StR-004-VC-3 | **StR-004-AC-3**: Code review checklist for this repo includes: "Does any new logic belong upstream in `quire-rs`?". | Demonstration |
