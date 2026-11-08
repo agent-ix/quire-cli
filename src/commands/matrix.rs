@@ -64,7 +64,43 @@ struct Payload {
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let (scope, registry) = args.target.load(ctx)?;
-    let matrix = compute_report(ctx, &scope, &registry)?.coverage_matrix;
+    let report = compute_report(ctx, &scope, &registry)?;
+    // FR-026-AC-16 / PLAT-1150: selecting one view must not discard the
+    // engine's explanation of tags it refused or could only partly read.
+    for diagnostic in &report.diagnostics {
+        let locus = match (diagnostic.path.as_deref(), diagnostic.line) {
+            (Some(path), Some(line)) => format!("{path}:{line}"),
+            (Some(path), None) => path.to_string(),
+            (None, _) => "scope".to_string(),
+        };
+        let message = format!("[{}] {} ({locus})", diagnostic.reason, diagnostic.message);
+        ix_cli_kit::streams::Record::warning("MatrixDiagnostic", &message)
+            .with_fields(ix_cli_kit::streams::DiagnosticFields {
+                reason: Some(&diagnostic.reason),
+                path: diagnostic.path.as_deref(),
+                line: diagnostic.line,
+                change_target: Some(&diagnostic.declaration),
+                ..Default::default()
+            })
+            .emit(ctx.diagnostics);
+    }
+    for tag in &report.unmatched_tags {
+        let message = format!(
+            "{}:{}: `{}` on `{}` was not read by the declared trace grammar; \
+             use the module's declared tag form (comma-separated IDs for Trace: lists)",
+            tag.path, tag.line, tag.trace_id, tag.symbol,
+        );
+        ix_cli_kit::streams::Record::warning("UnmatchedTraceTag", &message)
+            .with_fields(ix_cli_kit::streams::DiagnosticFields {
+                reason: Some("unmatched-trace-tag"),
+                path: Some(&tag.path),
+                line: Some(tag.line),
+                subject: Some(&tag.trace_id),
+                ..Default::default()
+            })
+            .emit(ctx.diagnostics);
+    }
+    let matrix = report.coverage_matrix;
     let verdict = strict_verdict(&matrix);
 
     match args.format {
