@@ -15,8 +15,10 @@ make dist-test
 ```
 
 `package-npm` expects one validated executable at
-`artifacts/<rust-target>/quire[.exe]` for every catalog target and writes the
-four platform packages under `npm/dist/`. It never publishes. The manually
+`artifacts/<rust-target>/quire[.exe]` for each target that was built (any
+non-empty subset of the catalog), writes one platform package per such target
+under `npm/dist/`, and sets the launcher's `optionalDependencies` to exactly
+that set. It never publishes. The manually
 dispatched release workflow remains responsible for invoking external build,
 GitHub, and npm hosts.
 
