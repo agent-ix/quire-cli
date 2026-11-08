@@ -17,18 +17,15 @@ myself.
 
 ## Acceptance
 
-- **US-007-AC-1**: A clean offline installation from the five locally packed
-  npm artifacts installs one launcher and the matching optional platform
-  package, and `quire --version` executes the packaged native binary.
-- **US-007-AC-2**: Arguments, standard streams, normal exit status, and
-  terminating signals cross the launcher boundary without reinterpretation.
-- **US-007-AC-3**: An unsupported host or an absent matching optional package
-  fails with an actionable diagnostic and never substitutes another target.
-- **US-007-AC-4**: Every launcher release selects platform packages at the
-  identical version and ships the repository's declared license.
+- **US-007-AC-1**: `npm install -g @agent-ix/quire-cli` installs the matching
+  platform package, and `quire --version` executes the packaged native binary.
+- **US-007-AC-2**: An unsupported host fails with an actionable diagnostic and
+  never substitutes another target.
+- **US-007-AC-3**: `quire update` under an npm install defers to npm.
 
 ## Boundaries
 
-This story governs distribution and process launching only. It adds no
-document parser, extraction rule, native-language profile, clause grammar,
-source semantic, WASM surface, or browser behavior.
+This story governs distribution only; the package is produced by the shared
+publish action (ADR-0003). It adds no document parser, extraction rule,
+native-language profile, clause grammar, source semantic, WASM surface, or
+browser behavior.

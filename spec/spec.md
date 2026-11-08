@@ -65,8 +65,8 @@ This specification governs:
 - JSON encoding of `QuireDocument`, `ExtractionResult`, `HarvestedEdge[]` on stdout
 - Process-level performance budgets (cold-start validate / parse / extract)
 - Distribution and installation surface (`cargo install`, release binary
-  tarballs, and the Rust-generated npm packages governed by FR-022..024 and
-  ADR-0002)
+  tarballs, and the npm packages published through the shared action governed
+  by FR-022 and ADR-0003)
 - A deterministic `assurance` process boundary over quire-rs's published
   source-grounded assurance export, including explicit source/module/schema
   premises and fail-closed drift checks

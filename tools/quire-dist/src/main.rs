@@ -2,13 +2,10 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use quire_dist::{
-    package_npm, set_version, verify_binary_version, verify_published, verify_release, PackageNpm,
-    SetVersion, VerifyPublished, VerifyRelease,
-};
+use quire_dist::verify_binary_version;
 
 #[derive(Debug, Parser)]
-#[command(about = "Repository-local quire-cli distribution tooling")]
+#[command(about = "Repository-local quire-cli release tooling")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -16,20 +13,6 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Update the Cargo and npm launcher versions in lockstep.
-    SetVersion {
-        #[arg(long)]
-        version: String,
-        #[arg(long, default_value = ".")]
-        root: PathBuf,
-    },
-    /// Verify committed Cargo and npm launcher versions.
-    VerifyRelease {
-        #[arg(long)]
-        version: String,
-        #[arg(long, default_value = ".")]
-        root: PathBuf,
-    },
     /// Verify one executable's `--version` output.
     VerifyBinary {
         #[arg(long)]
@@ -37,63 +20,10 @@ enum Command {
         #[arg(long)]
         binary: PathBuf,
     },
-    /// Generate one npm package per platform actually present in
-    /// `artifacts-dir`, and sync the launcher's optionalDependencies to
-    /// exactly that set.
-    PackageNpm {
-        #[arg(long)]
-        version: String,
-        #[arg(long, default_value = ".")]
-        root: PathBuf,
-        #[arg(long, default_value = "artifacts")]
-        artifacts_dir: PathBuf,
-    },
-    /// Post-publish gate: fetch the launcher package as actually published
-    /// at `version` from `registry`, and assert every platform package its
-    /// published optionalDependencies declares also resolves there.
-    VerifyPublished {
-        #[arg(long)]
-        version: String,
-        #[arg(long)]
-        registry: String,
-        #[arg(long, default_value = "npm")]
-        npm_binary: PathBuf,
-    },
 }
 
 fn main() -> Result<()> {
     match Cli::parse().command {
-        Command::SetVersion { version, root } => set_version(&SetVersion {
-            version: &version,
-            cargo_manifest: &root.join("Cargo.toml"),
-            launcher_manifest: &root.join("npm/quire-cli/package.json"),
-        }),
-        Command::VerifyRelease { version, root } => verify_release(&VerifyRelease {
-            version: &version,
-            cargo_manifest: &root.join("Cargo.toml"),
-            launcher_manifest: &root.join("npm/quire-cli/package.json"),
-        }),
         Command::VerifyBinary { version, binary } => verify_binary_version(&version, &binary),
-        Command::PackageNpm {
-            version,
-            root,
-            artifacts_dir,
-        } => package_npm(&PackageNpm {
-            version: &version,
-            cargo_manifest: &root.join("Cargo.toml"),
-            artifacts_dir: &artifacts_dir,
-            output_dir: &root.join("npm/dist"),
-            launcher_dir: &root.join("npm/quire-cli"),
-            license: &root.join("LICENSE"),
-        }),
-        Command::VerifyPublished {
-            version,
-            registry,
-            npm_binary,
-        } => verify_published(&VerifyPublished {
-            version: &version,
-            registry: &registry,
-            npm_binary: npm_binary.as_os_str(),
-        }),
     }
 }

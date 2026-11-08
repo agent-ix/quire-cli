@@ -9,3 +9,4 @@ description: "Index of artifacts in this directory."
 
 * [0001 Validate Lazy-Init Module Bootstrap](./0001-validate-lazy-init-module-bootstrap.md)
 * [0002 Retain a Minimal Node Host for the Cross-Platform npm Launcher](./0002-minimal-node-npm-launcher.md)
+* [0003 Publish npm through the shared native-npm action](./0003-publish-npm-through-shared-action.md)

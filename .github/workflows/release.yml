@@ -157,10 +157,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
-        shell: bash
-        run: rustup show active-toolchain || rustup toolchain install
-
       - name: Resolve version
         id: ver
         run: |
@@ -224,66 +220,68 @@ jobs:
               --verify-tag
           fi
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      # Packaging and the npm publish are owned by the shared action, which
+      # also verifies what the registry serves afterwards. It reads
+      # artifacts/<rust-target>/quire[.exe] (the layout normalized above).
+      # static-musl: the Linux binaries are fully static musl builds that run
+      # on glibc as well, so their packages carry no libc restriction.
+      # Public npm via OIDC Trusted Publishing (id-token: write above); the
+      # NPM_TOKEN secret is only a first-publish bootstrap and may be unset.
+      - name: Package and publish the npm distribution
+        uses: agent-ix/nodejs-actions/publish-native-npm@main
         with:
-          node-version: "22"   # OIDC Trusted Publishing requires Node >= 22.14
+          package: "@agent-ix/quire-cli"
+          binary: quire
+          version: ${{ steps.ver.outputs.version }}
+          artifacts-dir: artifacts
+          repository: ${{ github.repository }}
+          description: "Static CLI over quire-rs (parse, extract, lookup, edit, validate, schema, lint) for Markdown artifacts."
+          self-update-command: update
+          static-musl: "true"
+          npm-token: ${{ secrets.NPM_TOKEN }}
+          publish: ${{ inputs.publish }}
 
-      # OIDC Trusted Publishing needs npm >= 11.5.1.
-      - name: Upgrade npm for Trusted Publishing
-        run: npm install -g npm@11
-
-      # Public npm via OIDC: route @agent-ix at registry.npmjs.org with no auth
-      # token. `npm publish` performs the tokenless OIDC token exchange (the
-      # id-token: write permission above supplies the GitHub OIDC token).
-      # Written to $HOME so every `npm publish` (run from each package dir) picks it up.
-      # Public npm. Steady state is tokenless OIDC (id-token: write above). The
-      # NPM_TOKEN fallback exists only to BOOTSTRAP: npm requires a package to
-      # exist before a trusted publisher can be attached, and these 5 packages'
-      # binaries can only be built by this CI matrix. Add NPM_TOKEN as a repo
-      # secret for the first release, configure the trusted publishers on
-      # npmjs.com, then DELETE the secret — every later release uses OIDC.
-      # provenance=false: this repo is private, where provenance is unsupported.
-      - name: Configure npm for public npm
+      - name: Smoke the published npm packages
+        if: inputs.publish
+        shell: bash
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            printf 'registry=https://registry.npmjs.org/\n@agent-ix:registry=https://registry.npmjs.org/\n//registry.npmjs.org/:_authToken=%s\nprovenance=false\n' "$NPM_TOKEN" > "$HOME/.npmrc"
-          else
-            printf 'registry=https://registry.npmjs.org/\n@agent-ix:registry=https://registry.npmjs.org/\nprovenance=false\n' > "$HOME/.npmrc"
+          set -euo pipefail
+
+          PREFIX="$(mktemp -d)"
+          NPMRC="$(mktemp)"
+          printf '@agent-ix:registry=https://registry.npmjs.org/\n' > "$NPMRC"
+          export NPM_CONFIG_USERCONFIG="$NPMRC"
+          export NPM_CONFIG_PREFIX="$PREFIX"
+          export PATH="$PREFIX/bin:$PATH"
+
+          # Public npm can take a little while to serve a just-published
+          # version; retry with backoff rather than failing on propagation.
+          attempt=0
+          max_attempts=8
+          until npm install --global "@agent-ix/quire-cli@${VERSION}"; do
+            attempt=$((attempt + 1))
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "::error::npm install of @agent-ix/quire-cli@${VERSION} did not succeed after $attempt attempts" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+
+          actual_version="$(quire --version | cut -d' ' -f2)"
+          if [ "$actual_version" != "$VERSION" ]; then
+            echo "::error::quire --version printed '$actual_version', expected '$VERSION'" >&2
+            exit 1
           fi
 
-      - name: Generate per-platform npm packages
-        run: |
-          cargo run --locked -p quire-dist -- verify-release \
-            --version "${{ steps.ver.outputs.version }}"
-          cargo run --locked -p quire-dist -- package-npm \
-            --version "${{ steps.ver.outputs.version }}" \
-            --artifacts-dir artifacts
-
-      - name: Publish to public npm
-        if: inputs.publish
-        run: |
-          set -e
-          # Platform packages first so the launcher's optionalDependencies resolve.
-          for pkg in npm/dist/*/; do
-            echo "publishing $pkg"
-            (cd "$pkg" && npm publish)
-          done
-          echo "publishing launcher"
-          (cd npm/quire-cli && npm publish)
-
-      # PLAT-885: package-npm only ever checked what it wrote locally.
-      # Publishing is a separate step that can partially fail (the launcher's
-      # own `npm publish` erroring after the platform packages already
-      # succeeded) or diverge from local state entirely -- this asserts what
-      # the registry actually now serves, reading the launcher's published
-      # optionalDependencies from the registry itself, not from the working
-      # tree.
-      - name: Verify published packages resolve
-        if: inputs.publish
-        run: |
-          cargo run --locked -p quire-dist -- verify-published \
-            --version "${{ steps.ver.outputs.version }}" \
-            --registry https://registry.npmjs.org/
+          if quire update 2>update.err; then
+            echo "::error::quire update exited 0 under an npm install; it must defer to npm instead" >&2
+            cat update.err >&2
+            exit 1
+          fi
+          if ! grep -q "npm install -g @agent-ix/quire-cli@latest" update.err; then
+            echo "::error::quire update's stderr did not name the exact npm command to run" >&2
+            cat update.err >&2
+            exit 1
+          fi
