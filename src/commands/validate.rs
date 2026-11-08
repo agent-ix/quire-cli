@@ -786,6 +786,9 @@ fn validation_remedy(reason: ValidationReason) -> &'static str {
         ValidationReason::Assert => {
             "change the cited value or structure so it satisfies the named archetype assertion"
         }
+        ValidationReason::RowWidth => {
+            "correct the table row so its cell count matches the table header"
+        }
         ValidationReason::Frontmatter => {
             "correct the cited frontmatter field so it satisfies the archetype schema"
         }
@@ -842,6 +845,15 @@ mod tests {
                 "default install root {default_root:?} missing from {roots:?}"
             );
         }
+    }
+
+    // Trace: FR-004-AC-2
+    #[test]
+    fn row_width_validation_names_a_specific_remedy() {
+        assert_eq!(
+            validation_remedy(ValidationReason::RowWidth),
+            "correct the table row so its cell count matches the table header"
+        );
     }
 }
 
