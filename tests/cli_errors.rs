@@ -97,10 +97,6 @@ fn it_027_no_panic_on_random_garbage_input() {
 // would leave the row green on the strength of the other — the collision
 // agent-ix/quire-cli#45 removes. It stays as an errors-lane smoke check that
 // claims nothing.
-//
-// Keep ids out of line-initial position in this block: `rust-comment-id`
-// matches `//` + id + a delimiter, and only the trailing prose saves the
-// mentions above from binding. Reflowing this comment could make one bind.
 #[test]
 fn unknown_archetype_exits_3_with_named_error() {
     quire()
@@ -116,7 +112,6 @@ fn unknown_archetype_exits_3_with_named_error() {
         .stderr(predicate::str::contains("UnknownArchetype"));
 }
 
-// Trace: FR-007-AC-8
 #[trace("FR-007-AC-8")]
 #[test]
 fn failed_primary_output_returns_internal_without_panicking() {

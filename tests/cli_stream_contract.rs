@@ -105,7 +105,6 @@ fn stderr(o: &Output) -> String {
 }
 
 /// IT-117 (CR-012): `coverage`'s census reaches stdout and its findings do not.
-/// Trace: FR-006-AC-5, FR-017-AC-1, IT-117
 #[trace("IT-117", "FR-006-AC-5", "FR-017-AC-1")]
 #[test]
 fn it_117_coverage_puts_the_census_on_stdout_and_findings_on_stderr() {
@@ -155,7 +154,6 @@ fn it_117_coverage_puts_the_census_on_stdout_and_findings_on_stderr() {
 /// IT-118 (CR-012): `properties`' census reaches stdout, and leads with the
 /// specific-shape split rather than the catch-all-inflated figure alone
 /// (quire-rs CR-095).
-/// Trace: FR-006-AC-5, IT-118
 #[trace("IT-118", "FR-006-AC-5")]
 #[test]
 fn it_118_properties_census_is_a_result_and_splits_the_catch_all() {
@@ -188,7 +186,6 @@ fn it_118_properties_census_is_a_result_and_splits_the_catch_all() {
 /// IT-119 (#59 defect 2): `--criteria` renders the per-criterion fields
 /// `spec-correctness` consumes, which were `--json`-only — hundreds of kilobytes on the
 /// pass-2 corpus against a few-line census.
-/// Trace: FR-018-AC-10, IT-119
 #[trace("IT-119", "FR-018-AC-10")]
 #[test]
 fn it_119_criteria_renders_the_fields_the_census_omitted() {
@@ -323,7 +320,6 @@ fn it_120_the_diagnostics_channel_reports_a_binder_that_read_nothing() {
 
 /// This case covers the three human census surfaces together so a summary
 /// cannot silently move back to stderr or render as a diagnostic.
-/// Trace: FR-006-AC-5, IT-120
 #[trace("FR-006-AC-5", "IT-120")]
 #[test]
 fn human_census_figures_stay_on_stdout_without_color() {

@@ -169,7 +169,6 @@ fn engine_matrix(f: &Fixture) -> Option<Value> {
     json(&out).get("coverage_matrix").cloned()
 }
 
-// Trace: IT-166, FR-026-AC-1
 #[trace("IT-166", "FR-026-AC-1")]
 #[test]
 fn it166_a_populated_scope_renders_every_criterion_in_every_format() {
@@ -198,7 +197,6 @@ fn it166_a_populated_scope_renders_every_criterion_in_every_format() {
     }
 }
 
-// Trace: IT-167, FR-026-AC-2
 #[trace("IT-167", "FR-026-AC-2")]
 #[test]
 fn it167_matrix_shares_coverage_refusals_and_module_resolution() {
@@ -293,7 +291,6 @@ fn it167_matrix_shares_coverage_refusals_and_module_resolution() {
     assert!(help.contains("used in the order given"), "{help}");
 }
 
-// Trace: IT-168, FR-026-AC-3, FR-026-AC-4
 #[trace("IT-168", "FR-026-AC-3", "FR-026-AC-4")]
 #[test]
 fn it168_markdown_renders_one_table_per_requirement_in_engine_order() {
@@ -367,7 +364,6 @@ fn it168_markdown_renders_one_table_per_requirement_in_engine_order() {
     );
 }
 
-// Trace: IT-169, FR-026-AC-5
 #[trace("IT-169", "FR-026-AC-5")]
 #[test]
 fn it169_binders_render_path_line_column_with_ignored_and_none_markers() {
@@ -464,7 +460,6 @@ fn it169_binders_render_path_line_column_with_ignored_and_none_markers() {
     assert_eq!(row("FR-001-AC-3")[3], "untagged");
 }
 
-// Trace: IT-169, FR-026-AC-5
 #[trace("IT-169", "FR-026-AC-5")]
 #[test]
 fn it169_a_pipe_in_a_binder_path_is_escaped() {
@@ -492,7 +487,6 @@ fn it169_a_pipe_in_a_binder_path_is_escaped() {
     assert_eq!(row.split(" | ").count(), 4, "{row}");
 }
 
-// Trace: IT-170, FR-026-AC-6
 #[trace("IT-170", "FR-026-AC-6")]
 #[test]
 fn it170_structural_characters_become_spaces_before_truncation() {
@@ -521,7 +515,6 @@ fn it170_structural_characters_become_spaces_before_truncation() {
     assert!(!markdown.contains('\t'), "{markdown:?}");
 }
 
-// Trace: IT-170, FR-026-AC-6
 #[trace("IT-170", "FR-026-AC-6")]
 #[test]
 fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
@@ -583,7 +576,6 @@ fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
     );
 }
 
-// Trace: IT-171, FR-026-AC-7
 #[trace("IT-171", "FR-026-AC-7")]
 #[test]
 fn it171_json_wraps_the_engine_value_verbatim_with_provenance() {
@@ -625,7 +617,6 @@ fn it171_json_wraps_the_engine_value_verbatim_with_provenance() {
     assert_eq!(keys, ["engine"]);
 }
 
-// Trace: IT-172, FR-026-AC-8
 #[trace("IT-172", "FR-026-AC-8")]
 #[test]
 fn it172_tsv_emits_one_untruncated_record_per_criterion() {
@@ -720,7 +711,6 @@ fn zero_populations() -> [Fixture; 2] {
     [undeclared, derives_nothing]
 }
 
-// Trace: IT-173, FR-026-AC-9
 #[trace("IT-173", "FR-026-AC-9")]
 #[test]
 fn it173_both_zero_population_shapes_render_identically() {
@@ -743,7 +733,6 @@ fn it173_both_zero_population_shapes_render_identically() {
     }
 }
 
-// Trace: IT-174, FR-026-AC-10, FR-026-AC-11
 #[trace("IT-174", "FR-026-AC-10", "FR-026-AC-11")]
 #[test]
 fn it174_strict_requires_at_least_one_criterion_all_backed() {
@@ -805,7 +794,6 @@ fn it174_strict_requires_at_least_one_criterion_all_backed() {
     );
 }
 
-// Trace: IT-175, FR-026-AC-11
 #[trace("IT-175", "FR-026-AC-11")]
 #[test]
 fn it175_method_without_symbol_never_fails_strict() {
@@ -847,7 +835,6 @@ fn it175_method_without_symbol_never_fails_strict() {
     }
 }
 
-// Trace: IT-176, FR-026-AC-12
 #[trace("IT-176", "FR-026-AC-12")]
 #[test]
 fn it176_no_severity_pack_and_no_unread_measurement_gate() {
@@ -934,7 +921,6 @@ fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
     files
 }
 
-// Trace: IT-177, FR-026-AC-14
 #[trace("IT-177", "FR-026-AC-14")]
 #[test]
 fn it177_matrix_writes_nothing_under_the_scope() {
@@ -964,7 +950,6 @@ fn it177_matrix_writes_nothing_under_the_scope() {
     }
 }
 
-// Trace: TC-841, FR-026-AC-13
 #[trace("TC-841", "FR-026-AC-13")]
 #[test]
 fn tc841_every_matrix_exit_code_is_in_the_fr007_taxonomy() {
@@ -989,7 +974,6 @@ fn tc841_every_matrix_exit_code_is_in_the_fr007_taxonomy() {
     assert_eq!(seen.into_iter().collect::<Vec<_>>(), [0, 1, 3]);
 }
 
-/// Trace: FR-026-AC-16
 /// Provenance: PLAT-1150
 #[trace("FR-026-AC-16")]
 #[test]
@@ -1033,6 +1017,10 @@ fn matrix_explains_ranges_and_partially_read_trace_lists_in_every_format() {
             assert!(warnings.contains(path));
             assert!(!stdout(&out).contains("was not read by the declared trace grammar"));
             assert!(warnings.contains("was not read by the declared trace grammar"));
+            assert!(warnings.contains("declared marker form"), "{language}/{format}: {warnings}");
+            let unmatched = warnings.lines().find(|l| l.contains("FR-001-AC-2") && l.contains("was not read"))
+                .unwrap_or_else(|| panic!("no unmatched line naming FR-001-AC-2: {warnings}"));
+            assert!(unmatched.contains("partial"), "{language}/{format}: symbol missing: {unmatched}");
             if format == "json" {
                 let report = json(&out);
                 let criteria = report["coverage_matrix"][0]["criteria"].as_array().unwrap();

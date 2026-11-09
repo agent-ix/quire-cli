@@ -58,7 +58,6 @@ fn it_048_broken_markdown_exits_1_with_line_numbered_diagnostic() {
 // corrective move as fields. Consumers must not have to regex `message` to
 // locate or act on a finding; the human message remains present for backwards
 // compatibility.
-#[trace("IT-136")]
 #[test]
 fn it_136_json_validation_error_is_locatable_and_actionable() {
     let output = quire()
@@ -586,7 +585,6 @@ fn it_106_ears_grammar_warnings_fail_under_strict() {
 // repo** — exit 1, plausible diagnostics, wrong tree, nothing saying so. The
 // two invocations below must agree; before the fix the second one read
 // whatever `spec/` happened to sit in the cwd.
-/// Trace: FR-004-AC-23, FR-018-AC-5, IT-121
 #[trace("IT-121", "FR-004-AC-19", "FR-004-AC-23", "FR-018-AC-5")]
 #[test]
 fn it_121_module_does_not_move_glob_resolution_off_scope() {
@@ -622,7 +620,6 @@ fn it_121_module_does_not_move_glob_resolution_off_scope() {
 //
 // A glob is the case that bit: `--scope <corpus> --module <m> "docs/*.md"`
 // expanded against the cwd, so the run graded a repository nobody named.
-/// Trace: FR-004-AC-23, IT-122
 #[trace("IT-122", "FR-004-AC-20", "FR-004-AC-23")]
 #[test]
 fn it_122_scoped_glob_ignores_the_process_directory() {

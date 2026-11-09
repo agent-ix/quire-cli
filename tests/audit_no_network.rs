@@ -129,7 +129,6 @@ fn assert_no_inet_socket(trace: &str, subcommand: &str) {
 /// IT-143, FR-020-AC-7: `assurance` opens no network socket and executes no
 /// child command. The one `execve` is strace starting the quire process itself;
 /// a second would be Git, a package manager, runner, solver, or consumer.
-/// Trace: FR-020-AC-7, FR-020-CON-2, NFR-004-AC-2, IT-143
 #[trace("IT-143", "FR-020-AC-7", "FR-020-CON-2", "NFR-004-AC-2")]
 #[test]
 fn assurance_does_not_open_inet_socket_or_execute_a_child() {

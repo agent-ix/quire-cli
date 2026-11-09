@@ -197,7 +197,6 @@ fn assert_conforms(payload: &Value, schema_name: &str) {
 }
 
 // IT-154, FR-021-AC-1..3, AC-6.
-/// Trace: FR-021-AC-1, FR-021-AC-2, FR-021-AC-3, FR-021-AC-6, IT-154
 #[trace("IT-154", "FR-021-AC-1", "FR-021-AC-2", "FR-021-AC-3", "FR-021-AC-6")]
 #[test]
 fn it137_evaluate_emits_three_valued_provenanced_contract() {
@@ -288,7 +287,6 @@ fn it137_evaluate_emits_three_valued_provenanced_contract() {
 }
 
 // IT-155, FR-021-AC-4, AC-6.
-/// Trace: FR-021-AC-4, FR-021-AC-6, IT-155
 #[trace("IT-155", "FR-021-AC-4", "FR-021-AC-6")]
 #[test]
 fn it138_diff_emits_exact_version_schema_conformant_contract() {
@@ -325,7 +323,6 @@ fn it138_diff_emits_exact_version_schema_conformant_contract() {
 }
 
 // IT-156, FR-021-AC-5.
-/// Trace: FR-021-AC-5, IT-156
 #[trace("IT-156", "FR-021-AC-5")]
 #[test]
 fn it139_tsv_is_stable_and_machine_columned() {
@@ -397,7 +394,6 @@ fn it139_tsv_is_stable_and_machine_columned() {
 }
 
 // IT-157, FR-021-AC-1, AC-7.
-/// Trace: FR-021-AC-1, FR-021-AC-2, IT-157
 #[trace("IT-157", "FR-021-AC-1", "FR-021-AC-2")]
 #[test]
 fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
@@ -485,7 +481,6 @@ fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
 
 /// The CLI resolves caller inputs and renders the engine's result; clause
 /// applicability, rights validation, and comparison remain upstream.
-/// Trace: FR-021-AC-7, IT-157
 #[trace("FR-021-AC-7", "IT-157")]
 #[test]
 fn clause_command_delegates_semantics_to_the_engine() {

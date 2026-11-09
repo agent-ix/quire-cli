@@ -67,7 +67,6 @@ fn assert_backed(report: &Value) {
     assert!(report.get("undeclared_statuses").is_none(), "{report}");
 }
 
-/// Trace: FR-017-AC-23, IT-152
 #[trace("FR-017-AC-23", "IT-152")]
 #[test]
 fn it152_native_default_and_override_are_independently_readable() {
@@ -82,7 +81,6 @@ fn it152_native_default_and_override_are_independently_readable() {
     assert_eq!(strict_report, report);
 }
 
-/// Trace: FR-017-AC-23, IT-153
 #[trace("FR-017-AC-23", "IT-153")]
 #[test]
 fn it153_each_missing_header_reports_then_fails_strict_without_fallback() {

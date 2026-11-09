@@ -315,7 +315,6 @@ mod tests {
         }
     }
 
-    /// Trace: FR-026-AC-5, FR-026-AC-7, FR-026-AC-8, FR-026-AC-15
     #[trace("FR-026-AC-5", "FR-026-AC-7", "FR-026-AC-8", "FR-026-AC-15")]
     #[test]
     fn qualified_record_renders_verbatim_without_source_binders() {
@@ -341,7 +340,6 @@ mod tests {
         assert_eq!(row["binders"], serde_json::json!([]));
     }
 
-    /// Trace: FR-026-AC-10, FR-026-AC-15
     #[trace("FR-026-AC-10", "FR-026-AC-15")]
     #[test]
     fn qualified_record_passes_strict_without_hiding_live_gaps() {

@@ -838,7 +838,6 @@ fn line_prefix(line: Option<usize>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ix_trace_rs::trace;
 
     #[test]
     fn scoped_roots_include_scope_and_default_install_root() {
@@ -856,8 +855,6 @@ mod tests {
         }
     }
 
-    // Trace: FR-004-AC-2
-    #[trace("FR-004-AC-2")]
     #[test]
     fn row_width_validation_names_a_specific_remedy() {
         assert_eq!(

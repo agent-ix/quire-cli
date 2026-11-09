@@ -887,6 +887,31 @@ fn render_tsv(report: &TraceReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quire_rs::traceability::SourceLanguage;
+
+    /// FR-077-AC-7 (quire-rs): a build that cannot read a language in the tree
+    /// refuses every query shape instead of answering "nothing backs this id".
+    #[test]
+    fn run_query_refuses_when_a_language_in_the_tree_is_unreadable() {
+        let extraction = SymbolExtraction {
+            unavailable_languages: vec![SourceLanguage::Rust],
+            ..Default::default()
+        };
+        let graph = SymbolGraph::default();
+        for argv in [
+            ["trace", "--id", "FR-001"],
+            ["trace", "--symbol", "src/a.rs#f"],
+            ["trace", "--file", "src/a.rs"],
+        ] {
+            let args = Args::try_parse_from(argv).expect("args parse");
+            let err = run_query(&args, &graph, &extraction).expect_err("must refuse");
+            assert!(
+                err.downcast_ref::<quire_rs::symbols::ExtractionUnavailable>()
+                    .is_some_and(|e| e.languages == [SourceLanguage::Rust]),
+                "{argv:?}: {err}"
+            );
+        }
+    }
 
     #[test]
     fn tc_prefix_matches_a_separator_boundary_not_a_digit_run() {
