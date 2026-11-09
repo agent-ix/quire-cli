@@ -228,6 +228,7 @@ fn it_134_extraction_diagnostics_reach_stderr_in_json_mode() {
     assert!(payload["diagnostics"].is_array(), "payload: {}", out.stdout);
 }
 
+#[trace("FR-019-AC-6", "IT-135")]
 #[test]
 fn it_135_a_language_filter_narrows_both_the_records_and_the_census() {
     // IT-135, FR-019-AC-6 (resolution shared with `coverage`).
