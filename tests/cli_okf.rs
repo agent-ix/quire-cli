@@ -213,7 +213,7 @@ fn it088_bundle_warnings_are_emitted_as_warnings_in_json() {
     );
 }
 
-// IT-178 (PLAT-1300, quire-rs FR-076): `--okf` declares the repo's bundle
+// IT-178, FR-014-AC-3, FR-014-AC-10 (PLAT-1300, quire-rs FR-076): `--okf` declares the repo's bundle
 // package from the scope's `origin` remote, so a cross-repo
 // `ix://<other-org>/<other-repo>/ID` target is not dangling while a miss
 // under the repo's own authority still is.
@@ -267,7 +267,7 @@ fn it178_okf_declares_repo_package_so_cross_repo_targets_are_not_dangling() {
     );
 }
 
-// IT-179 (PLAT-1300, FR-014-AC-10): the declared package is the bundle's own
+// IT-179, FR-014-AC-10 (PLAT-1300): the declared package is the bundle's own
 // checkout, not the caller's cwd: a positional bundle with its own origin,
 // validated from a different directory, still warns on its own-authority miss
 // and skips a foreign one.
