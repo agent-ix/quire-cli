@@ -53,7 +53,10 @@ fn okf_tolerates_unknown_type_and_broken_link() {
         "X-1.md",
         "---\nid: X-1\ntype: weird\n---\n# x\nsee [missing](ix://o/r/MISSING)\n",
     )]);
+    // Run from the bundle (no `origin` remote → no declared package), not the
+    // checkout's cwd, whose own remote would make `o/r` a cross-repo target.
     quire()
+        .current_dir(dir.path())
         .arg("validate")
         .arg("--okf")
         .arg(dir.path())
@@ -210,5 +213,59 @@ fn it088_bundle_warnings_are_emitted_as_warnings_in_json() {
             .unwrap()
             .contains("[malformed-frontmatter]"),
         "the malformed flavor carries its own reason: {malformed}"
+    );
+}
+
+// IT-089 (PLAT-1300, quire-rs FR-076): `--okf` declares the repo's bundle
+// package from the scope's `origin` remote, so a cross-repo
+// `ix://<other-org>/<other-repo>/ID` target is not dangling while a miss
+// under the repo's own authority still is.
+#[test]
+fn it089_okf_declares_repo_package_so_cross_repo_targets_are_not_dangling() {
+    let dir = bundle(&[(
+        "spec/X-1.md",
+        "---\nid: X-1\ntype: weird\n---\n# x\n\
+         cross [other](ix://other-org/other-repo/FR-9) \
+         own [missing](ix://acme/widgets/MISSING)\n",
+    )]);
+    for args in [
+        &["init", "-q"][..],
+        &[
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/acme/widgets.git",
+        ][..],
+    ] {
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir.path())
+            .args(args)
+            .status()
+            .expect("git")
+            .success()
+            .then_some(())
+            .expect("git setup");
+    }
+
+    let out = quire()
+        .arg("validate")
+        .arg("--okf")
+        .arg("--scope")
+        .arg(dir.path())
+        .arg("--module")
+        .arg(validate_module())
+        .output()
+        .expect("run");
+
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "dangling is a warning: {err}");
+    assert!(
+        !err.contains("'FR-9'"),
+        "cross-repo target must not be reported: {err}"
+    );
+    assert!(
+        err.contains("dangling reference 'MISSING'"),
+        "in-repo miss stays dangling: {err}"
     );
 }

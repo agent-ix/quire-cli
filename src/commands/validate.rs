@@ -373,12 +373,20 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
             .collect()
     };
 
+    // quire-rs FR-076: declaring the repo identity lets a cross-repo
+    // `ix://<other-org>/<other-repo>/ID` target be skipped instead of
+    // reported dangling; an in-repo miss stays dangling.
+    let bundle_package = repo_bundle_package(scope);
+
     let mut errors = 0usize;
     for (document_root, reference_root) in roots {
         let document_root =
             safety::validate_dir_path("bundle", &document_root.display().to_string())
                 .with_context(|| format!("validating bundle root '{}'", document_root.display()))?;
-        let spec = quire_rs::Spec::from_path(&document_root);
+        let mut spec = quire_rs::Spec::from_path(&document_root);
+        if let Some(package) = bundle_package.as_deref() {
+            spec = spec.with_bundle_package(package);
+        }
         let report = quire_rs::validate_bundle(
             &spec,
             registry,
