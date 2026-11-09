@@ -10,17 +10,27 @@
 //! Trace ids sit on the tests, not in this header — a `//!` block attaches to
 //! the file and binds to no symbol.
 
+use ix_trace_rs::trace;
 use std::path::PathBuf;
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-// Trace: TC-090, TC-814, StR-004-VC-2, StR-004-VC-3, FR-004-AC-9,
-// FR-014-AC-9, FR-015-AC-6, FR-017-AC-9, FR-020-AC-6
 // `src/` is a
 // thin process boundary — no markdown parsing, no structural-validation logic,
 // no render/template code outside the documented dispatch sites.
+#[trace(
+    "TC-090",
+    "TC-814",
+    "StR-004-VC-2",
+    "StR-004-VC-3",
+    "FR-004-AC-9",
+    "FR-014-AC-9",
+    "FR-015-AC-6",
+    "FR-017-AC-9",
+    "FR-020-AC-6"
+)]
 #[test]
 fn tc090_src_is_a_thin_boundary_over_quire_rs() {
     quire_qualify::source::check_thin_boundary(&repo_root()).expect("native thin-boundary audit");
@@ -32,6 +42,7 @@ fn tc090_src_is_a_thin_boundary_over_quire_rs() {
 // against `deny.toml` and `Cargo.lock` so the row is backed without depending
 // on cargo-deny being installed, and so a ban silently dropped from deny.toml
 // is caught by the second half rather than passing an empty check.
+#[trace("TC-091", "NFR-004-AC-1", "NFR-004-AC-3")]
 #[test]
 fn tc091_no_http_client_crate_is_banned_or_linked() {
     let root = repo_root();
@@ -63,6 +74,7 @@ fn tc091_no_http_client_crate_is_banned_or_linked() {
 // time against a synthetic tree containing an undocumented `unsafe` block, and
 // a third against the same block with its `// SAFETY:` comment, in a tempdir,
 // so neither run touches this repo.
+#[trace("TC-092", "NFR-003-AC-1", "NFR-003-AC-2")]
 #[test]
 fn tc092_every_unsafe_block_is_documented_and_the_gate_catches_violations() {
     // AC-1: this repository is clean.
@@ -101,6 +113,7 @@ fn tc092_every_unsafe_block_is_documented_and_the_gate_catches_violations() {
 // the shared engine, supplies quire's coordinates, and contains no parser,
 // renderer, or validator logic. The source audit also rejects a local copy of
 // the engine.
+#[trace("TC-093", "FR-016-AC-5", "FR-016-AC-6")]
 #[test]
 fn tc093_self_update_engine_is_package_agnostic() {
     quire_qualify::source::check_thin_boundary(&repo_root())

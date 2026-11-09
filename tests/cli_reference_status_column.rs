@@ -1,6 +1,7 @@
 //! Native consumer controls for quire-rs#409.
 mod common;
 
+use ix_trace_rs::trace;
 use std::fs;
 use std::process::Output;
 
@@ -24,8 +25,8 @@ fn fixture(default_header: &str, alternate_header: &str) -> TempDir {
     .unwrap();
     fs::write(
         dir.path().join("src/lib.rs"),
-        "// Trace: TC-001\n#[test]\nfn first_evidence() { assert_eq!(1 + 1, 2); }\n\
-         // Trace: TC-002\n#[test]\nfn second_evidence() { assert_eq!(1 + 1, 2); }\n",
+        "#[trace(\"TC-001\")]\n#[test]\nfn first_evidence() { assert_eq!(1 + 1, 2); }\n\
+         #[trace(\"TC-002\")]\n#[test]\nfn second_evidence() { assert_eq!(1 + 1, 2); }\n",
     )
     .unwrap();
     dir
@@ -66,7 +67,7 @@ fn assert_backed(report: &Value) {
     assert!(report.get("undeclared_statuses").is_none(), "{report}");
 }
 
-/// Trace: FR-017-AC-23, IT-152
+#[trace("FR-017-AC-23", "IT-152")]
 #[test]
 fn it152_native_default_and_override_are_independently_readable() {
     let dir = fixture("Status", "Coverage Status");
@@ -80,7 +81,7 @@ fn it152_native_default_and_override_are_independently_readable() {
     assert_eq!(strict_report, report);
 }
 
-/// Trace: FR-017-AC-23, IT-153
+#[trace("FR-017-AC-23", "IT-153")]
 #[test]
 fn it153_each_missing_header_reports_then_fails_strict_without_fallback() {
     for (default_header, alternate_header, declaration, setting) in [

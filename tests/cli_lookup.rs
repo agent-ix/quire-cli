@@ -4,6 +4,7 @@
 mod common;
 
 use assert_cmd::prelude::*;
+use ix_trace_rs::trace;
 use predicates::prelude::*;
 
 use common::quire;
@@ -36,6 +37,7 @@ fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
 
 // IT-033, FR-011-AC-1, US-005-AC-2: `lookup --heading --level 1` returns the
 // H1 section JSON.
+#[trace("IT-033", "FR-011-AC-1")]
 #[test]
 fn lookup_by_heading_and_level_returns_h1() {
     let doc = write_tmp(LOOKUP_DOC, "heading-level.md");
@@ -57,6 +59,7 @@ fn lookup_by_heading_and_level_returns_h1() {
 // IT-034, US-005-AC-1: `lookup --heading Behavior` uses upstream-style
 // heading normalization, so the leading section number is not part of the
 // selector.
+#[trace("IT-034")]
 #[test]
 fn lookup_by_heading_uses_number_normalization() {
     let doc = write_tmp(LOOKUP_DOC, "heading.md");
@@ -77,6 +80,7 @@ fn lookup_by_heading_uses_number_normalization() {
 
 // IT-035, FR-011-AC-2, US-005-AC-3: `lookup --block-id blk-behavior` returns
 // the stable block section JSON.
+#[trace("IT-035", "FR-011-AC-2")]
 #[test]
 fn lookup_by_block_id_returns_stable_block() {
     let doc = write_tmp(LOOKUP_DOC, "block-id.md");
@@ -95,6 +99,7 @@ fn lookup_by_block_id_returns_stable_block() {
 
 // IT-036, FR-011-AC-3, US-005-AC-4: `lookup --id detail-L6` returns the
 // parser-derived id section JSON.
+#[trace("IT-036", "FR-011-AC-3")]
 #[test]
 fn lookup_by_generated_id_returns_section() {
     let doc = write_tmp(LOOKUP_DOC, "id.md");
@@ -111,6 +116,7 @@ fn lookup_by_generated_id_returns_section() {
 }
 
 // IT-037, FR-011-AC-4: `lookup --content` emits raw section content only.
+#[trace("IT-037", "FR-011-AC-4")]
 #[test]
 fn lookup_content_outputs_raw_section_content() {
     let doc = write_tmp(LOOKUP_DOC, "content.md");
@@ -127,6 +133,7 @@ fn lookup_content_outputs_raw_section_content() {
 
 // IT-038, FR-011-AC-5, US-005-AC-5: a lookup selector that matches nothing
 // exits 1 with empty stdout.
+#[trace("IT-038", "FR-011-AC-5")]
 #[test]
 fn lookup_missing_selector_exits_1_without_stdout() {
     let doc = write_tmp(LOOKUP_DOC, "missing.md");
@@ -144,6 +151,7 @@ fn lookup_missing_selector_exits_1_without_stdout() {
 
 // IT-039, FR-011-AC-5, FR-011-AC-6: multiple lookup selectors are rejected by
 // clap as an argv error.
+#[trace("IT-039", "FR-011-AC-5", "FR-011-AC-6")]
 #[test]
 fn lookup_rejects_multiple_selectors_as_argv_error() {
     let doc = write_tmp(LOOKUP_DOC, "argv.md");

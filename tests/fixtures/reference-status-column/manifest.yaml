@@ -44,16 +44,3 @@ traceability:
       language: typescript
       pattern: 'trace\("([^"]+)"\)'
       template: 'trace({ids})'
-    legacy:
-    - name: rust-comment
-      language: rust
-      pattern: 'Trace:\s*(TC-[0-9]+)'
-      rewrite_to: rust-marker
-    - name: python-comment
-      language: python
-      pattern: 'Trace:\s*(TC-[0-9]+)'
-      rewrite_to: python-marker
-    - name: typescript-comment
-      language: typescript
-      pattern: 'Trace:\s*(TC-[0-9]+)'
-      rewrite_to: typescript-marker

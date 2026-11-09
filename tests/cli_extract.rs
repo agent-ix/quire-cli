@@ -6,12 +6,14 @@
 mod common;
 
 use assert_cmd::prelude::*;
+use ix_trace_rs::trace;
 use predicates::prelude::*;
 
 use common::{extract_module, extract_sample_doc, quire};
 
 // IT-004, FR-003-AC-1, US-004-AC-1: `extract` emits the {extraction, edges}
 // envelope.
+#[trace("IT-004", "FR-003-AC-1")]
 #[test]
 fn it_004_extract_emits_envelope() {
     let out = quire()
@@ -58,6 +60,7 @@ fn it_004_extract_emits_envelope() {
 // BUILD produced these numbers — and its absence was the measured defect. The
 // assertion below is correspondingly narrowed rather than deleted: the ban on
 // the bare form is exactly what still holds.
+#[trace("IT-100", "FR-008-AC-2", "FR-008-AC-5")]
 #[test]
 fn it_100_extract_payload_matches_the_declared_envelope_and_omits_version() {
     let out = quire()
@@ -119,14 +122,6 @@ fn it_100_extract_payload_matches_the_declared_envelope_and_omits_version() {
             .as_array()
             .expect("capabilities array")
             .iter()
-            .any(|t| t == "binding_census.self_named"),
-        "the mixed-channel self-name census capability must be present: {v}",
-    );
-    assert!(
-        engine["capabilities"]
-            .as_array()
-            .expect("capabilities array")
-            .iter()
             .any(|t| t == "binding_census.tagged"),
         "the tagged-versus-read census capability must be present: {v}",
     );
@@ -157,6 +152,7 @@ fn it_100_extract_payload_matches_the_declared_envelope_and_omits_version() {
 }
 
 // IT-020, FR-003-AC-4: an `extract` rerun produces byte-identical stdout.
+#[trace("IT-020", "FR-003-AC-4")]
 #[test]
 fn it_020_extract_is_deterministic() {
     let one = quire()
@@ -183,6 +179,7 @@ fn it_020_extract_is_deterministic() {
 // linked twice in the body, each collapse to ONE edge — asserted by counting
 // occurrences, not by "an edge exists", which a duplicating harvest also
 // satisfies.
+#[trace("IT-015")]
 #[test]
 fn it_015_edges_are_deduped_by_source_type_target() {
     let doc = std::env::temp_dir().join(format!("quire-cli-it-015-{}.md", std::process::id()));
@@ -233,6 +230,7 @@ fn it_015_edges_are_deduped_by_source_type_target() {
 // IT-099, FR-003-AC-2, US-004-AC-3: a document whose `type` resolves to no archetype
 // carrying a DSL exits 1 with a diagnostic naming it — never a crash, never a
 // partial extraction on stdout.
+#[trace("IT-099", "FR-003-AC-2")]
 #[test]
 fn extract_no_dsl_archetype_errors_cleanly() {
     // The ISO module has no object_types; the FR type isn't an

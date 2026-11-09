@@ -855,7 +855,6 @@ mod tests {
         }
     }
 
-    // Trace: FR-004-AC-2
     #[test]
     fn row_width_validation_names_a_specific_remedy() {
         assert_eq!(

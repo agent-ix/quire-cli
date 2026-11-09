@@ -1,5 +1,6 @@
 //! IT-144: exact assurance golden bytes are consumable across languages.
 
+use ix_trace_rs::trace;
 use std::fs;
 use std::process::Command;
 
@@ -9,7 +10,7 @@ use serde_json::Value;
 
 const GOLDEN: &[u8] = include_bytes!("fixtures/assurance/v1.json");
 
-// Trace: IT-144, FR-020-AC-8
+#[trace("IT-144", "FR-020-AC-8")]
 #[test]
 fn it_144_rust_python_and_node_consume_the_exact_golden_bytes() {
     let payload: Value = serde_json::from_slice(GOLDEN).expect("golden JSON");

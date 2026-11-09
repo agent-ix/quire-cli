@@ -7,6 +7,7 @@
 mod common;
 
 use common::quire;
+use ix_trace_rs::trace;
 
 const SIMPLE_DOC: &str = "---\nid: FR-001\ntype: FR\n---\n# [FR-001] Hello\n\nbody\n";
 
@@ -18,6 +19,7 @@ fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
 }
 
 // IT-002, FR-002-AC-1, US-002-AC-1: `parse` emits valid QuireDocument JSON.
+#[trace("IT-002", "FR-002-AC-1")]
 #[test]
 fn it_002_parse_emits_quire_document_json() {
     let doc = write_tmp(SIMPLE_DOC, "it-002.md");
@@ -37,6 +39,7 @@ fn it_002_parse_emits_quire_document_json() {
 
 // IT-013, FR-002-AC-4: an empty document parses to a valid empty
 // QuireDocument JSON envelope rather than failing.
+#[trace("IT-013", "FR-002-AC-4")]
 #[test]
 fn it_013_empty_doc_parses_to_empty_json() {
     let doc = write_tmp("", "it-013.md");
@@ -62,6 +65,7 @@ fn it_013_empty_doc_parses_to_empty_json() {
 
 // IT-019, FR-002-AC-5, FR-008-AC-1: parse JSON round-trips through
 // QuireDocument deserialize.
+#[trace("IT-019", "FR-002-AC-5", "FR-008-AC-1")]
 #[test]
 fn it_019_parse_output_is_valid_json_roundtrip() {
     let doc = write_tmp(SIMPLE_DOC, "it-019.md");

@@ -16,6 +16,7 @@ use common::{iso_module, quire, validate_module};
 // frontmatter schema and the `body_extraction` asserts (required headings
 // / columns). The validate-mod FR carries asserts (Specification section,
 // Acceptance Criteria table columns).
+#[trace("IT-060", "FR-009-AC-1")]
 #[test]
 fn it_060_schema_fr_emits_frontmatter_schema_and_asserts() {
     quire()
@@ -79,6 +80,7 @@ fn it_065_schema_accepts_semantic_core_032_module() {
 // IT-061, FR-009-AC-2: the JSON describes per-section asserts (headings /
 // columns / id-patterns) — the asserts-based contract — and carries NO
 // template-variable list.
+#[trace("IT-061", "FR-009-AC-2")]
 #[test]
 fn it_061_schema_describes_asserts_not_template_vars() {
     quire()
@@ -101,6 +103,7 @@ fn it_061_schema_describes_asserts_not_template_vars() {
 
 // IT-062, FR-009-AC-3: unknown archetype → exit 1 with `UnknownArchetype`
 // on stderr, empty stdout.
+#[trace("IT-062", "FR-009-AC-3")]
 #[test]
 fn it_062_schema_unknown_archetype_errors() {
     quire()
@@ -117,6 +120,7 @@ fn it_062_schema_unknown_archetype_errors() {
 
 // IT-063, FR-009-AC-4: repeated `schema FR` calls produce byte-identical
 // stdout.
+#[trace("IT-063", "FR-009-AC-4")]
 #[test]
 fn it_063_schema_output_is_byte_stable() {
     let a = quire()
@@ -139,6 +143,7 @@ fn it_063_schema_output_is_byte_stable() {
 
 // IT-058, FR-009-AC-5: `schema` performs module path-safety equivalent to
 // `validate` — a `..` module path is rejected.
+#[trace("IT-058", "FR-009-AC-5")]
 #[test]
 fn it_058_schema_module_path_safety() {
     quire()

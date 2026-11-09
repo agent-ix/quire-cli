@@ -51,7 +51,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use clap::Parser;
 use serde::Serialize;
 
@@ -177,7 +177,6 @@ struct VerifiesRecord {
     path: String,
     line: usize,
     form: String,
-    provenance: &'static str,
     /// The claiming symbol's actual extracted language, joined back through
     /// `symbol_language` — `None` only if the join itself cannot find the
     /// symbol (which should not happen against the same extraction the graph
@@ -288,7 +287,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     let graph = quire_rs::symbols::trace::bind(&extraction, model);
 
-    let (query_desc, mut result) = run_query(&args, &graph, &extraction);
+    let (query_desc, mut result) = run_query(&args, &graph, &extraction)?;
 
     let before = result.citations.len();
     result
@@ -352,37 +351,37 @@ fn run_query(
     args: &Args,
     graph: &SymbolGraph,
     extraction: &SymbolExtraction,
-) -> (QueryDescription, trace_search::SearchResult) {
+) -> Result<(QueryDescription, trace_search::SearchResult)> {
     if let Some(id) = &args.id {
         if args.prefix {
             return search_by_prefix(id, graph, extraction);
         }
-        let result = trace_search::search(graph, extraction, &Query::Id(id.clone()));
-        return (
+        let result = trace_search::search(graph, extraction, &Query::Id(id.clone()))?;
+        return Ok((
             QueryDescription::Id {
                 id: id.clone(),
                 prefix: false,
                 matched_ids: Vec::new(),
             },
             result,
-        );
+        ));
     }
     if let Some(symbol) = &args.symbol {
         let query = parse_symbol_query(symbol);
-        let result = trace_search::search(graph, extraction, &query);
-        return (describe_query(&query), result);
+        let result = trace_search::search(graph, extraction, &query)?;
+        return Ok((describe_query(&query), result));
     }
     let file = args
         .file
         .as_deref()
         .expect("selector count already proved --file is present");
-    let result = trace_search::search(graph, extraction, &Query::File(file.to_string()));
-    (
+    let result = trace_search::search(graph, extraction, &Query::File(file.to_string()))?;
+    Ok((
         QueryDescription::File {
             path: file.to_string(),
         },
         result,
-    )
+    ))
 }
 
 /// `{path}#{qualified_name}` splits into an exact [`Query::Symbol`]; anything
@@ -438,7 +437,7 @@ fn search_by_prefix(
     prefix: &str,
     graph: &SymbolGraph,
     extraction: &SymbolExtraction,
-) -> (QueryDescription, trace_search::SearchResult) {
+) -> Result<(QueryDescription, trace_search::SearchResult)> {
     let mut ids: BTreeSet<&str> = BTreeSet::new();
     ids.extend(graph.verifies.iter().map(|v| v.trace_id.as_str()));
     ids.extend(graph.implements.iter().map(|i| i.trace_id.as_str()));
@@ -462,7 +461,7 @@ fn search_by_prefix(
         if !searched_normalized.insert(normalized_id(id)) {
             continue;
         }
-        let r = trace_search::search(graph, extraction, &Query::Id(id.clone()));
+        let r = trace_search::search(graph, extraction, &Query::Id(id.clone()))?;
         verifies.extend(r.verifies);
         implements.extend(r.implements);
         citations.extend(r.citations);
@@ -489,14 +488,14 @@ fn search_by_prefix(
         ambiguous_matches: Vec::new(),
         resolved,
     };
-    (
+    Ok((
         QueryDescription::Id {
             id: prefix.to_string(),
             prefix: true,
             matched_ids,
         },
         result,
-    )
+    ))
 }
 
 /// The engine's normalized id: the concatenation of its own
@@ -545,7 +544,6 @@ fn verifies_record(v: &VerifiesRelation, extraction: &SymbolExtraction) -> Verif
         path: v.path.clone(),
         line: v.line,
         form: v.form.clone(),
-        provenance: v.provenance.as_str(),
         language,
         confidence,
     }
@@ -889,6 +887,31 @@ fn render_tsv(report: &TraceReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quire_rs::traceability::SourceLanguage;
+
+    /// FR-077-AC-7 (quire-rs): a build that cannot read a language in the tree
+    /// refuses every query shape instead of answering "nothing backs this id".
+    #[test]
+    fn run_query_refuses_when_a_language_in_the_tree_is_unreadable() {
+        let extraction = SymbolExtraction {
+            unavailable_languages: vec![SourceLanguage::Rust],
+            ..Default::default()
+        };
+        let graph = SymbolGraph::default();
+        for argv in [
+            ["trace", "--id", "FR-001"],
+            ["trace", "--symbol", "src/a.rs#f"],
+            ["trace", "--file", "src/a.rs"],
+        ] {
+            let args = Args::try_parse_from(argv).expect("args parse");
+            let err = run_query(&args, &graph, &extraction).expect_err("must refuse");
+            assert!(
+                err.downcast_ref::<quire_rs::symbols::ExtractionUnavailable>()
+                    .is_some_and(|e| e.languages == [SourceLanguage::Rust]),
+                "{argv:?}: {err}"
+            );
+        }
+    }
 
     #[test]
     fn tc_prefix_matches_a_separator_boundary_not_a_digit_run() {
@@ -1073,7 +1096,6 @@ mod tests {
                     path: "src/lib.rs".to_string(),
                     line: 3,
                     form: "rust-trace-attribute".to_string(),
-                    provenance: "canonical",
                     language: Some("rust".to_string()),
                     confidence: Some("structural"),
                 }],

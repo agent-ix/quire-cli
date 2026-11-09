@@ -52,7 +52,7 @@ keys:
 - `claims.verifies` / `claims.implements` — trace tags a module's declared
   grammar actually recognized. This is real evidence: a `verifies` claim is a
   test that would fail if the requirement broke.
-- `citations` — everything else: near-miss tags, orphaned legacy forms, and
+- `citations` — everything else: near-miss tags, ids a comment puts on a production symbol, and
   plain id-shaped text sitting in a comment, doc comment, or string literal.
   **A citation is NOT verification evidence.** It is a place the id is
   *mentioned*, nothing more.
