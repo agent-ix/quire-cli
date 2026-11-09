@@ -977,13 +977,28 @@ fn tc841_every_matrix_exit_code_is_in_the_fr007_taxonomy() {
 /// Provenance: PLAT-1150
 #[test]
 fn matrix_explains_ranges_and_partially_read_trace_lists_in_every_format() {
-    for (language, path, source) in [
-        ("rust", "src/lib.rs", "/// Trace: FR-001-AC-1 and FR-001-AC-2\n#[test]\nfn partial() {}\n/// Trace: FR-001-AC-3..FR-001-AC-4\n#[test]\nfn range() {}\n"),
-        ("python", "src/test_cases.py", "# Trace: FR-001-AC-1 and FR-001-AC-2\ndef test_partial():\n    pass\n# Trace: FR-001-AC-3..FR-001-AC-4\ndef test_range():\n    pass\n"),
-        ("typescript", "src/cases.test.ts", "import { it } from 'vitest';\n// Trace: FR-001-AC-1 and FR-001-AC-2\nit('partial', () => {});\n// Trace: FR-001-AC-3..FR-001-AC-4\nit('range', () => {});\n"),
+    for (language, path, source, repaired_source) in [
+        (
+            "rust",
+            "src/lib.rs",
+            "// FR-001-AC-2 is also checked here\n#[trace(\"FR-001-AC-1\")]\n#[test]\nfn partial() {}\n#[trace(\"FR-001-AC-3..FR-001-AC-4\")]\n#[test]\nfn range() {}\n",
+            "#[trace(\"FR-001-AC-1\", \"FR-001-AC-2\")]\n#[test]\nfn partial() {}\n#[trace(\"FR-001-AC-3\", \"FR-001-AC-4\")]\n#[test]\nfn range() {}\n",
+        ),
+        (
+            "python",
+            "src/test_cases.py",
+            "# FR-001-AC-2 is also checked here\n@pytest.mark.trace(\"FR-001-AC-1\")\ndef test_partial():\n    pass\n@pytest.mark.trace(\"FR-001-AC-3..FR-001-AC-4\")\ndef test_range():\n    pass\n",
+            "@pytest.mark.trace(\"FR-001-AC-1\", \"FR-001-AC-2\")\ndef test_partial():\n    pass\n@pytest.mark.trace(\"FR-001-AC-3\", \"FR-001-AC-4\")\ndef test_range():\n    pass\n",
+        ),
+        (
+            "typescript",
+            "src/cases.test.ts",
+            "import { it } from 'vitest';\n// FR-001-AC-2 is also checked here\nit('partial', () => { trace('FR-001-AC-1'); });\nit('range', () => { trace('FR-001-AC-3..FR-001-AC-4'); });\n",
+            "import { it } from 'vitest';\nit('partial', () => { trace('FR-001-AC-1', 'FR-001-AC-2'); });\nit('range', () => { trace('FR-001-AC-3', 'FR-001-AC-4'); });\n",
+        ),
     ] {
-        let legacy = format!("  trace_tags:\n    legacy:\n    - name: trace-line\n      language: {language}\n      pattern: 'Trace:\\s*(FR-\\d+-AC-\\d+(?:\\s*,\\s*FR-\\d+-AC-\\d+)*)'\n");
-        let f = Fixture::new(&manifest(true, "", "").replace(TRACE_TAGS, &legacy));
+        let tags = format!("{TRACE_TAGS}    - name: python-marker\n      language: python\n      pattern: '@pytest\\.mark\\.trace\\(([^)]*)\\)'\n      template: '@pytest.mark.trace({{ids}})'\n");
+        let f = Fixture::new(&manifest(true, "", "").replace(TRACE_TAGS, &tags));
         f.write("spec/FR-001.md", &fr_doc("FR-001", &[
             ("FR-001-AC-1", "Accept input.", "Test"),
             ("FR-001-AC-2", "Reject input.", "Test"),
@@ -1020,7 +1035,7 @@ fn matrix_explains_ranges_and_partially_read_trace_lists_in_every_format() {
             assert_eq!(diagnostic["path"], path);
             assert!(diagnostic["line"].as_u64().is_some_and(|line| line > 0));
         }
-        f.write(path, &source.replace(" and ", ", ").replace("FR-001-AC-3..FR-001-AC-4", "FR-001-AC-3, FR-001-AC-4"));
+        f.write(path, repaired_source);
         let repaired = f.matrix(&["--format", "json", "--strict"]);
         assert_eq!(code(&repaired), 0, "{language}: {}", stderr(&repaired));
         assert!(!stderr(&repaired).contains("range-in-trace-tag"));

@@ -24,8 +24,8 @@ fn fixture(default_header: &str, alternate_header: &str) -> TempDir {
     .unwrap();
     fs::write(
         dir.path().join("src/lib.rs"),
-        "// Trace: TC-001\n#[test]\nfn first_evidence() { assert_eq!(1 + 1, 2); }\n\
-         // Trace: TC-002\n#[test]\nfn second_evidence() { assert_eq!(1 + 1, 2); }\n",
+        "#[trace(\"TC-001\")]\n#[test]\nfn first_evidence() { assert_eq!(1 + 1, 2); }\n\
+         #[trace(\"TC-002\")]\n#[test]\nfn second_evidence() { assert_eq!(1 + 1, 2); }\n",
     )
     .unwrap();
     dir

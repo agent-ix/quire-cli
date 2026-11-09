@@ -485,8 +485,8 @@ fn it087_the_code_walk_excludes_the_document_root() {
          \x20   id_column: Test ID\n  status:\n    column: Status\n\
          \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
          \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
-         \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
-         \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n",
+         \x20 trace_tags:\n    markers:\n    - name: rust-marker\n\
+         \x20     language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({ids})]'\n",
     )
     .expect("write manifest");
     let m = m.to_string_lossy().into_owned();
@@ -504,14 +504,14 @@ fn it087_the_code_walk_excludes_the_document_root() {
     // symbol; excluded, it is invisible.
     fs::write(
         dir.path().join("spec/leaked.rs"),
-        "// TC-909\n#[test]\nfn tc909_inside_the_document_root() {}\n",
+        "#[trace(\"TC-909\")]\n#[test]\nfn tc909_inside_the_document_root() {}\n",
     )
     .expect("write leaked source");
     // The same shape outside it, which must be seen — otherwise the test
     // passes on an engine that walks nothing at all.
     fs::write(
         dir.path().join("src/real.rs"),
-        "// TC-908\n#[test]\nfn tc908_outside_the_document_root() {}\n",
+        "#[trace(\"TC-908\")]\n#[test]\nfn tc908_outside_the_document_root() {}\n",
     )
     .expect("write real source");
 
@@ -687,8 +687,8 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
          \x20 status:\n    column: Status\n\
          \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
          \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
-         \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
-         \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n",
+         \x20 trace_tags:\n    markers:\n    - name: rust-marker\n\
+         \x20     language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({ids})]'\n",
     )
     .expect("write manifest");
     let m = m.to_string_lossy().into_owned();
@@ -714,8 +714,8 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
     fs::create_dir_all(dir.path().join("src")).expect("mkdir src");
     fs::write(
         dir.path().join("src/real.rs"),
-        "// TC-001\n#[test]\nfn tc001_one() {}\n\
-         // TC-002\n#[test]\nfn tc002_two() {}\n",
+        "#[trace(\"TC-001\")]\n#[test]\nfn tc001_one() {}\n\
+         #[trace(\"TC-002\")]\n#[test]\nfn tc002_two() {}\n",
     )
     .expect("write source");
 
@@ -1238,8 +1238,8 @@ fn it108_a_declared_source_exclude_scopes_the_code_walk() {
              \x20   id_column: Test ID\n  status:\n    column: Status\n\
              \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
              \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
-             \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
-             \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n"
+             \x20 trace_tags:\n    markers:\n    - name: rust-marker\n\
+             \x20     language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({{ids}})]'\n"
         )
     };
 
@@ -1259,13 +1259,13 @@ fn it108_a_declared_source_exclude_scopes_the_code_walk() {
         // A fixture whose whole purpose is to hold a tag nothing declares.
         fs::write(
             dir.path().join("tests/fixtures/sample.rs"),
-            "// TC-999\n#[test]\nfn tc999_covers_nothing() {}\n",
+            "#[trace(\"TC-999\")]\n#[test]\nfn tc999_covers_nothing() {}\n",
         )
         .expect("write fixture");
         // Real source, which must survive either way.
         fs::write(
             dir.path().join("src/real.rs"),
-            "// TC-998\n#[test]\nfn tc998_real() {}\n",
+            "#[trace(\"TC-998\")]\n#[test]\nfn tc998_real() {}\n",
         )
         .expect("write source");
         dir
@@ -1334,8 +1334,8 @@ fn plat179_scoped_coverage_discovers_repo_local_ix_modules() {
          \x20   id_column: Test ID\n  status:\n    column: Status\n\
          \x20   complete: [\"\u{2705}\"]\n    pending: [\"\u{1F6A7}\"]\n\
          \x20   failed: [\"\u{274C}\"]\n    retired: [\"\u{26D4}\"]\n\
-         \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
-         \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n",
+         \x20 trace_tags:\n    markers:\n    - name: rust-marker\n\
+         \x20     language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({ids})]'\n",
     )
     .expect("write manifest");
     fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
@@ -1348,12 +1348,12 @@ fn plat179_scoped_coverage_discovers_repo_local_ix_modules() {
     .expect("write matrix");
     fs::write(
         dir.path().join("vendor/dep.rs"),
-        "// TC-999\n#[test]\nfn tc999_vendored() {}\n",
+        "#[trace(\"TC-999\")]\n#[test]\nfn tc999_vendored() {}\n",
     )
     .expect("write vendored");
     fs::write(
         dir.path().join("tests/real.rs"),
-        "// TC-998\n#[test]\nfn tc998_real() {}\n",
+        "#[trace(\"TC-998\")]\n#[test]\nfn tc998_real() {}\n",
     )
     .expect("write source");
 
@@ -1388,7 +1388,7 @@ fn plat179_scoped_coverage_discovers_repo_local_ix_modules() {
 }
 
 /// The it107 manifest (self-referencing TC ids, declared status vocabulary,
-/// legacy comment trace tags), reusable by the #51-batch tests below.
+/// `#[trace]` marker tags), reusable by the #51-batch tests below.
 fn self_ref_manifest() -> &'static str {
     "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
      - name: TestMatrix\n\
@@ -1402,8 +1402,8 @@ fn self_ref_manifest() -> &'static str {
      \x20 status:\n    column: Status\n\
      \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
      \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
-     \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
-     \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n"
+     \x20 trace_tags:\n    markers:\n    - name: rust-marker\n\
+     \x20     language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({ids})]'\n"
 }
 
 // IT-113, FR-017-AC-16 (#51 item 3, quire-rs FR-050-AC-26): when a
@@ -1581,8 +1581,8 @@ fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
                  \x20   id_column: Test ID\n  status:\n    column: Status\n\
                  \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
                  \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
-                 \x20 trace_tags:\n    legacy:\n    - name: comment-id\n\
-                 \x20     pattern: '(?://|#)\\s*((?:TC|FR)-\\d+)'\n"
+                 \x20 trace_tags:\n    markers:\n    - name: rust-marker\n\
+                 \x20     language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({{ids}})]'\n"
             ),
         )
         .expect("write manifest");
@@ -1595,7 +1595,7 @@ fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
         .expect("write matrix");
         fs::write(
             dir.path().join("tests/fixtures/sample.rs"),
-            "// TC-999\n#[test]\nfn tc999_covers_nothing() {}\n",
+            "#[trace(\"TC-999\")]\n#[test]\nfn tc999_covers_nothing() {}\n",
         )
         .expect("write fixture");
         dir
@@ -1674,12 +1674,12 @@ fn it116_shared_trace_ids_pass_through_json() {
     fs::create_dir_all(dir.path().join("src")).expect("mkdir src");
     fs::write(
         dir.path().join("src/a.rs"),
-        "// TC-001\n#[test]\nfn tc001_first_binder() {}\n",
+        "#[trace(\"TC-001\")]\n#[test]\nfn tc001_first_binder() {}\n",
     )
     .expect("write a");
     fs::write(
         dir.path().join("src/b.rs"),
-        "// TC-001\n#[test]\nfn tc001_second_binder() {}\n",
+        "#[trace(\"TC-001\")]\n#[test]\nfn tc001_second_binder() {}\n",
     )
     .expect("write b");
 

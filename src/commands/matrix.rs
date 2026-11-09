@@ -87,7 +87,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     for tag in &report.unmatched_tags {
         let message = format!(
             "{}:{}: `{}` on `{}` was not read by the declared trace grammar; \
-             use the module's declared tag form (comma-separated IDs for Trace: lists)",
+             write it in the module's declared marker form",
             tag.path, tag.line, tag.trace_id, tag.symbol,
         );
         ix_cli_kit::streams::Record::warning("UnmatchedTraceTag", &message)

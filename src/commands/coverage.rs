@@ -809,8 +809,6 @@ mod tests {
                 candidates: 1513,
                 tagged: 1400,
                 bound: 1344,
-                self_named: 0,
-                self_named_bound: 0,
                 forms: vec!["rust-trace-attribute".to_string()],
                 unbound_example: Some(UnboundSymbol {
                     path: "crates/a/src/lib.rs".to_string(),
@@ -822,15 +820,12 @@ mod tests {
                     line: 700,
                     symbol: "tests::misspelled".to_string(),
                 }),
-                self_named_unbound_example: None,
             },
             BindingCensus {
                 language: "typescript".to_string(),
                 candidates: 12,
                 tagged: 12,
                 bound: 12,
-                self_named: 0,
-                self_named_bound: 0,
                 forms: vec!["ts-trace-helper".to_string()],
                 // Fully bound, so nothing to look at even if an example
                 // survived from an earlier run.
@@ -840,7 +835,6 @@ mod tests {
                     symbol: "stale".to_string(),
                 }),
                 unmatched_example: None,
-                self_named_unbound_example: None,
             },
         ];
         let mut report = quire_rs::CoverageReport {

@@ -19,7 +19,7 @@ fn fixture(references: bool) -> TempDir {
         ""
     };
     fs::write(dir.path().join("m/manifest.yaml"), format!(
-        "name: m\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: case\n    archetype: TestMatrix\n    section: Cases\n    id_column: ID\n{refs}  trace_tags:\n    legacy:\n    - name: comment\n      pattern: 'TRACE: (TC-\\d+)'\n"
+        "name: m\nartifact_types:\n- name: TestMatrix\ntraceability:\n  trace_targets:\n  - name: case\n    archetype: TestMatrix\n    section: Cases\n    id_column: ID\n{refs}  trace_tags:\n    markers:\n    - name: rust-marker\n      language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({{ids}})]'\n"
     )).unwrap();
     matrix(&dir, "Status");
     source(&dir, true);
@@ -33,10 +33,10 @@ fn matrix(dir: &TempDir, status: &str) {
 }
 
 fn source(dir: &TempDir, readable: bool) {
-    let marker = if readable { "TRACE" } else { "UNDECLARED" };
+    let marker = if readable { "trace" } else { "undeclared" };
     fs::write(
         dir.path().join("src/lib.rs"),
-        format!("// {marker}: TC-001\n#[test]\nfn real_evidence() {{}}\n"),
+        format!("#[{marker}(\"TC-001\")]\n#[test]\nfn real_evidence() {{}}\n"),
     )
     .unwrap();
 }
@@ -105,7 +105,7 @@ fn it150_strict_rejects_unread_status_and_preserves_the_report() {
     let dir = fixture(true);
     fs::write(
         dir.path().join("src/extra.rs"),
-        "// TRACE: TC-999\n#[test]\nfn untracked_evidence() {}\n",
+        "#[trace(\"TC-999\")]\n#[test]\nfn untracked_evidence() {}\n",
     )
     .unwrap();
     matrix(&dir, "Coverage Status");
