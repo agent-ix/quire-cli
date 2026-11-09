@@ -106,7 +106,7 @@ fn it_025_diagnostics_format_json_produces_json_lines() {
     assert!(found, "no JSON diagnostic found in stderr: {stderr}");
 }
 
-// IT-031, NFR-005-AC-1, NFR-005-AC-2, FR-006-AC-1: EVERY known failure class
+// IT-031, NFR-005-AC-1, NFR-005-AC-2, NFR-005-M-2, FR-006-AC-1: EVERY known failure class
 // produces empty stdout with a non-empty stderr, and renders its
 // stderr as `Diagnostic` JSON under `--diagnostics-format json`. IT-025 asserts
 // that *at least one* line parses for *one* class, which an implementation

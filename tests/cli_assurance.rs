@@ -264,7 +264,7 @@ fn it_138_compact_pretty_and_golden_bytes_are_deterministic() {
     );
 }
 
-// Trace: IT-139, FR-020-AC-3
+// Trace: IT-139, FR-020-AC-3, FR-020-CON-4
 #[test]
 fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     let fixture = fixture(false);
@@ -305,7 +305,7 @@ fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     }
 }
 
-// Trace: IT-140, FR-020-AC-3
+// Trace: IT-140, FR-020-AC-3, FR-020-CON-4
 #[test]
 fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
     let base = fixture(false);
