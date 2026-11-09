@@ -67,3 +67,10 @@ scope:
 ## Verdict
 
 Minor gaps only (low). The matrix test rewrite still exercises the range and unmatched-tag diagnostics in Rust, Python and TypeScript, then verifies that the repaired marker form passes `--strict` cleanly. The census and capability removals are covered by the edited assertions. Additive retags (IT-083/084 with NFR-004-AC-2, IT-121 with FR-004-AC-19, IT-122 with FR-004-AC-20) match what the tests do. The IT-136 mis-binding is recorded under the code-review artifact, SR-20261102086810, as FND-001.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 445d7eb asserts "declared marker form" and that the unmatched FR-001-AC-2 line names the `partial` symbol, in every language and format |
+| FND-002 | fixed | 445d7eb removes `#[trace("FR-004-AC-2")]` and the now-unused import from src/commands/validate.rs; IT-048 alone backs FR-004-AC-2 |

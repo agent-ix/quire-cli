@@ -64,3 +64,11 @@ Rust lane: clean. `run_query` and `search_by_prefix` now return `anyhow::Result`
 Dependency: `branch = "main"` is appropriate. `Cargo.lock` records 7602ea4, and every build, lint, test, deny and release path runs `--locked`. `ix-cli-kit` already follows the same convention, and `deny.toml` allow-lists the git source. The old `rev` plus `=0.53.0` pin duplicated the lockfile and guarded nothing.
 
 Commit 2 was not test-run by the author, but a static check is clean: every file that uses `#[trace]` imports it, and every import is used. The single pre-merge `make ci` (including `make spec`) on b05771b must still run.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 445d7eb removes `#[trace("IT-136")]` from cli_validate::it_136_json_validation_error_is_locatable_and_actionable; IT-136 is now bound only by the assurance tests |
+| FND-002 | still-open | 445d7eb deletes the drifted comments and the obsolete `rust-comment-id` note, but two dead `Trace:` comments remain above markers: tests/audit_static.rs:20-21 and tests/cli_stream_contract.rs:269 |
+| FND-003 | fixed | 445d7eb adds trace::tests::run_query_refuses_when_a_language_in_the_tree_is_unreadable, covering --id, --symbol and --file and downcasting to ExtractionUnavailable. --prefix stays uncovered because an empty graph never calls search |
