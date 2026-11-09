@@ -212,3 +212,107 @@ fn it088_bundle_warnings_are_emitted_as_warnings_in_json() {
         "the malformed flavor carries its own reason: {malformed}"
     );
 }
+
+// IT-178, FR-014-AC-3, FR-014-AC-10 (PLAT-1300, quire-rs FR-076): `--okf` declares the repo's bundle
+// package from the scope's `origin` remote, so a cross-repo
+// `ix://<other-org>/<other-repo>/ID` target is not dangling while a miss
+// under the repo's own authority still is.
+#[test]
+fn it178_okf_declares_repo_package_so_cross_repo_targets_are_not_dangling() {
+    let dir = bundle(&[(
+        "spec/X-1.md",
+        "---\nid: X-1\ntype: weird\n---\n# x\n\
+         cross [other](ix://other-org/other-repo/FR-9) \
+         own [missing](ix://acme/widgets/MISSING)\n",
+    )]);
+    for args in [
+        &["init", "-q"][..],
+        &[
+            "remote",
+            "add",
+            "origin",
+            "https://github.com/acme/widgets.git",
+        ][..],
+    ] {
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir.path())
+            .args(args)
+            .status()
+            .expect("git")
+            .success()
+            .then_some(())
+            .expect("git setup");
+    }
+
+    let out = quire()
+        .arg("validate")
+        .arg("--okf")
+        .arg("--scope")
+        .arg(dir.path())
+        .arg("--module")
+        .arg(validate_module())
+        .output()
+        .expect("run");
+
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "dangling is a warning: {err}");
+    assert!(
+        !err.contains("'FR-9'"),
+        "cross-repo target must not be reported: {err}"
+    );
+    assert!(
+        err.contains("dangling reference 'MISSING'"),
+        "in-repo miss stays dangling: {err}"
+    );
+}
+
+// IT-179, FR-014-AC-10 (PLAT-1300): the declared package is the bundle's own
+// checkout, not the caller's cwd: a positional bundle with its own origin,
+// validated from a different directory, still warns on its own-authority miss
+// and skips a foreign one.
+#[test]
+fn it179_positional_bundle_uses_its_own_checkout_identity() {
+    let dir = bundle(&[(
+        "X-1.md",
+        "---\nid: X-1\ntype: weird\n---\n# x\n\
+         cross [other](ix://other-org/other-repo/FR-9) \
+         own [missing](ix://acme/widgets/MISSING)\n",
+    )]);
+    for args in [
+        &["init", "-q"][..],
+        &["remote", "add", "origin", "git@github.com:Acme/Widgets.git"][..],
+    ] {
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir.path())
+            .args(args)
+            .status()
+            .expect("git")
+            .success()
+            .then_some(())
+            .expect("git setup");
+    }
+    let elsewhere = tempfile::tempdir().expect("tempdir");
+
+    let out = quire()
+        .current_dir(elsewhere.path())
+        .arg("validate")
+        .arg("--okf")
+        .arg(dir.path())
+        .arg("--module")
+        .arg(validate_module())
+        .output()
+        .expect("run");
+
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "dangling is a warning: {err}");
+    assert!(
+        !err.contains("'FR-9'"),
+        "foreign target must be skipped: {err}"
+    );
+    assert!(
+        err.contains("dangling reference 'MISSING'"),
+        "own-authority miss still warns: {err}"
+    );
+}
