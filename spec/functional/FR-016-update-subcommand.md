@@ -83,8 +83,8 @@ quire update [--check] [--registry <URL>]
 > the failing/unreachable `npm` and failing/missing `cargo` exit-4 of AC-7 are
 > traced by `cli_update::package_manager_channels`, which runs a copy of the
 > real binary against a stand-in package manager on `PATH`. Still **untraced**:
-> the real-registry reachability behind AC-7, the npm `install -g` success
-> path of AC-3, and the `cargo install` dispatch half of AC-1, because they
+> the real-registry reachability behind AC-7, the bare-`update` npm `install -g` success
+> path (no AC covers it), and the `cargo install` dispatch half of AC-1, because they
 > need live network access and global-install side effects. This statement
 > lives here rather than in the Test Matrix's Coverage Status column because
 > that column declares no `column_patterns` and is therefore unenforced —
