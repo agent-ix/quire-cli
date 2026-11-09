@@ -100,6 +100,7 @@ fn assert_rejected(dir: &TempDir, reason: &str) {
 }
 
 // Trace: IT-150, FR-017-AC-22
+#[trace("IT-150", "FR-017-AC-22")]
 #[test]
 fn it150_strict_rejects_unread_status_and_preserves_the_report() {
     let dir = fixture(true);
@@ -124,6 +125,7 @@ fn it150_strict_rejects_unread_status_and_preserves_the_report() {
 }
 
 // Trace: IT-151, FR-017-AC-22
+#[trace("IT-151", "FR-017-AC-22")]
 #[test]
 fn it151_strict_rejects_a_hollow_measurement_without_reference_row_failures() {
     let dir = fixture(false);

@@ -10,6 +10,7 @@
 mod common;
 
 use common::{extract_module, extract_sample_doc, quire};
+use ix_trace_rs::trace;
 use serde_json::Value;
 
 /// The provenance block out of a payload, with every member checked.
@@ -90,6 +91,7 @@ fn assert_provenance(payload: &Value, surface: &str) {
 // engine was indistinguishable from one linking a current engine. Asserting
 // both strings appear is not enough on its own — if they happened to be equal
 // the test would pass over the exact failure — so the label is asserted too.
+#[trace("IT-123", "FR-008-AC-6")]
 #[test]
 fn it_123_version_reports_the_cli_and_the_engine() {
     let out = quire().arg("--version").output().expect("--version runs");
@@ -185,6 +187,7 @@ fn extract_payload() -> Value {
 }
 
 // IT-124, FR-008-AC-6: the `extract` payload carries provenance.
+#[trace("IT-124", "FR-008-AC-6")]
 #[test]
 fn it_124_extract_payload_carries_provenance() {
     let (raw, payload) = raw_and_payload(
@@ -216,6 +219,7 @@ fn it_124_extract_payload_carries_provenance() {
 // This is the payload quoin's `spec-correctness` skill reads and a generated
 // property test is derived from. A classification whose classifier version is
 // unknowable is a classification nobody can re-derive.
+#[trace("IT-125", "FR-008-AC-6")]
 #[test]
 fn it_125_properties_payload_carries_provenance() {
     let payload = properties_payload();
@@ -238,6 +242,7 @@ fn it_125_properties_payload_carries_provenance() {
 // The surface that matters most: every ecosystem figure in four battletest
 // passes came from this payload, and none of them recorded which engine
 // produced it.
+#[trace("IT-126", "FR-008-AC-6")]
 #[test]
 fn it_126_coverage_payload_carries_provenance() {
     let (raw, payload) = coverage_raw_and_payload();
@@ -340,6 +345,7 @@ fn coverage_raw_and_payload() -> (String, Value) {
 // The half of AC-5 that survives. A loose `version` lets a payload assert its
 // own contract revision, which puts the contract in two places; provenance
 // under a named `engine` object is a different claim.
+#[trace("IT-127", "FR-008-AC-5")]
 #[test]
 fn it_127_no_payload_carries_a_bare_version_key() {
     // Every payload, not just `extract`. The first draft ran one command while
@@ -395,6 +401,7 @@ fn collect_banned_keys(node: &Value, out: &mut Vec<String>) {
 // trains a reader to regenerate it without reading it — and a golden file
 // nobody reads is a gate that lets a stale value ship unnoticed.
 // What must not drift is the shape: which keys, in which order.
+#[trace("IT-129", "FR-008-AC-6")]
 #[test]
 fn it_129_the_envelope_shape_is_pinned_by_a_golden_snapshot() {
     let (raw, _) = raw_and_payload(

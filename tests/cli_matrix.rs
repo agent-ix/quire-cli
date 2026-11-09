@@ -4,6 +4,7 @@
 
 mod common;
 
+use ix_trace_rs::trace;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
@@ -169,6 +170,7 @@ fn engine_matrix(f: &Fixture) -> Option<Value> {
 }
 
 // Trace: IT-166, FR-026-AC-1
+#[trace("IT-166", "FR-026-AC-1")]
 #[test]
 fn it166_a_populated_scope_renders_every_criterion_in_every_format() {
     let f = populated();
@@ -197,6 +199,7 @@ fn it166_a_populated_scope_renders_every_criterion_in_every_format() {
 }
 
 // Trace: IT-167, FR-026-AC-2
+#[trace("IT-167", "FR-026-AC-2")]
 #[test]
 fn it167_matrix_shares_coverage_refusals_and_module_resolution() {
     // No `spec/` under the scope: the typed MissingDocumentRoot refusal.
@@ -291,6 +294,7 @@ fn it167_matrix_shares_coverage_refusals_and_module_resolution() {
 }
 
 // Trace: IT-168, FR-026-AC-3, FR-026-AC-4
+#[trace("IT-168", "FR-026-AC-3", "FR-026-AC-4")]
 #[test]
 fn it168_markdown_renders_one_table_per_requirement_in_engine_order() {
     // Documents written in reverse order and criteria out of id order: the
@@ -364,6 +368,7 @@ fn it168_markdown_renders_one_table_per_requirement_in_engine_order() {
 }
 
 // Trace: IT-169, FR-026-AC-5
+#[trace("IT-169", "FR-026-AC-5")]
 #[test]
 fn it169_binders_render_path_line_column_with_ignored_and_none_markers() {
     let f = Fixture::with_obligations();
@@ -460,6 +465,7 @@ fn it169_binders_render_path_line_column_with_ignored_and_none_markers() {
 }
 
 // Trace: IT-169, FR-026-AC-5
+#[trace("IT-169", "FR-026-AC-5")]
 #[test]
 fn it169_a_pipe_in_a_binder_path_is_escaped() {
     let f = Fixture::with_obligations();
@@ -487,6 +493,7 @@ fn it169_a_pipe_in_a_binder_path_is_escaped() {
 }
 
 // Trace: IT-170, FR-026-AC-6
+#[trace("IT-170", "FR-026-AC-6")]
 #[test]
 fn it170_structural_characters_become_spaces_before_truncation() {
     // 40 letters, a tab, 40 letters: 81 scalar values, so the cut applies,
@@ -515,6 +522,7 @@ fn it170_structural_characters_become_spaces_before_truncation() {
 }
 
 // Trace: IT-170, FR-026-AC-6
+#[trace("IT-170", "FR-026-AC-6")]
 #[test]
 fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
     let short = "Short and whole.";
@@ -576,6 +584,7 @@ fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
 }
 
 // Trace: IT-171, FR-026-AC-7
+#[trace("IT-171", "FR-026-AC-7")]
 #[test]
 fn it171_json_wraps_the_engine_value_verbatim_with_provenance() {
     let f = populated();
@@ -617,6 +626,7 @@ fn it171_json_wraps_the_engine_value_verbatim_with_provenance() {
 }
 
 // Trace: IT-172, FR-026-AC-8
+#[trace("IT-172", "FR-026-AC-8")]
 #[test]
 fn it172_tsv_emits_one_untruncated_record_per_criterion() {
     let f = populated();
@@ -711,6 +721,7 @@ fn zero_populations() -> [Fixture; 2] {
 }
 
 // Trace: IT-173, FR-026-AC-9
+#[trace("IT-173", "FR-026-AC-9")]
 #[test]
 fn it173_both_zero_population_shapes_render_identically() {
     for f in zero_populations() {
@@ -733,6 +744,7 @@ fn it173_both_zero_population_shapes_render_identically() {
 }
 
 // Trace: IT-174, FR-026-AC-10, FR-026-AC-11
+#[trace("IT-174", "FR-026-AC-10", "FR-026-AC-11")]
 #[test]
 fn it174_strict_requires_at_least_one_criterion_all_backed() {
     for f in zero_populations() {
@@ -794,6 +806,7 @@ fn it174_strict_requires_at_least_one_criterion_all_backed() {
 }
 
 // Trace: IT-175, FR-026-AC-11
+#[trace("IT-175", "FR-026-AC-11")]
 #[test]
 fn it175_method_without_symbol_never_fails_strict() {
     let f = Fixture::with_obligations();
@@ -835,6 +848,7 @@ fn it175_method_without_symbol_never_fails_strict() {
 }
 
 // Trace: IT-176, FR-026-AC-12
+#[trace("IT-176", "FR-026-AC-12")]
 #[test]
 fn it176_no_severity_pack_and_no_unread_measurement_gate() {
     let f = populated();
@@ -921,6 +935,7 @@ fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
 }
 
 // Trace: IT-177, FR-026-AC-14
+#[trace("IT-177", "FR-026-AC-14")]
 #[test]
 fn it177_matrix_writes_nothing_under_the_scope() {
     let f = populated();
@@ -950,6 +965,7 @@ fn it177_matrix_writes_nothing_under_the_scope() {
 }
 
 // Trace: TC-841, FR-026-AC-13
+#[trace("TC-841", "FR-026-AC-13")]
 #[test]
 fn tc841_every_matrix_exit_code_is_in_the_fr007_taxonomy() {
     let populated = populated();
@@ -975,6 +991,7 @@ fn tc841_every_matrix_exit_code_is_in_the_fr007_taxonomy() {
 
 /// Trace: FR-026-AC-16
 /// Provenance: PLAT-1150
+#[trace("FR-026-AC-16")]
 #[test]
 fn matrix_explains_ranges_and_partially_read_trace_lists_in_every_format() {
     for (language, path, source, repaired_source) in [

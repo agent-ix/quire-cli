@@ -7,6 +7,7 @@
 //! `properties-v1.schema.json` would describe a shape nothing checked, which is
 //! the exact gap FR-055 exists to close, moved one repository along.
 
+use ix_trace_rs::trace;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -112,6 +113,7 @@ fn doc(dir: &TempDir) -> String {
 /// contract — including the FR-053 obligation nested on each record. Upstream
 /// this is quire-rs FR-055-AC-4, cited in prose because quire-cli's matrix does
 /// not declare quire-rs criteria; binding it here would mint a dead tag.
+#[trace("IT-103", "FR-018-AC-8")]
 #[test]
 fn it_103_properties_envelope_conforms_to_the_published_schema() {
     let dir = TempDir::new().expect("tempdir");
@@ -160,6 +162,7 @@ fn it_103_properties_envelope_conforms_to_the_published_schema() {
 /// IT-104, FR-018-AC-9: a module declaring no obligation source emits
 /// `obligation: null` and still conforms — the shape a corpus that has not
 /// adopted obligations sees.
+#[trace("IT-104", "FR-018-AC-9")]
 #[test]
 fn it_104_absent_obligation_is_null_and_still_conforms() {
     let dir = TempDir::new().expect("tempdir");
@@ -218,6 +221,7 @@ fn it_104_absent_obligation_is_null_and_still_conforms() {
 /// `additionalProperties: false` — so between the emitter landing and the
 /// schema landing, `coverage --json` emitted a payload that violated its own
 /// published contract and no test in either repository would have said so.
+#[trace("IT-128", "FR-008-AC-6")]
 #[test]
 fn it_128_coverage_payload_conforms_to_the_published_schema() {
     let dir = TempDir::new().expect("tempdir");

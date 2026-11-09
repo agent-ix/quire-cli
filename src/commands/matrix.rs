@@ -274,6 +274,7 @@ fn render_tsv(matrix: &[CoverageMatrixRequirement]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
     use quire_rs::coverage::CoverageMatrixCriterion;
 
     fn criterion(id: &str, status: CoverageMatrixStatus) -> CoverageMatrixCriterion {
@@ -315,6 +316,7 @@ mod tests {
     }
 
     /// Trace: FR-026-AC-5, FR-026-AC-7, FR-026-AC-8, FR-026-AC-15
+    #[trace("FR-026-AC-5", "FR-026-AC-7", "FR-026-AC-8", "FR-026-AC-15")]
     #[test]
     fn qualified_record_renders_verbatim_without_source_binders() {
         let matrix = vec![requirement(vec![criterion(
@@ -340,6 +342,7 @@ mod tests {
     }
 
     /// Trace: FR-026-AC-10, FR-026-AC-15
+    #[trace("FR-026-AC-10", "FR-026-AC-15")]
     #[test]
     fn qualified_record_passes_strict_without_hiding_live_gaps() {
         assert_eq!(

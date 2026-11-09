@@ -1,6 +1,7 @@
 //! Native consumer controls for quire-rs#409.
 mod common;
 
+use ix_trace_rs::trace;
 use std::fs;
 use std::process::Output;
 
@@ -67,6 +68,7 @@ fn assert_backed(report: &Value) {
 }
 
 /// Trace: FR-017-AC-23, IT-152
+#[trace("FR-017-AC-23", "IT-152")]
 #[test]
 fn it152_native_default_and_override_are_independently_readable() {
     let dir = fixture("Status", "Coverage Status");
@@ -81,6 +83,7 @@ fn it152_native_default_and_override_are_independently_readable() {
 }
 
 /// Trace: FR-017-AC-23, IT-153
+#[trace("FR-017-AC-23", "IT-153")]
 #[test]
 fn it153_each_missing_header_reports_then_fails_strict_without_fallback() {
     for (default_header, alternate_header, declaration, setting) in [

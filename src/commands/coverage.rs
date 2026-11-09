@@ -794,10 +794,12 @@ pub(super) fn load_registry_for(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     // TC-813, FR-017-AC-18 (#66): the census and the metric envelopes reach
     // the human surface, and the census example appears only where there is
     // something unread to look at.
+    #[trace("TC-813", "FR-017-AC-18")]
     #[test]
     fn tc813_the_census_and_metric_envelopes_render_for_a_human() {
         use quire_rs::metric::{Measurement, Metric, MetricShape};
@@ -895,6 +897,7 @@ mod tests {
     // `tsv_cell` to the identity left the whole suite green. A cell carrying
     // all three structural characters must still yield exactly one nine-column
     // record.
+    #[trace("TC-812", "FR-017-AC-14")]
     #[test]
     fn tc812_tsv_cells_escape_structural_characters() {
         assert_eq!(tsv_cell("a\tb\nc\rd"), "a b c d");

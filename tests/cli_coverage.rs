@@ -4,6 +4,7 @@
 //! rollup. Trace ids sit on the tests, not in this header — a `//!` block
 //! attaches to the file and binds to no symbol (agent-ix/quire-cli#43).
 
+use ix_trace_rs::trace;
 use std::fs;
 use std::process::Command;
 
@@ -48,6 +49,7 @@ fn doc(dir: &TempDir) -> String {
 /// `[<grammar>:<check>]` prefix, so a corpus emitting both `[ears:*]` and
 /// `[ac:*]` findings shows both. Before this the parser matched a hardcoded
 /// `[ears:` prefix and every `ac` finding was silently absent.
+#[trace("FR-004-AC-15")]
 #[test]
 fn tc714_summary_covers_every_grammar() {
     let dir = TempDir::new().expect("tempdir");
@@ -83,6 +85,7 @@ fn tc714_summary_covers_every_grammar() {
 /// TC-720, FR-004-AC-16 (upstream quire-rs TC-752, FR-048-AC-5/AC-9):
 /// `--severity <grammar>:<check>=off` suppresses the check entirely — no
 /// warning, and no row in the histogram.
+#[trace("FR-004-AC-16")]
 #[test]
 fn tc720_severity_off_suppresses_a_check() {
     let dir = TempDir::new().expect("tempdir");
@@ -119,6 +122,7 @@ fn tc720_severity_off_suppresses_a_check() {
 /// TC-721, FR-004-AC-17 (upstream quire-rs FR-048-AC-6): `--severity …=error`
 /// promotes a check, and the run
 /// fails on it — the per-check lever `--strict` could not express.
+#[trace("FR-004-AC-17")]
 #[test]
 fn tc721_severity_error_fails_the_run() {
     let dir = TempDir::new().expect("tempdir");
@@ -153,6 +157,7 @@ fn tc721_severity_error_fails_the_run() {
 /// `--severity` entry is rejected before any
 /// document is read, so the user gets a usage error rather than a run that
 /// silently ignored the flag.
+#[trace("FR-004-AC-18")]
 #[test]
 fn tc755_malformed_severity_entry_is_rejected() {
     let dir = TempDir::new().expect("tempdir");
@@ -177,6 +182,7 @@ fn tc755_malformed_severity_entry_is_rejected() {
 /// byte-identical across runs over identical input (FR-050-AC-7). A module with
 /// no `traceability:` model is a clear error rather than an empty report —
 /// guessing would be the agent-grep behaviour this command replaces.
+#[trace("FR-017-AC-2", "FR-017-AC-6")]
 #[test]
 fn tc740_coverage_reports_and_is_deterministic() {
     let dir = TempDir::new().expect("tempdir");
@@ -239,6 +245,7 @@ fn tc740_coverage_reports_and_is_deterministic() {
 /// both of which are empty when nothing matched. Every gate wired to this
 /// command passed vacuously, which is how the ecosystem-wide `trace_tags` gap
 /// went unnoticed for nine days.
+#[trace("FR-017-AC-8")]
 #[test]
 fn tc797_zero_matched_rows_is_not_full_coverage() {
     let dir = TempDir::new().expect("tempdir");
@@ -326,6 +333,7 @@ fn matrix_doc(id: &str, row: &str) -> String {
 /// matrix at the repository root or under `plan/` mints nothing, however
 /// perfectly typed, and repo-root `README.md`/`CHANGELOG.md` are never read.
 /// Before the two-root split every one of these minted into the report.
+#[trace("FR-017-AC-3")]
 #[test]
 fn tc810_document_root_is_scope_spec_not_the_repo() {
     let dir = TempDir::new().expect("tempdir");
@@ -394,6 +402,7 @@ fn tc810_document_root_is_scope_spec_not_the_repo() {
 /// no `spec/` directory is a
 /// named error — never a silent fallback to walking the scope itself, which
 /// is how the repository-wide crawl survived.
+#[trace("FR-017-AC-5")]
 #[test]
 fn tc811_missing_spec_root_is_a_named_error() {
     let dir = TempDir::new().expect("tempdir");
@@ -423,6 +432,7 @@ fn tc811_missing_spec_root_is_a_named_error() {
 // carries a stable machine `kind` under --diagnostics json, so a consumer can
 // branch on it instead of matching prose. It was a formatted `bail!` string,
 // which is exactly why the assertions above could only look for a substring.
+#[trace("IT-086", "FR-017-AC-5")]
 #[test]
 fn it086_missing_spec_root_carries_a_typed_kind_in_json() {
     let dir = TempDir::new().expect("tempdir");
@@ -467,6 +477,7 @@ fn it086_missing_spec_root_carries_a_typed_kind_in_json() {
 // with the whole suite green. A trace-tagged source file under `<scope>/spec`
 // is the falsifier: if the exclusion lapses, its tag binds and the id shows up
 // as an untracked symbol.
+#[trace("IT-087", "FR-017-AC-4")]
 #[test]
 fn it087_the_code_walk_excludes_the_document_root() {
     let dir = TempDir::new().expect("tempdir");
@@ -546,6 +557,7 @@ fn it087_the_code_walk_excludes_the_document_root() {
 // IT-089, FR-017-AC-1: the default human census. Everything else about this
 // command was tested through `--json`, so the rendered output — what a person
 // actually runs — had no coverage at all.
+#[trace("IT-089", "FR-017-AC-1")]
 #[test]
 fn it089_human_census_is_printed_and_exits_zero() {
     let dir = TempDir::new().expect("tempdir");
@@ -585,6 +597,7 @@ fn it089_human_census_is_printed_and_exits_zero() {
 // IT-092, FR-017-AC-7: `--strict` turns an unbacked row into exit 1, and the
 // same repository exits 0 without it. The flag is the whole gate/report
 // distinction (FR-050-CON-1) and nothing asserted both halves.
+#[trace("IT-092", "FR-017-AC-7")]
 #[test]
 fn it092_strict_fails_on_an_unbacked_row_and_default_does_not() {
     let dir = TempDir::new().expect("tempdir");
@@ -666,6 +679,7 @@ fn it092_strict_fails_on_an_unbacked_row_and_default_does_not() {
 // last programme phase kept finding — a capability shipped and unreachable —
 // and the tell it recommends is exactly this: invoke the surface a user
 // actually invokes, and grep for the thing.
+#[trace("IT-107", "FR-017-AC-10")]
 #[test]
 fn it107_an_undeclared_status_reaches_both_surfaces() {
     let dir = TempDir::new().expect("tempdir");
@@ -797,6 +811,7 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
 // (`traces-to`) per line: on a real corpus, 1,432 identical lines a reader
 // could act on only by re-running with `--json`, even though `UnbackedRow`,
 // `StatusLie` and `UndeclaredStatus` all carry `row_id: Option<String>`.
+#[trace("IT-109", "FR-017-AC-12")]
 #[test]
 fn it109_human_finding_lines_lead_with_the_row_id() {
     let dir = TempDir::new().expect("tempdir");
@@ -940,6 +955,7 @@ fn lying_fixture(dir: &TempDir) -> (String, String) {
 // gate `--strict` cannot express. Entries ride the same FR-048 machinery
 // `validate --severity` uses, so parsing, precedence and reject-before-read
 // come for free and cannot drift between the two commands.
+#[trace("IT-110", "FR-017-AC-13")]
 #[test]
 fn it110_severity_pack_projects_and_promotes() {
     let dir = TempDir::new().expect("tempdir");
@@ -1111,6 +1127,7 @@ fn it110_severity_pack_projects_and_promotes() {
 // the data, so its arrival needed no format
 // change), and byte-identical output across runs. The severity projection
 // applies to it exactly as to the other surfaces.
+#[trace("IT-111", "FR-017-AC-14")]
 #[test]
 fn it111_tsv_emits_one_record_per_line_on_stdout() {
     let dir = TempDir::new().expect("tempdir");
@@ -1187,6 +1204,7 @@ fn it111_tsv_emits_one_record_per_line_on_stdout() {
 // other JSON surface already has), indented with the flag, the same parsed
 // value either way. `to_json()` was unconditionally pretty and the flag was
 // silently ignored.
+#[trace("IT-112", "FR-017-AC-15")]
 #[test]
 fn it112_coverage_json_honours_the_global_pretty_flag() {
     let dir = TempDir::new().expect("tempdir");
@@ -1227,6 +1245,7 @@ fn it112_coverage_json_honours_the_global_pretty_flag() {
 // Same reachability argument as IT-107. The engine grew the key; without this
 // line passing `model.source_exclude`, every module declaring it would be
 // declaring something with no effect whatsoever.
+#[trace("IT-108", "FR-017-AC-11")]
 #[test]
 fn it108_a_declared_source_exclude_scopes_the_code_walk() {
     let manifest = |extra: &str| {
@@ -1412,6 +1431,7 @@ fn self_ref_manifest() -> &'static str {
 // table so the asserted numbers can only be document lines — a renderer
 // printing a table-relative row index would fail loudly here while passing
 // on a fixture whose table starts at the top.
+#[trace("IT-113", "FR-017-AC-16")]
 #[test]
 fn it113_human_finding_locus_is_document_colon_line() {
     let dir = TempDir::new().expect("tempdir");
@@ -1473,6 +1493,7 @@ fn it113_human_finding_locus_is_document_colon_line() {
 // record explains an unbacked row the census DOES print, and an explanation
 // only the machine surface carries is one nobody reads (the CR-083 argument
 // that put `undeclared_statuses` on both surfaces).
+#[trace("IT-114", "FR-017-AC-17")]
 #[test]
 fn it114_no_symbol_rows_render_in_the_human_census() {
     let dir = TempDir::new().expect("tempdir");
@@ -1560,6 +1581,7 @@ fn it114_no_symbol_rows_render_in_the_human_census() {
 // dropped. Without the count, an over-broad glob reads exactly like tests
 // that were never written; without the diagnostics, a walk that read less
 // than declared said nothing.
+#[trace("IT-115", "FR-017-AC-18")]
 #[test]
 fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
     let build = |declare_glob: bool| {
@@ -1652,6 +1674,7 @@ fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
 // rot N-1 tests deep invisibly. Reachability, not re-testing the engine: the
 // CLI serializes the whole `CoverageReport`, and this pins that the field
 // actually arrives from the surface a user invokes.
+#[trace("IT-116", "FR-017-AC-19")]
 #[test]
 fn it116_shared_trace_ids_pass_through_json() {
     let dir = TempDir::new().expect("tempdir");
@@ -1751,6 +1774,7 @@ fn closed_set_matrix_doc(spec: &std::path::Path, file: &str, archetype: &str, ro
 // back to discovery — which re-admits the ambient install root, loads pinned
 // modules twice, resolves first-wins, and reports a rate that cannot be
 // attributed to the revisions the caller pinned.
+#[trace("IT-146", "FR-017-AC-20")]
 #[test]
 fn it146_repeatable_module_declares_a_closed_ordered_set() {
     let dir = TempDir::new().expect("tempdir");
@@ -1814,6 +1838,7 @@ fn it146_repeatable_module_declares_a_closed_ordered_set() {
 // the whole defect upstream was an env var that added where every caller
 // assumed it replaced — so the order is documented where it is read, not left
 // to be discovered by experiment.
+#[trace("IT-147", "FR-017-AC-21")]
 #[test]
 fn it147_help_states_the_module_resolution_order() {
     let out = quire()

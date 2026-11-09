@@ -8,6 +8,7 @@
 
 mod common;
 
+use ix_trace_rs::trace;
 use std::fs;
 
 use assert_cmd::prelude::*;
@@ -31,6 +32,7 @@ fn bundle(files: &[(&str, &str)]) -> TempDir {
 const FR008: &str = "---\nid: FR-008\ntype: FR\n---\n# FR-008\n";
 
 // IT-076, FR-015-AC-1: dry-run reports `would-fix` and exits 1; no write.
+#[trace("IT-076", "FR-015-AC-1")]
 #[test]
 fn dry_run_reports_and_exits_one() {
     let dir = bundle(&[
@@ -59,6 +61,7 @@ fn dry_run_reports_and_exits_one() {
 }
 
 // IT-077, FR-015-AC-2: --write applies the link; a second run is a no-op (exit 0).
+#[trace("IT-077", "FR-015-AC-2")]
 #[test]
 fn write_applies_and_is_idempotent() {
     let dir = bundle(&[
@@ -94,6 +97,7 @@ fn write_applies_and_is_idempotent() {
 
 // IT-078, FR-015-AC-3: a warn-only (unresolved) token warns, is never
 // written, and does not by itself cause a nonzero exit.
+#[trace("IT-078", "FR-015-AC-3")]
 #[test]
 fn warn_only_never_written_exit_zero() {
     let dir = bundle(&[(
@@ -115,6 +119,7 @@ fn warn_only_never_written_exit_zero() {
 }
 
 // IT-079, FR-015-AC-4: a clean bundle exits 0 in both modes.
+#[trace("IT-079", "FR-015-AC-4")]
 #[test]
 fn clean_bundle_exits_zero() {
     let dir = bundle(&[(
@@ -174,6 +179,7 @@ fn multi_token_code_span_not_corrupted() {
 // `..`, and no `would-fix:`/`warning:` finding line — a finding would mean
 // the bundle was loaded and walked, i.e. the rejection did NOT happen
 // before any load.
+#[trace("IT-080", "FR-015-AC-5")]
 #[test]
 fn path_traversal_rejected() {
     let out = quire().arg("fix").arg("../etc").output().expect("fix runs");
@@ -199,6 +205,7 @@ fn path_traversal_rejected() {
 // change shipped in PR #27 with no test that omits the positional at all, so
 // nothing distinguished "reads <scope>/spec" from "reads <scope>"
 // (agent-ix/quire-cli#31).
+#[trace("IT-080", "FR-015-AC-5")]
 #[test]
 fn it080_fix_with_no_positional_uses_the_scope_spec_root() {
     let dir = bundle(&[
@@ -237,6 +244,7 @@ fn it080_fix_with_no_positional_uses_the_scope_spec_root() {
 
 // IT-080, FR-015-AC-5: and a scope with no `spec/` is the same named error
 // the other two commands raise, not a silent walk of the scope.
+#[trace("IT-080", "FR-015-AC-5")]
 #[test]
 fn it080_fix_without_a_spec_root_is_a_named_error() {
     let dir = bundle(&[("FR-001.md", "---\nid: FR-001\ntype: FR\n---\nbody\n")]);

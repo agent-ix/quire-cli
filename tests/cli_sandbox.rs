@@ -5,6 +5,7 @@
 
 mod common;
 
+use ix_trace_rs::trace;
 use std::io::Write;
 
 use assert_cmd::prelude::*;
@@ -14,6 +15,7 @@ use common::{iso_doc, iso_module, quire};
 
 // IT-005, FR-005-AC-1, StR-003-AC-1, FR-007-AC-2: `--module ../escape` exits 1
 // with a path-safety violation.
+#[trace("IT-005", "FR-005-AC-1", "FR-007-AC-2")]
 #[test]
 fn it_005_module_dotdot_rejected() {
     quire()
@@ -29,6 +31,7 @@ fn it_005_module_dotdot_rejected() {
 
 // IT-022, FR-005-AC-3, FR-012: the `--out` write-target path-safety survives
 // on `edit`. A `..` out path is rejected before any write.
+#[trace("IT-022", "FR-005-AC-3")]
 #[test]
 fn it_022_out_dotdot_rejected() {
     quire()
@@ -49,6 +52,7 @@ fn it_022_out_dotdot_rejected() {
 // IT-006, FR-005-AC-4, StR-003-AC-4: a symlink under the module pointing at
 // /etc is refused at load. Construct a tempdir containing a symlink whose
 // target is outside the tempdir; the CLI must refuse to load it as a module.
+#[trace("IT-006", "FR-005-AC-4")]
 #[cfg(unix)]
 #[test]
 fn it_006_symlink_escape_refused_at_load() {
@@ -73,6 +77,7 @@ fn it_006_symlink_escape_refused_at_load() {
 // IT-023, FR-005-AC-5: a positional `-` reads the document from stdin; the
 // path-safety guard must not gate it. The document still validates
 // structurally.
+#[trace("IT-023", "FR-005-AC-5")]
 #[test]
 fn it_023_positional_stdin_bypasses_path_safety() {
     let valid = std::fs::read(iso_doc("FR-valid.md")).unwrap();
