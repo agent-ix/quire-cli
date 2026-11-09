@@ -373,19 +373,18 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
             .collect()
     };
 
-    // quire-rs FR-076: declaring the repo identity lets a cross-repo
-    // `ix://<other-org>/<other-repo>/ID` target be skipped instead of
-    // reported dangling; an in-repo miss stays dangling.
-    let bundle_package = repo_bundle_package(scope);
-
     let mut errors = 0usize;
     for (document_root, reference_root) in roots {
         let document_root =
             safety::validate_dir_path("bundle", &document_root.display().to_string())
                 .with_context(|| format!("validating bundle root '{}'", document_root.display()))?;
         let mut spec = quire_rs::Spec::from_path(&document_root);
-        if let Some(package) = bundle_package.as_deref() {
-            spec = spec.with_bundle_package(package);
+        // quire-rs FR-076: declaring the bundle's own repo identity (the
+        // checkout holding the bundle, not the caller's cwd or scope) lets a
+        // cross-repo `ix://<other-org>/<other-repo>/ID` target be skipped
+        // instead of reported dangling; an in-repo miss stays dangling.
+        if let Some(package) = repo_bundle_package(&document_root) {
+            spec = spec.with_bundle_package(&package);
         }
         let report = quire_rs::validate_bundle(
             &spec,
@@ -431,12 +430,12 @@ fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
     }
 }
 
-/// The repository identity (`<org>/<repo>`) taken from the scope's `origin`
-/// git remote, or `None` when the scope is not a git checkout with a remote.
-fn repo_bundle_package(scope: &Path) -> Option<String> {
+/// The repository identity (`<org>/<repo>`) taken from the `origin`
+/// git remote, or `None` when the directory is not a git checkout with a remote.
+fn repo_bundle_package(dir: &Path) -> Option<String> {
     let output = std::process::Command::new("git")
         .arg("-C")
-        .arg(scope)
+        .arg(dir)
         .args(["remote", "get-url", "origin"])
         .output()
         .ok()?;
@@ -456,7 +455,8 @@ fn parse_remote_package(url: &str) -> Option<String> {
     let mut parts = path.rsplit('/');
     let repo = parts.next().filter(|p| !p.is_empty())?;
     let org = parts.next().filter(|p| !p.is_empty())?;
-    Some(format!("{org}/{repo}"))
+    // GitHub org and repo names are case-insensitive.
+    Some(format!("{org}/{repo}").to_lowercase())
 }
 
 pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
@@ -885,5 +885,13 @@ mod bundle_package_tests {
             );
         }
         assert_eq!(parse_remote_package("not-a-url"), None);
+    }
+
+    #[test]
+    fn remote_package_is_case_insensitive() {
+        assert_eq!(
+            parse_remote_package("https://github.com/Agent-IX/Quire-CLI.git").as_deref(),
+            Some("agent-ix/quire-cli")
+        );
     }
 }

@@ -99,13 +99,14 @@ The positional `documents` argument is now `required_unless_present = "okf"`:
 |----|----------|--------------|
 | FR-014-AC-1 | `quire validate --okf <DIR> --module $M` over a bundle whose document has **no `type`** exits **3**; stderr carries a `[frontmatter]`-reason diagnostic naming `type` (`type` required under OKF) | Test |
 | FR-014-AC-2 | An **unknown `type`** under `--okf` is a **warning**: the command exits **0** and stderr carries an `[unknown-type]` diagnostic | Test |
-| FR-014-AC-3 | A **broken `ix://` link** under `--okf` is a **warning**: the command exits **0** and stderr carries a `[dangling-reference]` diagnostic | Test |
+| FR-014-AC-3 | A **broken `ix://` link** under the bundle's own authority (or with no package declared, per FR-014-AC-10) under `--okf` is a **warning**: the command exits **0** and stderr carries a `[dangling-reference]` diagnostic | Test |
 | FR-014-AC-4 | An **`index.md` that omits a sibling artifact** under `--okf` is a **warning**: the command exits **0** and stderr carries an `[index-incomplete]` diagnostic naming the missing artifact | Test |
 | FR-014-AC-5 | A root `index.md` **missing `okf_version`** is reported as an `[index-incomplete]` warning (exit 0), consistent with AC-4's completeness contract | Test |
 | FR-014-AC-6 | `quire validate --okf --scope <DIR> --module $M` with **no positional** validates `<DIR>/spec` as the bundle root, with `<DIR>` itself kept as the reference root (exit 0 for a warning-only bundle); a `<DIR>` holding no `spec/` exits non-zero with a diagnostic naming the missing document root, never falling back to walking `<DIR>` | Test |
 | FR-014-AC-7 | `quire validate` with **no positional and no `--okf`** is a clap argv error → **exit 3** (`required_unless_present = "okf"`), unchanged from [FR-004](./FR-004-validate-subcommand.md) | Test |
 | FR-014-AC-8 | (base concept contract) an untyped document is a hard error (exit 3, `[frontmatter]` diagnostic naming `type`) in **both** postures — strict per-file ([FR-004](./FR-004-validate-subcommand.md)) and `--okf` bundle — because quire-rs enforces `type` required + non-empty for every validated document | Test |
 | FR-014-AC-9 | (thin boundary) all bundle/base-concept validation is delegated to quire-rs (`validate_bundle`, base-concept enforcement); the CLI only resolves the root, applies path-safety, and surfaces the `BundleReport` ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); TC-090) | Inspection |
+| FR-014-AC-10 | Under `--okf` the bundle package (`<org>/<repo>`, lowercased) is declared from the `origin` remote of the checkout containing each bundle's document root — not the caller's cwd or scope (quire-rs FR-076). A dangling `ix://<other-org>/<other-repo>/ID` link under a **foreign** authority is skipped (no diagnostic); a miss under the bundle's **own** authority still warns `[dangling-reference]`; with **no** package declared (no git checkout or no `origin`) every miss warns | Test |
 
 > **CR note (two roots from one scope, 2026-08-15):** AC-6 previously read
 > "validates the `--scope` directory as the bundle root". That is no longer what
