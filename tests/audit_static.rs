@@ -26,7 +26,7 @@ fn tc090_src_is_a_thin_boundary_over_quire_rs() {
     quire_qualify::source::check_thin_boundary(&repo_root()).expect("native thin-boundary audit");
 }
 
-// TC-091, NFR-004-AC-1, NFR-004-AC-3: no HTTP/RPC client crate reaches the
+// TC-091, NFR-004-AC-1, NFR-004-AC-3, NFR-004-M-1: no HTTP/RPC client crate reaches the
 // build. `cargo
 // deny check bans` is the CI gate; this asserts the same property directly
 // against `deny.toml` and `Cargo.lock` so the row is backed without depending
@@ -53,7 +53,7 @@ fn tc091_no_http_client_crate_is_banned_or_linked() {
     }
 }
 
-// TC-092, NFR-003-AC-1, NFR-003-AC-2: every `unsafe {` block in `src/` carries
+// TC-092, NFR-003-AC-1, NFR-003-AC-2, NFR-003-M-1: every `unsafe {` block in `src/` carries
 // a `// SAFETY:` comment or sits in the reviewed baseline (AC-1), AND the gate
 // actually fails on a violation (AC-2).
 //

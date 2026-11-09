@@ -71,7 +71,7 @@ fn make_recipes_only_orchestrate_native_qualification() {
     }
 }
 
-#[trace("TC-839", "FR-025-AC-7", "FR-025-CON-4")]
+#[trace("TC-839", "FR-025-AC-7", "FR-025-CON-4", "NFR-009-M-1")]
 #[test]
 fn executable_script_inventory_is_empty() {
     let root = repo_root();
