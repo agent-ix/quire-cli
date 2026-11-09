@@ -188,7 +188,7 @@ fn assurance_does_not_open_inet_socket_or_execute_a_child() {
     }
 }
 
-// IT-008, NFR-004-AC-2, NFR-004-M-2, StR-001-AC-4: `schema` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `schema` opens no inet socket.
 #[test]
 fn schema_does_not_open_inet_socket() {
     if !strace_available() {
@@ -200,7 +200,7 @@ fn schema_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "schema");
 }
 
-// IT-008, NFR-004-AC-2, NFR-004-M-2, StR-001-AC-4: `parse` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `parse` opens no inet socket.
 #[test]
 fn parse_does_not_open_inet_socket() {
     if !strace_available() {
@@ -213,7 +213,7 @@ fn parse_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "parse");
 }
 
-// IT-008, NFR-004-AC-2, NFR-004-M-2, StR-001-AC-4: `validate` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `validate` opens no inet socket.
 #[test]
 fn validate_does_not_open_inet_socket() {
     if !strace_available() {
@@ -231,7 +231,7 @@ fn validate_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "validate");
 }
 
-// IT-008, NFR-004-AC-2, NFR-004-M-2, StR-001-AC-4: `extract` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `extract` opens no inet socket.
 #[test]
 fn extract_does_not_open_inet_socket() {
     if !strace_available() {
@@ -250,7 +250,7 @@ fn extract_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "extract");
 }
 
-// IT-008, NFR-004-AC-2, NFR-004-M-2, StR-001-AC-4: `lookup` opens no inet socket.
+// IT-008, NFR-004-AC-2, StR-001-AC-4: `lookup` opens no inet socket.
 #[test]
 fn lookup_does_not_open_inet_socket() {
     if !strace_available() {

@@ -78,20 +78,20 @@ quire update [--check] [--registry <URL>]
 | FR-016-AC-6 | `commands/update.rs` uses the shared `ix-cli-kit::self_update` engine, supplies quire's coordinates through `SelfUpdateConfig`, and contains no parser, renderer, or validator logic; quire carries no local copy of the engine | Inspection |
 | FR-016-AC-7 | A failing `npm`/`cargo` invocation, or an unreachable registry, exits **4** | Test |
 
-> **CR note (untraced criteria, updated 2026-10-20, #55):** four paths carry **no
-> automated trace**, because exercising them needs live network access and
-> global-install side effects: the npm-channel `--check`/install of AC-3, the
-> registry-unreachable / failing-`npm`/`cargo` exit-4 of AC-7, and the
-> `cargo install` dispatch half of AC-1. The registry-argument construction of
-> AC-4 is tested by `ix-cli-kit`, but its upstream tests do not bind quire's
-> local trace matrix. Their `Verification: Test` states the
-> intended method, not an existing trace. This statement lives here rather
-> than in the Test Matrix's Coverage Status column because that column
-> declares no `column_patterns` and is therefore unenforced — prose there is
-> validated by nothing (agent-ix/spec-artifacts-process#57 tracks declaring
-> the column contract; once it lands the rollup row can carry an enforced
-> status instead). The FR-016 matrix row stays 🚧 until these paths gain a
-> recorded trace.
+> **CR note (traced and untraced paths, updated 2026-11-08, PLAT-1177):** the
+> npm-channel `--check` of AC-3, the scope-form registry argument of AC-4, and
+> the failing/unreachable `npm` and failing/missing `cargo` exit-4 of AC-7 are
+> traced by `cli_update::package_manager_channels`, which runs a copy of the
+> real binary against a stand-in package manager on `PATH`. Still **untraced**:
+> the real-registry reachability behind AC-7, the npm `install -g` success
+> path of AC-3, and the `cargo install` dispatch half of AC-1, because they
+> need live network access and global-install side effects. This statement
+> lives here rather than in the Test Matrix's Coverage Status column because
+> that column declares no `column_patterns` and is therefore unenforced —
+> prose there is validated by nothing (agent-ix/spec-artifacts-process#57
+> tracks declaring the column contract; once it lands the rollup row can
+> carry an enforced status instead). The FR-016 matrix row stays 🚧 until
+> those paths gain a recorded trace.
 
 ## Dependencies
 
