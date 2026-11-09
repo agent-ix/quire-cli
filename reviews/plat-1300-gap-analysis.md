@@ -39,3 +39,10 @@ scope:
 ## Verdict
 
 Gaps found (medium). Add an FR-014 AC for the cross-repo skip (package declared from the repo origin; foreign-authority miss skipped; own-authority miss still warns; no package means every miss warns), amend AC-3 accordingly, give the new test a fresh IT id with a tests.md row bound to that AC.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 8291a73: tests renamed it178/it179 with IT-178/IT-179 rows in spec/tests.md bound to FR-014-AC-3/AC-10; no collision on origin/main or open PRs #119/#123 |
+| FND-002 | fixed | 8291a73: FR-014-AC-10 added and AC-3 amended to the own-authority / no-package case; FR-014 coverage row now AC-1..10 |

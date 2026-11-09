@@ -45,3 +45,16 @@ scope:
 ## Verdict
 
 Changes requested (medium). Main `--scope` path, error handling, and test assertions are sound; idiomatic Rust, no panics, no new unsafe. Fix FND-001 by resolving the package per root from `document_root` (git walks up from `<scope>/spec` to the same repo, so the default path is unchanged), revert the `current_dir` workaround, and add a positional-bundle-from-another-checkout test.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | low | Only the package side is lowercased; quire-rs still compares the link authority byte-for-byte, so an own-repo miss written with a mixed-case authority (ix://Acme/widgets/X) is now skipped as cross-repo. A full fix is a case-insensitive authority comparison in quire-rs | src/commands/validate.rs:458 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 8291a73: run_okf calls repo_bundle_package(&document_root) per root; current_dir workaround reverted; it179 covers a positional bundle from another cwd; reviewer repro now reports the own-repo miss |
+| FND-002 | fixed | 8291a73: parse_remote_package lowercases org/repo; unit test remote_package_is_case_insensitive and it179 (git@github.com:Acme/Widgets.git) cover it; residual link-side case tracked as FND-003 |
