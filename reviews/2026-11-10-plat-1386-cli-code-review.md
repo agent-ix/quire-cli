@@ -47,3 +47,9 @@ Mergeable. The one finding is a low test-strength nit.
 - **Rust.** The change is minimal and idiomatic, with no new arithmetic in the CLI. The subtraction lives in the engine's `non_exempt_unbacked()` and is bounded by construction. There is no panic path.
 - **Cargo.lock side effect.** The bump moved filament-core-data from 6505433 to ce72bc5. quire-rs 92507f7's own Cargo.lock pins the same ce72bc5, so the bump aligns the CLI with what the engine was built and tested against. For the `agent-ix-semantic-schema` crate, the only content difference is an additive optional `import_types` property in `module-manifest.schema.json` and `module-semantic-block.schema.json`. This is acceptable.
 - **Existing tests.** No existing test was weakened. The diff only adds tests. IT-092's code is unchanged and only its matrix wording changed.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (head 0e55041): IT-181 now asserts `assert_eq!(strict.status.code(), Some(1), ...)` and `assert_eq!(promoted.status.code(), Some(1), ...)`. |

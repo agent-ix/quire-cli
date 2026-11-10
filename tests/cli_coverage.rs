@@ -825,7 +825,7 @@ fn it182_strict_fails_on_a_status_lie_beside_an_exempt_row() {
     );
     let err = String::from_utf8_lossy(&strict.stderr);
     assert!(
-        err.contains("contradicted status"),
+        err.contains("1 contradicted status(es)"),
         "the failure must report the contradicted status: {err}"
     );
 }

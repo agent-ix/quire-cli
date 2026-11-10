@@ -69,3 +69,10 @@ Mergeable. FND-001 is a small test addition and FND-002 is a one-sentence spec c
   - The new `#[trace]` bindings are correct: IT-180 and IT-181 bind FR-017-AC-7, and both rows exist in spec/tests.md bound to FR-017-AC-7.
   - The FR-017-AC-7 verification cell lists IT-092, IT-180 and IT-181.
 - **Follow-up outside this repo.** The quire-rs matrix still marks TC-2225 and TC-2226 as "awaiting `quire-cli`" and the FR-050 summary row says "CLI cases await". Flipping those rows belongs in quire-rs after this merges.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | still-open | Round 1 (head 0e55041) added IT-182, but its assertion `err.contains("contradicted status")` cannot fail. The strict message is always `"{unbacked} unbacked row(s) and {lies} contradicted status(es) (--strict)"` (src/commands/coverage.rs:209), and in this fixture the `✅` row is itself a non-exempt unbacked row, so it holds with 0 lies too. Exit 1 also comes from the unbacked premise. The test must assert `1 contradicted status(es)` (tests/cli_coverage.rs:828). |
+| FND-002 | fixed | Round 1: FR-017-AC-7 now names the surviving premises and states "`quire coverage` calls only `compute_coverage` and has no evidence path, so the engine's incomplete-evidence-inventory premise does not exist at this CLI." |
