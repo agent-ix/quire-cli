@@ -769,8 +769,9 @@ fn it181_strict_still_fails_on_a_non_exempt_unbacked_row() {
         .args(["coverage", "--scope", &scope, "--module", &m, "--strict"])
         .output()
         .expect("run");
-    assert!(
-        !strict.status.success(),
+    assert_eq!(
+        strict.status.code(),
+        Some(1),
         "a non-exempt row must fail --strict"
     );
     let err = String::from_utf8_lossy(&strict.stderr);
@@ -784,7 +785,7 @@ fn it181_strict_still_fails_on_a_non_exempt_unbacked_row() {
         .args(["--severity", "coverage:unbacked-row=error"])
         .output()
         .expect("run");
-    assert!(!promoted.status.success(), "promotion must fail on it");
+    assert_eq!(promoted.status.code(), Some(1), "promotion must fail on it");
     assert!(String::from_utf8_lossy(&promoted.stderr).contains("1 coverage:unbacked-row"));
 
     let plain = quire()
@@ -802,6 +803,31 @@ fn it181_strict_still_fails_on_a_non_exempt_unbacked_row() {
         .output()
         .expect("run");
     assert!(!String::from_utf8_lossy(&none.stdout).contains("strict-exempt"));
+}
+
+// IT-182, FR-017-AC-7 (TC-2226): an exempt `🚧 planned` unbacked row beside a
+// `✅` Complete row that no symbol backs still fails `--strict` with exit 1 and
+// reports the contradicted status; the exemption only discounts the planned row.
+#[trace("IT-182", "FR-017-AC-7")]
+#[test]
+fn it182_strict_fails_on_a_status_lie_beside_an_exempt_row() {
+    let (_dir, scope, m) = strict_exempt_fixture(
+        "| TC-001 | FR-001-AC-1 | 🚧 planned |\n| TC-002 | FR-001-AC-2 | ✅ |\n",
+    );
+    let strict = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m, "--strict"])
+        .output()
+        .expect("run");
+    assert_eq!(
+        strict.status.code(),
+        Some(1),
+        "a status lie must fail --strict"
+    );
+    let err = String::from_utf8_lossy(&strict.stderr);
+    assert!(
+        err.contains("contradicted status"),
+        "the failure must report the contradicted status: {err}"
+    );
 }
 
 // IT-107, FR-017-AC-10 (upstream quire-rs FR-050-AC-21, CR-083): an undeclared

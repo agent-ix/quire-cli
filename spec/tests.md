@@ -297,6 +297,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-179 | A positional bundle with its own `origin` (mixed-case URL), validated from a different cwd, uses its own checkout's identity: foreign target skipped, own-authority miss warns; a bundle with no checkout declares no package so every miss warns (`cli_okf::it179_*`, `cli_okf::okf_tolerates_unknown_type_and_broken_link`) | Integration | P0 | FR-014-AC-10 | ✅ |
 | IT-180 | `coverage --strict` exits 0 when the only unbacked rows are `🚧 planned`/`🚧 Parked` (also with `coverage:unbacked-row=error`) and the text census prints `strict-exempt unbacked rows (planned/blocked/parked): N`, unchanged under `=off` (`cli_coverage::it180_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
 | IT-181 | A non-exempt unbacked row beside exempt ones fails `--strict` and the `error`-promoted check counting only itself; without `--strict` the exit is unchanged; no exempt rows prints no exempt line (`cli_coverage::it181_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
+| IT-182 | An exempt `🚧 planned` unbacked row beside a `✅` Complete row without backing: `--strict` exits 1 and reports the contradicted status (`cli_coverage::it182_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
 | TC-841 | Every exit code `matrix` produces across the cases above is one of 0, 1, 2 — no new code is introduced | Unit | P1 | FR-026-AC-13 | ✅ |
 
 ---
