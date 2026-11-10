@@ -9,15 +9,17 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
-- **Breaking: `quire schema` and `quire validate` refuse a module manifest whose `semantic` block carries `semantic_core` (quire-rs PLAT-1369).** This reverses the 0.38.0 acceptance of `semantic_core` 0.3.2 and 0.3.3; remove the key from the manifest.
-
-- **`quire coverage --strict` exempts planned, blocked and parked rows (PLAT-1386).** Adopts quire-rs FR-050-AC-64..66: the `--strict` verdict and an `error`-promoted `coverage:unbacked-row` count only non-exempt unbacked rows, so a repository whose only unbacked rows are `planned`, `blocked` or `parked` exits 0. The text census prints `strict-exempt unbacked rows (planned/blocked/parked): N` when N is nonzero. FR-017-AC-7 amended.
-
 - **Adopt quire-rs 0.54.0 (PLAT-847, CR-215).** Only explicit markers bind a `verifies` relation. `quire trace --json` verifies records no longer carry `provenance`; `quire provenance` no longer lists the `binding_census.self_named` capability; the assurance golden drops the `provenance` field; `matrix`'s unmatched-tag warning says to write the declared marker form. `quire trace` refuses, naming the languages, when the build cannot read a language in the tree (quire-rs FR-077-AC-7). The quire-rs dependency tracks `branch = "main"`.
 
 - **npm publishing moves to the shared `publish-native-npm` action (PLAT-1012).** `release.yml` now publishes `@agent-ix/quire-cli` and its four platform packages through `agent-ix/nodejs-actions/publish-native-npm` (`static-musl`, so the Linux packages carry no libc restriction). The repository-owned launcher `npm/quire-cli/bin/quire.js`, `quire-dist package-npm`, `verify-published`, `set-version` and `verify-release`, and the `make dist-package`, `dist-verify`, `dist-verify-published` and `set-version` targets are removed; `quire-dist verify-binary` stays. The documented local `npm.ix` publish path, which depended on those commands, is removed. FR-023, FR-024 and NFR-008 are removed, FR-022 and US-007 are rewritten, and ADR-0003 supersedes ADR-0002.
 
 - **Breaking: digests and hashes removed from outputs.** `quire properties --json` no longer emits `statement_hash` on a criterion obligation. The `quire assurance` v1 export locator is `{path, line}` only (no `digest`), obligations carry no `statement_hash`, and symbol ids are JSON-array identity parts rather than SHA-256 hex. `quire clauses` human binding output no longer prints a clause-set digest. Follows quire-rs assurance-v1 edited in place.
+
+## [0.40.0] — 2026-11-10
+
+- **Breaking: `quire schema` and `quire validate` refuse a module manifest whose `semantic` block carries `semantic_core` (quire-rs PLAT-1369).** This reverses the 0.38.0 acceptance of `semantic_core` 0.3.2 and 0.3.3; remove the key from the manifest.
+
+- **`quire coverage --strict` exempts planned, blocked and parked rows (PLAT-1386).** Adopts quire-rs FR-050-AC-64..66: the `--strict` verdict and an `error`-promoted `coverage:unbacked-row` count only non-exempt unbacked rows, so a repository whose only unbacked rows are `planned`, `blocked` or `parked` exits 0. The text census prints `strict-exempt unbacked rows (planned/blocked/parked): N` when N is nonzero. FR-017-AC-7 amended.
 
 ## [0.39.0] - 2026-11-09
 
