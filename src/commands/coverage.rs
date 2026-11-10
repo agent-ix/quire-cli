@@ -121,7 +121,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // projected report can never pass a gate a full one would fail.
     let severity = registry.grammar_severity().clone();
     let full_counts = [
-        ("unbacked-row", report.unbacked_rows.len()),
+        // FR-050-AC-66: planned/blocked/parked rows are strict-exempt, so the
+        // gate and the `error` promotion both judge the non-exempt count.
+        ("unbacked-row", report.non_exempt_unbacked()),
         ("status-lie", report.status_lies.len()),
         ("untracked-symbol", report.untracked_symbols.len()),
         ("undeclared-status", report.undeclared_statuses.len()),
@@ -644,6 +646,14 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()
     );
     if t.retired > 0 {
         primary_line!("{} retired historical row(s)", t.retired);
+    }
+    // FR-050-AC-65: read from `totals` (untouched by severity projection), so
+    // `coverage:unbacked-row=off` yields the same count.
+    if t.strict_exempt_unbacked > 0 {
+        primary_line!(
+            "strict-exempt unbacked rows (planned/blocked/parked): {}",
+            t.strict_exempt_unbacked
+        );
     }
     for line in census_lines(report) {
         primary_line!("{}", &line);

@@ -40,7 +40,6 @@ object_types: []
 lint_rules: []
 semantic:
   contract_version: 1.0.0
-  semantic_core: 0.3.3
   package: agent-ix/validate-mod
   exports: []
   imports: {}
