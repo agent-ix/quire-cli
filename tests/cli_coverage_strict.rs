@@ -179,7 +179,11 @@ fn retired_document(dir: &TempDir, rows: &str) {
 }
 
 fn tombstone_row(method: &str) -> String {
-    format!("| FR-038-AC-92 | {WITHDRAWAL_REASON} | {method} | planned |\n")
+    tombstone_row_with_status(method, "planned")
+}
+
+fn tombstone_row_with_status(method: &str, status: &str) -> String {
+    format!("| FR-038-AC-92 | {WITHDRAWAL_REASON} | {method} | {status} |\n")
 }
 
 #[trace("FR-017-AC-7")]
@@ -222,8 +226,13 @@ fn strict_retired_rows_preserve_history_without_hiding_live_gaps() {
     let (strict, strict_report) = run(&dir, true, false);
     assert_eq!(strict.status.code(), Some(1), "{strict_report}");
     assert_eq!(strict_report, report);
+    // AC-94 is `planned`, so it is strict-exempt (quire-rs FR-050-AC-64): it
+    // stays in `unbacked_rows` but the verdict counts only AC-93.
+    assert_eq!(unbacked[0].get("strict_exempt"), None, "{report}");
+    assert_eq!(unbacked[1]["strict_exempt"], true, "{report}");
+    assert_eq!(report["totals"]["strict_exempt_unbacked"], 1, "{report}");
     assert!(String::from_utf8_lossy(&strict.stderr)
-        .contains("2 unbacked row(s) and 1 contradicted status(es)"));
+        .contains("1 unbacked row(s) and 1 contradicted status(es)"));
 }
 
 #[trace("FR-017-AC-8")]
@@ -269,7 +278,9 @@ fn strict_all_retired_scope_is_distinct_from_an_empty_scope() {
 #[test]
 fn strict_undeclared_and_misspelled_retirement_values_stay_live() {
     for (declared, method) in [(false, "Withdrawn"), (true, "Withdrawnn")] {
-        let dir = retired_fixture(declared, &tombstone_row(method));
+        // A non-`planned` status keeps the row out of the strict exemption, so
+        // this test isolates the retirement vocabulary.
+        let dir = retired_fixture(declared, &tombstone_row_with_status(method, "open"));
         let (strict, report) = run(&dir, true, false);
         assert_eq!(strict.status.code(), Some(1), "{report}");
         assert_eq!(report["totals"]["total"], 1, "{report}");
