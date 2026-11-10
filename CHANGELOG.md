@@ -9,6 +9,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **Breaking: `quire schema` and `quire validate` refuse a module manifest whose `semantic` block carries `semantic_core` (quire-rs PLAT-1369).** This reverses the 0.38.0 acceptance of `semantic_core` 0.3.2 and 0.3.3; remove the key from the manifest.
+
 - **`quire coverage --strict` exempts planned, blocked and parked rows (PLAT-1386).** Adopts quire-rs FR-050-AC-64..66: the `--strict` verdict and an `error`-promoted `coverage:unbacked-row` count only non-exempt unbacked rows, so a repository whose only unbacked rows are `planned`, `blocked` or `parked` exits 0. The text census prints `strict-exempt unbacked rows (planned/blocked/parked): N` when N is nonzero. FR-017-AC-7 amended.
 
 - **Adopt quire-rs 0.54.0 (PLAT-847, CR-215).** Only explicit markers bind a `verifies` relation. `quire trace --json` verifies records no longer carry `provenance`; `quire provenance` no longer lists the `binding_census.self_named` capability; the assurance golden drops the `provenance` field; `matrix`'s unmatched-tag warning says to write the declared marker form. `quire trace` refuses, naming the languages, when the build cannot read a language in the tree (quire-rs FR-077-AC-7). The quire-rs dependency tracks `branch = "main"`.

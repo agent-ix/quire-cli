@@ -53,3 +53,9 @@ Mergeable. The one finding is a low test-strength nit.
 | FND | outcome | reason |
 | --- | --- | --- |
 | FND-001 | fixed | Round 1 (head 0e55041): IT-181 now asserts `assert_eq!(strict.status.code(), Some(1), ...)` and `assert_eq!(promoted.status.code(), Some(1), ...)`. |
+
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-002 | low | The bump from quire-rs 7e61e14 to 92507f7 makes `quire schema` and `validate` refuse a module manifest whose `semantic` block carries `semantic_core`. 7e61e14 stripped the key (contract.rs:131,175), and the filament-core-data ce72bc5 `module-semantic-block` schema has `additionalProperties: false` and no such key. Commit 35e0b0b therefore removes the key from the fixture and deletes it_064/it_065, but the CHANGELOG `[Unreleased]` entry does not mention this user-visible refusal, which reverses the 0.38.0 entry "Keep `quire schema` loading current semantic module manifests that carry the legacy informational `semantic_core` field". | CHANGELOG.md:12, tests/cli_schema.rs:37 |
