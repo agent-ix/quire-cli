@@ -216,7 +216,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-087 | The code walk excludes the document root: a trace-tagged source file under `<scope>/spec` contributes no symbol while the same shape outside it does (`cli_coverage::it087_*`) | Integration | P0 | FR-017-AC-4 | ✅ |
 | IT-088 | A non-fatal bundle warning is emitted with `severity: "warning"` / `kind: "ValidationWarning"` under `--diagnostics json`, exit unchanged; the no-frontmatter and malformed-frontmatter flavors carry distinct machine reasons (`cli_okf::it088_*`) | Integration | P0 | FR-014-AC-6 | ✅ |
 | IT-089 | `coverage` renders the human census on stderr and leaves stdout empty without `--json` (`cli_coverage::it089_*`) | Integration | P1 | FR-017-AC-1 | ✅ |
-| IT-092 | `coverage --strict` exits 1 on an unbacked row while the same repository exits 0 without it (`cli_coverage::it092_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
+| IT-092 | `coverage --strict` exits 1 on a non-exempt unbacked row while the same repository exits 0 without it (`cli_coverage::it092_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
 | IT-093 | `properties` renders a per-criterion census and exits 0 (`cli_properties::it093_*`) | Integration | P1 | FR-018-AC-1 | ✅ |
 | IT-094 | `properties --json` emits one record per binding criterion carrying `row_id`/`shape`/`property`/`extraction`, byte-identical across runs (`cli_properties::it094_*`) | Integration | P0 | FR-018-AC-2 | ✅ |
 | IT-095 | A document binding no criteria yields an empty record set and exits 0 (`cli_properties::it095_*`) | Integration | P1 | FR-018-AC-3 | ✅ |
@@ -295,6 +295,8 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-177 | Running `matrix` in every format against a fixture repository leaves every file anywhere under `<scope>` — not only under `<scope>/spec` — byte-identical before and after; no flag names an output path (`cli_matrix::it177_*`) | Integration | P0 | FR-026-AC-14 | ✅ |
 | IT-178 | `validate --okf --scope <DIR>` declares the package from `<DIR>`'s `origin` remote: a cross-repo `ix://other-org/other-repo/ID` target is skipped while a miss under the repo's own authority still warns `[dangling-reference]`, exit 0 (`cli_okf::it178_*`) | Integration | P0 | FR-014-AC-3, FR-014-AC-10 | ✅ |
 | IT-179 | A positional bundle with its own `origin` (mixed-case URL), validated from a different cwd, uses its own checkout's identity: foreign target skipped, own-authority miss warns; a bundle with no checkout declares no package so every miss warns (`cli_okf::it179_*`, `cli_okf::okf_tolerates_unknown_type_and_broken_link`) | Integration | P0 | FR-014-AC-10 | ✅ |
+| IT-180 | `coverage --strict` exits 0 when the only unbacked rows are `🚧 planned`/`🚧 Parked` (also with `coverage:unbacked-row=error`) and the text census prints `strict-exempt unbacked rows (planned/blocked/parked): N`, unchanged under `=off` (`cli_coverage::it180_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
+| IT-181 | A non-exempt unbacked row beside exempt ones fails `--strict` and the `error`-promoted check counting only itself; without `--strict` the exit is unchanged; no exempt rows prints no exempt line (`cli_coverage::it181_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
 | TC-841 | Every exit code `matrix` produces across the cases above is one of 0, 1, 2 — no new code is introduced | Unit | P1 | FR-026-AC-13 | ✅ |
 
 ---

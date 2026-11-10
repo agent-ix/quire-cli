@@ -672,6 +672,138 @@ fn it092_strict_fails_on_an_unbacked_row_and_default_does_not() {
     );
 }
 
+/// A tl-syntax-shaped fixture: criterion rows in `spec/FR-001.md` carry no
+/// Status column; matrix rows in `spec/tests.md` reference them, each with its
+/// own status cell. Returns `(tempdir, scope, module)`.
+fn strict_exempt_fixture(matrix_rows: &str) -> (TempDir, String, String) {
+    let dir = TempDir::new().expect("tempdir");
+    let scope = dir.path().to_string_lossy().into_owned();
+    let m = dir.path().join("m");
+    fs::create_dir_all(&m).expect("mkdir");
+    fs::write(
+        m.join("manifest.yaml"),
+        "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+         - name: FR\n\
+         - name: TestMatrix\n\
+         traceability:\n  trace_targets:\n  - name: acceptance-criterion\n\
+         \x20   archetype: FR\n    section: Acceptance Criteria\n\
+         \x20   id_column: ID\n\
+         \x20 document_references:\n  - name: traces-to\n\
+         \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+         \x20   column: Traces To\n    row_id_column: Test ID\n\
+         \x20   pattern: '(FR-\\d+-AC-\\d+)'\n\
+         \x20   targets: [acceptance-criterion]\n  status:\n    column: Status\n\
+         \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
+         \x20   failed: [\"❌\"]\n",
+    )
+    .expect("write manifest");
+    fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+    fs::write(
+        dir.path().join("spec/FR-001.md"),
+        "---\nid: FR-001\ntype: FR\n---\n# FR-001\n\n\
+         ## Acceptance Criteria\n\n| ID | Criteria |\n|----|----------|\n\
+         | FR-001-AC-1 | it holds |\n| FR-001-AC-2 | it also holds |\n",
+    )
+    .expect("write FR");
+    fs::write(
+        dir.path().join("spec/tests.md"),
+        format!(
+            "---\nid: TM-001\ntype: TestMatrix\n---\n# matrix\n\n\
+             ## Test Case Summary\n\n| Test ID | Traces To | Status |\n\
+             |---------|-----------|--------|\n{matrix_rows}"
+        ),
+    )
+    .expect("write matrix");
+    let m = m.to_string_lossy().into_owned();
+    (dir, scope, m)
+}
+
+const EXEMPT_LINE: &str = "strict-exempt unbacked rows (planned/blocked/parked): ";
+
+// IT-180, FR-017-AC-7 (quire-rs FR-050-AC-65/66, TC-2225/TC-2226): rows whose
+// only referencing matrix rows are `🚧 planned` are strict-exempt, so `--strict`
+// exits 0 — also with `coverage:unbacked-row` promoted to `error` — and the
+// text census prints the exempt line only when the count is nonzero.
+#[trace("IT-180", "FR-017-AC-7")]
+#[test]
+fn it180_strict_exempts_planned_rows_and_prints_the_exempt_line() {
+    let (_dir, scope, m) = strict_exempt_fixture(
+        "| TC-001 | FR-001-AC-1 | 🚧 planned |\n| TC-002 | FR-001-AC-2 | 🚧 Parked |\n",
+    );
+    for extra in [&[][..], &["--severity", "coverage:unbacked-row=error"][..]] {
+        let out = quire()
+            .args(["coverage", "--scope", &scope, "--module", &m, "--strict"])
+            .args(extra)
+            .output()
+            .expect("run");
+        assert!(
+            out.status.success(),
+            "only exempt rows must pass --strict ({extra:?}): {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(
+            text.lines().any(|l| l == format!("{EXEMPT_LINE}2")),
+            "exempt line missing: {text}"
+        );
+    }
+    // `--severity ...=off` does not change the exempt count.
+    let off = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m])
+        .args(["--severity", "coverage:unbacked-row=off"])
+        .output()
+        .expect("run");
+    assert!(String::from_utf8_lossy(&off.stdout).contains(&format!("{EXEMPT_LINE}2")));
+}
+
+// IT-181, FR-017-AC-7 (TC-2226): a non-exempt unbacked row beside exempt ones
+// still fails `--strict` (and an `error`-promoted check) and counts only itself;
+// without `--strict` the exit is unchanged; no exempt rows prints no line.
+#[trace("IT-181", "FR-017-AC-7")]
+#[test]
+fn it181_strict_still_fails_on_a_non_exempt_unbacked_row() {
+    let (_dir, scope, m) = strict_exempt_fixture(
+        "| TC-001 | FR-001-AC-1 | 🚧 planned |\n| TC-002 | FR-001-AC-2 | 🚧 |\n",
+    );
+    let strict = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m, "--strict"])
+        .output()
+        .expect("run");
+    assert!(
+        !strict.status.success(),
+        "a non-exempt row must fail --strict"
+    );
+    let err = String::from_utf8_lossy(&strict.stderr);
+    assert!(
+        err.contains("1 unbacked row(s)"),
+        "counts only non-exempt: {err}"
+    );
+
+    let promoted = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m])
+        .args(["--severity", "coverage:unbacked-row=error"])
+        .output()
+        .expect("run");
+    assert!(!promoted.status.success(), "promotion must fail on it");
+    assert!(String::from_utf8_lossy(&promoted.stderr).contains("1 coverage:unbacked-row"));
+
+    let plain = quire()
+        .args(["coverage", "--scope", &scope, "--module", &m])
+        .output()
+        .expect("run");
+    assert!(
+        plain.status.success(),
+        "without --strict the exit is unchanged"
+    );
+
+    let (_d2, scope2, m2) = strict_exempt_fixture("| TC-001 | FR-001-AC-1 | 🚧 |\n");
+    let none = quire()
+        .args(["coverage", "--scope", &scope2, "--module", &m2])
+        .output()
+        .expect("run");
+    assert!(!String::from_utf8_lossy(&none.stdout).contains("strict-exempt"));
+}
+
 // IT-107, FR-017-AC-10 (upstream quire-rs FR-050-AC-21, CR-083): an undeclared
 // status value reaches BOTH surfaces.
 //
