@@ -15,6 +15,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 - **Breaking: digests and hashes removed from outputs.** `quire properties --json` no longer emits `statement_hash` on a criterion obligation. The `quire assurance` v1 export locator is `{path, line}` only (no `digest`), obligations carry no `statement_hash`, and symbol ids are JSON-array identity parts rather than SHA-256 hex. `quire clauses` human binding output no longer prints a clause-set digest. Follows quire-rs assurance-v1 edited in place.
 
+## [0.40.1] — 2026-11-11
+
+- **Adopt quire-rs 0.56.1.** `quire matrix` and `quire coverage` bind criterion tags again in a repository with no TestMatrix rows (PLAT-1392). Since 0.54.0, such a repository rejected every criterion tag as `criterion-tagged-outside-row`, which turned quire-spec-language `make ci` red. `quire trace` gives Rust trait-impl methods trait-qualified symbol ids, `<Type as Trait>::method`, so several `impl From<X> for T` no longer report `symbol-id-collision` (PLAT-1393).
+
 ## [0.40.0] — 2026-11-10
 
 - **Breaking: `quire schema` and `quire validate` refuse a module manifest whose `semantic` block carries `semantic_core` (quire-rs PLAT-1369).** This reverses the 0.38.0 acceptance of `semantic_core` 0.3.2 and 0.3.3; remove the key from the manifest.
