@@ -18,7 +18,7 @@ fn check(report: &Value) -> quire_qualify::Result<String> {
     quire_qualify::coverage::check_bytes(&serde_json::to_vec(report).unwrap())
 }
 
-#[trace("TC-828", "FR-025-AC-1")]
+#[trace("FR-025-AC-1", "NFR-009-M-3")]
 #[test]
 fn required_population_matches_current_specification() {
     let expected = [
@@ -30,16 +30,17 @@ fn required_population_matches_current_specification() {
         "FR-020-AC-6",
         "FR-020-AC-7",
         "FR-020-AC-8",
-        "IT-136",
-        "IT-137",
-        "IT-138",
-        "IT-139",
-        "IT-140",
-        "IT-141",
-        "IT-142",
-        "IT-143",
-        "IT-144",
-        "TC-814",
+        "FR-025-AC-1",
+        "FR-025-AC-2",
+        "FR-025-AC-3",
+        "FR-025-AC-4",
+        "FR-025-AC-5",
+        "FR-025-AC-6",
+        "FR-025-AC-7",
+        "FR-025-CON-1",
+        "FR-025-CON-2",
+        "FR-025-CON-3",
+        "FR-025-CON-4",
         "StR-004-VC-2",
         "StR-004-VC-3",
     ]
@@ -49,17 +50,17 @@ fn required_population_matches_current_specification() {
     assert_eq!(quire_qualify::coverage::required_targets(), expected);
 }
 
-#[trace("TC-828", "FR-025-AC-1")]
+#[trace("FR-025-AC-1")]
 #[test]
 fn complete_backed_population_passes() {
     let observation = check(&complete_report()).expect("complete report");
     assert_eq!(
         observation,
-        "assurance traceability ok: 20/20 required targets backed"
+        "assurance traceability ok: 21/21 required targets backed"
     );
 }
 
-#[trace("TC-829", "FR-025-AC-1")]
+#[trace("FR-025-AC-1")]
 #[test]
 fn missing_and_unbacked_targets_name_exact_ids() {
     let mut missing = complete_report();
@@ -79,17 +80,17 @@ fn missing_and_unbacked_targets_name_exact_ids() {
         .as_array_mut()
         .unwrap()
         .iter_mut()
-        .find(|entry| entry["id"] == "IT-141")
+        .find(|entry| entry["id"] == "FR-020-AC-3")
         .unwrap();
     target["backed"] = json!(false);
     let error = check(&unbacked).expect_err("unbacked target must fail");
     assert!(matches!(
         error,
-        quire_qualify::Error::UnbackedTargets { ids } if ids == ["IT-141"]
+        quire_qualify::Error::UnbackedTargets { ids } if ids == ["FR-020-AC-3"]
     ));
 }
 
-#[trace("TC-830", "FR-025-AC-1")]
+#[trace("FR-025-AC-1")]
 #[test]
 fn promoted_examples_and_coverage_defects_fail_independently() {
     let mut promoted = complete_report();
@@ -128,7 +129,7 @@ fn promoted_examples_and_coverage_defects_fail_independently() {
     check(&unrelated).expect("unrelated unmatched tags remain outside this gate");
 }
 
-#[trace("TC-831", "FR-025-AC-2")]
+#[trace("FR-025-AC-2")]
 #[test]
 fn malformed_or_incomplete_coverage_inputs_fail_typed_deserialization() {
     for bytes in [b"{".as_slice(), b"[]".as_slice()] {

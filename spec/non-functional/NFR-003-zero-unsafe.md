@@ -33,5 +33,5 @@ stale baseline entries as well as new undocumented blocks.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-003-AC-1 | The native AST-backed gate reports zero undocumented `unsafe` blocks in first-party Rust source and tests | Inspection (TC-092, TC-837) |
-| NFR-003-AC-2 | Local qualification fails if an `unsafe` block lacks a nearby `// SAFETY:` comment and its exact locus is not in the reviewed baseline | Mutation test (TC-092, TC-837) |
+| NFR-003-AC-1 | The native AST-backed gate reports zero undocumented `unsafe` blocks in first-party Rust source and tests | Inspection |
+| NFR-003-AC-2 | Local qualification fails if an `unsafe` block lacks a nearby `// SAFETY:` comment and its exact locus is not in the reviewed baseline | Mutation test |

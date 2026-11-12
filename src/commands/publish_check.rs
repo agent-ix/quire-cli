@@ -106,7 +106,7 @@ mod tests {
     use ix_trace_rs::trace;
 
     #[test]
-    #[trace("IT-261", "FR-029-AC-7")]
+    #[trace("FR-029-AC-7")]
     fn exit_code_follows_the_engine_verdict_only() {
         assert!(verdict_to_result(&[]).is_ok());
         let set = RestrictedClauseSet {

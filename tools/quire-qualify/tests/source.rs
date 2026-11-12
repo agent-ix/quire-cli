@@ -35,7 +35,7 @@ fn run(value: Value) {
     );
 }
 
-#[trace("TC-835", "FR-025-AC-4", "FR-025-CON-1")]
+#[trace("FR-025-AC-4", "FR-025-CON-1")]
 #[test]
 fn rust_ast_catches_direct_aliased_and_nested_group_references() {
     let dir = tempfile::tempdir().unwrap();
@@ -72,7 +72,7 @@ fn rust_ast_catches_direct_aliased_and_nested_group_references() {
     }
 }
 
-#[trace("TC-836", "FR-025-AC-4")]
+#[trace("FR-025-AC-4")]
 #[test]
 fn admitted_dispatch_passes_and_assurance_boundary_mutations_name_loci() {
     let dir = tempfile::tempdir().unwrap();
@@ -108,7 +108,7 @@ fn admitted_dispatch_passes_and_assurance_boundary_mutations_name_loci() {
 }
 
 #[cfg(unix)]
-#[trace("TC-836", "FR-025-AC-4")]
+#[trace("FR-025-AC-4")]
 #[test]
 fn symlinked_rust_source_is_not_an_audit_escape() {
     use std::os::unix::fs::symlink;

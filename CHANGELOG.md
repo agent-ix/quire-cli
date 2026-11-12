@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.44.0] — 2026-11-12
+
+Adopts quire-rs 0.59.1: the loader refuses an explicit null for several manifest keys (PLAT-1484), and the reference check scans every table under a declared section (PLAT-1491).
+
 - PLAT-1421: `quire publish-check --module <dir> [--format human|json]` refuses a module whose clause sets carry restricted text. It exits 2 naming each `authority/id@version`, and 0 with `no restricted clause sets` otherwise (FR-029). The engine decides which sets are restricted.
 - PLAT-1473: deleted the vendored `tests/fixtures/iso` copy of the quire-rs ISO module and the `make refresh-fixtures` target; tests and `make bench` use the repo's own `validate-mod` fixture.
 

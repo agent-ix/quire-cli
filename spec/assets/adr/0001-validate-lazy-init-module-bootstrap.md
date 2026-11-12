@@ -32,8 +32,8 @@ Two fixes were considered to make scoped validation work out of the box:
 Lazy-init is the better UX, but it collides with
 [NFR-004](../../non-functional/NFR-004-no-network.md): quire-cli is a static,
 no-network CI gate, and `NFR-004` forbids opening any network socket "at any
-point during any subcommand's execution," enforced by `IT-008`
-(`strace -fe network`, which follows child processes) and `TC-091`
+point during any subcommand's execution," enforced by the network audit
+(`strace -fe network`, which follows child processes) and the dependency audit
 (`cargo deny` bans HTTP-client crates). The default module set is installed by
 **git-cloning public GitHub repos** — unavoidably network I/O.
 
@@ -56,11 +56,11 @@ point during any subcommand's execution," enforced by `IT-008`
 `NFR-004` is **amended** (CR note, 2026-06-19) to scope its guarantee precisely:
 *quire-cli's own process* opens no network socket during any subcommand; the
 scoped `validate` lazy-init MAY spawn `quoin`, whose network I/O for module
-bootstrap is the single documented exception. `IT-008` keeps `strace -f` and
+bootstrap is the single documented exception. The network audit keeps `strace -f` and
 continues to assert zero sockets on the happy path (modules already present —
 including the `--module` and populated-search-root cases); the empty-discovery
 lazy-init path is explicitly out of its happy-path scope and verified by
-demonstration plus the quoin-absent error test (`IT-082`).
+demonstration plus the quoin-absent error test.
 
 ## Consequences
 
@@ -68,7 +68,7 @@ demonstration plus the quoin-absent error test (`IT-082`).
   vars; in the normal `quoin`-first workflow (e.g. the `specify` skill runs
   `quoin write` before `quire validate`) modules are already present and quire
   never spawns anything. The static-binary / no-HTTP-crate posture
-  (`TC-091`, `NFR-004-AC-1/AC-3`) is untouched — quire links no network
+  (`NFR-004-AC-1/AC-3`) is untouched — quire links no network
   crate.
 - **Negative**: `validate`'s worst-case behaviour now depends on an external
   binary (`quoin`) and may, on the empty-discovery path only, cause network
@@ -87,5 +87,5 @@ demonstration plus the quoin-absent error test (`IT-082`).
   surface area and a footgun (silent no-install by default). Rejected as the
   less ergonomic default.
 - **Reimplement the clone in quire** (link a git/HTTP crate): directly violates
-  `TC-091` / `NFR-004-AC-1` and duplicates `quoin`'s manifest + reconcile
+  `NFR-004-AC-1` and duplicates `quoin`'s manifest + reconcile
   logic. Rejected outright.

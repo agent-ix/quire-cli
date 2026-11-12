@@ -40,9 +40,9 @@ fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
     p
 }
 
-// IT-040, FR-012-AC-1: `edit --heading` replaces the section body and leaves
+// FR-012-AC-1: `edit --heading` replaces the section body and leaves
 // the rest byte-identical.
-#[trace("IT-040", "FR-012-AC-1")]
+#[trace("FR-012-AC-1")]
 #[test]
 fn edit_by_heading_replaces_body_and_leaves_rest_byte_identical() {
     let doc = write_tmp(EDIT_DOC, "heading.md");
@@ -67,8 +67,8 @@ fn edit_by_heading_replaces_body_and_leaves_rest_byte_identical() {
     assert!(out.contains("| FR-012-AC-1 | TODO | Integration Test |"));
 }
 
-// IT-041, FR-012-AC-3: `edit --out <input>` edits the document in place.
-#[trace("IT-041", "FR-012-AC-3")]
+// FR-012-AC-3: `edit --out <input>` edits the document in place.
+#[trace("FR-012-AC-3")]
 #[test]
 fn edit_writes_in_place_with_out_pointing_at_input() {
     let doc = write_tmp(EDIT_DOC, "inplace.md");
@@ -95,8 +95,8 @@ fn edit_writes_in_place_with_out_pointing_at_input() {
     assert!(updated.contains("## Description\n\nold description\n"));
 }
 
-// IT-042, FR-012-AC-2: `edit --block-id` replaces the full stable block.
-#[trace("IT-042", "FR-012-AC-2")]
+// FR-012-AC-2: `edit --block-id` replaces the full stable block.
+#[trace("FR-012-AC-2")]
 #[test]
 fn edit_by_block_id_replaces_full_block() {
     let doc = write_tmp(EDIT_DOC, "block.md");
@@ -120,13 +120,13 @@ fn edit_by_block_id_replaces_full_block() {
     assert!(out.contains("## Description\n\nold description\n"));
 }
 
-// IT-043, FR-012-AC-1: `--content` names a FILE to read the replacement from,
+// FR-012-AC-1: `--content` names a FILE to read the replacement from,
 // never the replacement text itself. Both halves are asserted, because the
 // happy path alone passes on an implementation that inserts the argument
 // verbatim whenever it happens to be readable: the file's bytes land in the
 // document, and a `--content` path that does not exist is a named error rather
 // than a literal insertion.
-#[trace("IT-043", "FR-012-AC-1")]
+#[trace("FR-012-AC-1")]
 #[test]
 fn it_043_content_names_a_file_to_read_not_the_text_to_insert() {
     let doc = write_tmp(EDIT_DOC, "content-file.md");
@@ -172,9 +172,9 @@ fn it_043_content_names_a_file_to_read_not_the_text_to_insert() {
     );
 }
 
-// IT-044, FR-012-AC-4: `edit` on a missing section exits 1 without writing
+// FR-012-AC-4: `edit` on a missing section exits 1 without writing
 // the input.
-#[trace("IT-044", "FR-012-AC-4")]
+#[trace("FR-012-AC-4")]
 #[test]
 fn edit_missing_heading_exits_1_without_writing() {
     let doc = write_tmp(EDIT_DOC, "missing.md");
@@ -194,8 +194,8 @@ fn edit_missing_heading_exits_1_without_writing() {
     assert_eq!(std::fs::read_to_string(&doc).unwrap(), EDIT_DOC);
 }
 
-// IT-045, FR-012-AC-5: `edit` with BOTH selectors is rejected.
-#[trace("IT-045", "FR-012-AC-5")]
+// FR-012-AC-5: `edit` with BOTH selectors is rejected.
+#[trace("FR-012-AC-5")]
 #[test]
 fn edit_rejects_both_selectors_as_argv_error() {
     let doc = write_tmp(EDIT_DOC, "argv.md");
@@ -215,9 +215,9 @@ fn edit_rejects_both_selectors_as_argv_error() {
         .stderr(predicate::str::contains("cannot be used with"));
 }
 
-// IT-045, FR-012-AC-5: and `edit` with NEITHER selector is rejected — the row
+// FR-012-AC-5: and `edit` with NEITHER selector is rejected — the row
 // covers both halves of "both/neither".
-#[trace("IT-045", "FR-012-AC-5")]
+#[trace("FR-012-AC-5")]
 #[test]
 fn edit_requires_a_selector() {
     let doc = write_tmp(EDIT_DOC, "noselector.md");
@@ -233,9 +233,9 @@ fn edit_requires_a_selector() {
     assert!(String::from_utf8_lossy(&out.stderr).contains("exactly one of --heading or --block-id"));
 }
 
-// IT-046, FR-012-AC-6: `edit` with `-` for both doc and content is a user
+// FR-012-AC-6: `edit` with `-` for both doc and content is a user
 // error.
-#[trace("IT-046", "FR-012-AC-6")]
+#[trace("FR-012-AC-6")]
 #[test]
 fn edit_rejects_doc_and_content_both_stdin() {
     let mut child = quire()

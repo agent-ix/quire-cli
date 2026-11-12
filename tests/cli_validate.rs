@@ -4,8 +4,8 @@
 //! (FR-032-AC-11..13). The `--json` context mode was removed with the
 //! render retirement (FR-004 CR note).
 //!
-//! Covers IT-021, IT-047..061, and the
-//! composed type+object + `--strict` traces IT-073..075.
+//! Covers the validate sweep, path-safety, and the composed
+//! type+object + `--strict` traces.
 
 mod common;
 
@@ -19,8 +19,8 @@ use common::{ears_module, quire, validate_doc, validate_module};
 // Markdown structural validation — FR-004 / FR-010 over validate_document.
 // ----------------------------------------------------------------------
 
-// IT-047, FR-004-AC-1, FR-010-AC-4: a valid document exits 0, no output.
-#[trace("IT-047", "FR-004-AC-1", "FR-010-AC-4")]
+// FR-004-AC-1, FR-010-AC-4: a valid document exits 0, no output.
+#[trace("FR-004-AC-1", "FR-010-AC-4")]
 #[test]
 fn it_047_valid_markdown_exits_0_no_output() {
     quire()
@@ -34,9 +34,9 @@ fn it_047_valid_markdown_exits_0_no_output() {
         .stderr(predicate::str::is_empty());
 }
 
-// IT-048, FR-004-AC-2: a broken document exits 1 with a line-numbered
+// FR-004-AC-2: a broken document exits 1 with a line-numbered
 // diagnostic naming the failing section/assert.
-#[trace("IT-048", "FR-004-AC-2")]
+#[trace("FR-004-AC-2")]
 #[test]
 fn it_048_broken_markdown_exits_1_with_line_numbered_diagnostic() {
     quire()
@@ -54,7 +54,7 @@ fn it_048_broken_markdown_exits_1_with_line_numbered_diagnostic() {
         );
 }
 
-// IT-136, quire-cli#65: JSON diagnostics expose validation facts and the
+// quire-cli#65: JSON diagnostics expose validation facts and the
 // corrective move as fields. Consumers must not have to regex `message` to
 // locate or act on a finding; the human message remains present for backwards
 // compatibility.
@@ -102,10 +102,10 @@ fn it_136_json_validation_error_is_locatable_and_actionable() {
     assert!(finding.get("next_diagnostic_step").is_none());
 }
 
-// IT-049, FR-004-AC-3: `--archetype` overrides frontmatter resolution.
+// FR-004-AC-3: `--archetype` overrides frontmatter resolution.
 // The document has no `type`, so default resolution fails; the
 // override lets it resolve to FR and validate clean.
-#[trace("IT-049", "FR-004-AC-3")]
+#[trace("FR-004-AC-3")]
 #[test]
 fn it_049_archetype_flag_overrides_frontmatter_resolution() {
     // Without override → resolution fails (no type).
@@ -131,9 +131,9 @@ fn it_049_archetype_flag_overrides_frontmatter_resolution() {
         .stdout(predicate::str::is_empty());
 }
 
-// IT-050, FR-004-AC-6, FR-007-AC-3: an unknown `--archetype` → exit 1 with
+// FR-004-AC-6, FR-007-AC-3: an unknown `--archetype` → exit 1 with
 // `UnknownArchetype` on stderr (re-pointed off the removed `--json` mode).
-#[trace("IT-050", "FR-004-AC-6", "FR-007-AC-3")]
+#[trace("FR-004-AC-6", "FR-007-AC-3")]
 #[test]
 fn it_050_unknown_archetype_reports_unknown() {
     quire()
@@ -150,9 +150,9 @@ fn it_050_unknown_archetype_reports_unknown() {
         .stderr(predicate::str::contains("UnknownArchetype"));
 }
 
-// IT-051, FR-010-AC-1: placeholder-only Specification → reason
+// FR-010-AC-1: placeholder-only Specification → reason
 // `placeholder`.
-#[trace("IT-051", "FR-010-AC-1")]
+#[trace("FR-010-AC-1")]
 #[test]
 fn it_051_placeholder_section_reports_placeholder() {
     quire()
@@ -166,9 +166,9 @@ fn it_051_placeholder_section_reports_placeholder() {
         .stderr(predicate::str::contains("placeholder"));
 }
 
-// IT-052, FR-010-AC-2: a missing required section → reason `missing`,
+// FR-010-AC-2: a missing required section → reason `missing`,
 // naming the offending section.
-#[trace("IT-052", "FR-010-AC-2")]
+#[trace("FR-010-AC-2")]
 #[test]
 fn it_052_missing_section_reports_missing() {
     quire()
@@ -182,9 +182,9 @@ fn it_052_missing_section_reports_missing() {
         .stderr(predicate::str::contains("missing").and(predicate::str::contains("Specification")));
 }
 
-// IT-053, FR-010-AC-3: an Acceptance Criteria table with wrong columns
+// FR-010-AC-3: an Acceptance Criteria table with wrong columns
 // (and zero conforming rows) → reason `assert`.
-#[trace("IT-053", "FR-010-AC-3")]
+#[trace("FR-010-AC-3")]
 #[test]
 fn it_053_bad_table_reports_assert() {
     quire()
@@ -198,9 +198,9 @@ fn it_053_bad_table_reports_assert() {
         .stderr(predicate::str::contains("assert"));
 }
 
-// IT-054, FR-010-AC-5: structural failure → empty stdout, non-empty stderr
+// FR-010-AC-5: structural failure → empty stdout, non-empty stderr
 // carrying the quire-rs diagnostics.
-#[trace("IT-054", "FR-010-AC-5")]
+#[trace("FR-010-AC-5")]
 #[test]
 fn it_054_structural_failure_empty_stdout_nonempty_stderr() {
     quire()
@@ -215,9 +215,9 @@ fn it_054_structural_failure_empty_stdout_nonempty_stderr() {
         .stderr(predicate::str::is_empty().not());
 }
 
-// IT-021, FR-004-AC-1, FR-006: `validate` writes nothing to stdout on
+// FR-004-AC-1, FR-006: `validate` writes nothing to stdout on
 // success.
-#[trace("IT-021", "FR-004-AC-1")]
+#[trace("FR-004-AC-1")]
 #[test]
 fn it_021_valid_markdown_writes_nothing_to_stdout() {
     quire()
@@ -234,10 +234,10 @@ fn it_021_valid_markdown_writes_nothing_to_stdout() {
 // FR-004 archetype-resolution failure paths + path-safety arg label.
 // ----------------------------------------------------------------------
 
-// IT-056, FR-004-AC-4: a document with no frontmatter and no `--archetype`
+// FR-004-AC-4: a document with no frontmatter and no `--archetype`
 // exits 1; stderr names the missing frontmatter / `--archetype` remedy;
 // empty stdout.
-#[trace("IT-056", "FR-004-AC-4")]
+#[trace("FR-004-AC-4")]
 #[test]
 fn it_056_no_frontmatter_names_archetype_remedy() {
     quire()
@@ -254,10 +254,10 @@ fn it_056_no_frontmatter_names_archetype_remedy() {
         );
 }
 
-// IT-057, FR-004-AC-5: frontmatter present but no string `type` and no
+// FR-004-AC-5: frontmatter present but no string `type` and no
 // `--archetype` exits 1; the diagnostic names `type` / `--archetype` and
 // rides the `frontmatter` reason vocabulary.
-#[trace("IT-057", "FR-004-AC-5")]
+#[trace("FR-004-AC-5")]
 #[test]
 fn it_057_no_type_names_archetype() {
     quire()
@@ -276,9 +276,9 @@ fn it_057_no_type_names_archetype() {
         );
 }
 
-// IT-055, FR-005-AC-2, FR-004-AC-7: a `..` document path exits 1 with a
+// FR-005-AC-2, FR-004-AC-7: a `..` document path exits 1 with a
 // PathTraversal naming the positional `document` arg.
-#[trace("IT-055", "FR-005-AC-2", "FR-004-AC-7")]
+#[trace("FR-005-AC-2", "FR-004-AC-7")]
 #[test]
 fn it_055_dotdot_document_path_rejected() {
     quire()
@@ -294,9 +294,9 @@ fn it_055_dotdot_document_path_rejected() {
         );
 }
 
-// IT-058, FR-004-AC-7: the path-safety diagnostic names the offending
+// FR-004-AC-7: the path-safety diagnostic names the offending
 // arg label — `document` for the positional, `--module` for the module.
-#[trace("IT-058", "FR-004-AC-7")]
+#[trace("FR-004-AC-7")]
 #[test]
 fn it_058_path_safety_diagnostic_names_arg_label() {
     // Module arg violation names `--module`.
@@ -311,9 +311,9 @@ fn it_058_path_safety_diagnostic_names_arg_label() {
         .stderr(predicate::str::contains("--module"));
 }
 
-// IT-059, FR-004-AC-8: `validate - --module $ISO` reads the document from
+// FR-004-AC-8: `validate - --module $ISO` reads the document from
 // stdin (path-safety-exempt) and still validates structurally.
-#[trace("IT-059", "FR-004-AC-8")]
+#[trace("FR-004-AC-8")]
 #[test]
 fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
     use std::io::Write;
@@ -335,13 +335,13 @@ fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
     assert!(out.stdout.is_empty(), "no stdout on success");
 }
 
-// IT-101, FR-004-AC-19: a relative document path resolves under --scope and
+// FR-004-AC-19: a relative document path resolves under --scope and
 // validates against the module that scope carries, with no --module argument —
 // so CI/agents can validate touched artifacts without passing a module per
 // file. Two things this case is NOT: it passes a plain path, never a glob
-// (IT-102 covers glob expansion), and the fixture root holds `manifest.yaml`,
-// so this is the exact-module branch — search-root discovery is IT-081's.
-#[trace("IT-101", "FR-004-AC-19")]
+// (the glob tests cover expansion), and the fixture root holds `manifest.yaml`,
+// so this is the exact-module branch — search-root discovery is another test's.
+#[trace("FR-004-AC-19")]
 #[test]
 fn it_101_scoped_relative_path_validates_without_module() {
     quire()
@@ -355,9 +355,9 @@ fn it_101_scoped_relative_path_validates_without_module() {
         .stderr(predicate::str::is_empty());
 }
 
-// IT-102, FR-004-AC-20: a relative glob expands under --scope and a matching
+// FR-004-AC-20: a relative glob expands under --scope and a matching
 // non-conformant document exits 1 with a line-numbered diagnostic naming it.
-#[trace("IT-102", "FR-004-AC-20")]
+#[trace("FR-004-AC-20")]
 #[test]
 fn it_102_scope_glob_surfaces_invalid_document() {
     quire()
@@ -376,12 +376,12 @@ fn it_102_scope_glob_surfaces_invalid_document() {
         );
 }
 
-// IT-082, FR-004-AC-14: the quoin-absent path — scoped validation with zero
+// FR-004-AC-14: the quoin-absent path — scoped validation with zero
 // discoverable modules and no `quoin` on PATH exits 1 with an actionable
 // diagnostic naming `quoin plugin ensure-defaults`; stdout stays empty. HOME
 // is pointed at an empty dir so the default install root resolves to a missing
 // path, isolating the test from the host's real ~/.ix.
-#[trace("IT-082", "FR-004-AC-14")]
+#[trace("FR-004-AC-14")]
 #[test]
 fn it_082_scoped_no_modules_without_quoin_reports_actionable_error() {
     let base = std::env::temp_dir().join(format!("quire-cli-it082-{}", std::process::id()));
@@ -416,10 +416,10 @@ fn it_082_scoped_no_modules_without_quoin_reports_actionable_error() {
 // advisory WARNING (not an error).
 // ----------------------------------------------------------------------
 
-// IT-073, FR-004-AC-10: an unknown `object:` warns. Without --strict,
+// FR-004-AC-10: an unknown `object:` warns. Without --strict,
 // exit 0, empty stdout; stderr carries a `warning:`-prefixed line naming
 // the unknown object, distinct from any error.
-#[trace("IT-073", "FR-004-AC-10")]
+#[trace("FR-004-AC-10")]
 #[test]
 fn it_073_unknown_object_warns_exit_0_without_strict() {
     quire()
@@ -440,10 +440,10 @@ fn it_073_unknown_object_warns_exit_0_without_strict() {
         );
 }
 
-// IT-074, FR-004-AC-11: --strict escalates the warning to exit 1; the
+// FR-004-AC-11: --strict escalates the warning to exit 1; the
 // warning still prints; empty stdout. A clean doc still exits 0 under
 // --strict (no warnings → no escalation).
-#[trace("IT-074", "FR-004-AC-11")]
+#[trace("FR-004-AC-11")]
 #[test]
 fn it_074_strict_escalates_warning_to_exit_1() {
     quire()
@@ -474,10 +474,10 @@ fn it_074_strict_escalates_warning_to_exit_1() {
         .stderr(predicate::str::is_empty());
 }
 
-// IT-075, FR-004-AC-12: under --diagnostics-format json, the warning is a
+// FR-004-AC-12: under --diagnostics-format json, the warning is a
 // distinct JSON object carrying `severity: "warning"` and a warning
 // `kind`, separable from an error object.
-#[trace("IT-075", "FR-004-AC-12")]
+#[trace("FR-004-AC-12")]
 #[test]
 fn it_075_json_warning_has_distinct_severity() {
     quire()
@@ -503,11 +503,11 @@ fn it_075_json_warning_has_distinct_severity() {
 // built in a tempdir (`common::ears_module`): FR bound to `iso-spec-core`.
 // ----------------------------------------------------------------------
 
-// IT-105, FR-004-AC-21, FR-004-AC-15: a structurally-valid FR carrying EARS
+// FR-004-AC-21, FR-004-AC-15: a structurally-valid FR carrying EARS
 // violations exits 0 (grammar findings are advisory) and surfaces them as
 // warnings under their `[ears:<check>]` labels; --summary prints the doc-level
 // conformance + per-check histogram on stderr, stdout stays empty.
-#[trace("IT-105", "FR-004-AC-21", "FR-004-AC-15")]
+#[trace("FR-004-AC-21", "FR-004-AC-15")]
 #[test]
 fn it_105_ears_grammar_warnings_are_advisory_and_summarized() {
     let tmp = tempfile::tempdir().unwrap();
@@ -531,10 +531,10 @@ fn it_105_ears_grammar_warnings_are_advisory_and_summarized() {
         );
 }
 
-// IT-106, FR-004-AC-22: --strict escalates the advisory EARS warnings to a
+// FR-004-AC-22: --strict escalates the advisory EARS warnings to a
 // failing exit code — the per-repo promotion lever: a converted repo flips
-// EARS to blocking in CI. Same document as IT-105, which exits 0 without it.
-#[trace("IT-106", "FR-004-AC-22")]
+// EARS to blocking in CI. The same document exits 0 without it.
+#[trace("FR-004-AC-22")]
 #[test]
 fn it_106_ears_grammar_warnings_fail_under_strict() {
     let tmp = tempfile::tempdir().unwrap();
@@ -549,7 +549,7 @@ fn it_106_ears_grammar_warnings_fail_under_strict() {
         .code(3);
 }
 
-// IT-121, FR-004-AC-19 (CR-011, #63): `--scope` decides where a relative glob
+// FR-004-AC-19 (CR-011, #63): `--scope` decides where a relative glob
 // resolves, and `--module` does NOT change that.
 //
 // This gated on `args.module.is_none()`, so passing `--module` silently moved
@@ -558,7 +558,7 @@ fn it_106_ears_grammar_warnings_fail_under_strict() {
 // repo** — exit 1, plausible diagnostics, wrong tree, nothing saying so. The
 // two invocations below must agree; before the fix the second one read
 // whatever `spec/` happened to sit in the cwd.
-#[trace("IT-121", "FR-004-AC-19", "FR-004-AC-23", "FR-018-AC-5")]
+#[trace("FR-004-AC-19", "FR-004-AC-23", "FR-018-AC-5")]
 #[test]
 fn it_121_module_does_not_move_glob_resolution_off_scope() {
     let expected = quire()
@@ -588,12 +588,12 @@ fn it_121_module_does_not_move_glob_resolution_off_scope() {
     );
 }
 
-// IT-122, FR-004-AC-20 (CR-011, #63): the glob form of the same guard, run
+// FR-004-AC-20 (CR-011, #63): the glob form of the same guard, run
 // with the process cwd deliberately elsewhere.
 //
 // A glob is the case that bit: `--scope <corpus> --module <m> "docs/*.md"`
 // expanded against the cwd, so the run graded a repository nobody named.
-#[trace("IT-122", "FR-004-AC-20", "FR-004-AC-23")]
+#[trace("FR-004-AC-20", "FR-004-AC-23")]
 #[test]
 fn it_122_scoped_glob_ignores_the_process_directory() {
     let elsewhere = tempfile::tempdir().expect("temp cwd");

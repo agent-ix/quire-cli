@@ -8,7 +8,7 @@ fn source(root: &std::path::Path, value: &str) {
     fs::write(root.join("src/lib.rs"), value).unwrap();
 }
 
-#[trace("TC-837", "FR-025-AC-5")]
+#[trace("FR-025-AC-5")]
 #[test]
 fn unsafe_policy_covers_comments_exact_baselines_staleness_and_explicit_update() {
     let dir = tempfile::tempdir().unwrap();
@@ -92,7 +92,7 @@ fn unsafe_policy_covers_comments_exact_baselines_staleness_and_explicit_update()
 }
 
 #[cfg(unix)]
-#[trace("TC-837", "FR-025-AC-5")]
+#[trace("FR-025-AC-5")]
 #[test]
 fn baseline_update_refuses_symlink_redirection() {
     use std::os::unix::fs::symlink;

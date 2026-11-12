@@ -44,7 +44,7 @@ fn doc(dir: &TempDir) -> String {
     p.to_string_lossy().into_owned()
 }
 
-/// TC-714, FR-004-AC-15 (upstream quire-rs FR-047-AC-8): the `--summary`
+/// FR-004-AC-15 (upstream quire-rs FR-047-AC-8): the `--summary`
 /// histogram groups by the generic
 /// `[<grammar>:<check>]` prefix, so a corpus emitting both `[ears:*]` and
 /// `[ac:*]` findings shows both. Before this the parser matched a hardcoded
@@ -82,7 +82,7 @@ fn tc714_summary_covers_every_grammar() {
     );
 }
 
-/// TC-720, FR-004-AC-16 (upstream quire-rs TC-752, FR-048-AC-5/AC-9):
+/// FR-004-AC-16 (upstream quire-rs TC-752, FR-048-AC-5/AC-9):
 /// `--severity <grammar>:<check>=off` suppresses the check entirely — no
 /// warning, and no row in the histogram.
 #[trace("FR-004-AC-16")]
@@ -119,7 +119,7 @@ fn tc720_severity_off_suppresses_a_check() {
     assert!(after.contains("ears:"), "{after}");
 }
 
-/// TC-721, FR-004-AC-17 (upstream quire-rs FR-048-AC-6): `--severity …=error`
+/// FR-004-AC-17 (upstream quire-rs FR-048-AC-6): `--severity …=error`
 /// promotes a check, and the run
 /// fails on it — the per-check lever `--strict` could not express.
 #[trace("FR-004-AC-17")]
@@ -153,7 +153,7 @@ fn tc721_severity_error_fails_the_run() {
     );
 }
 
-/// TC-755, FR-004-AC-18 (upstream quire-rs FR-048-AC-10): a malformed
+/// FR-004-AC-18 (upstream quire-rs FR-048-AC-10): a malformed
 /// `--severity` entry is rejected before any
 /// document is read, so the user gets a usage error rather than a run that
 /// silently ignored the flag.
@@ -177,7 +177,7 @@ fn tc755_malformed_severity_entry_is_rejected() {
     }
 }
 
-/// TC-740, FR-017-AC-2, FR-017-AC-6 (upstream quire-rs FR-050): `quire coverage`
+/// FR-017-AC-2, FR-017-AC-6 (upstream quire-rs FR-050): `quire coverage`
 /// runs the rollup and its JSON is
 /// byte-identical across runs over identical input (FR-050-AC-7). A module with
 /// no `traceability:` model is a clear error rather than an empty report —
@@ -237,7 +237,7 @@ fn tc740_coverage_reports_and_is_deterministic() {
     assert_eq!(a, b, "coverage output must be byte-identical (FR-050-AC-7)");
 }
 
-/// TC-797, FR-017-AC-8 (upstream quire-rs FR-050-AC-14, CR-035): a declared
+/// FR-017-AC-8 (upstream quire-rs FR-050-AC-14, CR-035): a declared
 /// model that matches nothing is not
 /// full coverage. It used to render as `0/0 rows backed (100%)` and pass
 /// `--strict` with exit 0, because the percentage fell back to 100 on an empty
@@ -328,7 +328,7 @@ fn matrix_doc(id: &str, row: &str) -> String {
     )
 }
 
-/// TC-810, FR-017-AC-3 (upstream quire-rs FR-050-AC-17, CR-045): the document
+/// FR-017-AC-3 (upstream quire-rs FR-050-AC-17, CR-045): the document
 /// root is `<scope>/spec` — a
 /// matrix at the repository root or under `plan/` mints nothing, however
 /// perfectly typed, and repo-root `README.md`/`CHANGELOG.md` are never read.
@@ -398,7 +398,7 @@ fn tc810_document_root_is_scope_spec_not_the_repo() {
     );
 }
 
-/// TC-811, FR-017-AC-5 (upstream quire-rs FR-050-AC-17, CR-045): a scope with
+/// FR-017-AC-5 (upstream quire-rs FR-050-AC-17, CR-045): a scope with
 /// no `spec/` directory is a
 /// named error — never a silent fallback to walking the scope itself, which
 /// is how the repository-wide crawl survived.
@@ -428,11 +428,11 @@ fn tc811_missing_spec_root_is_a_named_error() {
     );
 }
 
-// IT-086, FR-017-AC-5 (agent-ix/quire-rs#113): the missing-root refusal
+// FR-017-AC-5 (agent-ix/quire-rs#113): the missing-root refusal
 // carries a stable machine `kind` under --diagnostics json, so a consumer can
 // branch on it instead of matching prose. It was a formatted `bail!` string,
 // which is exactly why the assertions above could only look for a substring.
-#[trace("IT-086", "FR-017-AC-5")]
+#[trace("FR-017-AC-5")]
 #[test]
 fn it086_missing_spec_root_carries_a_typed_kind_in_json() {
     let dir = TempDir::new().expect("tempdir");
@@ -470,14 +470,14 @@ fn it086_missing_spec_root_carries_a_typed_kind_in_json() {
     );
 }
 
-// IT-087, FR-017-AC-4 (upstream quire-rs FR-050-AC-17; agent-ix/quire-cli#31):
+// FR-017-AC-4 (upstream quire-rs FR-050-AC-17; agent-ix/quire-cli#31):
 // the *second* half of the
 // two-root derivation — the code walk excludes the document root. Nothing
 // asserted it, so `extract_tree_excluding` could regress to `extract_tree`
 // with the whole suite green. A trace-tagged source file under `<scope>/spec`
 // is the falsifier: if the exclusion lapses, its tag binds and the id shows up
 // as an untracked symbol.
-#[trace("IT-087", "FR-017-AC-4")]
+#[trace("FR-017-AC-4")]
 #[test]
 fn it087_the_code_walk_excludes_the_document_root() {
     let dir = TempDir::new().expect("tempdir");
@@ -554,10 +554,10 @@ fn it087_the_code_walk_excludes_the_document_root() {
     );
 }
 
-// IT-089, FR-017-AC-1: the default human census. Everything else about this
+// FR-017-AC-1: the default human census. Everything else about this
 // command was tested through `--json`, so the rendered output — what a person
 // actually runs — had no coverage at all.
-#[trace("IT-089", "FR-017-AC-1")]
+#[trace("FR-017-AC-1")]
 #[test]
 fn it089_human_census_is_printed_and_exits_zero() {
     let dir = TempDir::new().expect("tempdir");
@@ -594,10 +594,10 @@ fn it089_human_census_is_printed_and_exits_zero() {
     );
 }
 
-// IT-092, FR-017-AC-7: `--strict` turns an unbacked row into exit 1, and the
+// FR-017-AC-7: `--strict` turns an unbacked row into exit 1, and the
 // same repository exits 0 without it. The flag is the whole gate/report
 // distinction (FR-050-CON-1) and nothing asserted both halves.
-#[trace("IT-092", "FR-017-AC-7")]
+#[trace("FR-017-AC-7")]
 #[test]
 fn it092_strict_fails_on_an_unbacked_row_and_default_does_not() {
     let dir = TempDir::new().expect("tempdir");
@@ -720,11 +720,11 @@ fn strict_exempt_fixture(matrix_rows: &str) -> (TempDir, String, String) {
 
 const EXEMPT_LINE: &str = "strict-exempt unbacked rows (planned/blocked/parked): ";
 
-// IT-180, FR-017-AC-7 (quire-rs FR-050-AC-65/66, TC-2225/TC-2226): rows whose
+// FR-017-AC-7 (quire-rs FR-050-AC-65/66, TC-2225/TC-2226): rows whose
 // only referencing matrix rows are `🚧 planned` are strict-exempt, so `--strict`
 // exits 0 — also with `coverage:unbacked-row` promoted to `error` — and the
 // text census prints the exempt line only when the count is nonzero.
-#[trace("IT-180", "FR-017-AC-7")]
+#[trace("FR-017-AC-7")]
 #[test]
 fn it180_strict_exempts_planned_rows_and_prints_the_exempt_line() {
     let (_dir, scope, m) = strict_exempt_fixture(
@@ -756,10 +756,10 @@ fn it180_strict_exempts_planned_rows_and_prints_the_exempt_line() {
     assert!(String::from_utf8_lossy(&off.stdout).contains(&format!("{EXEMPT_LINE}2")));
 }
 
-// IT-181, FR-017-AC-7 (TC-2226): a non-exempt unbacked row beside exempt ones
+// FR-017-AC-7 (TC-2226): a non-exempt unbacked row beside exempt ones
 // still fails `--strict` (and an `error`-promoted check) and counts only itself;
 // without `--strict` the exit is unchanged; no exempt rows prints no line.
-#[trace("IT-181", "FR-017-AC-7")]
+#[trace("FR-017-AC-7")]
 #[test]
 fn it181_strict_still_fails_on_a_non_exempt_unbacked_row() {
     let (_dir, scope, m) = strict_exempt_fixture(
@@ -805,10 +805,10 @@ fn it181_strict_still_fails_on_a_non_exempt_unbacked_row() {
     assert!(!String::from_utf8_lossy(&none.stdout).contains("strict-exempt"));
 }
 
-// IT-182, FR-017-AC-7 (TC-2226): an exempt `🚧 planned` unbacked row beside a
+// FR-017-AC-7 (TC-2226): an exempt `🚧 planned` unbacked row beside a
 // `✅` Complete row that no symbol backs still fails `--strict` with exit 1 and
 // reports the contradicted status; the exemption only discounts the planned row.
-#[trace("IT-182", "FR-017-AC-7")]
+#[trace("FR-017-AC-7")]
 #[test]
 fn it182_strict_fails_on_a_status_lie_beside_an_exempt_row() {
     let (_dir, scope, m) = strict_exempt_fixture(
@@ -830,14 +830,14 @@ fn it182_strict_fails_on_a_status_lie_beside_an_exempt_row() {
     );
 }
 
-// IT-107, FR-017-AC-10 (upstream quire-rs FR-050-AC-21, CR-083): an undeclared
+// FR-017-AC-10 (upstream quire-rs FR-050-AC-21, CR-083): an undeclared
 // status value reaches BOTH surfaces.
 //
 // The engine class is inert until the CLI carries it. That is the failure the
 // last programme phase kept finding — a capability shipped and unreachable —
 // and the tell it recommends is exactly this: invoke the surface a user
 // actually invokes, and grep for the thing.
-#[trace("IT-107", "FR-017-AC-10")]
+#[trace("FR-017-AC-10")]
 #[test]
 fn it107_an_undeclared_status_reaches_both_surfaces() {
     let dir = TempDir::new().expect("tempdir");
@@ -962,14 +962,14 @@ fn it107_an_undeclared_status_reaches_both_surfaces() {
     );
 }
 
-// IT-109, FR-017-AC-12 (#51): every human unbacked-row and status-lie line
+// FR-017-AC-12 (#51): every human unbacked-row and status-lie line
 // leads with the row's own `row_id`, keeping the reference kind visible in a
 // bracketed trailer — and two rows in the same document therefore render
 // distinguishable lines. Before this the renderer printed the reference KIND
 // (`traces-to`) per line: on a real corpus, 1,432 identical lines a reader
 // could act on only by re-running with `--json`, even though `UnbackedRow`,
 // `StatusLie` and `UndeclaredStatus` all carry `row_id: Option<String>`.
-#[trace("IT-109", "FR-017-AC-12")]
+#[trace("FR-017-AC-12")]
 #[test]
 fn it109_human_finding_lines_lead_with_the_row_id() {
     let dir = TempDir::new().expect("tempdir");
@@ -1106,14 +1106,14 @@ fn lying_fixture(dir: &TempDir) -> (String, String) {
     )
 }
 
-// IT-110, FR-017-AC-13 (#53): the coverage severity pack. `--severity
+// FR-017-AC-13 (#53): the coverage severity pack. `--severity
 // coverage:<check>=off` is the projection lever — the kind's records drop
 // from every output surface, with the suppression announced and the totals
 // still describing the full reconciliation — and `=error` is the per-check
 // gate `--strict` cannot express. Entries ride the same FR-048 machinery
 // `validate --severity` uses, so parsing, precedence and reject-before-read
 // come for free and cannot drift between the two commands.
-#[trace("IT-110", "FR-017-AC-13")]
+#[trace("FR-017-AC-13")]
 #[test]
 fn it110_severity_pack_projects_and_promotes() {
     let dir = TempDir::new().expect("tempdir");
@@ -1279,13 +1279,13 @@ fn it110_severity_pack_projects_and_promotes() {
     );
 }
 
-// IT-111, FR-017-AC-14 (#53): `--format tsv` emits one tab-separated record
+// FR-017-AC-14 (#53): `--format tsv` emits one tab-separated record
 // per line on stdout — nine fixed columns, row id leading the data cells, a
 // `line` column carrying the engine's 1-based line (the column predates
 // the data, so its arrival needed no format
 // change), and byte-identical output across runs. The severity projection
 // applies to it exactly as to the other surfaces.
-#[trace("IT-111", "FR-017-AC-14")]
+#[trace("FR-017-AC-14")]
 #[test]
 fn it111_tsv_emits_one_record_per_line_on_stdout() {
     let dir = TempDir::new().expect("tempdir");
@@ -1357,12 +1357,12 @@ fn it111_tsv_emits_one_record_per_line_on_stdout() {
     );
 }
 
-// IT-112, FR-017-AC-15 (#53): `coverage --json` honours the global
+// FR-017-AC-15 (#53): `coverage --json` honours the global
 // `--pretty` — compact single-line by default (the FR-008-AC-1 posture every
 // other JSON surface already has), indented with the flag, the same parsed
 // value either way. `to_json()` was unconditionally pretty and the flag was
 // silently ignored.
-#[trace("IT-112", "FR-017-AC-15")]
+#[trace("FR-017-AC-15")]
 #[test]
 fn it112_coverage_json_honours_the_global_pretty_flag() {
     let dir = TempDir::new().expect("tempdir");
@@ -1397,13 +1397,13 @@ fn it112_coverage_json_honours_the_global_pretty_flag() {
     assert_eq!(a, b, "the two shapes carry the identical report");
 }
 
-// IT-108, FR-017-AC-11 (upstream quire-rs FR-050-AC-22, CR-085): a declared
+// FR-017-AC-11 (upstream quire-rs FR-050-AC-22, CR-085): a declared
 // `source_exclude` glob reaches the source walk.
 //
 // Same reachability argument as IT-107. The engine grew the key; without this
 // line passing `model.source_exclude`, every module declaring it would be
 // declaring something with no effect whatsoever.
-#[trace("IT-108", "FR-017-AC-11")]
+#[trace("FR-017-AC-11")]
 #[test]
 fn it108_a_declared_source_exclude_scopes_the_code_walk() {
     let manifest = |extra: &str| {
@@ -1583,13 +1583,13 @@ fn self_ref_manifest() -> &'static str {
      \x20     language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({ids})]'\n"
 }
 
-// IT-113, FR-017-AC-16 (#51 item 3, quire-rs FR-050-AC-26): when a
+// FR-017-AC-16 (#51 item 3, quire-rs FR-050-AC-26): when a
 // finding record carries the engine's 1-based line, the human locus is the
 // clickable `document:line` form. The fixture puts preamble prose ABOVE the
 // table so the asserted numbers can only be document lines — a renderer
 // printing a table-relative row index would fail loudly here while passing
 // on a fixture whose table starts at the top.
-#[trace("IT-113", "FR-017-AC-16")]
+#[trace("FR-017-AC-16")]
 #[test]
 fn it113_human_finding_locus_is_document_colon_line() {
     let dir = TempDir::new().expect("tempdir");
@@ -1646,12 +1646,12 @@ fn it113_human_finding_locus_is_document_colon_line() {
     );
 }
 
-// IT-114, FR-017-AC-17 (#51): `no_symbol_rows` renders in the human census
+// FR-017-AC-17 (#51): `no_symbol_rows` renders in the human census
 // like every other row-id-carrying kind. It was JSON/TSV-only — but the
 // record explains an unbacked row the census DOES print, and an explanation
 // only the machine surface carries is one nobody reads (the CR-083 argument
 // that put `undeclared_statuses` on both surfaces).
-#[trace("IT-114", "FR-017-AC-17")]
+#[trace("FR-017-AC-17")]
 #[test]
 fn it114_no_symbol_rows_render_in_the_human_census() {
     let dir = TempDir::new().expect("tempdir");
@@ -1733,13 +1733,13 @@ fn it114_no_symbol_rows_render_in_the_human_census() {
     );
 }
 
-// IT-115, FR-017-AC-18 (#51, quire-rs #215): the `source_exclude`
+// FR-017-AC-18 (#51, quire-rs #215): the `source_exclude`
 // subtraction is observable — the census counts what the globs removed — and
 // `SymbolExtraction` diagnostics reach stderr instead of being computed and
 // dropped. Without the count, an over-broad glob reads exactly like tests
 // that were never written; without the diagnostics, a walk that read less
 // than declared said nothing.
-#[trace("IT-115", "FR-017-AC-18")]
+#[trace("FR-017-AC-18")]
 #[test]
 fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
     let build = |declare_glob: bool| {
@@ -1826,13 +1826,13 @@ fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
     );
 }
 
-// IT-116, FR-017-AC-19 (quire-rs FR-050-AC-23/CR-087): the advisory
+// FR-017-AC-19 (quire-rs FR-050-AC-23/CR-087): the advisory
 // `shared_trace_ids` list passes through `--json` — one status-carrying row
 // id bound by N distinct symbols is reported, so a green row can no longer
 // rot N-1 tests deep invisibly. Reachability, not re-testing the engine: the
 // CLI serializes the whole `CoverageReport`, and this pins that the field
 // actually arrives from the surface a user invokes.
-#[trace("IT-116", "FR-017-AC-19")]
+#[trace("FR-017-AC-19")]
 #[test]
 fn it116_shared_trace_ids_pass_through_json() {
     let dir = TempDir::new().expect("tempdir");
@@ -1920,7 +1920,7 @@ fn closed_set_matrix_doc(spec: &std::path::Path, file: &str, archetype: &str, ro
     .expect("write matrix");
 }
 
-// IT-146, FR-017-AC-20 (upstream quire-rs FR-013-AC-15/16/17, #405): `--module`
+// FR-017-AC-20 (upstream quire-rs FR-013-AC-15/16/17, #405): `--module`
 // is repeatable, and the set it declares is CLOSED. Two modules named on one
 // invocation both contribute their `traceability:` model; a third module
 // reachable only through `IX_FILAMENT_MODULES_PATH` contributes nothing; and a
@@ -1932,7 +1932,7 @@ fn closed_set_matrix_doc(spec: &std::path::Path, file: &str, archetype: &str, ro
 // back to discovery — which re-admits the ambient install root, loads pinned
 // modules twice, resolves first-wins, and reports a rate that cannot be
 // attributed to the revisions the caller pinned.
-#[trace("IT-146", "FR-017-AC-20")]
+#[trace("FR-017-AC-20")]
 #[test]
 fn it146_repeatable_module_declares_a_closed_ordered_set() {
     let dir = TempDir::new().expect("tempdir");
@@ -1991,12 +1991,12 @@ fn it146_repeatable_module_declares_a_closed_ordered_set() {
     );
 }
 
-// IT-147, FR-017-AC-21 (#405): `--help` states the resolution order. A caller
+// FR-017-AC-21 (#405): `--help` states the resolution order. A caller
 // cannot tell an adding flag from a replacing one by watching it succeed, and
 // the whole defect upstream was an env var that added where every caller
 // assumed it replaced — so the order is documented where it is read, not left
 // to be discovered by experiment.
-#[trace("IT-147", "FR-017-AC-21")]
+#[trace("FR-017-AC-21")]
 #[test]
 fn it147_help_states_the_module_resolution_order() {
     let out = quire()

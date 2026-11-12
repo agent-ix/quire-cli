@@ -125,10 +125,10 @@ fn human_with_reason<'a>(lines: &'a [String], reason: &str) -> Vec<&'a String> {
     lines.iter().filter(|l| l.ends_with(&suffix)).collect()
 }
 
-// IT-262, FR-014-AC-12, FR-014-AC-13: a dangling trace reference prints and
+// FR-014-AC-12, FR-014-AC-13: a dangling trace reference prints and
 // serializes the line of its referencing row; every id of a multi-id cell
 // carries that row's line; the same id on two rows is two findings.
-#[trace("IT-262", "FR-014-AC-12", "FR-014-AC-13")]
+#[trace("FR-014-AC-12", "FR-014-AC-13")]
 #[test]
 fn it262_dangling_trace_reference_shows_its_row_line() {
     let links = format!(
@@ -161,9 +161,9 @@ fn it262_dangling_trace_reference_shows_its_row_line() {
     );
 }
 
-// IT-263, FR-014-AC-12, FR-014-AC-13: a kind mismatch carries its own row's
+// FR-014-AC-12, FR-014-AC-13: a kind mismatch carries its own row's
 // line, not the table header's.
-#[trace("IT-263", "FR-014-AC-12", "FR-014-AC-13")]
+#[trace("FR-014-AC-12", "FR-014-AC-13")]
 #[test]
 fn it263_reference_kind_mismatch_shows_its_row_line() {
     let links = format!("{LINKS_HEAD}| K-1 | north | L-1 |\n| K-2 | north | R-1 |\n");
@@ -196,9 +196,9 @@ fn validate_mod_bundle(docs: &[&str]) -> TempDir {
     dir
 }
 
-// IT-264, FR-014-AC-12..14: a bridged document error under `--okf --strict`
+// FR-014-AC-12..14: a bridged document error under `--okf --strict`
 // shows the line single-document `validate` prints for the same document.
-#[trace("IT-264", "FR-014-AC-12", "FR-014-AC-13", "FR-014-AC-14")]
+#[trace("FR-014-AC-12", "FR-014-AC-13", "FR-014-AC-14")]
 #[test]
 fn it264_bridged_document_error_shows_its_line() {
     let bundle = validate_mod_bundle(&["broken-fr.md"]);
@@ -236,9 +236,9 @@ fn it264_bridged_document_error_shows_its_line() {
     assert_eq!(found[0]["reason"], "assert");
 }
 
-// IT-265, FR-014-AC-15: a finding with no line renders exactly as before, in
+// FR-014-AC-15: a finding with no line renders exactly as before, in
 // human and JSON form (no `line` key).
-#[trace("IT-265", "FR-014-AC-15")]
+#[trace("FR-014-AC-15")]
 #[test]
 fn it265_unlocated_finding_renders_exactly_as_before() {
     let bundle = validate_mod_bundle(&["missing-section-fr.md"]);
@@ -262,9 +262,9 @@ fn it265_unlocated_finding_renders_exactly_as_before() {
     );
 }
 
-// IT-266, FR-014-AC-16: warnings are emitted before errors, in human and JSON
+// FR-014-AC-16: warnings are emitted before errors, in human and JSON
 // output, for a bundle that mixes both.
-#[trace("IT-266", "FR-014-AC-16")]
+#[trace("FR-014-AC-16")]
 #[test]
 fn it266_warnings_precede_errors() {
     let bad_left = LEFT.replace("title: Left\n", "title: Left\ntags: notalist\n");

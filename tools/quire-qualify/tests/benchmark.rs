@@ -1,6 +1,6 @@
 use ix_trace_rs::trace;
 
-#[trace("TC-832", "FR-025-AC-3")]
+#[trace("FR-025-AC-3")]
 #[test]
 fn nearest_rank_p95_is_deterministic_and_uses_first_result() {
     let descending = (1..=20)
@@ -23,7 +23,7 @@ fn nearest_rank_p95_is_deterministic_and_uses_first_result() {
     );
 }
 
-#[trace("TC-833", "FR-025-AC-2")]
+#[trace("FR-025-AC-2")]
 #[test]
 fn malformed_empty_and_invalid_benchmark_inputs_fail_without_observation() {
     for bytes in [
@@ -52,7 +52,7 @@ fn malformed_empty_and_invalid_benchmark_inputs_fail_without_observation() {
     }
 }
 
-#[trace("TC-834", "FR-025-AC-3")]
+#[trace("FR-025-AC-3")]
 #[test]
 fn threshold_is_inclusive_and_one_increment_over_fails() {
     let bytes = br#"{"results":[{"times":[0.05]}]}"#;

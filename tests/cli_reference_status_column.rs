@@ -67,7 +67,7 @@ fn assert_backed(report: &Value) {
     assert!(report.get("undeclared_statuses").is_none(), "{report}");
 }
 
-#[trace("FR-017-AC-23", "IT-152")]
+#[trace("FR-017-AC-23")]
 #[test]
 fn it152_native_default_and_override_are_independently_readable() {
     let dir = fixture("Status", "Coverage Status");
@@ -81,7 +81,7 @@ fn it152_native_default_and_override_are_independently_readable() {
     assert_eq!(strict_report, report);
 }
 
-#[trace("FR-017-AC-23", "IT-153")]
+#[trace("FR-017-AC-23")]
 #[test]
 fn it153_each_missing_header_reports_then_fails_strict_without_fallback() {
     for (default_header, alternate_header, declaration, setting) in [

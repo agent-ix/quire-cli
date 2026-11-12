@@ -188,7 +188,6 @@ spec/
 ├── usecase/               # US-XXX
 ├── functional/            # FR-XXX (CLI surface + sandbox + perf gates)
 ├── non-functional/        # NFR-XXX
-├── tests.md               # Bidirectional FR ↔ IT matrix
 └── assets/                # Diagrams, fixture inventory
 ```
 
@@ -235,7 +234,6 @@ spec/
 | Functional Requirement | `FR-XXX` | [FR-001](./functional/FR-001-render-subcommand.md) |
 | Non-Functional Requirement | `NFR-XXX` | [NFR-001](./non-functional/NFR-001-render-latency-budget.md) |
 | Acceptance Criteria | `{FR}-AC-N` | [FR-001-AC-1](./functional/FR-001-render-subcommand.md) |
-| Test Case / IT | `IT-XXX` | `IT-001` |
 
 Identifiers are immutable once assigned.
 

@@ -287,7 +287,7 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 ## Dependencies
 
 - **Upstream**: [FR-017](./FR-017-coverage-subcommand.md) `coverage` (shared scope/module resolution, shared `CoverageReport` computation, shared help-text resolution-order requirement); [FR-008](./FR-008-json-output-encoding.md) JSON provenance envelope (`engine::attach`); [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md) thin boundary; quire-rs [FR-050](ix://agent-ix/quire-rs/FR-050)-AC-47..51 (`coverage_matrix` computation, CR-187, `statement` field per PLAT-1077), [FR-051](ix://agent-ix/quire-rs/FR-051)-AC-27/28 (binder `ignored` marking, range-in-trace-tag).
-- **Downstream**: none yet; this command supersedes the hand-written Test Matrix workflow — `spec/tests.md` in this and other repositories stops being hand-authored once a consuming workflow switches to `quire matrix` output. `agent-ix/quire-cli#79` (per-reference status columns) is superseded on landing: status is computed per criterion here, so a document-reference table no longer needs its own status column to make the same claim.
+- **Downstream**: none yet; this command supersedes the hand-written Test Matrix workflow — a repository's hand-kept `spec/tests.md` is deleted, not maintained, once a consuming workflow switches to `quire matrix` output (this repository's was deleted in PLAT-1502). `agent-ix/quire-cli#79` (per-reference status columns) is superseded on landing: status is computed per criterion here, so a document-reference table no longer needs its own status column to make the same claim.
 
 > **CR note (spec authored ahead of implementation, 2026-09-27, PLAT-1078):**
 > this document is authored against quire-rs spec FR-050-AC-47..51/FR-051-AC-27/28
@@ -329,10 +329,9 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 >   split is stated directly in the Description rather than left to imply
 >   "stdout only" (SR-065 FND-004). Binders render `path:line:column`, never
 >   collapsing two same-line binders upstream keeps distinct by column (§D,
->   AC-5/AC-8, SR-066 FND-003). `spec/tests.md`: IT-177/AC-14 now assert no
->   write anywhere under `<scope>`, not only under `<scope>/spec`; TC-841's
->   `Type` is corrected to match its `Test` verification method; IT-174 now
->   traces AC-11 as well as AC-10; AC-2 states that `matrix --help` itself
+>   AC-5/AC-8, SR-066 FND-003). AC-14 asserts no write anywhere under
+>   `<scope>`, not only under `<scope>/spec`; AC-11 is traced as well as
+>   AC-10; AC-2 states that `matrix --help` itself
 >   carries the FR-017-AC-21 resolution-order text (SR-067 FND-001).
 
 > **CR note (implementation, 2026-09-28, PLAT-1078):** §B, §E and AC-7/8/9/10
@@ -342,6 +341,5 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 > requirement entries (`Vec<CoverageMatrixRequirement>`) and omits it whenever
 > it is empty, so neither the object shape nor the present-but-empty shape
 > exists. Zero population now has one shape — key absent — and the
-> verbatim-passthrough rule is unchanged. IT-171/IT-173/IT-174 in
-> `spec/tests.md` are reworded to match; the tests already asserted equality
+> verbatim-passthrough rule is unchanged. The tests already assert equality
 > with the engine's own serialization.

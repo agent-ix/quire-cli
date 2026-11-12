@@ -30,7 +30,7 @@ carry no libc restriction and install on glibc and musl hosts alike.
 | FR-022-AC-1 | `npm install -g @agent-ix/quire-cli@<version>` installs a `quire` that runs the native binary and reports `<version>` from `--version`, on each supported platform. | Inspection (release workflow post-publish smoke) |
 | FR-022-AC-2 | Under an npm install, `quire update` exits non-zero and names `npm install -g @agent-ix/quire-cli@latest` instead of replacing the binary. | Inspection (release workflow post-publish smoke) |
 | FR-022-AC-3 | The release workflow publishes only when dispatched with `publish` true, authenticates to public npm by OIDC Trusted Publishing, and passes the four built targets as `artifacts/<rust-target>/quire[.exe]`. | Inspection |
-| FR-022-AC-4 | `quire-dist verify-binary` fails unless the built executable's `--version` equals the release version, and the release workflow runs it for each target before packaging. | Test (TC-818) |
+| FR-022-AC-4 | `quire-dist verify-binary` fails unless the built executable's `--version` equals the release version, and the release workflow runs it for each target before packaging. | Test |
 
 ## Dependencies
 
