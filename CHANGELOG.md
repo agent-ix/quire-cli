@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.41.0] — 2026-11-12
+
+Adopts quire-rs 0.57.0: kind-typed cell references (`reference-kind-mismatch`, FR-049-AC-10..18, PLAT-1472), `criticality` on each coverage-matrix requirement, and dangling-reference findings located at the source document path.
+
 - **`validate --okf --strict` (PLAT-1408).** `--strict` runs the bundle under the Strict posture and exits 3 on any finding, so a dangling `mitigates` (or any edge) target prints the source document path, the edge type and the missing id (FR-014-AC-11).
 - **`quire matrix` shows requirement criticality (PLAT-1413, FR-028).** The Markdown table gains a fifth column, `Requirement Criticality`, and the TSV a sixth, `requirement_criticality`, repeating the requirement's frontmatter value on each criterion row. A requirement with no value renders `unassigned`; `--format json` is unchanged apart from the engine's new optional `criticality` key on each `requirements[]` entry. Consumers that parse the Markdown or TSV by column count must accept the extra column. Adopts quire-rs with FR-082.
 
