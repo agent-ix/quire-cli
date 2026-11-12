@@ -13,6 +13,16 @@ relationships:
 
 ## Description
 
+> **CR note (requirement criticality column, PLAT-1412):**
+> [FR-028](./FR-028-matrix-criticality-column.md) appends one column to each
+> tabular form. The Markdown table of §C and AC-4 has five columns, the last
+> `Requirement Criticality`: `Criterion | Statement | Binders | Status |
+> Requirement Criticality`. The TSV of §F and AC-8 has six columns, the last
+> `requirement_criticality`: `document criterion status binders statement
+> requirement_criticality`. The TSV header alone in AC-9's zero-population
+> output is the six-column header. Every other rule of §C, §F, AC-4, AC-8 and
+> AC-9 is unchanged.
+
 > **CR note (retained qualified records, IR-868 / PLAT-1160):**
 > When the engine supplies a criterion with status `qualified-record`, `matrix`
 > SHALL preserve that status in Markdown, JSON and TSV, retain its nonempty
