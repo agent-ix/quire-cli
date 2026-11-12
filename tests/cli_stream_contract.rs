@@ -20,6 +20,8 @@
 //! and teach nobody which side of the contract broke. What is pinned is the
 //! property the defect violated.
 
+mod common;
+
 use ix_trace_rs::trace;
 use std::fs;
 use std::path::Path;
@@ -368,13 +370,14 @@ fn human_census_figures_stay_on_stdout_without_color() {
         "properties census is not colorized: {properties_stdout:?}"
     );
 
-    let fixture_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let iso = fixture_root.join("iso");
+    let ears_dir = tempfile::tempdir().expect("tempdir");
+    let validate_mod = common::ears_module(ears_dir.path());
+    let ears_doc = common::validate_doc("ears-warn-fr.md");
     let validate = quire()
         .arg("validate")
-        .arg(fixture_root.join("iso-docs/FR-ears-warn.md"))
+        .arg(&ears_doc)
         .arg("--module")
-        .arg(&iso)
+        .arg(&validate_mod)
         .arg("--summary")
         .output()
         .expect("run validate");

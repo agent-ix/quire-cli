@@ -11,7 +11,7 @@ use std::io::Write;
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
-use common::{iso_doc, iso_module, quire};
+use common::{quire, validate_doc, validate_module};
 
 // FR-005-AC-1, StR-003-AC-1, FR-007-AC-2: `--module ../escape` exits 1
 // with a path-safety violation.
@@ -20,7 +20,7 @@ use common::{iso_doc, iso_module, quire};
 fn it_005_module_dotdot_rejected() {
     quire()
         .arg("validate")
-        .arg(iso_doc("FR-valid.md"))
+        .arg(validate_doc("valid-fr.md"))
         .arg("--module")
         .arg("foo/../bar")
         .assert()
@@ -36,11 +36,11 @@ fn it_005_module_dotdot_rejected() {
 fn it_022_out_dotdot_rejected() {
     quire()
         .arg("edit")
-        .arg(iso_doc("FR-valid.md"))
+        .arg(validate_doc("valid-fr.md"))
         .arg("--heading")
-        .arg("FR-001 FR sweep fixture")
+        .arg("[FR-001] A valid functional requirement")
         .arg("--content")
-        .arg(iso_doc("FR-valid.md"))
+        .arg(validate_doc("valid-fr.md"))
         .arg("--out")
         .arg("../escape.md")
         .assert()
@@ -66,7 +66,7 @@ fn it_006_symlink_escape_refused_at_load() {
     // (user error).
     quire()
         .arg("validate")
-        .arg(iso_doc("FR-valid.md"))
+        .arg(validate_doc("valid-fr.md"))
         .arg("--module")
         .arg(&link)
         .assert()
@@ -80,12 +80,12 @@ fn it_006_symlink_escape_refused_at_load() {
 #[trace("FR-005-AC-5")]
 #[test]
 fn it_023_positional_stdin_bypasses_path_safety() {
-    let valid = std::fs::read(iso_doc("FR-valid.md")).unwrap();
+    let valid = std::fs::read(validate_doc("valid-fr.md")).unwrap();
     let mut child = quire()
         .arg("validate")
         .arg("-")
         .arg("--module")
-        .arg(iso_module())
+        .arg(validate_module())
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())

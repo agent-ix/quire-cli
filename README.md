@@ -365,7 +365,6 @@ make deny-bans           # cargo deny check bans
 make audit-unsafe        # every unsafe block carries a // SAFETY: comment
 make audit-thin-boundary # src/ stays a thin wrapper over quire-rs
 make dist-test           # release tooling tests (verify-binary)
-make refresh-fixtures    # re-sync tests/fixtures/iso from ../quire-rs
 make ci                  # local CI gauntlet
 ```
 

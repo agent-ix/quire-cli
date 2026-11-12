@@ -9,3 +9,13 @@ type: FR
 ## Description
 
 On startup, the system shall support publishing to registries.
+
+## Specification
+
+The system shall publish.
+
+## Acceptance Criteria
+
+| ID | Criteria |
+|----|----------|
+| FR-009-AC-1 | It publishes |

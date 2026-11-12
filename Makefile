@@ -121,24 +121,8 @@ BENCH_P95_MS ?= 50
 bench:
 	$(CARGO) build --locked --release
 	hyperfine --shell=none --warmup 5 --runs 50 --export-json /tmp/quire-cli-bench.json \
-		'$(CURDIR)/target/release/quire validate $(CURDIR)/tests/fixtures/iso-docs/FR-valid.md --module $(CURDIR)/tests/fixtures/iso'
+		'$(CURDIR)/target/release/quire validate $(CURDIR)/tests/fixtures/validate-mod/docs/valid-fr.md --module $(CURDIR)/tests/fixtures/validate-mod'
 	$(CARGO) run --locked -p quire-qualify -- bench-p95 /tmp/quire-cli-bench.json $(BENCH_P95_MS)
-
-# =============================================================================
-# Fixtures
-# =============================================================================
-
-QUIRE_RS_ISO ?= ../quire-rs/tests/fixtures/modules/iso
-
-.PHONY: refresh-fixtures
-refresh-fixtures:
-	@if [ ! -d "$(QUIRE_RS_ISO)" ]; then \
-		echo "upstream ISO fixtures not found at $(QUIRE_RS_ISO); set QUIRE_RS_ISO=" >&2; exit 1; \
-	fi
-	rm -rf tests/fixtures/iso
-	mkdir -p tests/fixtures/iso
-	cp -r $(QUIRE_RS_ISO)/. tests/fixtures/iso/
-	@echo "refreshed tests/fixtures/iso from $(QUIRE_RS_ISO)"
 
 # =============================================================================
 # Composite

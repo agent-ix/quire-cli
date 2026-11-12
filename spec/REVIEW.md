@@ -41,7 +41,7 @@ Reviewed `spec/spec.md`, 4 StRs, 4 USs, 8 FRs, 6 NFRs, the former `spec/tests.md
 - **(b)** depend on `spec-artifacts-iso` directly as a test-fixture path,
 - **(c)** symlink to `quire-rs/tests/render_parity/` at build time.
 
-Recommendation: **(a)** — copy into `tests/fixtures/iso/` with a `make refresh-fixtures` target that re-pulls from upstream. Keeps the repo self-contained, matches the rust-lib-cookiecutter test pattern.
+Decision: none of (a), (b) or (c). Copying another repo's fixtures is not done and the render parity sweep is retired; tests use quire-cli's own small fixtures (`tests/fixtures/validate-mod`) or build a module in a tempdir.
 
 ### F-3 (Minor) — Platform sensitivity of the strace audit
 

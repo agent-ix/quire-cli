@@ -200,10 +200,7 @@ Each task is a separate `src/commands/<name>.rs` module wired into `src/main.rs:
 
 Each IT/BENCH/AUDIT case becomes one entry in `tests/` or `benches/` or CI workflow.
 
-9. **T-009 Vendor fixtures** (review F-2)
-   - Copy `quire-rs/tests/render_parity/modules/iso/` → `tests/fixtures/iso/`.
-   - Copy a handful of context JSON files for each archetype.
-   - Add `make refresh-fixtures` target that re-syncs from upstream.
+9. **T-009 Test fixtures** (review F-2)
 10. **T-010 Happy-path ITs**
     - `tests/cli_render.rs`, `tests/cli_parse.rs`, `tests/cli_extract.rs`, `tests/cli_validate.rs`.
     - `assert_cmd` + `predicates`.
@@ -263,7 +260,6 @@ Each gate is a hard merge-block until the corresponding tests are green.
 | ID | Item | Resolution |
 |----|------|------------|
 | R-1 | `quire-rs` not yet on crates.io; dep is path-based during dev. | Tag `quire-rs v0.1.0` and publish before `quire-cli v0.1.0` (matches parent plan's Q1 → Q2 → ... order). Until then, `cargo install --git` is the only install vector. |
-| R-2 | Vendored fixture drift from upstream | `make refresh-fixtures` + a CI lane that compares vendored copies to upstream and warns on drift. |
 | R-3 | `strace` Linux-only | Mark the test linux-only per F-3; rely on `cargo deny bans` cross-platform. |
 | R-4 | Single `quire-rs::Diagnostic` shape may not cover every CLI-originated case | Extend upstream `Diagnostic` enum if a new variant is needed; never invent a parallel shape (NFR-005). |
 | R-5 | Extract auto-validate left off in v0.1 | Documented in F-5. Re-evaluate as `--validate` flag in v0.2 if agents end up calling extract then validate back-to-back. |

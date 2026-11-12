@@ -9,7 +9,7 @@ use assert_cmd::prelude::*;
 use ix_trace_rs::trace;
 use predicates::prelude::*;
 
-use common::{iso_doc, iso_module, quire, validate_doc, validate_module};
+use common::{quire, validate_doc, validate_module};
 
 fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir();
@@ -58,12 +58,35 @@ fn it_026_exit_code_0_on_success() {
 fn it_026_exit_code_3_on_validation_failure() {
     quire()
         .arg("validate")
-        .arg(iso_doc("FR-invalid.md"))
+        .arg(validate_doc("broken-fr.md"))
         .arg("--module")
-        .arg(iso_module())
+        .arg(validate_module())
         .assert()
         .failure()
         .code(3);
+}
+
+// FR-007-AC-4: a frontmatter-schema violation (`id` fails the
+// schema pattern) also exits 3, naming the offending field.
+#[trace("FR-007-AC-4")]
+#[test]
+fn it_026_exit_code_3_on_frontmatter_schema_violation() {
+    let dir = tempfile::tempdir().unwrap();
+    let doc = dir.path().join("bad-id.md");
+    // Same body as the valid fixture so only the frontmatter `id` is wrong.
+    let valid = std::fs::read_to_string(validate_doc("valid-fr.md")).unwrap();
+    std::fs::write(&doc, valid.replace("id: FR-001", "id: bad id")).unwrap();
+    quire()
+        .arg("validate")
+        .arg(&doc)
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(
+            predicate::str::contains("does not match").and(predicate::str::contains("(at id)")),
+        );
 }
 
 // FR-007-AC-5, FR-014-AC-7: an argv error exits 3 — bare `validate`
@@ -123,7 +146,7 @@ fn failed_primary_output_returns_internal_without_panicking() {
             "properties".to_owned(),
             "-".to_owned(),
             "--module".to_owned(),
-            common::iso_module().display().to_string(),
+            common::validate_module().display().to_string(),
             "--archetype".to_owned(),
             "FR".to_owned(),
         ],
