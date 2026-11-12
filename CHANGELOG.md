@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.42.0] — 2026-11-12
+
+Adopts quire-rs 0.58.0: FR-058 `where` selector on `required_relations` (required-relation findings are advisory in both postures, PLAT-1477) and located engine findings (locator value lines, `BundleFinding.line`, `record_validation` with its own schema, PLAT-1478).
+
 ## [0.41.0] — 2026-11-12
 
 Adopts quire-rs 0.57.0: kind-typed cell references (`reference-kind-mismatch`, FR-049-AC-10..18, PLAT-1472), `criticality` on each coverage-matrix requirement, and dangling-reference findings located at the source document path.
