@@ -9,6 +9,7 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **`validate --okf --strict` (PLAT-1408).** `--strict` runs the bundle under the Strict posture and exits 3 on any finding, so a dangling `mitigates` (or any edge) target prints the source document path, the edge type and the missing id (FR-014-AC-11).
 - **`quire matrix` shows requirement criticality (PLAT-1413, FR-028).** The Markdown table gains a fifth column, `Requirement Criticality`, and the TSV a sixth, `requirement_criticality`, repeating the requirement's frontmatter value on each criterion row. A requirement with no value renders `unassigned`; `--format json` is unchanged apart from the engine's new optional `criticality` key on each `requirements[]` entry. Consumers that parse the Markdown or TSV by column count must accept the extra column. Adopts quire-rs with FR-082.
 
 - **Adopt quire-rs 0.54.0 (PLAT-847, CR-215).** Only explicit markers bind a `verifies` relation. `quire trace --json` verifies records no longer carry `provenance`; `quire provenance` no longer lists the `binding_census.self_named` capability; the assurance golden drops the `provenance` field; `matrix`'s unmatched-tag warning says to write the declared marker form. `quire trace` refuses, naming the languages, when the build cannot read a language in the tree (quire-rs FR-077-AC-7). The quire-rs dependency tracks `branch = "main"`.

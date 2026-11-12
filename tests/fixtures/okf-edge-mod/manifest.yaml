@@ -1,0 +1,30 @@
+manifest_version: 1.0.0
+name: okf-edge-mod
+version: 0.1.0
+description: 'Fixture module for validate --okf --strict: note/index archetypes with no body contract, plus object types constraining the mitigates edge.'
+grammars:
+- name: okf-edge-core
+  version: 0.1.0
+  description: minimal grammar
+  doc_kinds:
+  - note
+artifact_types:
+- name: note
+  grammar_ref: okf-edge-core
+  frontmatter_schema_ref: schemas/note-frontmatter.schema.json
+  examples: []
+  lint_rules_ref: []
+- name: index
+  grammar_ref: okf-edge-core
+  frontmatter_schema_ref: schemas/index-frontmatter.schema.json
+  allowed_links: []
+  examples: []
+  lint_rules_ref: []
+object_types:
+- name: control
+  allowed_links:
+    mitigates: [hazard]
+- name: hazard
+- name: asset
+edge_types:
+  mitigates: { description: reduces the target's risk, category: realization }
