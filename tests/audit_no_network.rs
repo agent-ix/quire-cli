@@ -25,16 +25,13 @@ use quire_rs::clauses::{
 };
 use tempfile::TempDir;
 
-fn iso_module() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/iso")
-}
-
 fn validate_module() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/validate-mod")
 }
 
-fn iso_doc(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("tests/fixtures/iso-docs/{name}"))
+fn validate_doc(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("tests/fixtures/validate-mod/docs/{name}"))
 }
 
 fn quire_bin() -> PathBuf {
@@ -224,8 +221,8 @@ fn validate_does_not_open_inet_socket() {
         eprintln!("skipping: strace not on PATH");
         return;
     }
-    let module = iso_module();
-    let doc = iso_doc("FR-valid.md");
+    let module = validate_module();
+    let doc = validate_doc("valid-fr.md");
     let trace = run_under_strace(&[
         "validate",
         doc.to_str().unwrap(),
@@ -345,13 +342,14 @@ fn scoped_env_discovery_validates_without_inet_socket() {
     let _ = std::fs::remove_dir_all(&base);
     std::fs::create_dir_all(&modroot).expect("mk modroot");
     std::fs::create_dir_all(&home).expect("mk home");
-    // The iso module is reachable ONLY one level below the search root, via
+    // The module is reachable ONLY one level below the search root, via
     // IX_FILAMENT_MODULES_PATH — exercising the discovery root added in FR-004.
-    std::os::unix::fs::symlink(iso_module(), modroot.join("iso")).expect("symlink iso module");
+    std::os::unix::fs::symlink(validate_module(), modroot.join("validate-mod"))
+        .expect("symlink module");
 
     // Scope is a doc-only dir (no modules of its own).
-    let scope = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/iso-docs");
-    let doc = iso_doc("FR-valid.md");
+    let scope = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/validate-mod/docs");
+    let doc = validate_doc("valid-fr.md");
     let bin = quire_bin();
 
     let mut cmd = Command::new("strace");
