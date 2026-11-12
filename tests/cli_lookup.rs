@@ -76,6 +76,22 @@ fn lookup_by_heading_uses_number_normalization() {
     let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(v["heading"], "1. Behavior");
     assert_eq!(v["block_id"], "blk-behavior");
+
+    // The same rule holds without `--level` (the engine's section lookup) and
+    // is case-insensitive on both paths.
+    for extra in [&[][..], &["--level", "2"][..]] {
+        let out = quire()
+            .arg("lookup")
+            .arg(&doc)
+            .arg("--heading")
+            .arg("bEhAvIoR")
+            .args(extra)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "args {extra:?}");
+        let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        assert_eq!(v["heading"], "1. Behavior", "args {extra:?}");
+    }
 }
 
 // FR-011-AC-2, US-005-AC-3: `lookup --block-id blk-behavior` returns

@@ -64,7 +64,7 @@ Behavior:
 | FR-011-AC-4 | With `--content`, stdout is the selected section's content only, not a JSON string | Test |
 | FR-011-AC-5 | Passing multiple selectors is an argv error | Test |
 | FR-011-AC-6 | Passing `--level` without `--heading` is an argv error | Test |
-| FR-011-AC-7 | `--heading` matches on the normalized heading, so a leading section number is not part of the selector: given `## 1. Behavior`, `quire lookup doc.md --heading Behavior --level 2` exits 0 and emits the section whose `heading` is `"1. Behavior"` | Test |
+| FR-011-AC-7 | `--heading` matches on the normalized heading, case-insensitively, so a leading section number is not part of the selector, with or without `--level`: given `## 1. Behavior`, `quire lookup doc.md --heading Behavior` and `--heading bEhAvIoR`, each with and without `--level 2`, exit 0 and emit the section whose `heading` is `"1. Behavior"` | Test |
 
 ## Dependencies
 

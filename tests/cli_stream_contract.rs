@@ -300,12 +300,17 @@ fn it_120_the_diagnostics_channel_reports_a_binder_that_read_nothing() {
         census.is_array() && !census.as_array().expect("array").is_empty(),
         "the premise is carried whether or not it holds: {payload}"
     );
-    let rust = census
-        .as_array()
-        .expect("array")
+    let records = census.as_array().expect("array");
+    let languages: Vec<&str> = records
         .iter()
-        .find(|c| c["language"] == "rust")
-        .expect("a rust census");
+        .map(|c| c["language"].as_str().expect("language"))
+        .collect();
+    assert_eq!(languages, ["rust"], "one record per examined language");
+    for record in records {
+        assert!(record["candidates"].is_u64(), "{record}");
+        assert!(record["bound"].is_u64(), "{record}");
+    }
+    let rust = &records[0];
     assert!(rust["candidates"].as_u64().expect("candidates") > 0);
     assert_eq!(rust["bound"], 0, "nothing bound");
 

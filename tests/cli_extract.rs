@@ -187,7 +187,8 @@ fn it_015_edges_are_deduped_by_source_type_target() {
         &doc,
         "---\nid: EX-015\ntype: ExtractSample\nrelationships:\n  \
          - target: \"ix://agent-ix/quire-cli/spec/stakeholder/StR-001\"\n    type: implements\n  \
-         - target: \"ix://agent-ix/quire-cli/spec/stakeholder/StR-001\"\n    type: implements\n\
+         - target: \"ix://agent-ix/quire-cli/spec/stakeholder/StR-001\"\n    type: implements\n  \
+         - target: \"ix://agent-ix/quire-cli/spec/stakeholder/StR-001\"\n    type: traces_to\n\
          ---\n# EX-015\n\n## Purpose\n\n\
          see ix://agent-ix/quire-cli/spec/usecase/US-004 and again \
          ix://agent-ix/quire-cli/spec/usecase/US-004\n",
@@ -216,6 +217,14 @@ fn it_015_edges_are_deduped_by_source_type_target() {
     assert_eq!(
         implements, 1,
         "the twice-declared frontmatter relationship must be harvested once: {edges:?}"
+    );
+    let traces_to = edges
+        .iter()
+        .filter(|e| e["target"] == "StR-001" && e["type"] == "traces_to")
+        .count();
+    assert_eq!(
+        traces_to, 1,
+        "a second edge type to the same target is its own edge: {edges:?}"
     );
     let references = edges
         .iter()
