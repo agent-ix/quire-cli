@@ -423,18 +423,42 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
 /// (upstream agent-ix/quire-rs#110).
 fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
     for w in &report.warnings {
-        ix_cli_kit::streams::Record::warning(
-            "ValidationWarning",
-            &format!("{}: {} [{}]", w.path.display(), w.message, w.reason),
-        )
-        .emit(ctx.diagnostics);
+        let message = bundle_message(w);
+        let record = ix_cli_kit::streams::Record::warning("ValidationWarning", &message);
+        located(record, w.line).emit(ctx.diagnostics);
     }
     for e in &report.errors {
-        ix_cli_kit::streams::Record::error(
-            "ValidationError",
-            &format!("{}: {} [{}]", e.path.display(), e.message, e.reason),
-        )
-        .emit(ctx.diagnostics);
+        let message = bundle_message(e);
+        let record = ix_cli_kit::streams::Record::error("ValidationError", &message);
+        located(record, e.line).emit(ctx.diagnostics);
+    }
+}
+
+/// `<path>: [line <N>: ]<message> [<reason>]` — the located form that
+/// document diagnostics use ([`line_prefix`]); an unlocated finding keeps the
+/// bare `<path>: <message> [<reason>]` form.
+fn bundle_message(f: &quire_rs::BundleFinding) -> String {
+    format!(
+        "{}: {}{} [{}]",
+        f.path.display(),
+        line_prefix(f.line),
+        f.message,
+        f.reason
+    )
+}
+
+/// Attach the finding's line as the JSON `line` field. A finding without a
+/// line is emitted untouched, so its record carries no `line` key.
+fn located<'a>(
+    record: ix_cli_kit::streams::Record<'a>,
+    line: Option<usize>,
+) -> ix_cli_kit::streams::Record<'a> {
+    match line {
+        Some(_) => record.with_fields(ix_cli_kit::streams::DiagnosticFields {
+            line,
+            ..Default::default()
+        }),
+        None => record,
     }
 }
 
