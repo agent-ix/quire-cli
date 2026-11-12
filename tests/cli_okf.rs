@@ -326,39 +326,163 @@ fn it179_positional_bundle_uses_its_own_checkout_identity() {
     );
 }
 
-// IT-251, FR-014-AC-11: `--okf --strict` exits 3 on a dangling `mitigates`
-// target (bare id) and stderr names the source path, the edge and the id; the
-// same bundle without `--strict` stays a warning (exit 0).
+fn okf_edge_module() -> std::path::PathBuf {
+    common::fixture_root().join("okf-edge-mod")
+}
+
+/// A note document with the given `object:` and `mitigates` targets.
+fn note_doc(id: &str, object: &str, mitigates: &[&str]) -> String {
+    let edges: String = mitigates
+        .iter()
+        .map(|t| format!("- target: {t}\n  type: mitigates\n"))
+        .collect();
+    let relationships = if edges.is_empty() {
+        String::new()
+    } else {
+        format!("relationships:\n{edges}")
+    };
+    format!("---\nid: {id}\ntype: note\nobject: {object}\n{relationships}---\n# {id}\nbody\n")
+}
+
+/// A bundle that is otherwise Strict-conformant: a root index listing every
+/// document, each a registered `note`.
+fn strict_bundle(docs: &[(&str, String)]) -> TempDir {
+    let listing: String = docs
+        .iter()
+        .map(|(name, _)| format!("* [{name}](./{name}.md)\n"))
+        .collect();
+    let mut files: Vec<(String, String)> = vec![(
+        "index.md".into(),
+        format!("---\ntype: index\nokf_version: \"0.1\"\n---\n# Root\n\n## Contents\n\n{listing}"),
+    )];
+    for (name, body) in docs {
+        files.push((format!("{name}.md"), body.clone()));
+    }
+    let refs: Vec<(&str, &str)> = files
+        .iter()
+        .map(|(a, b)| (a.as_str(), b.as_str()))
+        .collect();
+    bundle(&refs)
+}
+
+fn set_origin(dir: &TempDir, url: &str) {
+    for args in [&["init", "-q"][..], &["remote", "add", "origin", url][..]] {
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir.path())
+            .args(args)
+            .status()
+            .expect("git")
+            .success()
+            .then_some(())
+            .expect("git setup");
+    }
+}
+
+fn okf(dir: &TempDir, strict: bool) -> assert_cmd::assert::Assert {
+    let mut cmd = quire();
+    cmd.arg("validate").arg("--okf");
+    if strict {
+        cmd.arg("--strict");
+    }
+    cmd.arg(dir.path())
+        .arg("--module")
+        .arg(okf_edge_module())
+        .assert()
+}
+
+const ORIGIN: &str = "https://github.com/acme/widgets.git";
+
+// IT-251, FR-014-AC-11: under `--okf --strict` a dangling `mitigates` bare-id
+// target exits 3 and stderr carries the source path, edge type and id. The
+// bundle is otherwise conformant: with the target present it exits 0, so the
+// dangling edge alone is what fails.
 #[trace("IT-251", "FR-014-AC-11")]
 #[test]
 fn okf_strict_dangling_mitigates_exits_3_with_located_message() {
-    let dir = bundle(&[(
-        "a.md",
-        "---\nid: A-1\ntype: weird\nrelationships:\n- target: HZ-9\n  type: mitigates\n---\n# a\nbody\n",
-    )]);
-    quire()
-        .arg("validate")
-        .arg("--okf")
-        .arg("--strict")
-        .arg(dir.path())
-        .arg("--module")
-        .arg(validate_module())
-        .assert()
+    let ok = strict_bundle(&[
+        ("a", note_doc("A-1", "control", &["HZ-1"])),
+        ("hz", note_doc("HZ-1", "hazard", &[])),
+    ]);
+    okf(&ok, true).success();
+
+    let dir = strict_bundle(&[("a", note_doc("A-1", "control", &["HZ-9"]))]);
+    okf(&dir, true).failure().code(3).stderr(predicate::str::contains(
+        "a.md: dangling reference 'HZ-9' (edge 'mitigates') has no target in the bundle [dangling-reference]",
+    ));
+    okf(&dir, false).success();
+}
+
+// IT-252, FR-014-AC-11: a miss under the bundle's own `ix://` authority exits 3.
+#[trace("IT-252", "FR-014-AC-11")]
+#[test]
+fn okf_strict_own_authority_miss_exits_3() {
+    let dir = strict_bundle(&[("a", note_doc("A-1", "control", &["ix://acme/widgets/HZ-9"]))]);
+    set_origin(&dir, ORIGIN);
+    okf(&dir, true)
         .failure()
         .code(3)
-        .stderr(
-            predicate::str::contains("a.md")
-                .and(predicate::str::contains("mitigates"))
-                .and(predicate::str::contains("HZ-9"))
-                .and(predicate::str::contains("[dangling-reference]")),
-        );
+        .stderr(predicate::str::contains(
+            "dangling reference 'HZ-9' (edge 'mitigates')",
+        ));
+}
 
-    quire()
-        .arg("validate")
-        .arg("--okf")
-        .arg(dir.path())
-        .arg("--module")
-        .arg(validate_module())
-        .assert()
-        .success();
+// IT-253, FR-014-AC-11: a foreign-authority target is skipped, so an
+// otherwise conformant bundle exits 0.
+#[trace("IT-253", "FR-014-AC-11")]
+#[test]
+fn okf_strict_foreign_authority_target_exits_0() {
+    let dir = strict_bundle(&[("a", note_doc("A-1", "control", &["ix://other/repo/HZ-9"]))]);
+    set_origin(&dir, ORIGIN);
+    okf(&dir, true).success();
+}
+
+// IT-254, FR-014-AC-11: with no package declared every miss is dangling.
+#[trace("IT-254", "FR-014-AC-11")]
+#[test]
+fn okf_strict_miss_with_no_package_declared_exits_3() {
+    let dir = strict_bundle(&[("a", note_doc("A-1", "control", &["ix://other/repo/HZ-9"]))]);
+    okf(&dir, true)
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("dangling reference 'HZ-9'"));
+}
+
+// IT-255, FR-014-AC-11: a two-segment `ix://<org>/<id>` link to an absent id
+// is dangling even when a package is declared.
+#[trace("IT-255", "FR-014-AC-11")]
+#[test]
+fn okf_strict_two_segment_link_to_absent_id_exits_3() {
+    let dir = strict_bundle(&[("a", note_doc("A-1", "control", &["ix://acme/HZ-9"]))]);
+    set_origin(&dir, ORIGIN);
+    okf(&dir, true)
+        .failure()
+        .code(3)
+        .stderr(predicate::str::contains("dangling reference 'HZ-9'"));
+}
+
+// IT-256, FR-014-AC-11: a bundle with no findings exits 0 under `--strict`.
+#[trace("IT-256", "FR-014-AC-11")]
+#[test]
+fn okf_strict_finding_free_bundle_exits_0() {
+    let dir = strict_bundle(&[
+        ("a", note_doc("A-1", "control", &["HZ-1"])),
+        ("hz", note_doc("HZ-1", "hazard", &[])),
+    ]);
+    okf(&dir, true).success().stderr(predicate::str::is_empty());
+}
+
+// IT-257, FR-014-AC-11: a finding that stays a warning under Strict (the
+// FR-040-AC-10 disallowed-edge-target check) exits 3 under `--strict` and is
+// a plain warning, exit 0, without it.
+#[trace("IT-257", "FR-014-AC-11")]
+#[test]
+fn okf_strict_fails_on_warning_only_finding() {
+    let dir = strict_bundle(&[
+        ("a", note_doc("A-1", "control", &["AS-1"])),
+        ("as", note_doc("AS-1", "asset", &[])),
+    ]);
+    let pred = predicate::str::contains("[disallowed-edge-target]");
+    okf(&dir, false).success().stderr(pred.clone());
+    okf(&dir, true).failure().code(3).stderr(pred);
 }

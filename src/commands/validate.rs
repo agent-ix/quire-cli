@@ -11,7 +11,7 @@
 //! The engine result carries `errors` (exit-failing) and `warnings`
 //! (advisory — today only the unknown-`object:` case). Both are surfaced on
 //! stderr; warnings are clearly marked (`warning:` prefix / distinct JSON
-//! `severity`). Exit 0 on success; exit 1 on any error, or — with `--strict`
+//! `severity`). Exit 0 on success; exit 3 on any error, or — with `--strict`
 //! — on any warning too. NEVER writes stdout. All validation logic lives in
 //! quire-rs (StR-004 thin boundary).
 
@@ -68,8 +68,8 @@ pub struct Args {
     pub okf: bool,
 
     /// Treat advisory warnings as failures: with --strict, any warning
-    /// (today only the unknown-`object:` case from composed type+object
-    /// validation, FR-032-AC-12) makes `validate` exit 1. Warnings are
+    /// (for example the unknown-`object:` case from composed type+object
+    /// validation, FR-032-AC-12) makes `validate` exit 3. Warnings are
     /// always printed; --strict only changes the exit code. With --okf it
     /// runs the bundle under the Strict posture and exits 3 on any finding.
     #[arg(long)]
