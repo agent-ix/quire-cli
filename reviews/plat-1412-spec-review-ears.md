@@ -25,3 +25,9 @@ Ticket: PLAT-1412. Checked the normative statements in FR-028's Description agai
 ## Verdict
 
 Low only.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (2a9935b): "In `--format json` the CLI **SHALL** pass the engine's `requirements[]` through unmodified". |

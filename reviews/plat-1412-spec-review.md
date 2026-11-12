@@ -29,3 +29,11 @@ Deviation from the ticket's `quire trace` wording: judged correct. `src/commands
 ## Verdict
 
 Changes requested (two medium, one low). Clean units: FR-028-AC-3, AC-4 and AC-5 are testable and single-outcome; AC-4 correctly keeps an absent key distinguishable from an authored `unassigned`, which matches FR-082-AC-2/AC-3. The index line matches the title. The `quire matrix` host is the right one.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (2a9935b): "Missing, present and odd values" applies FR-026's pipe-escape and tab/newline/CR scrub, states the present empty string renders an empty cell distinct from `unassigned`, and renders non-strings as compact JSON; FR-028-AC-7..AC-10 test each. |
+| FND-002 | fixed | Round 1 (2a9935b): column renamed `Requirement Criticality` / `requirement_criticality`; the FR-053 per-criterion value and its empty-when-absent convention are explained, and the matrix does not show it because FR-050-AC-48 criterion entries do not carry it (confirmed in quire-rs `CoverageMatrixCriterion`). |
+| FND-003 | fixed | Round 1 (2a9935b): the ticket-wording sentence moved into a `CR note (PLAT-1412)` block. |

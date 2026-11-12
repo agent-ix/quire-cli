@@ -27,3 +27,11 @@ Ticket: PLAT-1412. Checked FR-028 for consistency with FR-026, which it extends,
 ## Verdict
 
 FAIL until FR-026 is amended (FND-001, FND-002). The fix is a CR note on FR-026; FR-028 itself is consistent with FR-082. Clean: FR-028-AC-6 matches FR-026-AC-9's zero-population shapes once the header is amended; AC-1..AC-6 ids are sequential and each Verification cell names a method.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (2a9935b): FR-026 CR note amends §C and AC-4 to the five-column header ending `Requirement Criticality`, matching FR-028-AC-1. |
+| FND-002 | fixed | Round 1 (2a9935b): the same CR note amends §F, AC-8 and AC-9's TSV header to six columns ending `requirement_criticality`, matching FR-028-AC-2/AC-6. |
+| FND-003 | fixed | Round 1 (2a9935b): "Criticality has no effect on `--strict` or on the exit code", tested by FR-028-AC-11. |
