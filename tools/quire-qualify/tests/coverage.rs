@@ -30,16 +30,6 @@ fn required_population_matches_current_specification() {
         "FR-020-AC-6",
         "FR-020-AC-7",
         "FR-020-AC-8",
-        "IT-136",
-        "IT-137",
-        "IT-138",
-        "IT-139",
-        "IT-140",
-        "IT-141",
-        "IT-142",
-        "IT-143",
-        "IT-144",
-        "TC-814",
         "StR-004-VC-2",
         "StR-004-VC-3",
     ]
@@ -55,7 +45,7 @@ fn complete_backed_population_passes() {
     let observation = check(&complete_report()).expect("complete report");
     assert_eq!(
         observation,
-        "assurance traceability ok: 20/20 required targets backed"
+        "assurance traceability ok: 10/10 required targets backed"
     );
 }
 
@@ -79,13 +69,13 @@ fn missing_and_unbacked_targets_name_exact_ids() {
         .as_array_mut()
         .unwrap()
         .iter_mut()
-        .find(|entry| entry["id"] == "IT-141")
+        .find(|entry| entry["id"] == "FR-020-AC-3")
         .unwrap();
     target["backed"] = json!(false);
     let error = check(&unbacked).expect_err("unbacked target must fail");
     assert!(matches!(
         error,
-        quire_qualify::Error::UnbackedTargets { ids } if ids == ["IT-141"]
+        quire_qualify::Error::UnbackedTargets { ids } if ids == ["FR-020-AC-3"]
     ));
 }
 

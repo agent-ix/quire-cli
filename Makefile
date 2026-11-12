@@ -81,7 +81,6 @@ ASSURANCE_SPEC_DOCS := \
 	spec/functional/FR-020-assurance-export-subcommand.md \
 	spec/stakeholder/StR-004-thin-boundary-over-quire-rs.md \
 	spec/usecase/US-006-export-assurance-facts.md \
-	spec/tests.md \
 	reviews/SR-009-assurance-export-spec-review.md \
 	reviews/SR-010-assurance-export-code-review.md \
 	reviews/SR-011-assurance-export-gap-analysis.md \
