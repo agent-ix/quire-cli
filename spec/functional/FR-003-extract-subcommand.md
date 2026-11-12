@@ -88,6 +88,7 @@ The CLI SHALL NOT mutate, normalize, or filter the upstream extraction or edge o
 | FR-003-AC-3 | ⛔ RETIRED (CR, 2026-08-20) — was: for a document with frontmatter sugar fields, `.edges` contains a `dependencies`-typed edge. No engine ever harvested sugar fields; see the CR note above | Retired |
 | FR-003-AC-4 | Re-running extract on the same input produces byte-identical stdout (determinism, matches upstream) | Test |
 | FR-003-AC-5 | For a document with **no `type`** (the discriminator absent from frontmatter) and no `--archetype`, `extract` exits 3 with a `[frontmatter]`-reason `ValidationError`-shaped diagnostic on stderr naming the missing `type` (the same vocabulary `validate` uses), not a generic anyhow error; stdout is empty | Test |
+| FR-003-AC-6 | Edges are deduplicated by (source, type, target): given a document whose frontmatter declares the same `relationships` entry (same target, same type) twice declares the same target under a second type (`traces_to`) once, and whose body links the same `ix://` target twice, `quire extract` exits 0 and `.edges` holds exactly one `implements` edge and exactly one `traces_to` edge for that shared target (one edge per type) and exactly one `references` edge for the twice-linked body target | Test |
 
 ## Dependencies
 
