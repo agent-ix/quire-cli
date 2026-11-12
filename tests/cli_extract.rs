@@ -179,7 +179,6 @@ fn it_020_extract_is_deterministic() {
 // linked twice in the body, each collapse to ONE edge — asserted by counting
 // occurrences, not by "an edge exists", which a duplicating harvest also
 // satisfies.
-#[trace("IT-015")]
 #[test]
 fn it_015_edges_are_deduped_by_source_type_target() {
     let doc = std::env::temp_dir().join(format!("quire-cli-it-015-{}.md", std::process::id()));

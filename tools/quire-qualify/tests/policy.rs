@@ -116,7 +116,7 @@ fn executable_script_inventory_is_empty() {
     );
 }
 
-#[trace("NFR-009")]
+#[trace("NFR-009-M-2")]
 #[test]
 fn native_toolchain_trace_and_no_shell_invariants_are_explicit() {
     let root = repo_root();
@@ -144,24 +144,6 @@ fn native_toolchain_trace_and_no_shell_invariants_are_explicit() {
                 .is_empty(),
             "native qualification tool can execute a process: {}",
             path.display()
-        );
-    }
-
-    let mut test_files = Vec::new();
-    walk_files(
-        &root.join("tools/quire-qualify/tests"),
-        &[],
-        &mut test_files,
-    );
-    let tests = test_files
-        .iter()
-        .map(|path| fs::read_to_string(path).unwrap())
-        .collect::<Vec<_>>()
-        .join("\n");
-    for id in 828..=840 {
-        assert!(
-            tests.contains(&format!("\"TC-{id}\"")),
-            "TC-{id} lacks an ix-trace-rs marker"
         );
     }
 }

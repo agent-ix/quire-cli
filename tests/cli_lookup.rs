@@ -59,7 +59,6 @@ fn lookup_by_heading_and_level_returns_h1() {
 // US-005-AC-1: `lookup --heading Behavior` uses upstream-style
 // heading normalization, so the leading section number is not part of the
 // selector.
-#[trace("IT-034")]
 #[test]
 fn lookup_by_heading_uses_number_normalization() {
     let doc = write_tmp(LOOKUP_DOC, "heading.md");
