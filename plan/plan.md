@@ -32,7 +32,7 @@ preimplementation specification and scope review are committed at `2502617`.
    `NAME@VERSION`/`MODULE/ARCHETYPE` only as CLI premises; compare the
    complete expected and emitted premise sets before writing stdout.
 3. **T-023 — Prove the process boundary (complete).** Add a non-vacuous fixture and golden
-   plus IT-136..144/TC-814: complete records and all availability states,
+   plus the process-boundary tests: complete records and all availability states,
    schema conformance, compact/pretty determinism, every premise refusal,
    empty/unknown/unavailable distinction, stderr diagnostics, static
    thin-boundary audit, and Linux network/process tracing. Cross-language
@@ -40,7 +40,7 @@ preimplementation specification and scope review are committed at `2502617`.
    local runtime is unavailable.
 4. **T-024 — Publish the contract in-tree (complete).** Update the help snapshot, README,
    changelog, command/module documentation, and matrix statuses only after the
-   backing tests have recorded passing runs. IT-145 checks documentation,
+   backing tests have recorded passing runs. A test checks documentation,
    capability, manifest, and lockfile agreement.
 5. **T-025 — Review and PR gate (complete).** Run all local gates, create tracked
    `/code-review` and `/gap-analysis` artifacts, open the PR, read every GitHub
@@ -67,8 +67,8 @@ preimplementation specification and scope review are committed at `2502617`.
 | Gate | Evidence | Initial state |
 |------|----------|---------------|
 | G9 Specification baseline | Targeted Quire validation; SR-009; commit `2502617` | complete |
-| G10 Implementation contract | IT-136..142 and TC-814 | complete (SR-010/SR-011) |
-| G11 Non-execution and portability | IT-143..145 | complete (SR-010/SR-011) |
+| G10 Implementation contract | assurance process tests | complete (SR-010/SR-011) |
+| G11 Non-execution and portability | non-execution tests | complete (SR-010/SR-011) |
 | G12 Repository quality | `make ci`, release build, targeted Quire validation | complete (SR-010/SR-011) |
 | G13 External review | PR comments/reviews read; all required findings fixed | complete (SR-012..SR-015; PR #75) |
 
@@ -82,7 +82,7 @@ preimplementation specification and scope review are committed at `2502617`.
 | Missing language or tracing runtimes turn a claimed probe into a silent pass | Treat Python, Node, and Linux `strace` as required gate dependencies and fail closed when any is absent. |
 | Existing global `--pretty` changes the semantic contract | Compare parsed values and independently require byte identity for each mode. |
 
-Generated from `~/dev/quire-cli/spec/` via `/spec-to-plan`. Derived from 4 StR + 4 US + 8 FR + 6 NFR + 32 IT/BENCH/AUDIT cases (see `spec/tests.md` — 100 % AC coverage).
+Generated from `~/dev/quire-cli/spec/` via `/spec-to-plan`. Derived from 4 StR + 4 US + 8 FR + 6 NFR + 32 IT/BENCH/AUDIT cases (coverage is computed by `quire matrix`).
 
 This is a **thin process boundary** over `quire-rs`. The plan is correspondingly small: argv parsing, sandbox guards, I/O wiring, packaging — every parse/render/extract/validate behavior delegates to the upstream crate.
 
@@ -118,7 +118,7 @@ This is a **thin process boundary** over `quire-rs`. The plan is correspondingly
 - [x] **NFR-001** p95 ≤ 50 ms (hyperfine harness in `make bench`, local composite gate).
 - [x] **NFR-002** Static binary (`ldd` lists only libc + loader).
 - [x] **NFR-003** Zero unsafe in this crate (`quire-qualify unsafe-comments`).
-- [x] **NFR-004** No network deps (`cargo deny bans` HTTP clients; strace IT-008 on Linux).
+- [x] **NFR-004** No network deps (`cargo deny bans` HTTP clients; strace audit on Linux).
 - [x] **NFR-005** Stderr diagnostics expressible as `quire-rs::Diagnostic`.
 - [x] **NFR-006** SemVer on subcommand surface, exit codes, JSON output schemas.
 
@@ -198,34 +198,34 @@ Each task is a separate `src/commands/<name>.rs` module wired into `src/main.rs:
 
 ### Track C — Tests + benches (parallel after Track B starts)
 
-Each IT/BENCH/AUDIT in `spec/tests.md` becomes one entry in `tests/` or `benches/` or CI workflow.
+Each IT/BENCH/AUDIT case becomes one entry in `tests/` or `benches/` or CI workflow.
 
 9. **T-009 Vendor fixtures** (review F-2)
    - Copy `quire-rs/tests/render_parity/modules/iso/` → `tests/fixtures/iso/`.
    - Copy a handful of context JSON files for each archetype.
    - Add `make refresh-fixtures` target that re-syncs from upstream.
-10. **T-010 Happy-path ITs** (IT-001..004, IT-009, IT-014, IT-017, IT-018, IT-019, IT-021)
+10. **T-010 Happy-path ITs**
     - `tests/cli_render.rs`, `tests/cli_parse.rs`, `tests/cli_extract.rs`, `tests/cli_validate.rs`.
     - `assert_cmd` + `predicates`.
-    - IT-018 parametrizes over all 8 ISO archetypes.
-11. **T-011 Sandbox ITs** (IT-005, IT-006, IT-007, IT-022, IT-023)
+    - The validate sweep parametrizes over all 8 ISO archetypes.
+11. **T-011 Sandbox ITs**
     - `tests/cli_sandbox.rs`. Tempdir fixtures with `..` patterns and symlinks.
-12. **T-012 Error-path ITs** (IT-010, IT-012, IT-013, IT-026, IT-027)
+12. **T-012 Error-path ITs**
     - `tests/cli_errors.rs`. Cover every exit code and each documented failure mode.
-13. **T-013 I/O contract ITs** (IT-011, IT-024, IT-025, IT-028, IT-029, IT-030)
+13. **T-013 I/O contract ITs**
     - `tests/cli_io.rs`. Stdin handling, no-interleave, `--pretty`, field-order snapshot.
 14. **T-014 Static audits**:
-    - **AUDIT-001** (`ldd` shape): `tests/audit_ldd.rs` — Linux-only, gated by `#[cfg(target_os = "linux")]`.
-    - **AUDIT-002** (no parser/render logic in `src/`): the native
+    - **ldd audit** (`ldd` shape): `tests/audit_ldd.rs` — Linux-only, gated by `#[cfg(target_os = "linux")]`.
+    - **thin-boundary audit** (no parser/render logic in `src/`): the native
       `quire-qualify thin-boundary` gate parses Rust syntax and rejects engine
       primitives outside admitted `commands/` dispatch sites.
-    - **AUDIT-003** wired through `deny.toml`.
-    - **AUDIT-004** wired through the native unsafe-comment gate.
-15. **T-015 Network audit** (IT-008): `tests/audit_no_network.rs` — `strace -fe network` wrapper, `#[cfg(target_os = "linux")]` per review F-3.
+    - **dependency audit** wired through `deny.toml`.
+    - **unsafe-comment audit** wired through the native unsafe-comment gate.
+15. **T-015 Network audit**: `tests/audit_no_network.rs` — `strace -fe network` wrapper, `#[cfg(target_os = "linux")]` per review F-3.
 16. **T-016 Benchmarks**:
     - **BENCH-001** in `benches/render.rs` (criterion) AND a `make bench` target invoking `hyperfine` against the release binary.
     - CI runs `make bench` and asserts p95 ≤ 50 ms.
-17. **T-017 `--help` snapshot** (IT-032, NFR-006-AC-2)
+17. **T-017 `--help` snapshot** (NFR-006-AC-2)
     - Per review F-4: snapshot lives at `tests/snapshots/help.txt`. Use `insta` or a hand-rolled byte-compare.
 
 ### Track D — Distribution + docs
@@ -251,7 +251,7 @@ Each gate is a hard merge-block until the corresponding tests are green.
 | **G2 All four subcommands implemented** | T-005..008 done; trivial smoke run for each succeeds | Track B | ✅ green |
 | **G3 Happy + sandbox ITs green** | T-009..011 done; `make test` green; all P0 ITs pass | Track C | ✅ green |
 | **G4 Error + I/O ITs green** | T-012..013 done; coverage of every exit code in FR-007 | Track C | ✅ green |
-| **G5 Static audits + network audit green** | T-014..015 done; AUDIT-001..004, IT-008 pass | Track C | ✅ green |
+| **G5 Static audits + network audit green** | T-014..015 done; static audits and network audit pass | Track C | ✅ green |
 | **G6 Benchmark gate green** | T-016 done; `hyperfine` reports p95 ≤ 50 ms (observed 4.87 ms on WSL2) | Track C | ✅ green |
 | **G7 Help snapshot pinned** | T-017 done; snapshot committed | Track C | ✅ green |
 | **G8 Ready to tag** | G1..G7 all green; README + CI updated | Track D | ✅ green |
@@ -264,7 +264,7 @@ Each gate is a hard merge-block until the corresponding tests are green.
 |----|------|------------|
 | R-1 | `quire-rs` not yet on crates.io; dep is path-based during dev. | Tag `quire-rs v0.1.0` and publish before `quire-cli v0.1.0` (matches parent plan's Q1 → Q2 → ... order). Until then, `cargo install --git` is the only install vector. |
 | R-2 | Vendored fixture drift from upstream | `make refresh-fixtures` + a CI lane that compares vendored copies to upstream and warns on drift. |
-| R-3 | `strace` Linux-only (IT-008) | Mark IT linux-only per F-3; rely on `cargo deny bans` cross-platform. |
+| R-3 | `strace` Linux-only | Mark the test linux-only per F-3; rely on `cargo deny bans` cross-platform. |
 | R-4 | Single `quire-rs::Diagnostic` shape may not cover every CLI-originated case | Extend upstream `Diagnostic` enum if a new variant is needed; never invent a parallel shape (NFR-005). |
 | R-5 | Extract auto-validate left off in v0.1 | Documented in F-5. Re-evaluate as `--validate` flag in v0.2 if agents end up calling extract then validate back-to-back. |
 
@@ -272,7 +272,7 @@ Each gate is a hard merge-block until the corresponding tests are green.
 
 ## Test Plan Summary
 
-100 % AC coverage; see `spec/tests.md` for the full traceability table. Counts:
+100 % AC coverage; `quire matrix` computes the traceability table. Counts:
 
 - 32 IT/BENCH/AUDIT entries
 - 22 ITs (process-level `assert_cmd` integration)

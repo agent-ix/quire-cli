@@ -28,10 +28,10 @@ fn bundle(files: &[(&str, &str)]) -> TempDir {
     dir
 }
 
-// IT-069, FR-014-AC-1, FR-014-AC-8, FR-003-AC-5: `type` stays required under
+// FR-014-AC-1, FR-014-AC-8, FR-003-AC-5: `type` stays required under
 // OKF — an untyped document is a hard error carrying the shared
 // `[frontmatter]` vocabulary.
-#[trace("IT-069", "FR-014-AC-1", "FR-014-AC-8", "FR-003-AC-5")]
+#[trace("FR-014-AC-1", "FR-014-AC-8", "FR-003-AC-5")]
 #[test]
 fn okf_untyped_document_is_error() {
     let dir = bundle(&[("NOTE-001.md", "---\nid: NOTE-001\n---\n# note\nbody\n")]);
@@ -47,9 +47,9 @@ fn okf_untyped_document_is_error() {
         .stderr(predicate::str::contains("type").and(predicate::str::contains("[frontmatter]")));
 }
 
-// IT-070, FR-014-AC-2, FR-014-AC-3: an unknown type and a dangling `ix://`
+// FR-014-AC-2, FR-014-AC-3: an unknown type and a dangling `ix://`
 // link are tolerated as warnings (exit 0).
-#[trace("IT-070", "FR-014-AC-2", "FR-014-AC-3")]
+#[trace("FR-014-AC-2", "FR-014-AC-3")]
 #[test]
 fn okf_tolerates_unknown_type_and_broken_link() {
     let dir = bundle(&[(
@@ -70,9 +70,9 @@ fn okf_tolerates_unknown_type_and_broken_link() {
         );
 }
 
-// IT-071, FR-014-AC-4, FR-014-AC-5: an `index.md` missing a sibling artifact
+// FR-014-AC-4, FR-014-AC-5: an `index.md` missing a sibling artifact
 // warns under OKF (exit 0).
-#[trace("IT-071", "FR-014-AC-4", "FR-014-AC-5")]
+#[trace("FR-014-AC-4", "FR-014-AC-5")]
 #[test]
 fn okf_index_incompleteness_warns() {
     let dir = bundle(&[
@@ -96,10 +96,10 @@ fn okf_index_incompleteness_warns() {
         );
 }
 
-// IT-072, FR-014-AC-6: with no positional, `--okf` validates the document
+// FR-014-AC-6: with no positional, `--okf` validates the document
 // root `<scope>/spec` (CR-045) — never the scope itself, which was the
 // repo-wide crawl.
-#[trace("IT-072", "FR-014-AC-6")]
+#[trace("FR-014-AC-6")]
 #[test]
 fn okf_defaults_to_scope_spec_directory() {
     let dir = bundle(&[
@@ -119,9 +119,9 @@ fn okf_defaults_to_scope_spec_directory() {
         .success();
 }
 
-// IT-085, FR-014-AC-6: a scope with no `spec/` is a named error, never a
+// FR-014-AC-6: a scope with no `spec/` is a named error, never a
 // silent fallback to walking the scope (CR-045).
-#[trace("IT-085", "FR-014-AC-6")]
+#[trace("FR-014-AC-6")]
 #[test]
 fn okf_missing_spec_root_is_a_named_error() {
     let dir = bundle(&[("X-1.md", "---\nid: X-1\ntype: weird\n---\n# x\nbody\n")]);
@@ -141,14 +141,14 @@ fn okf_missing_spec_root_is_a_named_error() {
         .stderr(predicate::str::contains(expected));
 }
 
-// IT-088 (agent-ix/quire-rs#110): a non-fatal bundle warning is emitted as a
+// (agent-ix/quire-rs#110): a non-fatal bundle warning is emitted as a
 // WARNING in the machine surface. Every `report.warnings` entry used to go
 // through the error diagnostic path, which hardcoded `"severity": "error"` — so under
 // `--diagnostics json` the severity contradicted the exit code, which was
 // correctly 0. The frontmatter-less file is the CR-048 warning that made this
 // visible, and the engine now distinguishes its two flavors by machine reason
 // (quire-rs CR-051).
-#[trace("IT-088")]
+#[trace("FR-014-AC-6")]
 #[test]
 fn it088_bundle_warnings_are_emitted_as_warnings_in_json() {
     let dir = bundle(&[
@@ -220,11 +220,11 @@ fn it088_bundle_warnings_are_emitted_as_warnings_in_json() {
     );
 }
 
-// IT-178, FR-014-AC-3, FR-014-AC-10 (PLAT-1300, quire-rs FR-076): `--okf` declares the repo's bundle
+// FR-014-AC-3, FR-014-AC-10 (PLAT-1300, quire-rs FR-076): `--okf` declares the repo's bundle
 // package from the scope's `origin` remote, so a cross-repo
 // `ix://<other-org>/<other-repo>/ID` target is not dangling while a miss
 // under the repo's own authority still is.
-#[trace("IT-178", "FR-014-AC-3", "FR-014-AC-10")]
+#[trace("FR-014-AC-3", "FR-014-AC-10")]
 #[test]
 fn it178_okf_declares_repo_package_so_cross_repo_targets_are_not_dangling() {
     let dir = bundle(&[(
@@ -275,11 +275,11 @@ fn it178_okf_declares_repo_package_so_cross_repo_targets_are_not_dangling() {
     );
 }
 
-// IT-179, FR-014-AC-10 (PLAT-1300): the declared package is the bundle's own
+// FR-014-AC-10 (PLAT-1300): the declared package is the bundle's own
 // checkout, not the caller's cwd: a positional bundle with its own origin,
 // validated from a different directory, still warns on its own-authority miss
 // and skips a foreign one.
-#[trace("IT-179", "FR-014-AC-10")]
+#[trace("FR-014-AC-10")]
 #[test]
 fn it179_positional_bundle_uses_its_own_checkout_identity() {
     let dir = bundle(&[(
@@ -393,11 +393,11 @@ fn okf(dir: &TempDir, strict: bool) -> assert_cmd::assert::Assert {
 
 const ORIGIN: &str = "https://github.com/acme/widgets.git";
 
-// IT-251, FR-014-AC-11: under `--okf --strict` a dangling `mitigates` bare-id
+// FR-014-AC-11: under `--okf --strict` a dangling `mitigates` bare-id
 // target exits 3 and stderr carries the source path, edge type and id. The
 // bundle is otherwise conformant: with the target present it exits 0, so the
 // dangling edge alone is what fails.
-#[trace("IT-251", "FR-014-AC-11")]
+#[trace("FR-014-AC-11")]
 #[test]
 fn okf_strict_dangling_mitigates_exits_3_with_located_message() {
     let ok = strict_bundle(&[
@@ -413,8 +413,8 @@ fn okf_strict_dangling_mitigates_exits_3_with_located_message() {
     okf(&dir, false).success();
 }
 
-// IT-252, FR-014-AC-11: a miss under the bundle's own `ix://` authority exits 3.
-#[trace("IT-252", "FR-014-AC-11")]
+// FR-014-AC-11: a miss under the bundle's own `ix://` authority exits 3.
+#[trace("FR-014-AC-11")]
 #[test]
 fn okf_strict_own_authority_miss_exits_3() {
     let dir = strict_bundle(&[("a", note_doc("A-1", "control", &["ix://acme/widgets/HZ-9"]))]);
@@ -427,9 +427,9 @@ fn okf_strict_own_authority_miss_exits_3() {
         ));
 }
 
-// IT-253, FR-014-AC-11: a foreign-authority target is skipped, so an
+// FR-014-AC-11: a foreign-authority target is skipped, so an
 // otherwise conformant bundle exits 0.
-#[trace("IT-253", "FR-014-AC-11")]
+#[trace("FR-014-AC-11")]
 #[test]
 fn okf_strict_foreign_authority_target_exits_0() {
     let dir = strict_bundle(&[("a", note_doc("A-1", "control", &["ix://other/repo/HZ-9"]))]);
@@ -437,8 +437,8 @@ fn okf_strict_foreign_authority_target_exits_0() {
     okf(&dir, true).success();
 }
 
-// IT-254, FR-014-AC-11: with no package declared every miss is dangling.
-#[trace("IT-254", "FR-014-AC-11")]
+// FR-014-AC-11: with no package declared every miss is dangling.
+#[trace("FR-014-AC-11")]
 #[test]
 fn okf_strict_miss_with_no_package_declared_exits_3() {
     let dir = strict_bundle(&[("a", note_doc("A-1", "control", &["ix://other/repo/HZ-9"]))]);
@@ -448,9 +448,9 @@ fn okf_strict_miss_with_no_package_declared_exits_3() {
         .stderr(predicate::str::contains("dangling reference 'HZ-9'"));
 }
 
-// IT-255, FR-014-AC-11: a two-segment `ix://<org>/<id>` link to an absent id
+// FR-014-AC-11: a two-segment `ix://<org>/<id>` link to an absent id
 // is dangling even when a package is declared.
-#[trace("IT-255", "FR-014-AC-11")]
+#[trace("FR-014-AC-11")]
 #[test]
 fn okf_strict_two_segment_link_to_absent_id_exits_3() {
     let dir = strict_bundle(&[("a", note_doc("A-1", "control", &["ix://acme/HZ-9"]))]);
@@ -461,8 +461,8 @@ fn okf_strict_two_segment_link_to_absent_id_exits_3() {
         .stderr(predicate::str::contains("dangling reference 'HZ-9'"));
 }
 
-// IT-256, FR-014-AC-11: a bundle with no findings exits 0 under `--strict`.
-#[trace("IT-256", "FR-014-AC-11")]
+// FR-014-AC-11: a bundle with no findings exits 0 under `--strict`.
+#[trace("FR-014-AC-11")]
 #[test]
 fn okf_strict_finding_free_bundle_exits_0() {
     let dir = strict_bundle(&[
@@ -472,10 +472,10 @@ fn okf_strict_finding_free_bundle_exits_0() {
     okf(&dir, true).success().stderr(predicate::str::is_empty());
 }
 
-// IT-257, FR-014-AC-11: a finding that stays a warning under Strict (the
+// FR-014-AC-11: a finding that stays a warning under Strict (the
 // FR-040-AC-10 disallowed-edge-target check) exits 3 under `--strict` and is
 // a plain warning, exit 0, without it.
-#[trace("IT-257", "FR-014-AC-11")]
+#[trace("FR-014-AC-11")]
 #[test]
 fn okf_strict_fails_on_warning_only_finding() {
     let dir = strict_bundle(&[

@@ -73,12 +73,12 @@ EPIC `agent-ix/quire-rs#264` was opened on.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-019-AC-1 | `quire symbols --scope <DIR>` exits **0** with no module supplied, rendering a per-language census on **stderr** and leaving stdout for the payload | Test (IT-130) |
-| FR-019-AC-2 | `--json` emits one record per extracted symbol carrying `path`, `symbol`, `kind`, `language`, `line`, `leading_line`, `end_line`, `container`, `id`, `binds_trace_ids` and `carries_implements`; two runs over identical inputs are byte-identical | Test (IT-131) |
-| FR-019-AC-3 | With `--module`, each record additionally carries the `trace_ids` it bound; **without** one, the human surface states that binding was not asked rather than reporting zero — an unbound run and an untagged repository are different facts | Test (IT-132) |
-| FR-019-AC-4 | `by_language` carries both `symbols` and `binding_kinds`, so a binding rate is never drawn over the population of every symbol | Test (IT-133) |
-| FR-019-AC-5 | Extraction diagnostics reach **stderr** in every output format: a file the extractor could not read is indistinguishable from a file with no declarations, and dropping it would silently shrink the table | Test (IT-134) |
-| FR-019-AC-6 | Module resolution is the resolution `coverage` performs, shared rather than restated, so the two commands cannot disagree about which module is in scope for one invocation | Test (IT-135) |
+| FR-019-AC-1 | `quire symbols --scope <DIR>` exits **0** with no module supplied, rendering a per-language census on **stderr** and leaving stdout for the payload | Test |
+| FR-019-AC-2 | `--json` emits one record per extracted symbol carrying `path`, `symbol`, `kind`, `language`, `line`, `leading_line`, `end_line`, `container`, `id`, `binds_trace_ids` and `carries_implements`; two runs over identical inputs are byte-identical | Test |
+| FR-019-AC-3 | With `--module`, each record additionally carries the `trace_ids` it bound; **without** one, the human surface states that binding was not asked rather than reporting zero — an unbound run and an untagged repository are different facts | Test |
+| FR-019-AC-4 | `by_language` carries both `symbols` and `binding_kinds`, so a binding rate is never drawn over the population of every symbol | Test |
+| FR-019-AC-5 | Extraction diagnostics reach **stderr** in every output format: a file the extractor could not read is indistinguishable from a file with no declarations, and dropping it would silently shrink the table | Test |
+| FR-019-AC-6 | Module resolution is the resolution `coverage` performs, shared rather than restated, so the two commands cannot disagree about which module is in scope for one invocation | Test |
 
 ## Dependencies
 

@@ -179,7 +179,7 @@ fn engine_matrix(f: &Fixture) -> Option<Value> {
     json(&out).get("coverage_matrix").cloned()
 }
 
-#[trace("IT-166", "FR-026-AC-1")]
+#[trace("FR-026-AC-1")]
 #[test]
 fn it166_a_populated_scope_renders_every_criterion_in_every_format() {
     let f = populated();
@@ -207,7 +207,7 @@ fn it166_a_populated_scope_renders_every_criterion_in_every_format() {
     }
 }
 
-#[trace("IT-167", "FR-026-AC-2")]
+#[trace("FR-026-AC-2")]
 #[test]
 fn it167_matrix_shares_coverage_refusals_and_module_resolution() {
     // No `spec/` under the scope: the typed MissingDocumentRoot refusal.
@@ -301,7 +301,7 @@ fn it167_matrix_shares_coverage_refusals_and_module_resolution() {
     assert!(help.contains("used in the order given"), "{help}");
 }
 
-#[trace("IT-168", "FR-026-AC-3", "FR-026-AC-4")]
+#[trace("FR-026-AC-3", "FR-026-AC-4")]
 #[test]
 fn it168_markdown_renders_one_table_per_requirement_in_engine_order() {
     // Documents written in reverse order and criteria out of id order: the
@@ -374,7 +374,7 @@ fn it168_markdown_renders_one_table_per_requirement_in_engine_order() {
     );
 }
 
-#[trace("IT-169", "FR-026-AC-5")]
+#[trace("FR-026-AC-5")]
 #[test]
 fn it169_binders_render_path_line_column_with_ignored_and_none_markers() {
     let f = Fixture::with_obligations();
@@ -470,7 +470,7 @@ fn it169_binders_render_path_line_column_with_ignored_and_none_markers() {
     assert_eq!(row("FR-001-AC-3")[3], "untagged");
 }
 
-#[trace("IT-169", "FR-026-AC-5")]
+#[trace("FR-026-AC-5")]
 #[test]
 fn it169_a_pipe_in_a_binder_path_is_escaped() {
     let f = Fixture::with_obligations();
@@ -497,7 +497,7 @@ fn it169_a_pipe_in_a_binder_path_is_escaped() {
     assert_eq!(row.split(" | ").count(), 5, "{row}");
 }
 
-#[trace("IT-170", "FR-026-AC-6")]
+#[trace("FR-026-AC-6")]
 #[test]
 fn it170_structural_characters_become_spaces_before_truncation() {
     // 40 letters, a tab, 40 letters: 81 scalar values, so the cut applies,
@@ -527,7 +527,7 @@ fn it170_structural_characters_become_spaces_before_truncation() {
     assert!(!markdown.contains('\t'), "{markdown:?}");
 }
 
-#[trace("IT-170", "FR-026-AC-6")]
+#[trace("FR-026-AC-6")]
 #[test]
 fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
     let short = "Short and whole.";
@@ -589,7 +589,7 @@ fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
     );
 }
 
-#[trace("IT-171", "FR-026-AC-7")]
+#[trace("FR-026-AC-7")]
 #[test]
 fn it171_json_wraps_the_engine_value_verbatim_with_provenance() {
     let f = populated();
@@ -630,7 +630,7 @@ fn it171_json_wraps_the_engine_value_verbatim_with_provenance() {
     assert_eq!(keys, ["engine"]);
 }
 
-#[trace("IT-172", "FR-026-AC-8")]
+#[trace("FR-026-AC-8")]
 #[test]
 fn it172_tsv_emits_one_untruncated_record_per_criterion() {
     let f = populated();
@@ -725,7 +725,7 @@ fn zero_populations() -> [Fixture; 2] {
     [undeclared, derives_nothing]
 }
 
-#[trace("IT-173", "FR-026-AC-9")]
+#[trace("FR-026-AC-9")]
 #[test]
 fn it173_both_zero_population_shapes_render_identically() {
     for f in zero_populations() {
@@ -747,7 +747,7 @@ fn it173_both_zero_population_shapes_render_identically() {
     }
 }
 
-#[trace("IT-174", "FR-026-AC-10", "FR-026-AC-11")]
+#[trace("FR-026-AC-10", "FR-026-AC-11")]
 #[test]
 fn it174_strict_requires_at_least_one_criterion_all_backed() {
     for f in zero_populations() {
@@ -808,7 +808,7 @@ fn it174_strict_requires_at_least_one_criterion_all_backed() {
     );
 }
 
-#[trace("IT-175", "FR-026-AC-11")]
+#[trace("FR-026-AC-11")]
 #[test]
 fn it175_method_without_symbol_never_fails_strict() {
     let f = Fixture::with_obligations();
@@ -849,7 +849,7 @@ fn it175_method_without_symbol_never_fails_strict() {
     }
 }
 
-#[trace("IT-176", "FR-026-AC-12")]
+#[trace("FR-026-AC-12")]
 #[test]
 fn it176_no_severity_pack_and_no_unread_measurement_gate() {
     let f = populated();
@@ -935,7 +935,7 @@ fn snapshot(root: &Path) -> BTreeMap<String, Vec<u8>> {
     files
 }
 
-#[trace("IT-177", "FR-026-AC-14")]
+#[trace("FR-026-AC-14")]
 #[test]
 fn it177_matrix_writes_nothing_under_the_scope() {
     let f = populated();
@@ -964,7 +964,7 @@ fn it177_matrix_writes_nothing_under_the_scope() {
     }
 }
 
-#[trace("TC-841", "FR-026-AC-13")]
+#[trace("FR-026-AC-13")]
 #[test]
 fn tc841_every_matrix_exit_code_is_in_the_fr007_taxonomy() {
     let populated = populated();
@@ -1094,7 +1094,7 @@ fn criticality_cells(f: &Fixture, id: &str) -> (Vec<String>, Vec<String>) {
     (md_cells, record.split('\t').map(str::to_string).collect())
 }
 
-#[trace("IT-183", "FR-028-AC-1", "FR-028-AC-2", "FR-028-AC-5")]
+#[trace("FR-028-AC-1", "FR-028-AC-2", "FR-028-AC-5")]
 #[test]
 fn fr028_each_requirement_shows_only_its_own_criticality() {
     let f = criticality_fixture(&[
@@ -1128,7 +1128,7 @@ fn fr028_each_requirement_shows_only_its_own_criticality() {
     }
 }
 
-#[trace("IT-184", "FR-028-AC-4")]
+#[trace("FR-028-AC-4")]
 #[test]
 fn fr028_json_passes_requirements_through_unmodified() {
     let f = criticality_fixture(&[("FR-001", "criticality: unassigned\n"), ("FR-002", "")]);
@@ -1153,7 +1153,7 @@ fn fr028_json_passes_requirements_through_unmodified() {
     );
 }
 
-#[trace("IT-185", "FR-028-AC-6")]
+#[trace("FR-028-AC-6")]
 #[test]
 fn fr028_zero_population_keeps_its_shape_with_the_six_column_tsv_header() {
     for f in zero_populations() {
@@ -1168,7 +1168,7 @@ fn fr028_zero_population_keeps_its_shape_with_the_six_column_tsv_header() {
     }
 }
 
-#[trace("IT-186", "FR-028-AC-7", "FR-028-AC-8")]
+#[trace("FR-028-AC-7", "FR-028-AC-8")]
 #[test]
 fn fr028_odd_values_are_escaped_and_scrubbed_like_every_other_cell() {
     // YAML double-quoted escapes keep the control characters inside one value.
@@ -1188,7 +1188,7 @@ fn fr028_odd_values_are_escaped_and_scrubbed_like_every_other_cell() {
     assert_eq!(tsv_all.lines().count(), 3, "header plus one record each");
 }
 
-#[trace("IT-187", "FR-028-AC-9", "FR-028-AC-10")]
+#[trace("FR-028-AC-9", "FR-028-AC-10")]
 #[test]
 fn fr028_empty_and_non_string_values_are_not_unassigned() {
     let f = criticality_fixture(&[
@@ -1203,7 +1203,7 @@ fn fr028_empty_and_non_string_values_are_not_unassigned() {
     assert_eq!(tsv.last().unwrap(), "3");
 }
 
-#[trace("IT-188", "FR-028-AC-3")]
+#[trace("FR-028-AC-3")]
 #[test]
 fn fr028_a_missing_key_renders_unassigned_in_both_formats() {
     let f = criticality_fixture(&[("FR-001", "")]);
@@ -1231,7 +1231,7 @@ fn strict_outcome(frontmatter: [&str; 2], backed: bool) -> (i32, String) {
     (code(&out), stderr(&out).replace(&f.scope(), "<scope>"))
 }
 
-#[trace("IT-189", "FR-028-AC-11")]
+#[trace("FR-028-AC-11")]
 #[test]
 fn fr028_criticality_does_not_change_strict_or_the_exit_code() {
     let variants = [

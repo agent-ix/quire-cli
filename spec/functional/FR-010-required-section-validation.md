@@ -30,7 +30,7 @@ relationships:
 > carries `line: None`. The CLI surfaces this verbatim ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md) — it cannot
 > invent a line). The line-number clause is therefore exercised by the
 > `placeholder`/`empty`/`assert` cases where the element is present
-> (IT-051, IT-053). Flagging for upstream: if a line is required for absent
+>. Flagging for upstream: if a line is required for absent
 > sections, FR-032 must attribute the expected-insertion line — not a CLI
 > concern. No silent spec edit made.
 

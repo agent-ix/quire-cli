@@ -98,7 +98,7 @@ pub struct Args {
 ///
 /// Generic since FR-047 added a second grammar: this previously matched a
 /// hardcoded `[ears:` prefix, so `ac` findings were silently absent from the
-/// histogram (TC-714). The key is returned whole so two grammars declaring the
+/// histogram. The key is returned whole so two grammars declaring the
 /// same check name stay distinguishable.
 fn grammar_check_name(message: &str) -> Option<&str> {
     let rest = message.strip_prefix('[')?;
@@ -202,7 +202,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         let archetype = match registry.archetype(&archetype_name) {
             Some(a) => a,
             // An explicit `--archetype` that doesn't exist is a usage
-            // error, not document data → fail fast (IT-013/IT-050).
+            // error, not document data → fail fast.
             None if args.archetype.is_some() => {
                 invalid_request!("UnknownArchetype: '{archetype_name}' is not registered");
             }

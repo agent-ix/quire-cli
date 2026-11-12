@@ -43,7 +43,7 @@ pub fn validate_doc(name: &str) -> PathBuf {
 }
 
 /// A direct-markdown document fixture under `iso-docs/` (used by the
-/// render-free validate sweep, IT-014, and FR-004 failure-path ITs).
+/// render-free validate sweep and FR-004 failure-path ITs).
 pub fn iso_doc(name: &str) -> PathBuf {
     fixture_root().join(format!("iso-docs/{name}"))
 }

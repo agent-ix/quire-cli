@@ -37,8 +37,8 @@ struct CoverageReport {
 pub fn required_targets() -> BTreeSet<String> {
     let mut required = BTreeSet::new();
     required.extend((1..=8).map(|index| format!("FR-020-AC-{index}")));
-    required.extend((136..=144).map(|index| format!("IT-{index}")));
-    required.insert("TC-814".to_owned());
+    required.extend((1..=7).map(|index| format!("FR-025-AC-{index}")));
+    required.extend((1..=4).map(|index| format!("FR-025-CON-{index}")));
     required.insert("StR-004-VC-2".to_owned());
     required.insert("StR-004-VC-3".to_owned());
     required

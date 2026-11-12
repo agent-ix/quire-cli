@@ -3,9 +3,7 @@
 //! files. Linux-only.
 //!
 //! The trace id sits on the test, not here — a `//!` block attaches to the file
-//! and binds to no symbol. The old `AUDIT-001` id predates the `TC-`/`IT-`
-//! prefix unification (spec-artifacts-process CR-019); the matrix row is
-//! TC-089 (agent-ix/quire-cli#43).
+//! and binds to no symbol (agent-ix/quire-cli#43).
 
 #![cfg(target_os = "linux")]
 
@@ -34,8 +32,8 @@ fn is_allowed(lib_name: &str) -> bool {
     ALLOWED_LIBS.contains(&lib_name) || lib_name.starts_with("ld-linux-")
 }
 
-// TC-089, NFR-002-AC-1, NFR-002-M-1: `ldd` shows only libc + loader, no project `.so`.
-#[trace("TC-089", "NFR-002-AC-1")]
+// NFR-002-AC-1, NFR-002-M-1: `ldd` shows only libc + loader, no project `.so`.
+#[trace("NFR-002-AC-1")]
 #[test]
 fn binary_links_only_baseline_libs() {
     // Resolve the binary path via the same mechanism `assert_cmd` uses.
@@ -69,7 +67,7 @@ fn binary_links_only_baseline_libs() {
 
     assert!(
         offenders.is_empty(),
-        "AUDIT-001 violation: binary depends on non-baseline shared libraries: {offenders:?}\n\
+        "ldd audit violation: binary depends on non-baseline shared libraries: {offenders:?}\n\
          full ldd output:\n{stdout}"
     );
 }
