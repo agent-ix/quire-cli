@@ -48,3 +48,9 @@ Changes requested on traceability only. The behaviour matches FR-028 for every A
 - `--strict` is unaffected.
 
 The tests are not reachable from the matrix the repo computes, so the matrix still shows FR-028 entirely untagged. FND-001 closes that gap. There is no unowned production code in the diff.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | ac457ad adds IT-183..IT-189 and an FR-028 feature row to spec/tests.md, and tags each test `#[trace("IT-NNN", "FR-028-AC-n")]`; at ac457ad `quire matrix --scope .` computes all 11 FR-028 criteria `tagged`, with no FR-028 `criterion-tagged-outside-row` warning |

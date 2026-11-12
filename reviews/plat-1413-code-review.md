@@ -58,3 +58,11 @@ Changes requested. The rendering code is correct and idiomatic:
 FND-001 blocks the merge: the PR does not compile at its own lockfile.
 
 A minor point, not a finding: `render_tsv` recomputes `criticality_text` per criterion, while `render_markdown` computes it once per requirement.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | ac457ad sets Cargo.lock quire-rs (and quire-code-extraction) to `#0575fd48f725e16d87e835b744f02b6dd95d2a56`; `cargo test --locked` and `cargo clippy --locked --all-targets -D warnings` pass at ac457ad |
+| FND-002 | fixed | ac457ad adds a CHANGELOG [Unreleased] entry for the `quire matrix` Requirement Criticality column, including the column-count note for consumers |
+| FND-003 | fixed | ac457ad's `strict_outcome` compares (exit, scope-scrubbed stderr) across all-high, all-missing, mixed and low/medium variants, for both a backed corpus (exit 0) and an unbacked, strict-failing corpus (exit 1) |
