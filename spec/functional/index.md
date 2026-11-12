@@ -33,3 +33,4 @@ description: "Index of artifacts in this directory."
 * [FR-026: quire matrix subcommand](./FR-026-matrix-subcommand.md)
 * [FR-027: Cargo.lock Git-revision coherence gate](./FR-027-check-lock-subcommand.md)
 * [FR-028: quire matrix renders requirement criticality](./FR-028-matrix-criticality-column.md)
+* [FR-029: quire publish-check subcommand](./FR-029-publish-check-subcommand.md)
