@@ -13,6 +13,9 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-032"
     type: "consumes"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-038"
+    type: "consumes"
+    cardinality: "1:1"
 ---
 
 > **CR note (OKF bundle posture, 2026-06-16):** new `--okf` flag on the existing
@@ -35,7 +38,8 @@ relationships:
 
 The CLI SHALL add an `--okf` flag to the `validate` subcommand that validates a
 directory wholesale as an OKF bundle under the permissive
-(`BundlePosture::Okf`) posture, plus enforce the base-concept contract (`type`
+(`BundlePosture::Okf`) posture by default, or under `BundlePosture::Strict`
+when `--strict` is also given (§A), plus enforce the base-concept contract (`type`
 required + non-empty) in both postures, delegating all bundle and concept
 validation to `quire-rs`. The behavioral surface is specified below.
 
@@ -46,12 +50,12 @@ validation to `quire-rs`. The behavioral surface is specified below.
 The CLI SHALL accept an `--okf` flag on the `validate` subcommand:
 
 ```
-quire validate [<DIR>] --okf [--scope <DIR>] [--module <PATH>]
+quire validate [<DIR>] --okf [--strict] [--scope <DIR>] [--module <PATH>]
 ```
 
 With `--okf`, the **bundle root** is the positional argument when one is given,
 and `<scope>/spec` when none is (CR note below). It is validated wholesale as an
-OKF bundle under the permissive posture via `quire_rs::validate_bundle(&spec,
+OKF bundle under the permissive posture (`BundlePosture::Strict` when `--strict` is given, FR-014-AC-11) via `quire_rs::validate_bundle(&spec,
 &registry, BundlePosture::Okf, document_root, reference_root)` — two roots, so
 the module's path-bound declarations keep resolving against the repository scope
 (quire-rs FR-049-AC-9). The returned `BundleReport` is surfaced on stderr:
@@ -107,7 +111,7 @@ The positional `documents` argument is now `required_unless_present = "okf"`:
 | FR-014-AC-8 | (base concept contract) an untyped document is a hard error (exit 3, `[frontmatter]` diagnostic naming `type`) in **both** postures — strict per-file ([FR-004](./FR-004-validate-subcommand.md)) and `--okf` bundle — because quire-rs enforces `type` required + non-empty for every validated document | Test |
 | FR-014-AC-9 | (thin boundary) all bundle/base-concept validation is delegated to quire-rs (`validate_bundle`, base-concept enforcement); the CLI only resolves the root, applies path-safety, and surfaces the `BundleReport` ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); TC-090) | Inspection |
 | FR-014-AC-10 | Under `--okf` the bundle package (`<org>/<repo>`, lowercased) is declared from the `origin` remote of the checkout containing each bundle's document root — not the caller's cwd or scope (quire-rs FR-076). A dangling `ix://<other-org>/<other-repo>/ID` link under a **foreign** authority is skipped (no diagnostic); a miss under the bundle's **own** authority still warns `[dangling-reference]`; with **no** package declared (no git checkout or no `origin`) every miss warns | Test |
-| FR-014-AC-11 | `quire validate --okf --strict <DIR>` runs the bundle under quire-rs `BundlePosture::Strict`. A `dangling-reference` whose target is a bare id or sits under the bundle's own authority (FR-014-AC-10) exits non-zero (3) and stderr prints the source document **path**, the edge type and the missing target id (quire-rs FR-038-AC-11). A target under a foreign authority stays skipped and exits 0 (quire-rs FR-038-AC-9, FR-014-AC-10). Without `--strict`, FR-014-AC-3 is unchanged. | Test |
+| FR-014-AC-11 | `quire validate --okf --strict <DIR>` runs the bundle under quire-rs `BundlePosture::Strict` and also applies FR-004's `--strict` escalation (FR-004 step 5, FR-004-AC-11, FR-004-AC-22): every finding Strict turns into an error (`unknown-type`, `index-incomplete`, `index-okf-version`, archetype body errors, `dangling-reference`) and every finding that remains a warning (for example the FR-040-AC-10 edge-target checks) exits **3**, so any finding at all exits 3 and a finding-free bundle exits 0. A `dangling-reference` whose target is a bare id or sits under the bundle's own authority (FR-014-AC-10) therefore exits 3, and stderr prints the source document **path**, the edge type and the missing target id (quire-rs FR-038-AC-11). A target under a foreign authority is skipped (quire-rs FR-038-AC-9, FR-014-AC-10) and contributes no finding, so a bundle that is otherwise Strict-conformant and has only foreign-authority targets exits 0. A miss with no package declared, and a two-segment `ix://<org>/<id>` link to an absent id, are dangling and exit 3 (FR-014-AC-10, quire-rs FR-038-AC-9). Without `--strict`, FR-014-AC-3 is unchanged. | Test |
 
 > **CR note (two roots from one scope, 2026-08-15):** AC-6 previously read
 > "validates the `--scope` directory as the bundle root". That is no longer what
@@ -132,5 +136,5 @@ The positional `documents` argument is now `required_unless_present = "okf"`:
 
 ## Dependencies
 
-- **Upstream**: [US-003](../usecase/US-003-ci-validates-archetype-conformance.md) CI validates archetype conformance; [FR-004](./FR-004-validate-subcommand.md) validate (extends); quire-rs [FR-032](ix://agent-ix/quire-rs/FR-032) (`validate_bundle_at`).
+- **Upstream**: [US-003](../usecase/US-003-ci-validates-archetype-conformance.md) CI validates archetype conformance; [FR-004](./FR-004-validate-subcommand.md) validate (extends); quire-rs [FR-038](ix://agent-ix/quire-rs/spec/functional/FR-038) FR-038-AC-11 (open in quire-rs#646), quire-rs [FR-032](ix://agent-ix/quire-rs/FR-032) (`validate_bundle_at`).
 - **Downstream**: OKF bundle CI gates consuming the permissive posture.
