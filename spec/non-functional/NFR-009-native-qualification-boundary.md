@@ -36,7 +36,7 @@ becoming an unreviewed language implementation.
 |--------|--------|-----------|--------|
 | Executable Python or shell qualification files outside fixture data | 0 | 0 | Static inventory |
 | Shell processes spawned by Rust qualification tests | 0 | 0 | Process/static audit |
-| Implemented FR-025 matrix rows lacking canonical `ix-trace-rs` bindings | 0 | 0 | Traceability audit |
+| Implemented FR-025 criteria lacking canonical `ix-trace-rs` bindings | 0 | 0 | Traceability audit |
 | Hosted CI runs dispatched by this slice | 0 | 0 | Change inspection |
 
 ## Verification

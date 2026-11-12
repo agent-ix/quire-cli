@@ -271,7 +271,6 @@ fn it_119_criteria_renders_the_fields_the_census_omitted() {
 /// while unmatched trace symbols went unmentioned — so "diagnostics is
 /// non-empty" was true and meant nothing. This asserts a **binding** finding
 /// specifically, the class that was silent.
-#[trace("FR-006-AC-5")]
 #[test]
 fn it_120_the_diagnostics_channel_reports_a_binder_that_read_nothing() {
     let dir = TempDir::new().expect("tempdir");
