@@ -48,6 +48,8 @@ enum Command {
     CheckLock(commands::check_lock::Args),
     /// Evaluate or compare rights-aware module clause sets.
     Clauses(commands::clauses::Args),
+    /// Refuse a module that carries restricted clause text.
+    PublishCheck(commands::publish_check::Args),
     /// Parse a markdown document to JSON.
     Parse(commands::parse::Args),
     /// Extract structured records + edges from a document.
@@ -103,6 +105,7 @@ fn main() {
         Command::Assurance(a) => commands::assurance::run(&ctx, a),
         Command::CheckLock(a) => commands::check_lock::run(&ctx, a),
         Command::Clauses(a) => commands::clauses::run(&ctx, a),
+        Command::PublishCheck(a) => commands::publish_check::run(&ctx, a),
         Command::Parse(a) => commands::parse::run(&ctx, a),
         Command::Extract(a) => commands::extract::run(&ctx, a),
         Command::Lookup(a) => commands::lookup::run(&ctx, a),

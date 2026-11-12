@@ -49,6 +49,7 @@ pub mod matrix;
 pub mod parse;
 pub mod properties;
 pub mod provenance;
+pub mod publish_check;
 pub mod schema;
 pub mod symbols;
 pub mod trace;

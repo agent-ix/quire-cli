@@ -3,25 +3,26 @@ Thin CLI over quire-rs (documents, contracts, clause sets, and assurance export)
 Usage: quire [OPTIONS] <COMMAND>
 
 Commands:
-  assurance   Emit source-grounded assurance facts through quire-rs assurance-v1
-  check-lock  Check agent-ix Git dependency coherence in Cargo.lock files
-  clauses     Evaluate or compare rights-aware module clause sets
-  parse       Parse a markdown document to JSON
-  extract     Extract structured records + edges from a document
-  lookup      Look up one parsed section by heading, id, or block id
-  edit        Edit one section/block of a document in place via byte-exact writeback
-  validate    Validate a markdown document against its archetype structure
-  coverage    AC→TC→code coverage rollup (FR-050). Reports; does not judge
-  matrix      Render the computed coverage matrix: requirement → criterion → binders → status
-  symbols     Report the extracted symbol table, as the engine built it (#309)
-  trace       Structural forward/inverse lookup over the trace-search index (PLAT-879)
-  properties  Per-criterion property-shape classification (FR-052). Reports; never a finding
-  provenance  Report exact CLI/engine source identity and capabilities as JSON
-  schema      Emit an archetype's input contract (frontmatter schema + asserts) as JSON
-  lint        Evaluate the module's advisory lint rules against a document
-  fix         Surface (and with --write, apply) internal relative-path link fixes
-  update      Check for and install the latest quire (auto-detects npm vs cargo)
-  help        Print this message or the help of the given subcommand(s)
+  assurance      Emit source-grounded assurance facts through quire-rs assurance-v1
+  check-lock     Check agent-ix Git dependency coherence in Cargo.lock files
+  clauses        Evaluate or compare rights-aware module clause sets
+  publish-check  Refuse a module that carries restricted clause text
+  parse          Parse a markdown document to JSON
+  extract        Extract structured records + edges from a document
+  lookup         Look up one parsed section by heading, id, or block id
+  edit           Edit one section/block of a document in place via byte-exact writeback
+  validate       Validate a markdown document against its archetype structure
+  coverage       AC→TC→code coverage rollup (FR-050). Reports; does not judge
+  matrix         Render the computed coverage matrix: requirement → criterion → binders → status
+  symbols        Report the extracted symbol table, as the engine built it (#309)
+  trace          Structural forward/inverse lookup over the trace-search index (PLAT-879)
+  properties     Per-criterion property-shape classification (FR-052). Reports; never a finding
+  provenance     Report exact CLI/engine source identity and capabilities as JSON
+  schema         Emit an archetype's input contract (frontmatter schema + asserts) as JSON
+  lint           Evaluate the module's advisory lint rules against a document
+  fix            Surface (and with --write, apply) internal relative-path link fixes
+  update         Check for and install the latest quire (auto-detects npm vs cargo)
+  help           Print this message or the help of the given subcommand(s)
 
 Options:
       --diagnostics-format <FORMAT>  Diagnostic stream format on stderr [default: human]

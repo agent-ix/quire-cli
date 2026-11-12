@@ -9,6 +9,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- PLAT-1421: `quire publish-check --module <dir> [--format human|json]` refuses a module whose clause sets carry restricted text. It exits 2 naming each `authority/id@version`, and 0 with `no restricted clause sets` otherwise (FR-029). The engine decides which sets are restricted.
+
 ## [0.43.0] — 2026-11-12
 
 - **`validate --okf` renders `BundleFinding.line` (PLAT-1489).** A located bundle finding (`dangling-trace-reference`, `reference-kind-mismatch`, bridged document errors under `--strict`) prints `<path>: line <N>: <message> [<reason>]` and its JSON record carries `line`, `path` and `reason`; unlocated findings are unchanged (FR-014-AC-12..16).
