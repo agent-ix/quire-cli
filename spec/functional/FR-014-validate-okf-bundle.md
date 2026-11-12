@@ -60,7 +60,10 @@ OKF bundle under the permissive posture (`BundlePosture::Strict` when `--strict`
 the module's path-bound declarations keep resolving against the repository scope
 (quire-rs FR-049-AC-9). The returned `BundleReport` is surfaced on stderr:
 warnings (non-fatal) first, then errors, in the shared quire-rs diagnostic shape
-(`<path>: <message> [<reason>]`).
+(`<path>: <message> [<reason>]`). A finding the engine locates (`BundleFinding.line`,
+quire-rs FR-049-AC-19..22) carries its line exactly as a located document diagnostic does
+(`<path>: line <N>: <message> [<reason>]`, FR-014-AC-12) and its JSON record gains a numeric
+`line` field with its `path` and `reason` (FR-014-AC-13). Record order is FR-014-AC-16.
 
 Posture semantics (permissive):
 - `type` is still **required + non-empty** on every document — an untyped
@@ -112,6 +115,11 @@ The positional `documents` argument is now `required_unless_present = "okf"`:
 | FR-014-AC-9 | (thin boundary) all bundle/base-concept validation is delegated to quire-rs (`validate_bundle`, base-concept enforcement); the CLI only resolves the root, applies path-safety, and surfaces the `BundleReport` ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); TC-090) | Inspection |
 | FR-014-AC-10 | Under `--okf` the bundle package (`<org>/<repo>`, lowercased) is declared from the `origin` remote of the checkout containing each bundle's document root — not the caller's cwd or scope (quire-rs FR-076). A dangling `ix://<other-org>/<other-repo>/ID` link under a **foreign** authority is skipped (no diagnostic); a miss under the bundle's **own** authority still warns `[dangling-reference]`; with **no** package declared (no git checkout or no `origin`) every miss warns | Test |
 | FR-014-AC-11 | `quire validate --okf --strict <DIR>` runs the bundle under quire-rs `BundlePosture::Strict` and also applies FR-004's `--strict` escalation (FR-004 step 5, FR-004-AC-11, FR-004-AC-22): every finding Strict turns into an error (`unknown-type`, `index-incomplete`, `index-okf-version`, archetype body errors, `dangling-reference`) and every finding that remains a warning (for example the FR-040-AC-10 edge-target checks) exits **3**, so any finding at all exits 3 and a finding-free bundle exits 0. A `dangling-reference` whose target is a bare id or sits under the bundle's own authority (FR-014-AC-10) therefore exits 3, and stderr prints the source document **path**, the edge type and the target as harvested (quire-rs FR-038-AC-11). A target under a foreign authority is skipped (quire-rs FR-038-AC-9, FR-014-AC-10) and contributes no finding, so a bundle that is otherwise Strict-conformant and has only foreign-authority targets exits 0. A miss with no package declared, and a two-segment `ix://<org>/<id>` link to an absent id, are dangling and exit 3 (FR-014-AC-10, quire-rs FR-038-AC-9). Without `--strict`, FR-014-AC-3 is unchanged. | Test |
+| FR-014-AC-12 | A bundle finding whose `BundleFinding.line` is `Some(N)` — a `dangling-trace-reference` or `reference-kind-mismatch` finding (quire-rs FR-049-AC-19/20) at its referencing row, or a bridged document error/warning (quire-rs FR-049-AC-22), under `--strict` — is printed in the located form `<path>: line <N>: <message> [<reason>]`, the same `line <N>: ` prefix located document diagnostics use (FR-004-AC-2) | Test |
+| FR-014-AC-13 | With `--diagnostics-format json`, the record of a finding with `Some(N)` carries a numeric `line` field equal to `N`, paired with `path` (the finding's document path) and `reason` (its reason token) as every other located JSON diagnostic does (FR-004 document validation); a finding with `line` `None` carries none of `line`, `path` or `reason` | Test |
+| FR-014-AC-14 | A bridged document error under `--okf --strict` carries the line of its document-validation result: the line printed by single-document `quire validate` for the same document (FR-004-AC-2) is the line printed by the bundle form | Test |
+| FR-014-AC-15 | A finding with `line` `None` renders byte-identically to the pre-FR-014-AC-12 form `<path>: <message> [<reason>]` in human output and as the same JSON record, with no `line`, `path` or `reason` key | Test |
+| FR-014-AC-16 | Bundle diagnostics are emitted warnings first, then errors, each in the engine's order, in both human and JSON output, whether or not they carry a line | Test |
 
 > **CR note (two roots from one scope, 2026-08-15):** AC-6 previously read
 > "validates the `--scope` directory as the bundle root". That is no longer what
