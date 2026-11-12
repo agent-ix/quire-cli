@@ -15,7 +15,7 @@ fn fake_binary(dir: &Path, reported: &str) -> std::path::PathBuf {
     path
 }
 
-#[trace("TC-818", "FR-022-AC-4")]
+#[trace("FR-022-AC-4")]
 #[test]
 fn verify_binary_accepts_match_and_rejects_mismatch_or_invalid_version() {
     let dir = tempfile::tempdir().unwrap();

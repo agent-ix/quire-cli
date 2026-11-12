@@ -149,7 +149,7 @@ fn remove_insignificant_json_whitespace(bytes: &[u8]) -> Vec<u8> {
     compact
 }
 
-#[trace("IT-136", "FR-020-AC-1")]
+#[trace("FR-020-AC-1")]
 #[test]
 fn it_136_complete_fixture_exercises_every_assurance_record_family() {
     let fixture = fixture(true);
@@ -200,7 +200,7 @@ fn it_136_complete_fixture_exercises_every_assurance_record_family() {
             .is_some_and(|reason| !reason.is_empty())));
 }
 
-#[trace("IT-137", "FR-020-AC-1")]
+#[trace("FR-020-AC-1")]
 #[test]
 fn it_137_output_is_the_upstream_type_and_schema() {
     let fixture = fixture(true);
@@ -223,7 +223,7 @@ fn it_137_output_is_the_upstream_type_and_schema() {
     );
 }
 
-#[trace("IT-138", "FR-020-AC-2")]
+#[trace("FR-020-AC-2")]
 #[test]
 fn it_138_compact_pretty_and_golden_bytes_are_deterministic() {
     let fixture = fixture(true);
@@ -265,7 +265,7 @@ fn it_138_compact_pretty_and_golden_bytes_are_deterministic() {
     );
 }
 
-#[trace("IT-139", "FR-020-AC-3", "FR-020-CON-4")]
+#[trace("FR-020-AC-3", "FR-020-CON-4")]
 #[test]
 fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     let fixture = fixture(false);
@@ -306,7 +306,7 @@ fn it_139_every_module_or_schema_premise_drift_is_refused_atomically() {
     }
 }
 
-#[trace("IT-140", "FR-020-AC-3", "FR-020-CON-4")]
+#[trace("FR-020-AC-3", "FR-020-CON-4")]
 #[test]
 fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
     let base = fixture(false);
@@ -342,7 +342,7 @@ fn it_140_malformed_or_incomplete_premises_and_modules_fail_before_stdout() {
     }
 }
 
-#[trace("IT-141", "FR-020-AC-4")]
+#[trace("FR-020-AC-4")]
 #[test]
 fn it_141_empty_unknown_and_unavailable_are_three_distinct_outcomes() {
     let empty = fixture(false);
@@ -388,7 +388,7 @@ fn it_141_empty_unknown_and_unavailable_are_three_distinct_outcomes() {
         .all(|relation| relation["kind"] != "verifies" && relation["kind"] != "implements"));
 }
 
-#[trace("IT-142", "FR-020-AC-5")]
+#[trace("FR-020-AC-5")]
 #[test]
 fn it_142_diagnostics_stay_on_stderr_in_human_and_json_modes() {
     let fixture = fixture(true);

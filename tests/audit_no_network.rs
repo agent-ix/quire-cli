@@ -126,10 +126,10 @@ fn assert_no_inet_socket(trace: &str, subcommand: &str) {
     }
 }
 
-/// IT-143, FR-020-AC-7: `assurance` opens no network socket and executes no
+/// FR-020-AC-7: `assurance` opens no network socket and executes no
 /// child command. The one `execve` is strace starting the quire process itself;
 /// a second would be Git, a package manager, runner, solver, or consumer.
-#[trace("IT-143", "FR-020-AC-7", "FR-020-CON-2", "NFR-004-AC-2")]
+#[trace("FR-020-AC-7", "FR-020-CON-2", "NFR-004-AC-2")]
 #[test]
 fn assurance_does_not_open_inet_socket_or_execute_a_child() {
     assert!(
@@ -189,8 +189,8 @@ fn assurance_does_not_open_inet_socket_or_execute_a_child() {
     }
 }
 
-// IT-008, NFR-004-AC-2, StR-001-AC-4: `schema` opens no inet socket.
-#[trace("IT-008", "NFR-004-AC-2")]
+// NFR-004-AC-2, StR-001-AC-4: `schema` opens no inet socket.
+#[trace("NFR-004-AC-2")]
 #[test]
 fn schema_does_not_open_inet_socket() {
     if !strace_available() {
@@ -202,8 +202,8 @@ fn schema_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "schema");
 }
 
-// IT-008, NFR-004-AC-2, StR-001-AC-4: `parse` opens no inet socket.
-#[trace("IT-008", "NFR-004-AC-2")]
+// NFR-004-AC-2, StR-001-AC-4: `parse` opens no inet socket.
+#[trace("NFR-004-AC-2")]
 #[test]
 fn parse_does_not_open_inet_socket() {
     if !strace_available() {
@@ -216,8 +216,8 @@ fn parse_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "parse");
 }
 
-// IT-008, NFR-004-AC-2, StR-001-AC-4: `validate` opens no inet socket.
-#[trace("IT-008", "NFR-004-AC-2")]
+// NFR-004-AC-2, StR-001-AC-4: `validate` opens no inet socket.
+#[trace("NFR-004-AC-2")]
 #[test]
 fn validate_does_not_open_inet_socket() {
     if !strace_available() {
@@ -235,8 +235,8 @@ fn validate_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "validate");
 }
 
-// IT-008, NFR-004-AC-2, StR-001-AC-4: `extract` opens no inet socket.
-#[trace("IT-008", "NFR-004-AC-2")]
+// NFR-004-AC-2, StR-001-AC-4: `extract` opens no inet socket.
+#[trace("NFR-004-AC-2")]
 #[test]
 fn extract_does_not_open_inet_socket() {
     if !strace_available() {
@@ -255,8 +255,8 @@ fn extract_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "extract");
 }
 
-// IT-008, NFR-004-AC-2, StR-001-AC-4: `lookup` opens no inet socket.
-#[trace("IT-008", "NFR-004-AC-2")]
+// NFR-004-AC-2, StR-001-AC-4: `lookup` opens no inet socket.
+#[trace("NFR-004-AC-2")]
 #[test]
 fn lookup_does_not_open_inet_socket() {
     if !strace_available() {
@@ -269,8 +269,8 @@ fn lookup_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "lookup");
 }
 
-// IT-158, FR-021-AC-7, NFR-004-AC-2: clause evaluation is wholly local.
-#[trace("IT-158", "FR-021-AC-7", "NFR-004-AC-2")]
+// FR-021-AC-7, NFR-004-AC-2: clause evaluation is wholly local.
+#[trace("FR-021-AC-7", "NFR-004-AC-2")]
 #[test]
 fn clauses_does_not_open_inet_socket() {
     if !strace_available() {
@@ -296,13 +296,13 @@ fn clauses_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "clauses evaluate");
 }
 
-// IT-083, FR-016-AC-2, NFR-004-AC-2: `update --check` on the Unknown install
+// FR-016-AC-2, NFR-004-AC-2: `update --check` on the Unknown install
 // source (the test binary lives under `target/`, neither `node_modules` nor
 // `.cargo`) opens no inet socket. Until #56 the "performs no install/network"
 // clause of IT-083/IT-084 held by construction only — the Unknown path never
 // shells out — with nothing observing it (SR-006 FND-001); this is the
 // observation.
-#[trace("IT-083", "FR-016-AC-2", "NFR-004-AC-2")]
+#[trace("FR-016-AC-2", "NFR-004-AC-2")]
 #[test]
 fn update_check_does_not_open_inet_socket() {
     if !strace_available() {
@@ -313,10 +313,10 @@ fn update_check_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "update --check");
 }
 
-// IT-084, FR-016-AC-2, NFR-004-AC-2: bare `update` on the Unknown source is
+// FR-016-AC-2, NFR-004-AC-2: bare `update` on the Unknown source is
 // equally network-free — the manual-instructions path installs nothing and
 // opens no socket.
-#[trace("IT-084", "FR-016-AC-2", "NFR-004-AC-2")]
+#[trace("FR-016-AC-2", "NFR-004-AC-2")]
 #[test]
 fn update_without_check_does_not_open_inet_socket() {
     if !strace_available() {
@@ -327,12 +327,12 @@ fn update_without_check_does_not_open_inet_socket() {
     assert_no_inet_socket(&trace, "update");
 }
 
-// IT-081, FR-004-AC-13, NFR-004-AC-2: scoped validation that discovers its
+// FR-004-AC-13, NFR-004-AC-2: scoped validation that discovers its
 // module via the new `IX_FILAMENT_MODULES_PATH` root (modules present, so no
 // `quoin` is spawned) validates the document AND opens no inet socket. HOME is
 // pointed at an empty dir so the default install root resolves to a missing
 // path, isolating the test from the host's real ~/.ix.
-#[trace("IT-081", "FR-004-AC-13", "NFR-004-AC-2")]
+#[trace("FR-004-AC-13", "NFR-004-AC-2")]
 #[test]
 fn scoped_env_discovery_validates_without_inet_socket() {
     if !strace_available() {

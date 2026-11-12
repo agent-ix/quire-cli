@@ -84,14 +84,14 @@ fn assert_provenance(payload: &Value, surface: &str) {
     );
 }
 
-// IT-123, FR-008-AC-6: `quire --version` reports the CLI and the engine
+// FR-008-AC-6: `quire --version` reports the CLI and the engine
 // version distinctly.
 //
 // `--version` reported `CARGO_PKG_VERSION` alone, so a binary linking a stale
 // engine was indistinguishable from one linking a current engine. Asserting
 // both strings appear is not enough on its own — if they happened to be equal
 // the test would pass over the exact failure — so the label is asserted too.
-#[trace("IT-123", "FR-008-AC-6")]
+#[trace("FR-008-AC-6")]
 #[test]
 fn it_123_version_reports_the_cli_and_the_engine() {
     let out = quire().arg("--version").output().expect("--version runs");
@@ -186,8 +186,8 @@ fn extract_payload() -> Value {
     )
 }
 
-// IT-124, FR-008-AC-6: the `extract` payload carries provenance.
-#[trace("IT-124", "FR-008-AC-6")]
+// FR-008-AC-6: the `extract` payload carries provenance.
+#[trace("FR-008-AC-6")]
 #[test]
 fn it_124_extract_payload_carries_provenance() {
     let (raw, payload) = raw_and_payload(
@@ -214,12 +214,12 @@ fn it_124_extract_payload_carries_provenance() {
     assert!(payload["edges"].is_array(), "{payload}");
 }
 
-// IT-125, FR-008-AC-6: the `properties` payload carries provenance.
+// FR-008-AC-6: the `properties` payload carries provenance.
 //
 // This is the payload quoin's `spec-correctness` skill reads and a generated
 // property test is derived from. A classification whose classifier version is
 // unknowable is a classification nobody can re-derive.
-#[trace("IT-125", "FR-008-AC-6")]
+#[trace("FR-008-AC-6")]
 #[test]
 fn it_125_properties_payload_carries_provenance() {
     let payload = properties_payload();
@@ -237,12 +237,12 @@ fn it_125_properties_payload_carries_provenance() {
     );
 }
 
-// IT-126, FR-008-AC-6: the `coverage` payload carries provenance.
+// FR-008-AC-6: the `coverage` payload carries provenance.
 //
 // The surface that matters most: every ecosystem figure in four battletest
 // passes came from this payload, and none of them recorded which engine
 // produced it.
-#[trace("IT-126", "FR-008-AC-6")]
+#[trace("FR-008-AC-6")]
 #[test]
 fn it_126_coverage_payload_carries_provenance() {
     let (raw, payload) = coverage_raw_and_payload();
@@ -339,13 +339,13 @@ fn coverage_raw_and_payload() -> (String, Value) {
     )
 }
 
-// IT-127, FR-008-AC-5 (as narrowed by CR-104): the bare-version ban still
+// FR-008-AC-5 (as narrowed by CR-104): the bare-version ban still
 // holds on every payload.
 //
 // The half of AC-5 that survives. A loose `version` lets a payload assert its
 // own contract revision, which puts the contract in two places; provenance
 // under a named `engine` object is a different claim.
-#[trace("IT-127", "FR-008-AC-5")]
+#[trace("FR-008-AC-5")]
 #[test]
 fn it_127_no_payload_carries_a_bare_version_key() {
     // Every payload, not just `extract`. The first draft ran one command while
@@ -388,7 +388,7 @@ fn collect_banned_keys(node: &Value, out: &mut Vec<String>) {
     }
 }
 
-// IT-129, FR-008-AC-6 (#68 AC-4, extending #60): the envelope SHAPE is pinned
+// FR-008-AC-6 (#68 AC-4, extending #60): the envelope SHAPE is pinned
 // by a golden snapshot.
 //
 // #60 established golden snapshots for the stream contract; the envelope had
@@ -401,7 +401,7 @@ fn collect_banned_keys(node: &Value, out: &mut Vec<String>) {
 // trains a reader to regenerate it without reading it — and a golden file
 // nobody reads is a gate that lets a stale value ship unnoticed.
 // What must not drift is the shape: which keys, in which order.
-#[trace("IT-129", "FR-008-AC-6")]
+#[trace("FR-008-AC-6")]
 #[test]
 fn it_129_the_envelope_shape_is_pinned_by_a_golden_snapshot() {
     let (raw, _) = raw_and_payload(

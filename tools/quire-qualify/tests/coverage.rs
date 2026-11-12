@@ -18,7 +18,7 @@ fn check(report: &Value) -> quire_qualify::Result<String> {
     quire_qualify::coverage::check_bytes(&serde_json::to_vec(report).unwrap())
 }
 
-#[trace("TC-828", "FR-025-AC-1")]
+#[trace("FR-025-AC-1")]
 #[test]
 fn required_population_matches_current_specification() {
     let expected = [
@@ -39,7 +39,7 @@ fn required_population_matches_current_specification() {
     assert_eq!(quire_qualify::coverage::required_targets(), expected);
 }
 
-#[trace("TC-828", "FR-025-AC-1")]
+#[trace("FR-025-AC-1")]
 #[test]
 fn complete_backed_population_passes() {
     let observation = check(&complete_report()).expect("complete report");
@@ -49,7 +49,7 @@ fn complete_backed_population_passes() {
     );
 }
 
-#[trace("TC-829", "FR-025-AC-1")]
+#[trace("FR-025-AC-1")]
 #[test]
 fn missing_and_unbacked_targets_name_exact_ids() {
     let mut missing = complete_report();
@@ -79,7 +79,7 @@ fn missing_and_unbacked_targets_name_exact_ids() {
     ));
 }
 
-#[trace("TC-830", "FR-025-AC-1")]
+#[trace("FR-025-AC-1")]
 #[test]
 fn promoted_examples_and_coverage_defects_fail_independently() {
     let mut promoted = complete_report();
@@ -118,7 +118,7 @@ fn promoted_examples_and_coverage_defects_fail_independently() {
     check(&unrelated).expect("unrelated unmatched tags remain outside this gate");
 }
 
-#[trace("TC-831", "FR-025-AC-2")]
+#[trace("FR-025-AC-2")]
 #[test]
 fn malformed_or_incomplete_coverage_inputs_fail_typed_deserialization() {
     for bytes in [b"{".as_slice(), b"[]".as_slice()] {

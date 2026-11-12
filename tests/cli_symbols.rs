@@ -79,10 +79,10 @@ fn tree(dir: &TempDir) -> String {
     dir.path().to_string_lossy().into_owned()
 }
 
-#[trace("FR-019-AC-1", "IT-130")]
+#[trace("FR-019-AC-1")]
 #[test]
 fn it_130_reports_without_a_module_and_leaves_stdout_for_the_payload() {
-    // IT-130, FR-019-AC-1.
+    // FR-019-AC-1.
     // `coverage` bails without a `traceability:` model because it has nothing
     // to reconcile. "What did the scanner find" is a question about the WALK,
     // and demanding a declaration for it would make the one surface that can
@@ -99,10 +99,10 @@ fn it_130_reports_without_a_module_and_leaves_stdout_for_the_payload() {
     assert!(out.stderr.contains("symbol(s)"), "stderr: {}", out.stderr);
 }
 
-#[trace("FR-019-AC-2", "IT-131")]
+#[trace("FR-019-AC-2")]
 #[test]
 fn it_131_the_json_record_carries_every_field_and_is_byte_stable() {
-    // IT-131, FR-019-AC-2.
+    // FR-019-AC-2.
     let dir = TempDir::new().expect("tempdir");
     let scope = tree(&dir);
     let first = run(&["symbols", "--scope", &scope, "--json"]);
@@ -147,10 +147,10 @@ fn it_131_the_json_record_carries_every_field_and_is_byte_stable() {
     );
 }
 
-#[trace("FR-019-AC-3", "IT-132")]
+#[trace("FR-019-AC-3")]
 #[test]
 fn it_132_no_module_means_not_asked_rather_than_not_tagged() {
-    // IT-132, FR-019-AC-3.
+    // FR-019-AC-3.
     // THE DISTINCTION THE COMMAND EXISTS TO MAKE. An unbound run and a
     // repository nobody tagged produce the same empty `trace_ids`, and a
     // reader who cannot tell them apart draws the same wrong conclusion the
@@ -182,10 +182,10 @@ fn it_132_no_module_means_not_asked_rather_than_not_tagged() {
     );
 }
 
-#[trace("FR-019-AC-4", "IT-133")]
+#[trace("FR-019-AC-4")]
 #[test]
 fn it_133_both_denominators_are_reported_per_language() {
-    // IT-133, FR-019-AC-4.
+    // FR-019-AC-4.
     // A binding rate over `symbols` rather than `binding_kinds` reads a tree of
     // containers as untagged — the shape of the figure EPIC quire-rs#264 was
     // opened on. Both are published so neither can be assumed.
@@ -209,10 +209,10 @@ fn it_133_both_denominators_are_reported_per_language() {
     assert_eq!(rust["bound"], 0, "nothing was asked, so nothing bound");
 }
 
-#[trace("FR-019-AC-5", "IT-134")]
+#[trace("FR-019-AC-5")]
 #[test]
 fn it_134_extraction_diagnostics_reach_stderr_in_json_mode() {
-    // IT-134, FR-019-AC-5.
+    // FR-019-AC-5.
     // A file the extractor could not read is indistinguishable from a file with
     // no declarations in it, so dropping the diagnostic silently shrinks the
     // table. On stderr in EVERY format: diagnostics are the finding stream,
@@ -228,10 +228,10 @@ fn it_134_extraction_diagnostics_reach_stderr_in_json_mode() {
     assert!(payload["diagnostics"].is_array(), "payload: {}", out.stdout);
 }
 
-#[trace("FR-019-AC-6", "IT-135")]
+#[trace("FR-019-AC-6")]
 #[test]
 fn it_135_a_language_filter_narrows_both_the_records_and_the_census() {
-    // IT-135, FR-019-AC-6 (resolution shared with `coverage`).
+    // FR-019-AC-6 (resolution shared with `coverage`).
     // A filter that narrowed the records and left the census whole would
     // publish a census over a population the payload does not contain — the
     // denominator mismatch this whole programme is about, one command down.

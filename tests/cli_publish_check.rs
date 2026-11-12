@@ -105,7 +105,7 @@ fn walk(dir: &Path) -> Vec<std::path::PathBuf> {
 }
 
 #[test]
-#[trace("IT-258", "FR-029-AC-1")]
+#[trace("FR-029-AC-1")]
 fn publishable_module_exits_zero_with_clean_line() {
     let dir = TempDir::new().unwrap();
     let out = quire()
@@ -125,7 +125,7 @@ fn publishable_module_exits_zero_with_clean_line() {
 }
 
 #[test]
-#[trace("IT-259", "FR-029-AC-2", "FR-029-AC-4")]
+#[trace("FR-029-AC-2", "FR-029-AC-4")]
 fn restricted_module_exits_two_naming_each_set() {
     let dir = TempDir::new().unwrap();
     let out = quire()
@@ -149,7 +149,7 @@ fn restricted_module_exits_two_naming_each_set() {
 }
 
 #[test]
-#[trace("IT-259", "FR-029-AC-3", "FR-029-AC-4")]
+#[trace("FR-029-AC-3", "FR-029-AC-4")]
 fn json_format_carries_restricted_array_and_provenance() {
     let dir = TempDir::new().unwrap();
     let restricted = quire()
@@ -194,7 +194,7 @@ fn json_format_carries_restricted_array_and_provenance() {
 }
 
 #[test]
-#[trace("IT-260", "FR-029-AC-5", "FR-029-AC-6")]
+#[trace("FR-029-AC-5", "FR-029-AC-6")]
 fn path_and_load_failures_never_print_the_clean_verdict() {
     let dir = TempDir::new().unwrap();
     let root = restricted_module(&dir);
@@ -243,7 +243,7 @@ fn path_and_load_failures_never_print_the_clean_verdict() {
 
 #[cfg(unix)]
 #[test]
-#[trace("IT-260", "FR-029-AC-5")]
+#[trace("FR-029-AC-5")]
 fn outside_root_symlink_is_refused_and_bad_set_fails_load() {
     let dir = TempDir::new().unwrap();
     let outside = dir.path().join("outside");
@@ -294,7 +294,7 @@ fn outside_root_symlink_is_refused_and_bad_set_fails_load() {
 }
 
 #[test]
-#[trace("IT-261", "FR-029-AC-8")]
+#[trace("FR-029-AC-8")]
 fn publish_check_source_holds_no_rights_policy() {
     let source = fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands/publish_check.rs"),
