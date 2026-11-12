@@ -9,6 +9,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- PLAT-1421: `quire publish-check --module <dir> [--format human|json]` refuses a module whose clause sets carry restricted text. It exits 2 naming each `authority/id@version`, and 0 with `no restricted clause sets` otherwise (FR-029). The engine decides which sets are restricted.
+
 ## [0.42.0] — 2026-11-12
 
 Adopts quire-rs 0.58.0: FR-058 `where` selector on `required_relations` (required-relation findings are advisory in both postures, PLAT-1477) and located engine findings (locator value lines, `BundleFinding.line`, `record_validation` with its own schema, PLAT-1478).
