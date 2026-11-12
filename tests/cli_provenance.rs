@@ -124,7 +124,7 @@ fn it_123_version_reports_the_cli_and_the_engine() {
 
 /// Run `quire`, require exit 0, and parse stdout as the JSON payload.
 ///
-/// The exit check lives here so no caller can omit it — IT-127's first draft
+/// The exit check lives here so no caller can omit it — the first draft
 /// did, which made it vacuous against any failure: a crashed command produces
 /// empty stdout, and "the empty string contains no banned key" is true.
 fn payload_of(command: &mut std::process::Command, surface: &str) -> Value {

@@ -40,7 +40,7 @@ fn it_144_rust_python_and_node_consume_the_exact_golden_bytes() {
         Ok(output) if output.status.success() => {}
         Ok(output) => panic!("Python compatibility probe failed: {}", String::from_utf8_lossy(&output.stderr)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            panic!("IT-144 requires python3 and jsonschema: {error}");
+            panic!("cross-language check requires python3 and jsonschema: {error}");
         }
         Err(error) => panic!("Python compatibility probe: {error}"),
     }
@@ -54,7 +54,7 @@ fn it_144_rust_python_and_node_consume_the_exact_golden_bytes() {
         Ok(output) if output.status.success() => {}
         Ok(output) => panic!("Node compatibility probe failed: {}", String::from_utf8_lossy(&output.stderr)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            panic!("IT-144 requires Node: {error}");
+            panic!("cross-language check requires Node: {error}");
         }
         Err(error) => panic!("Node compatibility probe: {error}"),
     }

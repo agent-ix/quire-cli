@@ -88,9 +88,9 @@ fn it_027_no_panic_on_random_garbage_input() {
     assert_ne!(out.status.code(), Some(134));
 }
 
-// Deliberately untagged. The name used to cite IT-013, which is "empty document
-// → valid empty QuireDocument JSON" (`cli_parse::it_013_*`) — a different
-// behaviour entirely. The behaviour here is IT-050's, and that row is already
+// Deliberately untagged. The name used to cite an unrelated "empty document
+// → valid empty QuireDocument JSON" case (`cli_parse::it_013_*`). The
+// behaviour here is already
 // bound by `cli_validate::it_050_unknown_archetype_reports_unknown`, which
 // asserts strictly more (it also requires stdout to be empty). Tagging this
 // test with that row's id would put two symbols on one row, so deleting either

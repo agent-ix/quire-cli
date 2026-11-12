@@ -194,7 +194,7 @@ fn it097_path_traversal_is_rejected() {
 }
 
 // FR-018-AC-7: an obligation source's `exclude:` binds THIS surface.
-// (AC-6 is the thin-boundary Inspection criterion, traced by TC-090 — not this
+// (AC-6 is the thin-boundary Inspection criterion, traced by the thin-boundary audit — not this
 // test. The citation read AC-6 while it was inert prose; binding it would have
 // marked a criterion backed by a test that does not verify it.)
 //

@@ -141,7 +141,7 @@ fn okf_missing_spec_root_is_a_named_error() {
         .stderr(predicate::str::contains(expected));
 }
 
-// IT-088 (agent-ix/quire-rs#110): a non-fatal bundle warning is emitted as a
+// (agent-ix/quire-rs#110): a non-fatal bundle warning is emitted as a
 // WARNING in the machine surface. Every `report.warnings` entry used to go
 // through the error diagnostic path, which hardcoded `"severity": "error"` — so under
 // `--diagnostics json` the severity contradicted the exit code, which was

@@ -12,7 +12,7 @@ Status: **APPROVED with minor findings** — proceed to `/spec-to-plan`.
 
 ## Scope
 
-Reviewed `spec/spec.md`, 4 StRs, 4 USs, 8 FRs, 6 NFRs, `tests.md` (32 IT/BENCH/AUDIT entries).
+Reviewed `spec/spec.md`, 4 StRs, 4 USs, 8 FRs, 6 NFRs, the former `spec/tests.md` (32 IT/BENCH/AUDIT entries).
 
 ## Checklist Outcomes
 
@@ -22,8 +22,8 @@ Reviewed `spec/spec.md`, 4 StRs, 4 USs, 8 FRs, 6 NFRs, `tests.md` (32 IT/BENCH/A
 | US "As/I want/So that" + ≥2 AC | ✅ All four USs comply |
 | FR has Behavior + AC + traces to US + cites upstream quire-rs FR where applicable | ✅ [FR-001](./functional/FR-001-render-subcommand.md)..004 cite the wrapped quire-rs FR; [FR-005](./functional/FR-005-path-safety.md)..008 are CLI-originated and trace to a StR |
 | NFR has measurable acceptance | ✅ All NFRs have either numeric (p95, exit code, ldd shape) or static-analysis (cargo deny, check_unsafe_comments) gates |
-| Test coverage: every AC has ≥1 IT/BENCH/AUDIT | ✅ Verified per `tests.md` traceability table |
-| Error path rule | ✅ [FR-007](./functional/FR-007-exit-codes.md) catalogs every exit code; tests.md IT-026 covers each |
+| Test coverage: every AC has ≥1 IT/BENCH/AUDIT | ✅ Verified per the former `spec/tests.md` traceability table |
+| Error path rule | ✅ [FR-007](./functional/FR-007-exit-codes.md) catalogs every exit code; the exit-code tests cover each |
 | Sandbox boundary rule | ✅ [FR-005](./functional/FR-005-path-safety.md) + [StR-003](./stakeholder/StR-003-sandbox-inheritance.md); ITs 5/6/7/22/23 cover `..`, symlink escape, `--data` escape, `--out` escape, stdin bypass |
 | Cross-ref + relationship frontmatter | ✅ [FR-001](./functional/FR-001-render-subcommand.md)..004 declare `consumes` edges to upstream `quire-rs` FRs by ID |
 
@@ -35,7 +35,7 @@ Reviewed `spec/spec.md`, 4 StRs, 4 USs, 8 FRs, 6 NFRs, `tests.md` (32 IT/BENCH/A
 
 ### F-2 (Minor) — `quire-rs` parity-fixture sourcing
 
-[FR-001-AC-6](./functional/FR-001-render-subcommand.md) and IT-018 require a render parity sweep against the 8 ISO archetypes. The fixture set lives in `quire-rs/tests/render_parity/`. The plan should decide between:
+[FR-001-AC-6](./functional/FR-001-render-subcommand.md) and the former IT-018 require a render parity sweep against the 8 ISO archetypes. The fixture set lives in `quire-rs/tests/render_parity/`. The plan should decide between:
 
 - **(a)** vendor a copy of the fixtures into `quire-cli/tests/fixtures/` (independent, no submodule),
 - **(b)** depend on `spec-artifacts-iso` directly as a test-fixture path,
@@ -43,12 +43,12 @@ Reviewed `spec/spec.md`, 4 StRs, 4 USs, 8 FRs, 6 NFRs, `tests.md` (32 IT/BENCH/A
 
 Recommendation: **(a)** — copy into `tests/fixtures/iso/` with a `make refresh-fixtures` target that re-pulls from upstream. Keeps the repo self-contained, matches the rust-lib-cookiecutter test pattern.
 
-### F-3 (Minor) — Platform sensitivity of IT-008 (strace)
+### F-3 (Minor) — Platform sensitivity of the strace audit
 
-`IT-008` uses `strace -e network` to verify zero socket calls — Linux-only. Mac/Windows CI lanes would need `dtruss`/`Procmon` equivalents or to skip the test. Plan should:
+The network audit uses `strace -e network` to verify zero socket calls — Linux-only. Mac/Windows CI lanes would need `dtruss`/`Procmon` equivalents or to skip the test. Plan should:
 
 - mark the IT as `linux-only`,
-- add `TC-091 (cargo deny bans)` as the cross-platform substitute for the no-network guarantee.
+- add `cargo deny bans` as the cross-platform substitute for the no-network guarantee.
 
 ### F-4 (Minor) — `--help` snapshot location
 

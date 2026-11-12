@@ -4,7 +4,7 @@
 //! root) is proven network-free by the same means. The scoped-`validate`
 //! empty-discovery lazy-init — which spawns `quoin` to bootstrap modules — is
 //! the documented NFR-004 exception (ADR-0001) and is intentionally out of
-//! these happy-path traces; its quoin-absent error path is covered by IT-082
+//! these happy-path traces; its quoin-absent error path is covered
 //! in `cli_validate.rs`.
 //!
 //! Trace ids sit on the tests, not in this header — a `//!` block attaches to
@@ -120,7 +120,7 @@ fn assert_no_inet_socket(trace: &str, subcommand: &str) {
         // various `connect()`/`bind()` that follow it.
         if line.contains("socket(AF_INET") || line.contains("socket(AF_INET6") {
             panic!(
-                "IT-008 violation: {subcommand} opened an inet socket:\n  {line}\nfull trace:\n{trace}"
+                "network audit violation: {subcommand} opened an inet socket:\n  {line}\nfull trace:\n{trace}"
             );
         }
     }
@@ -134,7 +134,7 @@ fn assert_no_inet_socket(trace: &str, subcommand: &str) {
 fn assurance_does_not_open_inet_socket_or_execute_a_child() {
     assert!(
         strace_available(),
-        "IT-143 requires strace; absence cannot verify FR-020-AC-7"
+        "the assurance network audit requires strace; absence cannot verify FR-020-AC-7"
     );
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let scope = root.join("tests/fixtures/assurance/scope");
@@ -299,7 +299,7 @@ fn clauses_does_not_open_inet_socket() {
 // FR-016-AC-2, NFR-004-AC-2: `update --check` on the Unknown install
 // source (the test binary lives under `target/`, neither `node_modules` nor
 // `.cargo`) opens no inet socket. Until #56 the "performs no install/network"
-// clause of IT-083/IT-084 held by construction only — the Unknown path never
+// clause of the `update` audits held by construction only — the Unknown path never
 // shells out — with nothing observing it (SR-006 FND-001); this is the
 // observation.
 #[trace("FR-016-AC-2", "NFR-004-AC-2")]

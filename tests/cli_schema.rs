@@ -2,7 +2,7 @@
 //! plus `body_extraction` asserts) over `quire_rs::input_contract_for`
 //! (upstream FR-029, recast by ADR 0004). No template-variable list.
 //!
-//! Covers IT-058 (path-safety), IT-060..063.
+//! Covers path-safety and the schema subcommand.
 
 mod common;
 

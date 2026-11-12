@@ -4,8 +4,8 @@
 //! (FR-032-AC-11..13). The `--json` context mode was removed with the
 //! render retirement (FR-004 CR note).
 //!
-//! Covers IT-014 (direct-markdown ISO sweep), IT-021, IT-047..061, and the
-//! composed type+object + `--strict` traces IT-073..075.
+//! Covers the direct-markdown ISO sweep, path-safety, and the composed
+//! type+object + `--strict` traces.
 
 mod common;
 
@@ -368,8 +368,8 @@ fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
 // validates against the module that scope carries, with no --module argument —
 // so CI/agents can validate touched artifacts without passing a module per
 // file. Two things this case is NOT: it passes a plain path, never a glob
-// (IT-102 covers glob expansion), and the fixture root holds `manifest.yaml`,
-// so this is the exact-module branch — search-root discovery is IT-081's.
+// (the glob tests cover expansion), and the fixture root holds `manifest.yaml`,
+// so this is the exact-module branch — search-root discovery is another test's.
 #[trace("FR-004-AC-19")]
 #[test]
 fn it_101_scoped_relative_path_validates_without_module() {
@@ -561,7 +561,7 @@ fn it_105_ears_grammar_warnings_are_advisory_and_summarized() {
 
 // FR-004-AC-22: --strict escalates the advisory EARS warnings to a
 // failing exit code — the per-repo promotion lever: a converted repo flips
-// EARS to blocking in CI. Same document as IT-105, which exits 0 without it.
+// EARS to blocking in CI. The same document exits 0 without it.
 #[trace("FR-004-AC-22")]
 #[test]
 fn it_106_ears_grammar_warnings_fail_under_strict() {

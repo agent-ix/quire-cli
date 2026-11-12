@@ -50,7 +50,7 @@ fn it_004_extract_emits_envelope() {
 // FR-008-AC-2, FR-008-AC-5: the `extract` payload deserializes into the
 // declared envelope — `extraction` an object, `edges` an array whose every
 // element carries string `target` and `type` — and carries no BARE version
-// string. `.get("edges").is_some()` (IT-004) passes on an array of nulls, and
+// string. `.get("edges").is_some()` passes on an array of nulls, and
 // nothing else asserts the no-version rule at all.
 //
 // CR-104 (#68) narrowed AC-5. What it was protecting is unchanged: a payload

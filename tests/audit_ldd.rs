@@ -3,9 +3,7 @@
 //! files. Linux-only.
 //!
 //! The trace id sits on the test, not here — a `//!` block attaches to the file
-//! and binds to no symbol. The old `AUDIT-001` id predates the `TC-`/`IT-`
-//! prefix unification (spec-artifacts-process CR-019); the matrix row is
-//! TC-089 (agent-ix/quire-cli#43).
+//! and binds to no symbol (agent-ix/quire-cli#43).
 
 #![cfg(target_os = "linux")]
 
@@ -69,7 +67,7 @@ fn binary_links_only_baseline_libs() {
 
     assert!(
         offenders.is_empty(),
-        "AUDIT-001 violation: binary depends on non-baseline shared libraries: {offenders:?}\n\
+        "ldd audit violation: binary depends on non-baseline shared libraries: {offenders:?}\n\
          full ldd output:\n{stdout}"
     );
 }

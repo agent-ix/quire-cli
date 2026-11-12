@@ -54,7 +54,7 @@ fn it_011_parse_dash_reads_stdin() {
 // FR-006-AC-2: no stdout/stderr interleaving on a SUCCESS run —
 // `schema` for an archetype that exists produces a single JSON payload on
 // stdout and no error on stderr. The failure-side half of the contract
-// (FR-006-AC-1, empty stdout + non-empty stderr) is IT-031 below, which walks
+// (FR-006-AC-1, empty stdout + non-empty stderr) is `cli_io` below, which walks
 // every failure class rather than one.
 #[trace("FR-006-AC-2")]
 #[test]
@@ -112,7 +112,7 @@ fn it_025_diagnostics_format_json_produces_json_lines() {
 
 // NFR-005-AC-1, NFR-005-AC-2, NFR-005-M-2, FR-006-AC-1: EVERY known failure class
 // produces empty stdout with a non-empty stderr, and renders its
-// stderr as `Diagnostic` JSON under `--diagnostics-format json`. IT-025 asserts
+// stderr as `Diagnostic` JSON under `--diagnostics-format json`. an earlier test asserts
 // that *at least one* line parses for *one* class, which an implementation
 // mixing a bare `anyhow` message into the stream still satisfies; this walks
 // each class and requires every non-empty line to carry `kind` + `severity`.

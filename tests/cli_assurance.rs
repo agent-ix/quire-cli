@@ -1,4 +1,4 @@
-//! FR-020 / IT-136..142: the process-level assurance-v1 contract.
+//! FR-020: the process-level assurance-v1 contract.
 
 mod common;
 
