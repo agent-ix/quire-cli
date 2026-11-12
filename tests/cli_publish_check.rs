@@ -198,13 +198,35 @@ fn json_format_carries_restricted_array_and_provenance() {
 fn path_and_load_failures_never_print_the_clean_verdict() {
     let dir = TempDir::new().unwrap();
     let root = restricted_module(&dir);
+    let public_dir = TempDir::new().unwrap();
+    let public_root = public_module(&public_dir);
     let before = snapshot(Path::new(&root));
+    let public_before = snapshot(Path::new(&public_root));
 
+    // Resolves to the publishable module, so only the path check can refuse it.
     let traversal = quire()
-        .args(["publish-check", "--module", &format!("{root}/../module")])
+        .args([
+            "publish-check",
+            "--module",
+            &format!("{public_root}/../module"),
+        ])
         .output()
         .unwrap();
     assert_eq!(traversal.status.code(), Some(2));
+
+    // Full human and json runs leave the module byte-identical.
+    for (module, args) in [
+        (&root, &[][..]),
+        (&root, &["--format", "json"][..]),
+        (&public_root, &[][..]),
+        (&public_root, &["--format", "json"][..]),
+    ] {
+        quire()
+            .args(["publish-check", "--module", module])
+            .args(args)
+            .output()
+            .unwrap();
+    }
 
     let missing = quire()
         .args(["publish-check", "--module", &format!("{root}-missing")])
@@ -216,6 +238,7 @@ fn path_and_load_failures_never_print_the_clean_verdict() {
         assert!(!String::from_utf8_lossy(&out.stdout).contains("no restricted clause sets"));
     }
     assert_eq!(before, snapshot(Path::new(&root)));
+    assert_eq!(public_before, snapshot(Path::new(&public_root)));
 }
 
 #[cfg(unix)]
@@ -276,7 +299,8 @@ fn publish_check_source_holds_no_rights_policy() {
     let source = fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("src/commands/publish_check.rs"),
     )
-    .unwrap();
+    .unwrap()
+    .to_lowercase();
     for token in ["citation_only", "clearance_ref", "rights", "licensed"] {
         assert!(!source.contains(token), "source contains {token}");
     }

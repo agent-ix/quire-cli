@@ -50,19 +50,23 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 fn load_verdict(ctx: &Ctx, raw: &str) -> anyhow::Result<Vec<RestrictedClauseSet>> {
     let module = safety::validate_module_path(raw)
         .with_context(|| format!("validating --module {raw:?}"))?;
-    let registry = quire_rs::Registry::load_module_strict(&module)
-        .map_err(super::failure::invalid)
-        .context("loading module")?;
-    io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
-    if let Some(failure) = registry.failures().first() {
+    let outcome = quire_rs::loader::load_single_module(&module);
+    io::emit_quire_diagnostics(ctx.diagnostics, &outcome.diagnostics);
+    if let Some(failure) = outcome.manifest_errors.first() {
+        invalid_request!(
+            "module load failed: {} ({})",
+            failure.message,
+            failure.path.display()
+        );
+    }
+    if let Some(failure) = outcome.failures.first() {
         invalid_request!(
             "module load failed: {} ({})",
             failure.reason,
             failure.path.display()
         );
     }
-    let outcome = quire_rs::loader::load_single_module(&module);
-    let Some(loaded) = outcome.modules.first() else {
+    let [loaded] = outcome.modules.as_slice() else {
         invalid_request!("module load failed: no module at {}", module.display());
     };
     Ok(check_publishable(loaded))

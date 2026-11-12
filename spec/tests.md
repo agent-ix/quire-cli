@@ -316,7 +316,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-189 | `--strict` and the exit code and stderr are identical whatever the criticality values, for a passing and a strict-failing corpus (`cli_matrix::fr028_criticality_does_not_change_strict_*`) | Integration | P0 | FR-028-AC-11 | ✅ |
 | IT-258 | `publish-check` over an all-publishable synthetic module exits 0 with empty stderr | Integration | P0 | FR-029-AC-1 | 🚧 |
 | IT-259 | `publish-check` over a module with two restricted `example.invalid` sets exits 2 naming both as `authority/id@version`; `--format json` carries the `restricted` array and provenance; no output contains the fixture text sentinel | Integration | P0 | FR-029-AC-2, FR-029-AC-3, FR-029-AC-4 | 🚧 |
-| IT-260 | `..` in `--module` and an outside-root `clause_sets` symlink exit 2; a missing path and a strict-load failure exit 3; no run prints the clean verdict; the module is byte-identical after a run (`NFR-004-AC-2` covers the socket check) | Integration | P0 | FR-029-AC-5, FR-029-AC-6 | 🚧 |
+| IT-260 | `..` in `--module` exits 2; a missing path, a strict-load failure and an outside-root `clause_sets` symlink exit 3; no run prints the clean verdict; the module is byte-identical after a run (`NFR-004-AC-2` covers the socket check) | Integration | P0 | FR-029-AC-5, FR-029-AC-6 | 🚧 |
 | IT-261 | Unit: a hand-built `Vec<RestrictedClauseSet>` maps empty to exit 0 and non-empty to exit 2; the publish-check module source contains none of `citation_only`, `clearance_ref`, `rights`, `licensed` | Unit | P0 | FR-029-AC-7, FR-029-AC-8 | 🚧 |
 | TC-841 | Every exit code `matrix` produces across the cases above is one of 0, 1, 2 — no new code is introduced | Unit | P1 | FR-026-AC-13 | ✅ |
 
