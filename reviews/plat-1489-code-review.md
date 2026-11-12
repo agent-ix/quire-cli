@@ -55,3 +55,16 @@ scope:
 ## Verdict
 
 Approve with changes. The rendering is correct and the human form shares `line_prefix` with document diagnostics. FND-001 is a JSON-shape inconsistency and should be fixed in-PR. FND-002 is optional. The PR adds no vendored files: `tests/fixtures/validate-mod` is quire-cli's own fixture, not a quire-rs copy.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | low | The CHANGELOG [Unreleased] entry was not updated in fix round 1. It still says the JSON record "carries `line`" and cites FR-014-AC-12..15. It should say located records carry `line`, `path` and `reason`, and cite AC-12..16 (warnings-before-errors order). | CHANGELOG.md:12 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | b1ccfb3: `bundle_fields` sets `line`, `path` and `reason` for located findings. IT-263 and IT-264 assert `path` and `reason`, and dropping either one fails both. |
+| FND-002 | fixed | b1ccfb3: `located()` is removed. `bundle_fields` maps `f.line` into `path` and `reason`, so an unlocated record still omits all three keys (verified against IT-265 and an origin/main build) and no redundant branch remains. |

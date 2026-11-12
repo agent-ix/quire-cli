@@ -60,3 +60,11 @@ scope:
 ## Verdict
 
 AC-12, AC-14 and AC-15 are backed by tests that fail on mutation. The IT-261 no-line form was compared byte for byte against an origin/main build on the same fixture: human and JSON, Okf and Strict, all identical. FND-001 should be fixed in-PR with an ordering test. FND-002 is low. FND-003 is an engine defect for quire-rs; it does not block PR173.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | b1ccfb3 adds FR-014-AC-16 and IT-266 (`it266_warnings_precede_errors`). Swapping the warning and error loops in `surface_bundle` fails IT-266 (verified). |
+| FND-002 | fixed | b1ccfb3: the IT-263 row no longer claims "below another table of the document". |
+| FND-003 | deferred | This is a quire-rs engine defect (`declared_tables::table_in` reads only the first table of a section), not a PR173 defect. quire-rs owns it; route it to quire-rs triage. It does not block PR173. |

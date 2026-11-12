@@ -53,3 +53,10 @@ scope:
 ## Verdict
 
 Changes requested. FND-001 (IT id collision with merged #172) must be fixed before merge. FND-002 is low.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | b1ccfb3 merges origin/main (1df1208) and renumbers to IT-262..IT-266. spec/tests.md has no duplicate IT row: FR-029 keeps IT-258..IT-261. Open PRs #119 and #123 add no IT-262..IT-269. The branch is up to date with main. |
+| FND-002 | fixed | b1ccfb3: AC-13 now covers only the line/path/reason fields. Ordering is its own criterion, FR-014-AC-16, bound to IT-266. |
