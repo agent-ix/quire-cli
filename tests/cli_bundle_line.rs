@@ -125,12 +125,12 @@ fn human_with_reason<'a>(lines: &'a [String], reason: &str) -> Vec<&'a String> {
     lines.iter().filter(|l| l.ends_with(&suffix)).collect()
 }
 
-// IT-258, FR-014-AC-12, FR-014-AC-13: a dangling trace reference prints and
+// IT-262, FR-014-AC-12, FR-014-AC-13: a dangling trace reference prints and
 // serializes the line of its referencing row; every id of a multi-id cell
 // carries that row's line; the same id on two rows is two findings.
-#[trace("IT-258", "FR-014-AC-12", "FR-014-AC-13")]
+#[trace("IT-262", "FR-014-AC-12", "FR-014-AC-13")]
 #[test]
-fn it258_dangling_trace_reference_shows_its_row_line() {
+fn it262_dangling_trace_reference_shows_its_row_line() {
     let links = format!(
         "{LINKS_HEAD}| K-0 | north | L-9 |\n| K-1 | north | L-1 |\n| K-2 | north | L-8 and L-9 |\n"
     );
@@ -161,11 +161,11 @@ fn it258_dangling_trace_reference_shows_its_row_line() {
     );
 }
 
-// IT-259, FR-014-AC-12, FR-014-AC-13: a kind mismatch carries its own row's
+// IT-263, FR-014-AC-12, FR-014-AC-13: a kind mismatch carries its own row's
 // line, not the table header's.
-#[trace("IT-259", "FR-014-AC-12", "FR-014-AC-13")]
+#[trace("IT-263", "FR-014-AC-12", "FR-014-AC-13")]
 #[test]
-fn it259_reference_kind_mismatch_shows_its_row_line() {
+fn it263_reference_kind_mismatch_shows_its_row_line() {
     let links = format!("{LINKS_HEAD}| K-1 | north | L-1 |\n| K-2 | north | R-1 |\n");
     let f = fixture(&[("left.md", LEFT), ("right.md", RIGHT), ("links.md", &links)]);
     let path = f.bundle.path().join("links.md");
@@ -184,6 +184,8 @@ fn it259_reference_kind_mismatch_shows_its_row_line() {
     let found = with_reason(&json, "reference-kind-mismatch");
     assert_eq!(found.len(), 1, "{json:?}");
     assert_eq!(found[0]["line"].as_u64(), Some(line as u64));
+    assert_eq!(found[0]["path"], path.display().to_string());
+    assert_eq!(found[0]["reason"], "reference-kind-mismatch");
 }
 
 fn validate_mod_bundle(docs: &[&str]) -> TempDir {
@@ -194,11 +196,11 @@ fn validate_mod_bundle(docs: &[&str]) -> TempDir {
     dir
 }
 
-// IT-260, FR-014-AC-12..14: a bridged document error under `--okf --strict`
+// IT-264, FR-014-AC-12..14: a bridged document error under `--okf --strict`
 // shows the line single-document `validate` prints for the same document.
-#[trace("IT-260", "FR-014-AC-12", "FR-014-AC-13", "FR-014-AC-14")]
+#[trace("IT-264", "FR-014-AC-12", "FR-014-AC-13", "FR-014-AC-14")]
 #[test]
-fn it260_bridged_document_error_shows_its_line() {
+fn it264_bridged_document_error_shows_its_line() {
     let bundle = validate_mod_bundle(&["broken-fr.md"]);
     let doc = bundle.path().join("broken-fr.md");
 
@@ -230,13 +232,15 @@ fn it260_bridged_document_error_shows_its_line() {
         .and_then(|n| n.parse::<u64>().ok())
         .expect("line number");
     assert_eq!(found[0]["line"].as_u64(), Some(line));
+    assert_eq!(found[0]["path"], doc.display().to_string());
+    assert_eq!(found[0]["reason"], "assert");
 }
 
-// IT-261, FR-014-AC-15: a finding with no line renders exactly as before, in
+// IT-265, FR-014-AC-15: a finding with no line renders exactly as before, in
 // human and JSON form (no `line` key).
-#[trace("IT-261", "FR-014-AC-15")]
+#[trace("IT-265", "FR-014-AC-15")]
 #[test]
-fn it261_unlocated_finding_renders_exactly_as_before() {
+fn it265_unlocated_finding_renders_exactly_as_before() {
     let bundle = validate_mod_bundle(&["missing-section-fr.md"]);
     let doc = bundle.path().join("missing-section-fr.md");
     let message = "[FR] required 'specification' (section_body(Specification)) is missing";
@@ -256,4 +260,41 @@ fn it261_unlocated_finding_renders_exactly_as_before() {
             "severity": "error",
         })
     );
+}
+
+// IT-266, FR-014-AC-16: warnings are emitted before errors, in human and JSON
+// output, for a bundle that mixes both.
+#[trace("IT-266", "FR-014-AC-16")]
+#[test]
+fn it266_warnings_precede_errors() {
+    let bad_left = LEFT.replace("title: Left\n", "title: Left\ntags: notalist\n");
+    // No Right document: the `righty` declaration scans nothing, which is a
+    // (line-less) warning beside the frontmatter errors.
+    let f = fixture(&[("left.md", &bad_left)]);
+
+    let json = records(&stderr_lines(f.bundle.path(), f.module.path(), true, true));
+    let severities: Vec<&str> = json
+        .iter()
+        .filter(|r| r["kind"] == "ValidationWarning" || r["kind"] == "ValidationError")
+        .map(|r| r["severity"].as_str().unwrap())
+        .collect();
+    assert!(
+        severities.contains(&"warning") && severities.contains(&"error"),
+        "{json:?}"
+    );
+    let first_error = severities.iter().position(|s| *s == "error").unwrap();
+    assert!(
+        severities[first_error..].iter().all(|s| *s == "error"),
+        "{severities:?}"
+    );
+
+    let human = stderr_lines(f.bundle.path(), f.module.path(), true, false);
+    let tags: Vec<bool> = human
+        .iter()
+        .filter(|l| l.ends_with(']'))
+        .map(|l| l.starts_with("warning: "))
+        .collect();
+    assert!(tags.contains(&true) && tags.contains(&false), "{human:?}");
+    let first_error = tags.iter().position(|w| !w).unwrap();
+    assert!(tags[first_error..].iter().all(|w| !w), "{human:?}");
 }

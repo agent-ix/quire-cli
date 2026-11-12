@@ -424,13 +424,17 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
 fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
     for w in &report.warnings {
         let message = bundle_message(w);
-        let record = ix_cli_kit::streams::Record::warning("ValidationWarning", &message);
-        located(record, w.line).emit(ctx.diagnostics);
+        let path = w.path.display().to_string();
+        ix_cli_kit::streams::Record::warning("ValidationWarning", &message)
+            .with_fields(bundle_fields(w, &path))
+            .emit(ctx.diagnostics);
     }
     for e in &report.errors {
         let message = bundle_message(e);
-        let record = ix_cli_kit::streams::Record::error("ValidationError", &message);
-        located(record, e.line).emit(ctx.diagnostics);
+        let path = e.path.display().to_string();
+        ix_cli_kit::streams::Record::error("ValidationError", &message)
+            .with_fields(bundle_fields(e, &path))
+            .emit(ctx.diagnostics);
     }
 }
 
@@ -447,18 +451,18 @@ fn bundle_message(f: &quire_rs::BundleFinding) -> String {
     )
 }
 
-/// Attach the finding's line as the JSON `line` field. A finding without a
-/// line is emitted untouched, so its record carries no `line` key.
-fn located<'a>(
-    record: ix_cli_kit::streams::Record<'a>,
-    line: Option<usize>,
-) -> ix_cli_kit::streams::Record<'a> {
-    match line {
-        Some(_) => record.with_fields(ix_cli_kit::streams::DiagnosticFields {
-            line,
-            ..Default::default()
-        }),
-        None => record,
+/// JSON fields of a located finding: `line` paired with `path` and `reason`,
+/// as document diagnostics do. An unlocated finding sets none of them, so its
+/// record keeps the bare `kind`/`message`/`severity` shape.
+fn bundle_fields<'a>(
+    f: &'a quire_rs::BundleFinding,
+    path: &'a str,
+) -> ix_cli_kit::streams::DiagnosticFields<'a> {
+    ix_cli_kit::streams::DiagnosticFields {
+        line: f.line,
+        path: f.line.map(|_| path),
+        reason: f.line.map(|_| f.reason.as_ref()),
+        ..Default::default()
     }
 }
 
