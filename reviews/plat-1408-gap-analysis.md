@@ -32,3 +32,11 @@ FAIL with findings. Only the bare-id dangling slice of FR-014-AC-11 has a
 test, and that test is vacuous (see the code review, FND-001). Add tests for
 the warning-escalation branch and for the authority clauses, and update the
 FR-014 row.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 63e35a3 adds IT-257 (`okf_strict_fails_on_warning_only_finding`): a `[disallowed-edge-target]` warning exits 0 without `--strict` and 3 with it. Measured stderr: `1 OKF bundle warning(s) (--strict)`, rc=3, so the test reaches the warnings branch |
+| FND-002 | fixed | 63e35a3 adds IT-252..IT-256: own-authority miss exits 3, foreign authority exits 0, no-package miss exits 3, two-segment link exits 3, finding-free bundle exits 0 with empty stderr. All pass |
+| FND-003 | fixed | 63e35a3: the FR-014 row reads AC-1..11 and lists IT-251..IT-257 |

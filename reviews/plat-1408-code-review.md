@@ -33,3 +33,10 @@ FAIL until FND-001 is fixed. The implementation is correct and small. The test
 that backs FR-014-AC-11 does not exercise the behaviour it names, so it cannot
 catch a regression in dangling-reference escalation or in the quire-rs#647
 source path. Rust lane: no idiom, panic, or ownership issues.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 63e35a3 rewrites IT-251 on a new `okf-edge-mod` fixture with registered `note`/`index` types. The same bundle with the target present exits 0, and the test asserts the exact line `a.md: dangling reference 'HZ-9' (edge 'mitigates') has no target in the bundle [dangling-reference]`. Measured: 15/15 `cli_okf` tests pass against quire-rs#647 (96d1ddf) |
+| FND-002 | fixed | 63e35a3: the module doc and the `--strict` help now say exit 3. Per-file errors also go through `invalid_request!` (exit 3) |
