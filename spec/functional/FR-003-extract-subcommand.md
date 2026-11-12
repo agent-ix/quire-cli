@@ -34,7 +34,7 @@ relationships:
 > `quire_rs::harvest_edges` (`src/corpus/resolve.rs`) reads exactly two sources —
 > the frontmatter `relationships:` array and `ix://` links in the body — and
 > `dependencies` appears nowhere in the quire-rs sources. The concept dates to
-> the FR-001 render era retired under spec.md §2bis. AC-3 and its trace IT-016
+> the FR-001 render era retired under spec.md §2bis. AC-3 and its trace
 > are therefore **retired**, not deferred: nothing regressed, and the matrix row
 > claiming ✅ was reporting evidence that never existed
 > (agent-ix/quire-cli#43). Harvesting sugar fields remains a legitimate feature

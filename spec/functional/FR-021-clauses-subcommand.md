@@ -29,13 +29,13 @@ quire clauses diff --module <PATH> --authority <ID> --set <ID>
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-021-AC-1 | Both commands path-check and strictly load one explicit module and select authority, id, and version exactly; a missing version or invalid referenced set is a user error, never a nearest-version guess. | Test (IT-154, IT-157) |
-| FR-021-AC-2 | `evaluate` accepts repeatable `KEY=VALUE` context dimensions and delegates applicability to the engine. Duplicate or malformed context is rejected. | Test (IT-154, IT-157) |
-| FR-021-AC-3 | Evaluation preserves `binding`, `not_binding`, and `unresolved`; missing context remains unresolved with its reason. | Test (IT-154, IT-156) |
-| FR-021-AC-4 | `diff` delegates to the engine and reports added, removed, and changed clauses between two exact versions of the same authority and set id. | Test (IT-155) |
-| FR-021-AC-5 | Human results and deterministic TSV are emitted on stdout; TSV escapes structural characters so one clause remains one row. | Test (IT-156, TC-141) |
-| FR-021-AC-6 | JSON carries tool provenance including the `clause_sets` capability and conforms to the pinned engine's published binding or diff schema. | Test (IT-154, IT-155) |
-| FR-021-AC-7 | The CLI contains only transport and rendering policy. Clause content, rights validation, applicability, and comparison remain engine/module concerns. | Test (IT-157), Review |
+| FR-021-AC-1 | Both commands path-check and strictly load one explicit module and select authority, id, and version exactly; a missing version or invalid referenced set is a user error, never a nearest-version guess. | Test |
+| FR-021-AC-2 | `evaluate` accepts repeatable `KEY=VALUE` context dimensions and delegates applicability to the engine. Duplicate or malformed context is rejected. | Test |
+| FR-021-AC-3 | Evaluation preserves `binding`, `not_binding`, and `unresolved`; missing context remains unresolved with its reason. | Test |
+| FR-021-AC-4 | `diff` delegates to the engine and reports added, removed, and changed clauses between two exact versions of the same authority and set id. | Test |
+| FR-021-AC-5 | Human results and deterministic TSV are emitted on stdout; TSV escapes structural characters so one clause remains one row. | Test |
+| FR-021-AC-6 | JSON carries tool provenance including the `clause_sets` capability and conforms to the pinned engine's published binding or diff schema. | Test |
+| FR-021-AC-7 | The CLI contains only transport and rendering policy. Clause content, rights validation, applicability, and comparison remain engine/module concerns. | Test, Review |
 
 ## Constraints
 

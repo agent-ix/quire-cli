@@ -82,7 +82,7 @@ preimplementation specification and scope review are committed at `2502617`.
 | Missing language or tracing runtimes turn a claimed probe into a silent pass | Treat Python, Node, and Linux `strace` as required gate dependencies and fail closed when any is absent. |
 | Existing global `--pretty` changes the semantic contract | Compare parsed values and independently require byte identity for each mode. |
 
-Generated from `~/dev/quire-cli/spec/` via `/spec-to-plan`. Derived from 4 StR + 4 US + 8 FR + 6 NFR + 32 IT/BENCH/AUDIT cases (see `spec/tests.md` — 100 % AC coverage).
+Generated from `~/dev/quire-cli/spec/` via `/spec-to-plan`. Derived from 4 StR + 4 US + 8 FR + 6 NFR + 32 IT/BENCH/AUDIT cases (coverage is computed by `quire matrix`).
 
 This is a **thin process boundary** over `quire-rs`. The plan is correspondingly small: argv parsing, sandbox guards, I/O wiring, packaging — every parse/render/extract/validate behavior delegates to the upstream crate.
 
@@ -198,7 +198,7 @@ Each task is a separate `src/commands/<name>.rs` module wired into `src/main.rs:
 
 ### Track C — Tests + benches (parallel after Track B starts)
 
-Each IT/BENCH/AUDIT in `spec/tests.md` becomes one entry in `tests/` or `benches/` or CI workflow.
+Each IT/BENCH/AUDIT case becomes one entry in `tests/` or `benches/` or CI workflow.
 
 9. **T-009 Vendor fixtures** (review F-2)
    - Copy `quire-rs/tests/render_parity/modules/iso/` → `tests/fixtures/iso/`.
@@ -272,7 +272,7 @@ Each gate is a hard merge-block until the corresponding tests are green.
 
 ## Test Plan Summary
 
-100 % AC coverage; see `spec/tests.md` for the full traceability table. Counts:
+100 % AC coverage; `quire matrix` computes the traceability table. Counts:
 
 - 32 IT/BENCH/AUDIT entries
 - 22 ITs (process-level `assert_cmd` integration)

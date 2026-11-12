@@ -280,7 +280,7 @@ pass the bundle as the positional argument when it is self-contained.
 The two forms resolve a module's path-bound declarations differently on
 purpose: `--scope` keeps them repository-relative, while a positional bundle
 is treated as self-contained and resolves them against itself. Use `--scope`
-when the module declares paths like `document: spec/tests.md`.
+when the module declares paths like `document: spec/matrix.md`.
 
 Without `--okf`, bundle directories validated via `--scope "spec/**/*.md"` keep
 the strict per-file posture (archetype conformance, resolvable references,
@@ -386,8 +386,8 @@ binary is checked with `quire-dist verify-binary --version X.Y.Z --binary <path>
 ## Spec And Plan
 
 Requirements live in `spec/`; the implementation plan and task index live in
-`plan/`. The traceability matrix in `spec/tests.md` maps acceptance criteria
-to integration tests, benchmarks, or static audits.
+`plan/`. The traceability matrix is computed, not hand-kept: `quire matrix` maps each
+acceptance criterion to the tests whose `#[trace(...)]` tags name it.
 
 ## License
 

@@ -69,7 +69,7 @@ Both inner values are emitted unmodified.
 > provenance block. quire-rs FR-055-CON-2 is narrowed in the same terms by that
 > repository's CR-104, whose two published schemas define the optional `engine`
 > object — a build pinned to an engine predating it emits a payload its own
-> pinned schema rejects, and `IT-128`/`IT-103` fail on exactly that rather than
+> pinned schema rejects, and the schema-conformance tests fail on exactly that rather than
 > letting a consumer discover it.
 >
 > **AC-4 survives unchanged and is the reason this is not a `Value` round-trip.**
@@ -77,7 +77,7 @@ Both inner values are emitted unmodified.
 > through `serde_json::Value` would have sorted every key at every depth, because
 > `serde_json::Map` is a `BTreeMap`. Output stays byte-identical across runs
 > either way, so nothing in the FR-050-AC-7 determinism family would have
-> noticed; `IT-124`/`IT-126` assert the order of the **emitted bytes**, since
+> noticed; the field-order tests assert the order of the **emitted bytes**, since
 > parsing a payload back into a `Value` sorts it and an assertion over the
 > parsed form measures serde rather than the emitter.
 
