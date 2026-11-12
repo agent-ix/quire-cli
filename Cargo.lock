@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "agent-ix-semantic-schema"
 version = "0.3.0"
-source = "git+https://github.com/agent-ix/filament-core-data?branch=main#ce72bc519945ca4676f1b8f1e19f44f44303513d"
+source = "git+https://github.com/agent-ix/filament-core-data?branch=main#60d46cf29e01f98f82210141d0587490c7a7e169"
 
 [[package]]
 name = "ahash"
@@ -1154,7 +1154,7 @@ dependencies = [
 [[package]]
 name = "quire-code-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?branch=main#05afc408f0a1cb01b9999a90f4380e4dddf09433"
+source = "git+https://github.com/agent-ix/quire-rs?branch=main#0575fd48f725e16d87e835b744f02b6dd95d2a56"
 dependencies = [
  "quire-code-parse",
 ]
@@ -1201,7 +1201,7 @@ dependencies = [
 [[package]]
 name = "quire-rs"
 version = "0.56.1"
-source = "git+https://github.com/agent-ix/quire-rs?branch=main#05afc408f0a1cb01b9999a90f4380e4dddf09433"
+source = "git+https://github.com/agent-ix/quire-rs?branch=main#0575fd48f725e16d87e835b744f02b6dd95d2a56"
 dependencies = [
  "agent-ix-semantic-schema",
  "globset",

@@ -1094,7 +1094,7 @@ fn criticality_cells(f: &Fixture, id: &str) -> (Vec<String>, Vec<String>) {
     (md_cells, record.split('\t').map(str::to_string).collect())
 }
 
-#[trace("FR-028-AC-1", "FR-028-AC-2", "FR-028-AC-5")]
+#[trace("IT-183", "FR-028-AC-1", "FR-028-AC-2", "FR-028-AC-5")]
 #[test]
 fn fr028_each_requirement_shows_only_its_own_criticality() {
     let f = criticality_fixture(&[
@@ -1128,7 +1128,7 @@ fn fr028_each_requirement_shows_only_its_own_criticality() {
     }
 }
 
-#[trace("FR-028-AC-4")]
+#[trace("IT-184", "FR-028-AC-4")]
 #[test]
 fn fr028_json_passes_requirements_through_unmodified() {
     let f = criticality_fixture(&[("FR-001", "criticality: unassigned\n"), ("FR-002", "")]);
@@ -1153,7 +1153,7 @@ fn fr028_json_passes_requirements_through_unmodified() {
     );
 }
 
-#[trace("FR-028-AC-6")]
+#[trace("IT-185", "FR-028-AC-6")]
 #[test]
 fn fr028_zero_population_keeps_its_shape_with_the_six_column_tsv_header() {
     for f in zero_populations() {
@@ -1168,7 +1168,7 @@ fn fr028_zero_population_keeps_its_shape_with_the_six_column_tsv_header() {
     }
 }
 
-#[trace("FR-028-AC-7", "FR-028-AC-8")]
+#[trace("IT-186", "FR-028-AC-7", "FR-028-AC-8")]
 #[test]
 fn fr028_odd_values_are_escaped_and_scrubbed_like_every_other_cell() {
     // YAML double-quoted escapes keep the control characters inside one value.
@@ -1188,7 +1188,7 @@ fn fr028_odd_values_are_escaped_and_scrubbed_like_every_other_cell() {
     assert_eq!(tsv_all.lines().count(), 3, "header plus one record each");
 }
 
-#[trace("FR-028-AC-9", "FR-028-AC-10")]
+#[trace("IT-187", "FR-028-AC-9", "FR-028-AC-10")]
 #[test]
 fn fr028_empty_and_non_string_values_are_not_unassigned() {
     let f = criticality_fixture(&[
@@ -1203,7 +1203,7 @@ fn fr028_empty_and_non_string_values_are_not_unassigned() {
     assert_eq!(tsv.last().unwrap(), "3");
 }
 
-#[trace("FR-028-AC-3")]
+#[trace("IT-188", "FR-028-AC-3")]
 #[test]
 fn fr028_a_missing_key_renders_unassigned_in_both_formats() {
     let f = criticality_fixture(&[("FR-001", "")]);
@@ -1212,37 +1212,42 @@ fn fr028_a_missing_key_renders_unassigned_in_both_formats() {
     assert_eq!(tsv.last().unwrap(), "unassigned");
 }
 
-#[trace("FR-028-AC-11")]
+/// `--strict` exit code and stderr for two FR documents carrying the given
+/// frontmatter, with both criteria tagged (`backed`) or neither. The scope path
+/// is scrubbed from stderr so only the verdict text is compared.
+fn strict_outcome(frontmatter: [&str; 2], backed: bool) -> (i32, String) {
+    let f = criticality_fixture(&[("FR-001", frontmatter[0]), ("FR-002", frontmatter[1])]);
+    if backed {
+        f.write(
+            "src/lib.rs",
+            &format!(
+                "{}{}",
+                rust_test("one", "FR-001-AC-1", false),
+                rust_test("two", "FR-002-AC-1", false)
+            ),
+        );
+    }
+    let out = f.matrix(&["--strict"]);
+    (code(&out), stderr(&out).replace(&f.scope(), "<scope>"))
+}
+
+#[trace("IT-189", "FR-028-AC-11")]
 #[test]
 fn fr028_criticality_does_not_change_strict_or_the_exit_code() {
-    let outcomes: Vec<(i32, String)> = ["criticality: high\n", "", "criticality: low\n"]
-        .iter()
-        .map(|line| {
-            let all_same = criticality_fixture(&[("FR-001", line), ("FR-002", line)]);
-            all_same.write(
-                "src/lib.rs",
-                &format!(
-                    "{}{}",
-                    rust_test("one", "FR-001-AC-1", false),
-                    rust_test("two", "FR-002-AC-1", false)
-                ),
-            );
-            let out = all_same.matrix(&["--strict"]);
-            (code(&out), stderr(&out))
-        })
-        .collect();
-    assert_eq!(outcomes[0], outcomes[1]);
-    assert_eq!(outcomes[1], outcomes[2]);
-    assert_eq!(outcomes[0].0, 0, "{}", outcomes[0].1);
-
-    let mixed = criticality_fixture(&[("FR-001", "criticality: high\n"), ("FR-002", "")]);
-    mixed.write(
-        "src/lib.rs",
-        &format!(
-            "{}{}",
-            rust_test("one", "FR-001-AC-1", false),
-            rust_test("two", "FR-002-AC-1", false)
-        ),
-    );
-    assert_eq!(code(&mixed.matrix(&["--strict"])), 0);
+    let variants = [
+        ["criticality: high\n", "criticality: high\n"],
+        ["", ""],
+        ["criticality: high\n", ""],
+        ["criticality: low\n", "criticality: medium\n"],
+    ];
+    for (backed, want_code) in [(true, 0), (false, 1)] {
+        let outcomes: Vec<(i32, String)> = variants
+            .iter()
+            .map(|v| strict_outcome(*v, backed))
+            .collect();
+        assert_eq!(outcomes[0].0, want_code, "{}", outcomes[0].1);
+        for outcome in &outcomes[1..] {
+            assert_eq!(outcome, &outcomes[0], "backed={backed}");
+        }
+    }
 }
