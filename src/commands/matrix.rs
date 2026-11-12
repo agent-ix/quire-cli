@@ -52,6 +52,10 @@ const STATEMENT_BUDGET: usize = 80;
 /// Appended to a statement cut to fit [`STATEMENT_BUDGET`].
 const TRUNCATION_MARKER: &str = "...";
 
+/// The reporting label for a requirement whose engine entry has no
+/// `criticality` key (FR-028). Rendered formats only; JSON passes through.
+const UNASSIGNED: &str = "unassigned";
+
 /// The JSON payload before provenance is attached. The key follows the
 /// engine's own rule for `CoverageReport.coverage_matrix` — absent when there
 /// is no population — so the field reads here exactly as it does in
@@ -222,6 +226,16 @@ fn statement_cell(statement: &str) -> String {
     truncate_statement(&tsv_cell(statement)).replace('|', "\\|")
 }
 
+/// The requirement's criticality cell text: `unassigned` when the key is
+/// absent, a string verbatim, any other JSON value as its compact text.
+fn criticality_text(requirement: &CoverageMatrixRequirement) -> String {
+    match &requirement.criticality {
+        None => UNASSIGNED.to_string(),
+        Some(serde_json::Value::String(text)) => text.clone(),
+        Some(other) => other.to_string(),
+    }
+}
+
 fn render_markdown(matrix: &[CoverageMatrixRequirement]) -> String {
     if matrix.iter().all(|r| r.criteria.is_empty()) {
         return format!("{EMPTY_MARKDOWN}\n");
@@ -230,9 +244,10 @@ fn render_markdown(matrix: &[CoverageMatrixRequirement]) -> String {
         .iter()
         .map(|requirement| {
             let mut table = format!(
-                "## {}\n\n| Criterion | Statement | Binders | Status |\n|---|---|---|---|\n",
+                "## {}\n\n| Criterion | Statement | Binders | Status | Requirement Criticality |\n|---|---|---|---|---|\n",
                 requirement.document
             );
+            let criticality = markdown_cell(&criticality_text(requirement));
             for c in &requirement.criteria {
                 let binders = if c.binders.is_empty() {
                     "(none)".to_string()
@@ -240,11 +255,12 @@ fn render_markdown(matrix: &[CoverageMatrixRequirement]) -> String {
                     binder_list(&c.binders, ", ")
                 };
                 table.push_str(&format!(
-                    "| {} | {} | {} | {} |\n",
+                    "| {} | {} | {} | {} | {} |\n",
                     markdown_cell(&c.id),
                     statement_cell(&c.statement),
                     markdown_cell(&binders),
-                    status_token(c.status)
+                    status_token(c.status),
+                    criticality
                 ));
             }
             table
@@ -254,7 +270,8 @@ fn render_markdown(matrix: &[CoverageMatrixRequirement]) -> String {
 }
 
 fn render_tsv(matrix: &[CoverageMatrixRequirement]) -> String {
-    let mut out = String::from("document\tcriterion\tstatus\tbinders\tstatement\n");
+    let mut out =
+        String::from("document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n");
     for requirement in matrix {
         for c in &requirement.criteria {
             let cells = [
@@ -263,6 +280,7 @@ fn render_tsv(matrix: &[CoverageMatrixRequirement]) -> String {
                 status_token(c.status).to_string(),
                 tsv_cell(&binder_list(&c.binders, ",")),
                 tsv_cell(&c.statement),
+                tsv_cell(&criticality_text(requirement)),
             ];
             out.push_str(&cells.join("\t"));
             out.push('\n');
@@ -292,8 +310,8 @@ mod tests {
     fn requirement(criteria: Vec<CoverageMatrixCriterion>) -> CoverageMatrixRequirement {
         CoverageMatrixRequirement {
             document: "spec/FR-001.md".to_string(),
-            criteria,
             criticality: None,
+            criteria,
         }
     }
 
@@ -324,13 +342,14 @@ mod tests {
             CoverageMatrixStatus::QualifiedRecord,
         )])];
         assert!(
-            render_markdown(&matrix).contains("| FR-001-AC-1 | s | (none) | qualified-record |"),
+            render_markdown(&matrix)
+                .contains("| FR-001-AC-1 | s | (none) | qualified-record | unassigned |"),
             "qualified backing must not manufacture a source binder"
         );
         assert_eq!(
             render_tsv(&matrix),
-            "document\tcriterion\tstatus\tbinders\tstatement\n\
-             spec/FR-001.md\tFR-001-AC-1\tqualified-record\t\ts\n"
+            "document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n\
+             spec/FR-001.md\tFR-001-AC-1\tqualified-record\t\ts\tunassigned\n"
         );
         let payload = serde_json::to_value(Payload {
             coverage_matrix: matrix,
