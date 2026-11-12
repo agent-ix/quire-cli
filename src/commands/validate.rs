@@ -70,7 +70,8 @@ pub struct Args {
     /// Treat advisory warnings as failures: with --strict, any warning
     /// (today only the unknown-`object:` case from composed type+object
     /// validation, FR-032-AC-12) makes `validate` exit 1. Warnings are
-    /// always printed; --strict only changes the exit code.
+    /// always printed; --strict only changes the exit code. With --okf it
+    /// runs the bundle under the Strict posture and exits 3 on any finding.
     #[arg(long)]
     pub strict: bool,
 
@@ -373,7 +374,15 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
             .collect()
     };
 
+    // `--strict` runs the bundle under the Strict posture and also fails on any
+    // finding that stays a warning (FR-014-AC-11).
+    let posture = if args.strict {
+        BundlePosture::Strict
+    } else {
+        BundlePosture::Okf
+    };
     let mut errors = 0usize;
+    let mut warnings = 0usize;
     for (document_root, reference_root) in roots {
         let document_root =
             safety::validate_dir_path("bundle", &document_root.display().to_string())
@@ -386,19 +395,18 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
         if let Some(package) = repo_bundle_package(&document_root) {
             spec = spec.with_bundle_package(&package);
         }
-        let report = quire_rs::validate_bundle(
-            &spec,
-            registry,
-            BundlePosture::Okf,
-            &document_root,
-            &reference_root,
-        );
+        let report =
+            quire_rs::validate_bundle(&spec, registry, posture, &document_root, &reference_root);
         surface_bundle(ctx, &report);
         errors += report.errors.len();
+        warnings += report.warnings.len();
     }
 
     if errors > 0 {
         invalid_request!("{errors} OKF bundle validation error(s)");
+    }
+    if args.strict && warnings > 0 {
+        invalid_request!("{warnings} OKF bundle warning(s) (--strict)");
     }
     Ok(())
 }

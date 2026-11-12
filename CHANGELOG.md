@@ -9,6 +9,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **`validate --okf --strict` (PLAT-1408).** `--strict` runs the bundle under the Strict posture and exits 3 on any finding, so a dangling `mitigates` (or any edge) target prints the source document path, the edge type and the missing id (FR-014-AC-11).
+
 - **Adopt quire-rs 0.54.0 (PLAT-847, CR-215).** Only explicit markers bind a `verifies` relation. `quire trace --json` verifies records no longer carry `provenance`; `quire provenance` no longer lists the `binding_census.self_named` capability; the assurance golden drops the `provenance` field; `matrix`'s unmatched-tag warning says to write the declared marker form. `quire trace` refuses, naming the languages, when the build cannot read a language in the tree (quire-rs FR-077-AC-7). The quire-rs dependency tracks `branch = "main"`.
 
 - **npm publishing moves to the shared `publish-native-npm` action (PLAT-1012).** `release.yml` now publishes `@agent-ix/quire-cli` and its four platform packages through `agent-ix/nodejs-actions/publish-native-npm` (`static-musl`, so the Linux packages carry no libc restriction). The repository-owned launcher `npm/quire-cli/bin/quire.js`, `quire-dist package-npm`, `verify-published`, `set-version` and `verify-release`, and the `make dist-package`, `dist-verify`, `dist-verify-published` and `set-version` targets are removed; `quire-dist verify-binary` stays. The documented local `npm.ix` publish path, which depended on those commands, is removed. FR-023, FR-024 and NFR-008 are removed, FR-022 and US-007 are rewritten, and ADR-0003 supersedes ADR-0002.

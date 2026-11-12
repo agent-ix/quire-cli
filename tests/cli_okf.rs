@@ -325,3 +325,40 @@ fn it179_positional_bundle_uses_its_own_checkout_identity() {
         "own-authority miss still warns: {err}"
     );
 }
+
+// IT-251, FR-014-AC-11: `--okf --strict` exits 3 on a dangling `mitigates`
+// target (bare id) and stderr names the source path, the edge and the id; the
+// same bundle without `--strict` stays a warning (exit 0).
+#[trace("IT-251", "FR-014-AC-11")]
+#[test]
+fn okf_strict_dangling_mitigates_exits_3_with_located_message() {
+    let dir = bundle(&[(
+        "a.md",
+        "---\nid: A-1\ntype: weird\nrelationships:\n- target: HZ-9\n  type: mitigates\n---\n# a\nbody\n",
+    )]);
+    quire()
+        .arg("validate")
+        .arg("--okf")
+        .arg("--strict")
+        .arg(dir.path())
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(
+            predicate::str::contains("a.md")
+                .and(predicate::str::contains("mitigates"))
+                .and(predicate::str::contains("HZ-9"))
+                .and(predicate::str::contains("[dangling-reference]")),
+        );
+
+    quire()
+        .arg("validate")
+        .arg("--okf")
+        .arg(dir.path())
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .success();
+}
