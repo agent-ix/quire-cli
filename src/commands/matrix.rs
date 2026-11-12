@@ -293,6 +293,7 @@ mod tests {
         CoverageMatrixRequirement {
             document: "spec/FR-001.md".to_string(),
             criteria,
+            criticality: None,
         }
     }
 
