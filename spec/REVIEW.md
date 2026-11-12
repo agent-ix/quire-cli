@@ -41,7 +41,7 @@ Reviewed `spec/spec.md`, 4 StRs, 4 USs, 8 FRs, 6 NFRs, `tests.md` (32 IT/BENCH/A
 - **(b)** depend on `spec-artifacts-iso` directly as a test-fixture path,
 - **(c)** symlink to `quire-rs/tests/render_parity/` at build time.
 
-Recommendation: **(b)** — never copy another repo's files; tests use quire-cli's own small fixtures (`tests/fixtures/validate-mod`) or build modules in a tempdir.
+Decision: none of (a), (b) or (c). Copying another repo's fixtures is not done and the render parity sweep is retired; tests use quire-cli's own small fixtures (`tests/fixtures/validate-mod`) or build a module in a tempdir.
 
 ### F-3 (Minor) — Platform sensitivity of IT-008 (strace)
 

@@ -12,7 +12,7 @@ See `../plan.md` for the full plan, dependency graph, and quality gates.
 | T-006 | B | `parse` command (FR-002) | T-002, T-003 | completed |
 | T-007 | B | `extract` command (FR-003) | T-002, T-003 | completed |
 | T-008 | B | `validate` command (FR-004) | T-002, T-003 | completed |
-| T-009 | C | Vendor fixtures from quire-rs | T-001 | completed |
+| T-009 | C | Test fixtures | T-001 | completed |
 | T-010 | C | Happy-path ITs | T-005..008, T-009 | completed |
 | T-011 | C | Sandbox ITs | T-002, T-009 | completed |
 | T-012 | C | Error-path ITs | T-005..008 | completed |

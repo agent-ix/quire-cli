@@ -233,16 +233,31 @@ fn it_015_edges_are_deduped_by_source_type_target() {
 #[trace("IT-099", "FR-003-AC-2")]
 #[test]
 fn extract_no_dsl_archetype_errors_cleanly() {
-    // The ISO module has no object_types; the FR type isn't an
-    // object_type either, so extract MUST exit 1 with a stderr message
-    // — not crash.
+    // A module whose FR type carries no `body_extraction` and which has no
+    // object_types: extract MUST exit with a stderr message — not crash.
+    let module_dir = tempfile::tempdir().unwrap();
+    let src = common::validate_module();
+    let manifest = std::fs::read_to_string(src.join("manifest.yaml")).unwrap();
+    let start = manifest.find("  body_extraction:").unwrap();
+    let end = manifest.find("object_types:").unwrap();
+    std::fs::create_dir_all(module_dir.path().join("schemas")).unwrap();
+    std::fs::write(
+        module_dir.path().join("manifest.yaml"),
+        format!("{}{}", &manifest[..start], &manifest[end..]),
+    )
+    .unwrap();
+    std::fs::copy(
+        src.join("schemas/fr-frontmatter.schema.json"),
+        module_dir.path().join("schemas/fr-frontmatter.schema.json"),
+    )
+    .unwrap();
     let doc = std::env::temp_dir().join(format!("quire-cli-extract-err-{}.md", std::process::id()));
     std::fs::write(&doc, "---\nid: FR-001\ntype: FR\n---\n# [FR-001] Hello\n").unwrap();
     quire()
         .arg("extract")
         .arg(&doc)
         .arg("--module")
-        .arg(common::iso_module())
+        .arg(module_dir.path())
         .assert()
         .failure()
         .code(3)

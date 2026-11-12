@@ -10,7 +10,7 @@ use assert_cmd::prelude::*;
 use ix_trace_rs::trace;
 use predicates::prelude::*;
 
-use common::{iso_module, quire, validate_module};
+use common::{quire, validate_module};
 
 // IT-060, FR-009-AC-1: `schema FR` exits 0; JSON contains the FR
 // frontmatter schema and the `body_extraction` asserts (required headings
@@ -67,7 +67,7 @@ fn it_062_schema_unknown_archetype_errors() {
         .arg("schema")
         .arg("NONEXISTENT")
         .arg("--module")
-        .arg(iso_module())
+        .arg(validate_module())
         .assert()
         .failure()
         .code(3)

@@ -17,8 +17,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 > mirroring quire-rs). Render/parity traces (IT-001, IT-009, IT-010,
 > IT-017, IT-018, TC-088) and the `--json` context traces (IT-003, IT-050 as
 > written) are **retired** — rows marked ⊘ RETIRED below, ids retained, dropped from
-> the coverage tally. IT-014 is re-pointed to a direct-markdown sweep (no
-> render-then-validate). The retired FR-001/US-001/NFR-001/StR-002 ACs no longer
+> the coverage tally. The retired FR-001/US-001/NFR-001/StR-002 ACs no longer
 > require a live trace.
 
 ## Matrix Rules
@@ -48,7 +47,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 |----|----|----|--------|
 | US-001 Agent renders FR | ⛔ RETIRED (§2bis) | IT-001, IT-009, IT-010, TC-088 (all retired) | ⛔ |
 | US-002 Human parses doc | AC-1..4 | IT-002, IT-011 (stdin), IT-012 (malformed frontmatter), IT-013 (empty doc) | ✅ |
-| US-003 CI validates | AC-1..3 | IT-003, IT-014 (parametric across 8 ISO archetypes) | ✅ |
+| US-003 CI validates | AC-1..3 | IT-003, IT-048 | ✅ |
 | US-004 Extract for graph ingest | AC-1..3 | IT-004 (envelope), IT-015 (edge dedup), IT-020 (determinism), IT-099 (unknown archetype) — IT-016 (sugar field harvest) retired, FR-003 CR 2026-08-20 | ✅ |
 | US-005 Machine addresses section | AC-1..5 | IT-033, IT-034, IT-035, IT-036, IT-038 | ✅ |
 | US-006 Evidence producer exports assurance facts | Illustrative examples; binding acceptance is FR-020 AC-1..9 | IT-136..145, TC-814 | ✅ via FR-020 |
@@ -61,7 +60,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | FR-001 render subcommand | ⛔ RETIRED (§2bis) | IT-001, IT-009, IT-010, IT-017, IT-018 (all retired) | ⛔ |
 | FR-002 parse subcommand | AC-1..5 | IT-002, IT-011, IT-012, IT-013, IT-019 (byte-offset round-trip) | ✅ |
 | FR-003 extract subcommand | AC-1..5 | IT-004, IT-015, IT-016, IT-020 (determinism rerun), IT-069 (untyped doc → shared `[frontmatter]` diagnostic) | ✅ |
-| FR-004 validate subcommand (markdown-only; `--json` removed; composed type+object + `--strict`; scoped discovery + lazy-init, ADR-0001; `--summary` + `--severity`; advisory grammar + `--strict` promotion) | AC-1..22 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-014 (md sweep), IT-056 (no frontmatter), IT-057 (no string `type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), IT-073 (unknown `object:` warns, exit 0), IT-074 (`--strict` escalates warning → exit 3), IT-075 (json warning distinct `kind`/severity), IT-081 (scoped env/default-root discovery validates, network-free → AC-13), IT-082 (empty discovery + no quoin → actionable error → AC-14), TC-714 (`--summary` histogram spans every grammar → AC-15), TC-720 (`--severity …=off` suppresses check + histogram row → AC-16), TC-721 (`--severity …=error` promotes and fails the run → AC-17), TC-755 (malformed `--severity` rejected before any read → AC-18), IT-101 (relative path under `--scope`, no `--module` → AC-19), IT-102 (relative glob under `--scope` surfaces the invalid match → AC-20), IT-105 (grammar findings advisory, exit 0 → AC-21), IT-106 (`--strict` promotes them to exit 3 → AC-22), TC-090 (thin boundary) | ✅ |
+| FR-004 validate subcommand (markdown-only; `--json` removed; composed type+object + `--strict`; scoped discovery + lazy-init, ADR-0001; `--summary` + `--severity`; advisory grammar + `--strict` promotion) | AC-1..22 | IT-047 (md valid), IT-048 (md broken), IT-049 (--archetype), IT-056 (no frontmatter), IT-057 (no string `type`), IT-050 (unknown archetype), IT-058 (path-safety arg label), IT-059 (stdin `-` exempt + validated), IT-021 (no stdout), IT-073 (unknown `object:` warns, exit 0), IT-074 (`--strict` escalates warning → exit 3), IT-075 (json warning distinct `kind`/severity), IT-081 (scoped env/default-root discovery validates, network-free → AC-13), IT-082 (empty discovery + no quoin → actionable error → AC-14), TC-714 (`--summary` histogram spans every grammar → AC-15), TC-720 (`--severity …=off` suppresses check + histogram row → AC-16), TC-721 (`--severity …=error` promotes and fails the run → AC-17), TC-755 (malformed `--severity` rejected before any read → AC-18), IT-101 (relative path under `--scope`, no `--module` → AC-19), IT-102 (relative glob under `--scope` surfaces the invalid match → AC-20), IT-105 (grammar findings advisory, exit 0 → AC-21), IT-106 (`--strict` promotes them to exit 3 → AC-22), TC-090 (thin boundary) | ✅ |
 | FR-010 required-section validation (recast onto FR-032) | AC-1..5 | IT-051 (placeholder), IT-052 (missing), IT-053 (assert), IT-047 (valid exit 0), IT-054 (empty stdout + diagnostics) | ✅ |
 | FR-005 path-safety | AC-1..5 | IT-005, IT-006, IT-007, IT-022 (--out reject), IT-023 (stdin bypasses) | ✅ |
 | FR-006 IO contract | AC-1..4 | IT-024 (no interleaving), IT-025 (--diagnostics-format=json), IT-011 (stdin) | ✅ |
@@ -116,7 +115,6 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-011 | `parse -` reads stdin | Integration | P1 | FR-002-AC-2, US-002-AC-4 | ✅ |
 | IT-012 | Malformed frontmatter still parses, stderr warns | Integration | P1 | FR-002-AC-3, US-002-AC-3 | ✅ |
 | IT-013 | Empty document → valid empty QuireDocument JSON | Integration | P1 | FR-002-AC-4 | ✅ |
-| IT-014 | Parametric **direct-markdown** validate sweep across 8 ISO archetypes (valid + invalid each; no render-then-validate) | Integration | P0 | FR-004-AC-1, FR-004-AC-2, US-003-AC-2 | ✅ |
 | IT-100 | The `extract` payload deserializes into the declared `{extraction, edges}` envelope — `extraction` an object, every edge carrying string `target`/`type` — carries no bare `version`/`schema_version` key, and carries the `engine` provenance block (`cli_extract::it_100_*`) | Integration | P1 | FR-008-AC-2, FR-008-AC-5, FR-008-AC-6 | ✅ |
 | IT-123 | `quire --version` reports the CLI version and the resolved engine version as distinct, labelled values on one line — a binary linking a stale engine is no longer indistinguishable from one linking a current engine (CR-104, `cli_provenance::it_123_*`) | Integration | P0 | FR-008-AC-6 | ✅ |
 | IT-124 | The `extract` payload carries `engine.{cli,engine,capabilities}` with the engine version resolved and distinct from the CLI version, while `extraction` and `edges` are emitted unmodified (`cli_provenance::it_124_*`) | Integration | P0 | FR-008-AC-6 | ✅ |
@@ -188,7 +186,7 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-045 | `edit` with both/neither selector is rejected | Integration | P1 | FR-012-AC-5 | ✅ |
 | IT-046 | `edit` with `-` for both doc and content is a user error | Integration | P1 | FR-012-AC-6 | ✅ |
 | IT-047 | `quire validate valid-fr.md --module $ISO` exits 0 with no output (markdown default, structure present) | Integration | P0 | FR-004-AC-1, FR-010-AC-4, US-003-AC-1 | ✅ |
-| IT-048 | `quire validate broken-fr.md --module $ISO` exits 1; stderr carries a line-numbered diagnostic naming the failing section/assert | Integration | P0 | FR-004-AC-2 | ✅ |
+| IT-048 | `quire validate broken-fr.md --module $ISO` exits 1; stderr carries a line-numbered diagnostic naming the failing section/assert | Integration | P0 | FR-004-AC-2, US-003-AC-2 | ✅ |
 | IT-049 | `quire validate fr.md --module $ISO --archetype FR` overrides frontmatter-derived archetype resolution | Integration | P1 | FR-004-AC-3 | ✅ |
 | IT-050 | `quire validate doc.md --module $ISO --archetype NONEXISTENT` exits 1 with `UnknownArchetype` on stderr (re-pointed off the removed `--json` mode) | Integration | P1 | FR-004-AC-6, FR-007-AC-3 | ✅ |
 | IT-051 | `quire validate rendered-fr.md --module $ISO` exits 1 when `## Specification` is only `TODO`, reason `placeholder` | Integration | P0 | FR-010-AC-1 | ✅ |
@@ -309,6 +307,15 @@ The CLI is a thin process boundary over `quire-rs`; the upstream engine is indep
 | IT-264 | `validate --okf --strict`: a bridged document error shows the same line as single-document `validate`, in human and JSON (`cli_bundle_line::it264_bridged_document_error_shows_its_line`) | Integration | P0 | FR-014-AC-12, FR-014-AC-13, FR-014-AC-14 | ✅ |
 | IT-265 | A bundle finding with no line renders byte-identically to the pre-line form and its JSON record has no `line`, `path` or `reason` key (`cli_bundle_line::it265_unlocated_finding_renders_exactly_as_before`) | Integration | P0 | FR-014-AC-15 | ✅ |
 | IT-266 | `validate --okf --strict` over a bundle mixing warnings and errors emits every warning before every error, in human and JSON output (`cli_bundle_line::it266_warnings_precede_errors`) | Integration | P0 | FR-014-AC-16 | ✅ |
+| IT-267 | Aligned, empty, registry-only, path-only and non-agent-ix locks pass; distinct names from one repository at one commit pass; repeated registry and non-agent-ix names pass (`cli_check_lock::aligned_empty_path_registry_and_other_owner_locks_pass`) | Integration | P0 | FR-027-AC-1, FR-027-AC-3 | ✅ |
+| IT-268 | Distinct package names from one repository at different commits exit 2; the diagnostic names every lock, repository, affected name and revision in order (`cli_check_lock::every_split_lock_and_affected_package_is_reported_in_order`) | Integration | P0 | FR-027-AC-2, FR-027-AC-6, FR-027-AC-7 | ✅ |
+| IT-269 | Duplicate agent-ix Git package names fail whether the sources are identical or differ (`cli_check_lock::duplicate_agent_names_are_refused_even_with_identical_or_different_repositories`) | Integration | P0 | FR-027-AC-3 | ✅ |
+| IT-270 | Branch/tag/rev/no-query and terminal .git/slash variants, GitHub case and transport variations normalize to one repository (`cli_check_lock::transport_case_query_and_terminal_variants_share_repository_identity`) | Integration | P0 | FR-027-AC-4 | ✅ |
+| IT-271 | Missing, empty, short and non-hex fragments, malformed URLs, invalid package field types and malformed TOML fail as invalid input (`cli_check_lock::malformed_fragments_urls_toml_and_typed_package_fields_are_invalid`) | Integration | P0 | FR-027-AC-5 | ✅ |
+| IT-272 | Independently aligned locks may differ in revision; any failing lock fails the invocation; a missing path never yields success (`cli_check_lock::independent_locks_are_not_compared_and_fatal_paths_never_report_success`) | Integration | P0 | FR-027-AC-6, FR-027-AC-7 | ✅ |
+| IT-273 | Success and failure streams and global diagnostic formatting follow the existing CLI contract (`cli_check_lock::global_format_color_and_pretty_use_existing_stream_contract`) | Integration | P0 | FR-027-AC-7 | ✅ |
+| IT-274 | An unreadable input is refused as an input failure, distinct from an output failure (`cli_check_lock::input_permission_refusal_is_distinct_from_output_failure`) | Integration | P0 | FR-027-AC-6, FR-027-AC-7 | ✅ |
+| IT-275 | Execution leaves inputs unchanged and opens no network, Cargo, Git or shell process (`cli_check_lock::gate_leaves_inputs_unchanged_and_opens_no_network_or_child_process`) | Integration | P0 | FR-027-AC-9 | ✅ |
 | IT-180 | `coverage --strict` exits 0 when the only unbacked rows are `🚧 planned`/`🚧 Parked` (also with `coverage:unbacked-row=error`) and the text census prints `strict-exempt unbacked rows (planned/blocked/parked): N`, unchanged under `=off` (`cli_coverage::it180_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
 | IT-181 | A non-exempt unbacked row beside exempt ones fails `--strict` and the `error`-promoted check counting only itself; without `--strict` the exit is unchanged; no exempt rows prints no exempt line (`cli_coverage::it181_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
 | IT-182 | An exempt `🚧 planned` unbacked row beside a `✅` Complete row without backing: `--strict` exits 1 and reports the contradicted status (`cli_coverage::it182_*`) | Integration | P0 | FR-017-AC-7 | ✅ |
@@ -349,7 +356,7 @@ field (quire-rs FR-031 CR — unified archetype); a `validate-mod` fixture carri
 arg label, stdin exemption; AC-9 renumbers the thin-boundary AC). Retired rows are
 marked ⊘ RETIRED above (ids retained, dropped from the coverage tally). New traces
 IT-055..063 (FR-004 failure paths + FR-009 schema coverage) and re-pointed IT-003
-/IT-014/IT-050 are **specified here but not yet implemented** — they land with the
+/IT-050 are **specified here but not yet implemented** — they land with the
 render-removal code task, alongside fixtures for no-frontmatter / no-`type`
 documents. FR-009 (`schema`) is no longer an uncovered matrix gap.
 

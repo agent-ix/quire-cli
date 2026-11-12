@@ -20,6 +20,8 @@
 //! and teach nobody which side of the contract broke. What is pinned is the
 //! property the defect violated.
 
+mod common;
+
 use ix_trace_rs::trace;
 use std::fs;
 use std::path::Path;
@@ -369,35 +371,9 @@ fn human_census_figures_stay_on_stdout_without_color() {
         "properties census is not colorized: {properties_stdout:?}"
     );
 
-    let fixture_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    // The EARS grammar checks run for the `iso-spec-core` grammar; build that
-    // module from the repo's own `validate-mod` fixture with the grammar renamed.
-    let validate_src = fixture_root.join("validate-mod");
     let ears_dir = tempfile::tempdir().expect("tempdir");
-    let validate_mod = ears_dir.path().join("module");
-    std::fs::create_dir_all(validate_mod.join("schemas")).expect("mkdir schemas");
-    let manifest = std::fs::read_to_string(validate_src.join("manifest.yaml")).expect("manifest");
-    std::fs::write(
-        validate_mod.join("manifest.yaml"),
-        manifest.replace("validate-mod-core", "iso-spec-core"),
-    )
-    .expect("write manifest");
-    std::fs::copy(
-        validate_src.join("schemas/fr-frontmatter.schema.json"),
-        validate_mod.join("schemas/fr-frontmatter.schema.json"),
-    )
-    .expect("copy schema");
-    let ears_doc = ears_dir.path().join("FR-ears-warn.md");
-    std::fs::write(
-        &ears_doc,
-        "---\nid: FR-009\ntitle: FR EARS warning fixture\ntype: FR\n---\n\n\
-         # FR-009 FR EARS warning fixture\n\n\
-         ## Description\n\n\
-         On startup, the system shall support publishing to registries.\n\n\
-         ## Specification\n\nThe system shall publish.\n\n\
-         ## Acceptance Criteria\n\n| ID | Criteria |\n|----|----------|\n| FR-009-AC-1 | It publishes |\n",
-    )
-    .expect("write ears doc");
+    let validate_mod = common::ears_module(ears_dir.path());
+    let ears_doc = common::validate_doc("ears-warn-fr.md");
     let validate = quire()
         .arg("validate")
         .arg(&ears_doc)

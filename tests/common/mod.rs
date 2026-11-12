@@ -15,20 +15,12 @@ pub fn fixture_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
 }
 
-pub fn iso_module() -> PathBuf {
-    fixture_root().join("iso")
-}
-
 pub fn extract_module() -> PathBuf {
     fixture_root().join("extract-mod")
 }
 
 pub fn extract_sample_doc() -> PathBuf {
     fixture_root().join("extract-mod/sample.md")
-}
-
-pub fn ctx_path(name: &str) -> PathBuf {
-    fixture_root().join(format!("contexts/{name}.json"))
 }
 
 /// Module exercising markdown `validate` (FR-004/FR-010): an `FR`
@@ -42,20 +34,23 @@ pub fn validate_doc(name: &str) -> PathBuf {
     fixture_root().join(format!("validate-mod/docs/{name}"))
 }
 
-/// A direct-markdown document fixture under `iso-docs/` (used by the
-/// render-free validate sweep, IT-014, and FR-004 failure-path ITs).
-pub fn iso_doc(name: &str) -> PathBuf {
-    fixture_root().join(format!("iso-docs/{name}"))
+/// Builds, under `dir`, a copy of the `validate-mod` module whose grammar is
+/// named `iso-spec-core`, the name that enables the EARS grammar checks.
+/// Returns the module root.
+pub fn ears_module(dir: &std::path::Path) -> PathBuf {
+    let src = validate_module();
+    let root = dir.join("ears-module");
+    std::fs::create_dir_all(root.join("schemas")).expect("mkdir schemas");
+    let manifest = std::fs::read_to_string(src.join("manifest.yaml")).expect("read manifest");
+    std::fs::write(
+        root.join("manifest.yaml"),
+        manifest.replace("validate-mod-core", "iso-spec-core"),
+    )
+    .expect("write manifest");
+    std::fs::copy(
+        src.join("schemas/fr-frontmatter.schema.json"),
+        root.join("schemas/fr-frontmatter.schema.json"),
+    )
+    .expect("copy schema");
+    root
 }
-
-pub const ISO_ARCHETYPES: &[&str] = &[
-    "FR",
-    "NFR",
-    "StR",
-    "US",
-    "IT",
-    "TC",
-    "AC",
-    "CON",
-    "master-requirements",
-];

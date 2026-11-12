@@ -4,7 +4,7 @@
 //! (FR-032-AC-11..13). The `--json` context mode was removed with the
 //! render retirement (FR-004 CR note).
 //!
-//! Covers IT-014 (direct-markdown ISO sweep), IT-021, IT-047..061, and the
+//! Covers IT-021, IT-047..061, and the
 //! composed type+object + `--strict` traces IT-073..075.
 
 mod common;
@@ -13,7 +13,7 @@ use assert_cmd::prelude::*;
 use ix_trace_rs::trace;
 use predicates::prelude::*;
 
-use common::{iso_doc, iso_module, quire, validate_doc, validate_module, ISO_ARCHETYPES};
+use common::{ears_module, quire, validate_doc, validate_module};
 
 // ----------------------------------------------------------------------
 // Markdown structural validation — FR-004 / FR-010 over validate_document.
@@ -230,35 +230,6 @@ fn it_021_valid_markdown_writes_nothing_to_stdout() {
         .stdout(predicate::str::is_empty());
 }
 
-// IT-014: parametric direct-markdown validate sweep across the 8 ISO
-// archetypes (no render-then-validate). The ISO archetypes have no
-// `body_extraction`, so `validate_document` enforces frontmatter-schema +
-// per-level heading uniqueness; a well-formed document validates clean and
-// a frontmatter-broken one (bad `id`) fails.
-#[trace("IT-014")]
-#[test]
-fn it_014_markdown_sweep_each_iso_archetype() {
-    for archetype in ISO_ARCHETYPES {
-        quire()
-            .arg("validate")
-            .arg(iso_doc(&format!("{archetype}-valid.md")))
-            .arg("--module")
-            .arg(iso_module())
-            .assert()
-            .success()
-            .stdout(predicate::str::is_empty());
-
-        quire()
-            .arg("validate")
-            .arg(iso_doc(&format!("{archetype}-invalid.md")))
-            .arg("--module")
-            .arg(iso_module())
-            .assert()
-            .failure()
-            .code(3);
-    }
-}
-
 // ----------------------------------------------------------------------
 // FR-004 archetype-resolution failure paths + path-safety arg label.
 // ----------------------------------------------------------------------
@@ -271,9 +242,9 @@ fn it_014_markdown_sweep_each_iso_archetype() {
 fn it_056_no_frontmatter_names_archetype_remedy() {
     quire()
         .arg("validate")
-        .arg(iso_doc("no-frontmatter.md"))
+        .arg(validate_doc("no-frontmatter.md"))
         .arg("--module")
-        .arg(iso_module())
+        .arg(validate_module())
         .assert()
         .failure()
         .code(3)
@@ -291,9 +262,9 @@ fn it_056_no_frontmatter_names_archetype_remedy() {
 fn it_057_no_type_names_archetype() {
     quire()
         .arg("validate")
-        .arg(iso_doc("no-type.md"))
+        .arg(validate_doc("no-type.md"))
         .arg("--module")
-        .arg(iso_module())
+        .arg(validate_module())
         .assert()
         .failure()
         .code(3)
@@ -314,7 +285,7 @@ fn it_055_dotdot_document_path_rejected() {
         .arg("validate")
         .arg("../../etc/passwd")
         .arg("--module")
-        .arg(iso_module())
+        .arg(validate_module())
         .assert()
         .failure()
         .code(2)
@@ -347,12 +318,12 @@ fn it_058_path_safety_diagnostic_names_arg_label() {
 fn it_059_stdin_dash_is_path_safety_exempt_and_validated() {
     use std::io::Write;
 
-    let valid = std::fs::read(iso_doc("FR-valid.md")).unwrap();
+    let valid = std::fs::read(validate_doc("valid-fr.md")).unwrap();
     let mut cmd = quire();
     cmd.arg("validate")
         .arg("-")
         .arg("--module")
-        .arg(iso_module());
+        .arg(validate_module());
     let mut child = cmd
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -426,7 +397,7 @@ fn it_082_scoped_no_modules_without_quoin_reports_actionable_error() {
         .env("HOME", &empty_home) // default_module_root -> empty_home/.ix/... (missing)
         .env("PATH", &empty_bin) // no `quoin` discoverable on PATH
         .arg("validate")
-        .arg(iso_doc("FR-valid.md"))
+        .arg(validate_doc("valid-fr.md"))
         .arg("--scope")
         .arg(&scope)
         .assert()
@@ -528,8 +499,8 @@ fn it_075_json_warning_has_distinct_severity() {
 }
 
 // ----------------------------------------------------------------------
-// EARS requirement-grammar surfacing (quire-rs FR-042). The `iso` fixture
-// module binds FR to `grammar_ref: iso-spec-core`.
+// EARS requirement-grammar surfacing (quire-rs FR-042). The EARS module is
+// built in a tempdir (`common::ears_module`): FR bound to `iso-spec-core`.
 // ----------------------------------------------------------------------
 
 // IT-105, FR-004-AC-21, FR-004-AC-15: a structurally-valid FR carrying EARS
@@ -539,11 +510,12 @@ fn it_075_json_warning_has_distinct_severity() {
 #[trace("IT-105", "FR-004-AC-21", "FR-004-AC-15")]
 #[test]
 fn it_105_ears_grammar_warnings_are_advisory_and_summarized() {
+    let tmp = tempfile::tempdir().unwrap();
     quire()
         .arg("validate")
-        .arg(iso_doc("FR-ears-warn.md"))
+        .arg(validate_doc("ears-warn-fr.md"))
         .arg("--module")
-        .arg(iso_module())
+        .arg(ears_module(tmp.path()))
         .arg("--summary")
         .assert()
         .success()
@@ -565,11 +537,12 @@ fn it_105_ears_grammar_warnings_are_advisory_and_summarized() {
 #[trace("IT-106", "FR-004-AC-22")]
 #[test]
 fn it_106_ears_grammar_warnings_fail_under_strict() {
+    let tmp = tempfile::tempdir().unwrap();
     quire()
         .arg("validate")
-        .arg(iso_doc("FR-ears-warn.md"))
+        .arg(validate_doc("ears-warn-fr.md"))
         .arg("--module")
-        .arg(iso_module())
+        .arg(ears_module(tmp.path()))
         .arg("--strict")
         .assert()
         .failure()

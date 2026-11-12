@@ -201,8 +201,7 @@ Each task is a separate `src/commands/<name>.rs` module wired into `src/main.rs:
 Each IT/BENCH/AUDIT in `spec/tests.md` becomes one entry in `tests/` or `benches/` or CI workflow.
 
 9. **T-009 Test fixtures** (review F-2)
-   - Copy a handful of context JSON files for each archetype.
-10. **T-010 Happy-path ITs** (IT-001..004, IT-009, IT-014, IT-017, IT-018, IT-019, IT-021)
+10. **T-010 Happy-path ITs** (IT-001..004, IT-009, IT-017, IT-018, IT-019, IT-021)
     - `tests/cli_render.rs`, `tests/cli_parse.rs`, `tests/cli_extract.rs`, `tests/cli_validate.rs`.
     - `assert_cmd` + `predicates`.
     - IT-018 parametrizes over all 8 ISO archetypes.

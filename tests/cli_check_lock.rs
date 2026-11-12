@@ -48,7 +48,7 @@ fn assert_code(output: &Output, code: i32) {
 }
 
 #[test]
-#[trace("FR-027-AC-1", "FR-027-AC-3")]
+#[trace("IT-267", "FR-027-AC-1", "FR-027-AC-3")]
 fn aligned_empty_path_registry_and_other_owner_locks_pass() {
     let dir = TempDir::new().unwrap();
     for text in [
@@ -69,7 +69,7 @@ fn aligned_empty_path_registry_and_other_owner_locks_pass() {
 }
 
 #[test]
-#[trace("FR-027-AC-2", "FR-027-AC-6", "FR-027-AC-7")]
+#[trace("IT-268", "FR-027-AC-2", "FR-027-AC-6", "FR-027-AC-7")]
 fn every_split_lock_and_affected_package_is_reported_in_order() {
     let dir = TempDir::new().unwrap();
     let z = lock(dir.path(), "z.lock", &(git("zeta", B) + &git("alpha", A)));
@@ -101,7 +101,7 @@ fn every_split_lock_and_affected_package_is_reported_in_order() {
 }
 
 #[test]
-#[trace("FR-027-AC-3")]
+#[trace("IT-269", "FR-027-AC-3")]
 fn duplicate_agent_names_are_refused_even_with_identical_or_different_repositories() {
     let dir = TempDir::new().unwrap();
     for second in [
@@ -119,7 +119,7 @@ fn duplicate_agent_names_are_refused_even_with_identical_or_different_repositori
 }
 
 #[test]
-#[trace("FR-027-AC-4")]
+#[trace("IT-270", "FR-027-AC-4")]
 fn transport_case_query_and_terminal_variants_share_repository_identity() {
     let dir = TempDir::new().unwrap();
     let variants = [
@@ -146,7 +146,7 @@ fn transport_case_query_and_terminal_variants_share_repository_identity() {
 }
 
 #[test]
-#[trace("FR-027-AC-5")]
+#[trace("IT-271", "FR-027-AC-5")]
 fn malformed_fragments_urls_toml_and_typed_package_fields_are_invalid() {
     let dir = TempDir::new().unwrap();
     for fragment in ["", "#", "#abc", "#gggggggggggggggggggggggggggggggggggggggg"] {
@@ -193,7 +193,7 @@ fn malformed_fragments_urls_toml_and_typed_package_fields_are_invalid() {
 }
 
 #[test]
-#[trace("FR-027-AC-6", "FR-027-AC-7")]
+#[trace("IT-272", "FR-027-AC-6", "FR-027-AC-7")]
 fn independent_locks_are_not_compared_and_fatal_paths_never_report_success() {
     let dir = TempDir::new().unwrap();
     let a = lock(dir.path(), "a.lock", &git("one", A));
@@ -211,7 +211,7 @@ fn independent_locks_are_not_compared_and_fatal_paths_never_report_success() {
 }
 
 #[test]
-#[trace("FR-027-AC-7")]
+#[trace("IT-273", "FR-027-AC-7")]
 fn global_format_color_and_pretty_use_existing_stream_contract() {
     let dir = TempDir::new().unwrap();
     let path = lock(dir.path(), "Cargo.lock", &(git("one", A) + &git("two", B)));
@@ -246,7 +246,7 @@ fn global_format_color_and_pretty_use_existing_stream_contract() {
 
 #[cfg(unix)]
 #[test]
-#[trace("FR-027-AC-6", "FR-027-AC-7")]
+#[trace("IT-274", "FR-027-AC-6", "FR-027-AC-7")]
 fn input_permission_refusal_is_distinct_from_output_failure() {
     use std::os::unix::fs::PermissionsExt;
     let dir = TempDir::new().unwrap();
@@ -272,7 +272,7 @@ fn input_permission_refusal_is_distinct_from_output_failure() {
 
 #[cfg(target_os = "linux")]
 #[test]
-#[trace("FR-027-AC-9")]
+#[trace("IT-275", "FR-027-AC-9")]
 fn gate_leaves_inputs_unchanged_and_opens_no_network_or_child_process() {
     let dir = TempDir::new().unwrap();
     for (text, code) in [(git("one", A), 0), (git("one", A) + &git("two", B), 2)] {

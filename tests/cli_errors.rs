@@ -9,7 +9,7 @@ use assert_cmd::prelude::*;
 use ix_trace_rs::trace;
 use predicates::prelude::*;
 
-use common::{iso_doc, iso_module, quire, validate_doc, validate_module};
+use common::{quire, validate_doc, validate_module};
 
 fn write_tmp(contents: &str, suffix: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir();
@@ -58,9 +58,9 @@ fn it_026_exit_code_0_on_success() {
 fn it_026_exit_code_3_on_validation_failure() {
     quire()
         .arg("validate")
-        .arg(iso_doc("FR-invalid.md"))
+        .arg(validate_doc("broken-fr.md"))
         .arg("--module")
-        .arg(iso_module())
+        .arg(validate_module())
         .assert()
         .failure()
         .code(3);
@@ -123,7 +123,7 @@ fn failed_primary_output_returns_internal_without_panicking() {
             "properties".to_owned(),
             "-".to_owned(),
             "--module".to_owned(),
-            common::iso_module().display().to_string(),
+            common::validate_module().display().to_string(),
             "--archetype".to_owned(),
             "FR".to_owned(),
         ],
