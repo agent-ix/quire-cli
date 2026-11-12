@@ -59,6 +59,16 @@ fn fr_doc(id: &str, rows: &[(&str, &str, &str)]) -> String {
     doc
 }
 
+/// An FR document with extra frontmatter lines (for example `criticality: high`)
+/// and one criterion row.
+fn fr_doc_with(id: &str, frontmatter: &str) -> String {
+    format!(
+        "---\nid: {id}\ntype: FR\n{frontmatter}---\n## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | {id}-AC-1 | A criterion. | Test |\n"
+    )
+}
+
 /// A Rust test tagged with `id`; `ignored` adds `#[ignore]`.
 fn rust_test(name: &str, id: &str, ignored: bool) -> String {
     let ignore = if ignored { "#[ignore]\n" } else { "" };
@@ -321,12 +331,12 @@ fn it168_markdown_renders_one_table_per_requirement_in_engine_order() {
             expected.push('\n');
         }
         expected.push_str(&format!(
-            "## {}\n\n| Criterion | Statement | Binders | Status |\n|---|---|---|---|\n",
+            "## {}\n\n| Criterion | Statement | Binders | Status | Requirement Criticality |\n|---|---|---|---|---|\n",
             requirement["document"].as_str().expect("document")
         ));
         for c in requirement["criteria"].as_array().expect("criteria") {
             expected.push_str(&format!(
-                "| {} | {} | (none) | untagged |\n",
+                "| {} | {} | (none) | untagged | unassigned |\n",
                 c["id"].as_str().expect("id"),
                 c["statement"].as_str().expect("statement")
             ));
@@ -481,10 +491,10 @@ fn it169_a_pipe_in_a_binder_path_is_escaped() {
         .unwrap_or_else(|| panic!("no row: {markdown}"));
     assert_eq!(
         row,
-        "| FR-001-AC-1 | Bound from a piped path. | tests/a\\|b.rs:3:1 | tagged |"
+        "| FR-001-AC-1 | Bound from a piped path. | tests/a\\|b.rs:3:1 | tagged | unassigned |"
     );
-    // Four cells: the escaped pipe opens no fifth column.
-    assert_eq!(row.split(" | ").count(), 4, "{row}");
+    // Five cells: the escaped pipe opens no sixth column.
+    assert_eq!(row.split(" | ").count(), 5, "{row}");
 }
 
 #[trace("IT-170", "FR-026-AC-6")]
@@ -509,7 +519,9 @@ fn it170_structural_characters_become_spaces_before_truncation() {
     let expected = format!("{} {}...", "a".repeat(40), "b".repeat(36));
     assert_eq!(expected.chars().count(), 80);
     assert!(
-        markdown.contains(&format!("| FR-001-AC-1 | {expected} | (none) | untagged |")),
+        markdown.contains(&format!(
+            "| FR-001-AC-1 | {expected} | (none) | untagged | unassigned |"
+        )),
         "{markdown:?}"
     );
     assert!(!markdown.contains('\t'), "{markdown:?}");
@@ -571,7 +583,8 @@ fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
     );
     let tsv = stdout(&f.matrix(&["--format", "tsv"]));
     assert!(
-        tsv.lines().any(|l| l.ends_with(&format!("\t{piped}"))),
+        tsv.lines()
+            .any(|l| l.ends_with(&format!("\t{piped}\tunassigned"))),
         "TSV carries the untruncated, unescaped statement: {tsv}"
     );
 }
@@ -642,7 +655,8 @@ fn it172_tsv_emits_one_untruncated_record_per_criterion() {
     assert_eq!(code(&out), 0, "{}", stderr(&out));
 
     let engine = engine_matrix(&f).expect("coverage_matrix");
-    let mut expected = String::from("document\tcriterion\tstatus\tbinders\tstatement\n");
+    let mut expected =
+        String::from("document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n");
     for requirement in engine.as_array().expect("array") {
         for c in requirement["criteria"].as_array().expect("criteria") {
             let binders: Vec<String> = c["binders"]
@@ -664,7 +678,7 @@ fn it172_tsv_emits_one_untruncated_record_per_criterion() {
                 })
                 .collect();
             expected.push_str(&format!(
-                "{}\t{}\t{}\t{}\t{}\n",
+                "{}\t{}\t{}\t{}\t{}\tunassigned\n",
                 requirement["document"].as_str().unwrap(),
                 c["id"].as_str().unwrap(),
                 c["status"].as_str().unwrap(),
@@ -675,7 +689,7 @@ fn it172_tsv_emits_one_untruncated_record_per_criterion() {
     }
     let tsv = stdout(&out);
     assert_eq!(tsv, expected);
-    assert!(tsv.contains(&format!("\t{long}\n")), "{tsv}");
+    assert!(tsv.contains(&format!("\t{long}\tunassigned\n")), "{tsv}");
     assert!(tsv.contains("(ignored)"), "{tsv}");
     assert!(
         tsv.lines()
@@ -684,7 +698,7 @@ fn it172_tsv_emits_one_untruncated_record_per_criterion() {
         "two binders, comma-separated: {tsv}"
     );
     assert!(
-        tsv.contains("\tFR-001-AC-2\tuntagged\t\tThe second criterion.\n"),
+        tsv.contains("\tFR-001-AC-2\tuntagged\t\tThe second criterion.\tunassigned\n"),
         "zero binders render empty, not (none): {tsv}"
     );
 
@@ -693,7 +707,7 @@ fn it172_tsv_emits_one_untruncated_record_per_criterion() {
     assert_eq!(code(&out), 0, "{}", stderr(&out));
     assert_eq!(
         stdout(&out),
-        "document\tcriterion\tstatus\tbinders\tstatement\n"
+        "document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n"
     );
 }
 
@@ -722,7 +736,7 @@ fn it173_both_zero_population_shapes_render_identically() {
         let tsv = f.matrix(&["--format", "tsv"]);
         assert_eq!(
             stdout(&tsv),
-            "document\tcriterion\tstatus\tbinders\tstatement\n"
+            "document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n"
         );
 
         // Zero population has one shape: the engine omits the key, and so
@@ -814,14 +828,14 @@ fn it175_method_without_symbol_never_fails_strict() {
     let markdown = stdout(&out);
     assert!(
         markdown.contains(
-            "| FR-001-AC-1 | Inspected, never tagged. | (none) | method-without-symbol |"
+            "| FR-001-AC-1 | Inspected, never tagged. | (none) | method-without-symbol | unassigned |"
         ),
         "{markdown}"
     );
     assert!(
         markdown.lines().any(|l| l.starts_with("| FR-001-AC-2 |")
             && l.contains("src/lib.rs:")
-            && l.ends_with("| method-without-symbol |")),
+            && l.ends_with("| method-without-symbol | unassigned |")),
         "{markdown}"
     );
     let tsv = stdout(&f.matrix(&["--format", "tsv"]));
@@ -1046,4 +1060,189 @@ fn matrix_explains_ranges_and_partially_read_trace_lists_in_every_format() {
         assert!(!stderr(&repaired).contains("range-in-trace-tag"));
         assert!(!stderr(&repaired).contains("was not read by the declared trace grammar"));
     }
+}
+
+/// One fixture per requirement criticality case: each document has a single
+/// criterion `<id>-AC-1`, so a row's cells are easy to find.
+fn criticality_fixture(docs: &[(&str, &str)]) -> Fixture {
+    let f = Fixture::with_obligations();
+    for (id, frontmatter) in docs {
+        f.write(&format!("spec/{id}.md"), &fr_doc_with(id, frontmatter));
+    }
+    f
+}
+
+/// The Markdown row and TSV record for `<id>-AC-1`.
+fn criticality_cells(f: &Fixture, id: &str) -> (Vec<String>, Vec<String>) {
+    let ac = format!("{id}-AC-1");
+    let md = stdout(&f.matrix(&[]));
+    let row = md
+        .lines()
+        .find(|l| l.starts_with(&format!("| {ac} |")))
+        .unwrap_or_else(|| panic!("no markdown row {ac}: {md}"));
+    let md_cells = row
+        .trim_start_matches("| ")
+        .trim_end_matches(" |")
+        .split(" | ")
+        .map(str::to_string)
+        .collect();
+    let tsv = stdout(&f.matrix(&["--format", "tsv"]));
+    let record = tsv
+        .lines()
+        .find(|l| l.split('\t').nth(1) == Some(ac.as_str()))
+        .unwrap_or_else(|| panic!("no tsv record {ac}: {tsv}"));
+    (md_cells, record.split('\t').map(str::to_string).collect())
+}
+
+#[trace("FR-028-AC-1", "FR-028-AC-2", "FR-028-AC-5")]
+#[test]
+fn fr028_each_requirement_shows_only_its_own_criticality() {
+    let f = criticality_fixture(&[
+        ("FR-001", "criticality: low\n"),
+        ("FR-002", "criticality: medium\n"),
+        ("FR-003", "criticality: high\n"),
+        ("FR-004", ""),
+    ]);
+    let markdown = stdout(&f.matrix(&[]));
+    assert!(
+        markdown
+            .contains("| Criterion | Statement | Binders | Status | Requirement Criticality |\n"),
+        "{markdown}"
+    );
+    let tsv = stdout(&f.matrix(&["--format", "tsv"]));
+    assert!(
+        tsv.starts_with(
+            "document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n"
+        ),
+        "{tsv}"
+    );
+    for (id, want) in [
+        ("FR-001", "low"),
+        ("FR-002", "medium"),
+        ("FR-003", "high"),
+        ("FR-004", "unassigned"),
+    ] {
+        let (md, tsv) = criticality_cells(&f, id);
+        assert_eq!(md.last().map(String::as_str), Some(want), "{md:?}");
+        assert_eq!(tsv.last().map(String::as_str), Some(want), "{tsv:?}");
+    }
+}
+
+#[trace("FR-028-AC-4")]
+#[test]
+fn fr028_json_passes_requirements_through_unmodified() {
+    let f = criticality_fixture(&[("FR-001", "criticality: unassigned\n"), ("FR-002", "")]);
+    let payload = json(&f.matrix(&["--format", "json"]));
+    let requirements = payload["coverage_matrix"].as_array().expect("array");
+    let by_doc = |doc: &str| {
+        requirements
+            .iter()
+            .find(|r| r["document"] == doc)
+            .unwrap_or_else(|| panic!("no {doc}"))
+    };
+    assert_eq!(by_doc("spec/FR-001.md")["criticality"], "unassigned");
+    assert!(by_doc("spec/FR-002.md")
+        .as_object()
+        .unwrap()
+        .get("criticality")
+        .is_none());
+    assert_eq!(
+        payload["coverage_matrix"],
+        engine_matrix(&f).expect("engine matrix"),
+        "the matrix payload is the engine's, unmodified"
+    );
+}
+
+#[trace("FR-028-AC-6")]
+#[test]
+fn fr028_zero_population_keeps_its_shape_with_the_six_column_tsv_header() {
+    for f in zero_populations() {
+        assert_eq!(
+            stdout(&f.matrix(&[])),
+            "No obligations matched this scope.\n"
+        );
+        assert_eq!(
+            stdout(&f.matrix(&["--format", "tsv"])),
+            "document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n"
+        );
+    }
+}
+
+#[trace("FR-028-AC-7", "FR-028-AC-8")]
+#[test]
+fn fr028_odd_values_are_escaped_and_scrubbed_like_every_other_cell() {
+    // YAML double-quoted escapes keep the control characters inside one value.
+    let f = criticality_fixture(&[
+        ("FR-001", "criticality: \"a|b\"\n"),
+        ("FR-002", "criticality: \"a\\tb\\nc\\rd\"\n"),
+    ]);
+    let (md, tsv) = criticality_cells(&f, "FR-001");
+    assert_eq!(md.len(), 5, "an escaped pipe opens no extra column: {md:?}");
+    assert_eq!(md[4], "a\\|b");
+    assert_eq!(tsv.last().unwrap(), "a|b", "TSV is unescaped");
+
+    let (md, tsv) = criticality_cells(&f, "FR-002");
+    assert_eq!(md[4], "a b c d");
+    assert_eq!(tsv.last().unwrap(), "a b c d");
+    let tsv_all = stdout(&f.matrix(&["--format", "tsv"]));
+    assert_eq!(tsv_all.lines().count(), 3, "header plus one record each");
+}
+
+#[trace("FR-028-AC-9", "FR-028-AC-10")]
+#[test]
+fn fr028_empty_and_non_string_values_are_not_unassigned() {
+    let f = criticality_fixture(&[
+        ("FR-001", "criticality: \"\"\n"),
+        ("FR-002", "criticality: 3\n"),
+    ]);
+    let (md, tsv) = criticality_cells(&f, "FR-001");
+    assert_eq!(md[4], "", "{md:?}");
+    assert_eq!(tsv.last().unwrap(), "");
+    let (md, tsv) = criticality_cells(&f, "FR-002");
+    assert_eq!(md[4], "3");
+    assert_eq!(tsv.last().unwrap(), "3");
+}
+
+#[trace("FR-028-AC-3")]
+#[test]
+fn fr028_a_missing_key_renders_unassigned_in_both_formats() {
+    let f = criticality_fixture(&[("FR-001", "")]);
+    let (md, tsv) = criticality_cells(&f, "FR-001");
+    assert_eq!(md[4], "unassigned");
+    assert_eq!(tsv.last().unwrap(), "unassigned");
+}
+
+#[trace("FR-028-AC-11")]
+#[test]
+fn fr028_criticality_does_not_change_strict_or_the_exit_code() {
+    let outcomes: Vec<(i32, String)> = ["criticality: high\n", "", "criticality: low\n"]
+        .iter()
+        .map(|line| {
+            let all_same = criticality_fixture(&[("FR-001", line), ("FR-002", line)]);
+            all_same.write(
+                "src/lib.rs",
+                &format!(
+                    "{}{}",
+                    rust_test("one", "FR-001-AC-1", false),
+                    rust_test("two", "FR-002-AC-1", false)
+                ),
+            );
+            let out = all_same.matrix(&["--strict"]);
+            (code(&out), stderr(&out))
+        })
+        .collect();
+    assert_eq!(outcomes[0], outcomes[1]);
+    assert_eq!(outcomes[1], outcomes[2]);
+    assert_eq!(outcomes[0].0, 0, "{}", outcomes[0].1);
+
+    let mixed = criticality_fixture(&[("FR-001", "criticality: high\n"), ("FR-002", "")]);
+    mixed.write(
+        "src/lib.rs",
+        &format!(
+            "{}{}",
+            rust_test("one", "FR-001-AC-1", false),
+            rust_test("two", "FR-002-AC-1", false)
+        ),
+    );
+    assert_eq!(code(&mixed.matrix(&["--strict"])), 0);
 }
