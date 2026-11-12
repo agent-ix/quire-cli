@@ -45,3 +45,11 @@ fixture precondition and the full set of dangling cases.
 Pre-existing and outside this diff, so not counted: FR-014 §A still says
 "Exit code: **1**" for a hard error, and FR-004 Behavior step 5 says 1, while
 FR-014-AC-1, FR-004-AC-11 and the tests all use 3.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | f031077: AC-11 now says `--okf --strict` also applies FR-004's `--strict` escalation, so every finding, error or remaining warning, exits 3 |
+| FND-002 | fixed | f031077: AC-11 now says a bundle that is otherwise Strict-conformant and has only foreign-authority targets exits 0 |
+| FND-003 | fixed | f031077: AC-11 now says a miss with no package declared, and a two-segment `ix://<org>/<id>` link to an absent id, are dangling and exit 3 |

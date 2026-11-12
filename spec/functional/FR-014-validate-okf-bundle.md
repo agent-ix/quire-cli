@@ -56,7 +56,7 @@ quire validate [<DIR>] --okf [--strict] [--scope <DIR>] [--module <PATH>]
 With `--okf`, the **bundle root** is the positional argument when one is given,
 and `<scope>/spec` when none is (CR note below). It is validated wholesale as an
 OKF bundle under the permissive posture (`BundlePosture::Strict` when `--strict` is given, FR-014-AC-11) via `quire_rs::validate_bundle(&spec,
-&registry, BundlePosture::Okf, document_root, reference_root)` — two roots, so
+&registry, posture, document_root, reference_root)`, where `posture` is `BundlePosture::Okf` unless `--strict` is given, in which case it is `BundlePosture::Strict` — two roots, so
 the module's path-bound declarations keep resolving against the repository scope
 (quire-rs FR-049-AC-9). The returned `BundleReport` is surfaced on stderr:
 warnings (non-fatal) first, then errors, in the shared quire-rs diagnostic shape
@@ -74,7 +74,7 @@ Posture semantics (permissive):
   **WARNING** (`[index-incomplete]`), not an error.
 
 Exit code: **1** when the report carries any hard error (e.g. an untyped
-document); otherwise **0**, even when warnings were emitted. `--okf` writes
+document); otherwise **0**, even when warnings were emitted. With `--strict`, any finding exits 3 (FR-014-AC-11). `--okf` writes
 nothing to stdout.
 
 The bundle root is the positional directory; when no positional is given it is

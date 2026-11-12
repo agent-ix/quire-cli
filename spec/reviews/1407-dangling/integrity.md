@@ -30,3 +30,11 @@ PASS with findings. Fix FND-001 in this PR: add `--strict` to the §A synopsis,
 and add a short "with `--strict`" paragraph under §A that names the Strict
 posture and its exit semantics. Extend the tests.md FR-014 row to AC-11 marked
 open, and add the quire-rs FR-038 dependency edge.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | still-open | f031077 fixed the Description and the §A synopsis. §A's exit-code paragraph still reads "otherwise **0**, even when warnings were emitted" with no `--strict` qualifier, which contradicts AC-11 (any finding exits 3). The inline call still passes `BundlePosture::Okf` unconditionally. Add one sentence: with `--strict`, any finding exits 3 (FR-014-AC-11) |
+| FND-002 | fixed | f031077: the FR-014 row in spec/tests.md now carries "AC-11 🚧 open: `--okf --strict` has no IT yet; depends on quire-rs FR-038-AC-11" |
+| FND-003 | fixed | f031077 adds a `consumes` relationship to `ix://agent-ix/quire-rs/spec/functional/FR-038` and names FR-038-AC-11 (quire-rs#646) under Dependencies |
