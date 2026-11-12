@@ -43,3 +43,10 @@ scope:
 ## Verdict
 
 Changes requested. The vendored copy and its refresh target are gone, and nothing replaces them. The three tests the coder re-pointed still assert the same properties. FND-001 blocks the merge.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | At 89274c7 every listed binding is backed by a passing test (full suite 307/0). The IT-014 row and test are deleted. That sweep checked spec-artifacts-iso schemas per archetype; the CLI-behaviour residue is code-review FND-005. US-003-AC-2 moved to IT-048, which asserts the broken-doc exit and diagnostic |
+| FND-002 | fixed | 89274c7 adds IT-267..IT-275 rows and IT ids on the nine `cli_check_lock` traces. `quire matrix` shows FR-027-AC-1..7 and AC-9 tagged. AC-8 and AC-10 are Demonstration and CON-1..3 are Inspection, so they are correctly left without a test. IT-267..275 collide with no id on main or in open PRs #119 and #123 |

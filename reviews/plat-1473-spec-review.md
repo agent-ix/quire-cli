@@ -44,3 +44,11 @@ scope:
 ## Verdict
 
 Changes requested on wording. All three findings are text fixes, and none blocks the merge on its own. Removing R-2 and the refresh steps is consistent with the deletion.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | spec/REVIEW.md now reads "Decision: none of (a), (b) or (c). Copying another repo's fixtures is not done and the render parity sweep is retired" |
+| FND-002 | fixed | plan/tasks/README.md row now reads "T-009 \| C \| Test fixtures" |
+| FND-003 | fixed | plan.md T-009 "Copy a handful of context JSON files" line deleted, along with the contexts fixtures |

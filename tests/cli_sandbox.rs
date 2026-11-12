@@ -38,7 +38,7 @@ fn it_022_out_dotdot_rejected() {
         .arg("edit")
         .arg(validate_doc("valid-fr.md"))
         .arg("--heading")
-        .arg("FR-001 FR sweep fixture")
+        .arg("[FR-001] A valid functional requirement")
         .arg("--content")
         .arg(validate_doc("valid-fr.md"))
         .arg("--out")

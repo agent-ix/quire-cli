@@ -56,3 +56,18 @@ The rest is correct:
 - The cli_stream_contract tempdir module is built only from quire-cli's own `validate-mod` files. The grammar rename really triggers the EARS warning; without it the assertion fails.
 - No new copy of another repo's files is introduced.
 - `tests/fixtures/iso-docs` is not a vendored copy. It holds 21 small quire-cli-authored docs. None of their content occurs in quire-rs history, or elsewhere under ~/dev outside quire-cli checkouts.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | medium | `.github/workflows/release.yml` sets `core.protectNTFS=false` for every git call. Its comment, and the sparse-checkout comment, say this exists only for `tests/fixtures/contexts/CON.json`, described there as "an upstream fixture". This PR deletes that file. `git ls-files` now finds no Windows-reserved name in the tree, so a git path-safety check stays off for no remaining reason. Fix: delete the three `GIT_CONFIG_*` lines and the stale comments. This is a workflow edit, so it needs the owner's clearance first. | .github/workflows/release.yml:36-43, .github/workflows/release.yml:65-68 |
+| FND-004 | low | it_022 passes `--heading "FR-001 FR sweep fixture"`, the heading of the deleted `iso-docs/FR-valid.md`. The new `valid-fr.md` heading is `[FR-001] A valid functional requirement`. The test still passes because path-safety rejects `--out` first. But the request now has two faults, where the original isolated the `--out` one. Fix: use the real heading. | tests/cli_sandbox.rs:41 |
+| FND-005 | low | `it_026_exit_code_3_on_validation_failure` used to fail on a frontmatter-schema violation (`iso-docs/FR-invalid.md`, `id: bad id`). It now uses `broken-fr.md`, which fails a body table assert. it_014, whose invalid docs were also frontmatter-schema violations, is deleted. So no non-OKF `validate --module` test now drives a frontmatter JSON-schema violation to exit 3. Fix: give it_026 (or a sibling test) an inline tempdir doc with `id: bad id` against validate-mod. | tests/cli_errors.rs:56-66 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 89274c7 deletes `iso_module()`, `iso_doc()`, `ISO_ARCHETYPES` and `tests/fixtures/iso-docs`, and re-points the 10 tests at validate-mod or a tempdir `ears_module()`. Full `cargo test --locked --no-fail-fast` at 89274c7: 307 passed, 0 failed. Mutations: it_055 with a valid doc path, it_105 with plain validate-mod, and the extract test with `body_extraction` kept all fail, so the re-pointed tests still discriminate |
+| FND-002 | fixed | 89274c7 deletes `ctx_path()` and `tests/fixtures/contexts/*.json` |

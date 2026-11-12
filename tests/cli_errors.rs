@@ -66,6 +66,29 @@ fn it_026_exit_code_3_on_validation_failure() {
         .code(3);
 }
 
+// IT-026, FR-007-AC-4: a frontmatter-schema violation (`id` fails the
+// schema pattern) also exits 3, naming the offending field.
+#[trace("IT-026", "FR-007-AC-4")]
+#[test]
+fn it_026_exit_code_3_on_frontmatter_schema_violation() {
+    let dir = tempfile::tempdir().unwrap();
+    let doc = dir.path().join("bad-id.md");
+    // Same body as the valid fixture so only the frontmatter `id` is wrong.
+    let valid = std::fs::read_to_string(validate_doc("valid-fr.md")).unwrap();
+    std::fs::write(&doc, valid.replace("id: FR-001", "id: bad id")).unwrap();
+    quire()
+        .arg("validate")
+        .arg(&doc)
+        .arg("--module")
+        .arg(validate_module())
+        .assert()
+        .failure()
+        .code(3)
+        .stderr(
+            predicate::str::contains("does not match").and(predicate::str::contains("(at id)")),
+        );
+}
+
 // IT-026, FR-007-AC-5, FR-014-AC-7: an argv error exits 3 — bare `validate`
 // with no positional and no `--okf` trips the `required_unless_present` rule.
 #[trace("IT-026", "FR-007-AC-5", "FR-014-AC-7")]
