@@ -109,3 +109,19 @@ scope:
   excerpt: A model matching zero live and zero retired rows fails `--strict` with a diagnostic distinct
     from the unbacked-rows one, rather than reporting full coverage.
 ```
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+|---|---|---|---|
+| FND-005 | medium | AC-20 asserts on an "unjustified-scope finding", but no check by that name exists: the sibling manifests' tokens are `unjustified-safety-nfr` and `unjustified-security-nfr`, and FR-030 itself defines none. A test cannot target an unnamed finding, and naming a chain token would break AC-22. Phrase it over the fixture module's own relation, e.g. "no finding carrying the fixture relation's `check` token". | spec/functional/FR-030-relations-subcommand.md:101 |
+| FND-006 | low | Behavior calls a module set without `required_relations` and an unknown `--relation` "refusals", which is FR-007's word for exit 2, while the Description and AC-9/AC-15 say exit 3. Call them invalid requests, or drop the word. | spec/functional/FR-030-relations-subcommand.md:75-76 |
+
+## Dispositions
+
+| FND | outcome | reason |
+|---|---|---|
+| FND-001 | fixed | verified in commit 3746178 |
+| FND-002 | fixed | verified in commit 3746178 |
+| FND-003 | fixed | verified in commit 3746178 |
+| FND-004 | fixed | verified in commit 3746178 |

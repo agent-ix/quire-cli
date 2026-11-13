@@ -109,3 +109,19 @@ scope:
   excerpt: A model matching zero live and zero retired rows fails `--strict` with a diagnostic distinct
     from the unbacked-rows one, rather than reporting full coverage.
 ```
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+|---|---|---|---|
+| FND-005 | medium | `validate --okf --repo` has no engine contract. FR-014 validates one bundle via `validate_bundle(spec, registry, posture, document_root, reference_root)`, with one document root and one reference root; quire-rs FR-085 (quire-rs#664 head) builds a multi-member corpus and resolves edges, but specifies no bundle validation over one, no per-member bundle and reference roots, no `--strict` posture across members, and no source-member identity on FR-058 findings. FR-030 nonetheless states that every member is validated against the one corpus and that each finding names the member identity. Under StR-004 the upstream FR comes first: add the multi-member validate entry point (roots, posture, finding identity) to quire-rs#664, or state here which existing quire-rs API the CLI calls per member. | spec/functional/FR-030-relations-subcommand.md:42-50 |
+| FND-006 | low | The section makes `--repo` with `--scope` or a positional argument an error on `validate`, but AC-16 covers only `relations` and AC-21 only a missing `--okf`; no AC covers `validate --okf --repo` with `--scope` or a positional bundle root. The text also says "positional globs", while FR-014's `--okf` positional is a bundle `<DIR>`. | spec/functional/FR-030-relations-subcommand.md:49-50 |
+
+## Dispositions
+
+| FND | outcome | reason |
+|---|---|---|
+| FND-001 | fixed | verified in commit 3746178 |
+| FND-002 | fixed | verified in commit 3746178 |
+| FND-003 | fixed | verified in commit 3746178 |
+| FND-004 | fixed | verified in commit 3746178 |
