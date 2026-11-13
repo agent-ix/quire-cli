@@ -31,6 +31,12 @@ relationships:
 > `validate` and `coverage` disagree about which module is in scope for the
 > same invocation.
 
+> **CR note (`--repo` corpus input, PLAT-1520):** `validate --okf` accepts the
+> repeatable `--repo <ORG/REPO>=<DIR>` corpus input, defined and verified in
+> [FR-030](./FR-030-relations-subcommand.md) so that `validate` and `relations`
+> cannot disagree about how a multi-repository corpus is built. No AC changes
+> here.
+
 > **CR note (`--module` is REQUIRED):** Markdown validation always needs a module
 > registry to resolve the archetype and its `body_extraction` asserts, so `--module`
 > is mandatory (not bracketed/optional) in the implementation.
