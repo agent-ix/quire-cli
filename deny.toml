@@ -37,8 +37,13 @@ deny = [
     { name = "curl" },
     { name = "curl-sys" },
     { name = "gix-transport" },
-    { name = "gix-protocol" },
 ]
+
+# gix-protocol is a non-optional dependency of gix; only its client features
+# carry network code (FR-034).
+[[bans.features]]
+name = "gix-protocol"
+deny = ["blocking-client", "async-client"]
 
 [advisories]
 version = 2

@@ -47,3 +47,16 @@ scope:
 ## Verdict
 
 Changes required. Test is the right method for the differential and extraction ACs. NFR-011-AC-4 gives the stability comparison a control that can fail. Inspection fits FR-035-AC-5 and FR-037-AC-4. FR-034-AC-6's missing oracle is recorded as dependency FND-001.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | low | 'a first paragraph run ... holding the title and the identity lines' cannot hold as worded. The generated title page is several Markdown paragraphs (a title plus one labelled line per field), and pandoc writes each as its own `w:p`, so no single run holds them all. Reword the oracle to 'the text of the `w:p` elements before the first page-break element holds the title and each identity line, and no document text'. | spec/functional/FR-035-default-export-template.md:88 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |

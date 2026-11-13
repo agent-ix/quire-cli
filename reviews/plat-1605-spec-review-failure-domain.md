@@ -53,3 +53,12 @@ scope:
 ## Verdict
 
 Changes required (FND-001 high). The JSON-input refusal, the 16 MiB template bound, the no-fallback rule, the 256-input bundle bound and the clock-free date rules have their failure paths specified in FR-040.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | still-open | Only part of this is fixed. Approval values now go only to the escaped `in/approval.md`, and generated title-page Markdown is escaped. But FR-034 section C still writes title, document-id, version and release unescaped into `in/metadata.yaml` under `quire-export`. FR-035 B has the default Typst template read that map for the header, and FR-036 gives it to organisation templates. Pandoc parses every metadata string as Markdown, so an id or version holding `*x*` or `` `...`{=typst} `` is rendered or emitted raw in every PDF header. FR-034-AC-10 ('no emphasis applied and no raw block interpreted') would fail on page 2 onward. Apply the same escaping to metadata.yaml values, and extend AC-10 to the header text. |

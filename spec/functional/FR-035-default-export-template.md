@@ -85,7 +85,7 @@ whatever the template:
 | ID | Criteria | Verification |
 | --- | --- | --- |
 | FR-035-AC-1 | A PDF export of a committed fixture with no `--template` yields page 1 text with the title and the six identity fields as FR-034 states and no document text, and the text of page 2 onward holds the document. Extracted with `pdftotext` per page. | Test |
-| FR-035-AC-2 | The same DOCX export yields a first paragraph run in `word/document.xml` holding the title and the identity lines before a page-break element, and no document text before that break. | Test |
+| FR-035-AC-2 | The same DOCX export yields `word/document.xml` text in which the title and the identity lines precede the first page-break element and no document text precedes that break. | Test |
 | FR-035-AC-3 | The PDF holds a table of contents whose entries equal the fixture's level 1 to 3 headings in order, and the DOCX holds a TOC field. | Test |
 | FR-035-AC-4 | PDF pages after the first hold a header with the document id and version, and a footer with the 12-character commit prefix and `Page N of M` for the page's own N and the total M; page 1 holds no `Page 1 of`. | Test |
 | FR-035-AC-5 | The DOCX has a `word/header*.xml` part holding the document id and version and a `word/footer*.xml` part holding the `PAGE` and `NUMPAGES` fields and the 12-character commit prefix, a first-page-different setting in `word/document.xml`, and no header or footer text on that first page. | Test |

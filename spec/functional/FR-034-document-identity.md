@@ -10,6 +10,8 @@ relationships:
     type: "implements"
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-031"
     type: "extends"
+  - target: "ix://agent-ix/quire-rs/FR-006"
+    type: "implements"
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-033"
     type: "references"
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-040"
@@ -43,8 +45,8 @@ quire export <INPUT>... --to pdf|docx --output <PATH>
 | Date | The committer date of that commit, in UTC, as `YYYY-MM-DD`. |
 
 At least one of Version and Release SHALL be present; both are shown when both
-are present. The frontmatter members are read from the document that `quire-rs`
-parses for [FR-004](./FR-004-validate-subcommand.md).
+are present. The frontmatter members are read with `extract_frontmatter` of
+[quire-rs FR-006](ix://agent-ix/quire-rs/FR-006).
 
 ## Behavior
 
@@ -73,9 +75,12 @@ parses for [FR-004](./FR-004-validate-subcommand.md).
 - The command SHALL NOT start a `git` process.
 - The command SHALL link no git network transport. The git library is a pure-Rust
   object-store reader, `gix`, with `default-features = false` and none of its
-  network-client, credential or transport features; the crates banned by
-  [NFR-004](../non-functional/NFR-004-no-network.md)-AC-1 are absent from the
-  dependency graph.
+  network-client, credential or transport features. The `gix-transport` crate is
+  absent from the dependency graph and the `blocking-client` and `async-client`
+  features of `gix-protocol` are off, as
+  [NFR-004](../non-functional/NFR-004-no-network.md)-AC-1 checks; the
+  `gix-protocol` crate itself remains, because `gix` depends on it without
+  network code.
 
 ### C. Hand-off to the converter
 
@@ -83,6 +88,13 @@ parses for [FR-004](./FR-004-validate-subcommand.md).
   reserved key `quire-export` (members `title`, `document-id`, `version`,
   `release`, `commit`, `date`), as JSON string values, and SHALL pass it with
   `--metadata-file`. It SHALL NOT pass an identity value as an argument.
+- The command SHALL escape each identity value (`title`, `document-id`,
+  `version`, `release`, `commit`, `date`) before writing it to
+  `in/metadata.yaml`, because pandoc parses a string metadata value as Markdown
+  and a template prints it. The value is first Markdown-escaped as the next
+  bullet states, then written as a double-quoted YAML string, so pandoc reads the
+  Markdown-literal text and a Typst template prints it as literal text in any
+  header, footer or title.
 - The command SHALL escape every identity value that it writes into generated
   Markdown ([FR-035](./FR-035-default-export-template.md)) so that the converter
   shows it as literal text: each ASCII punctuation character is backslash-escaped
@@ -106,12 +118,13 @@ parses for [FR-004](./FR-004-validate-subcommand.md).
 | FR-034-AC-3 | A fixture committed with a committer date of `2001-02-03T23:30:00-05:00` yields the Date `2001-02-04` (UTC), and the date is the same when the test process runs under a different `TZ` and a different system clock. | Test |
 | FR-034-AC-4 | With `--source-rev` naming an older commit at which the input equals the working file, the identity holds that commit's hash and date; naming a commit at which the input differs from the working file is refused. | Test |
 | FR-034-AC-5 | An input with uncommitted changes, an untracked input, and an input outside any repository each exit 3 naming the file and writing no output; a fixture whose working file is the committed blob with CRLF line endings throughout exports without error and yields the text of the committed blob. | Test |
-| FR-034-AC-6 | During an export, `quire` starts no process other than `engineering-assurance`, and `cargo deny check bans` passes with the bans of NFR-004-AC-1, the git dependency being `gix` with default features off. | Test |
+| FR-034-AC-6 | During an export, `quire` starts no process other than `engineering-assurance`, and `cargo deny check bans` passes with the bans and feature denials of NFR-004-AC-1, the git dependency being `gix` with default features off and `cargo tree -e features` showing neither `gix-transport` nor a `gix-protocol` client feature. | Test |
 | FR-034-AC-7 | A fixture whose title is `--output=/tmp/x` exports with that text as the title and no change to the arguments of any request; the identity values appear in `in/metadata.yaml` and in generated Markdown only. | Test |
 | FR-034-AC-8 | A JSON input with `--source-repo`, with `--release` or with `--source-rev` exits 3 naming the flag. | Test |
 | FR-034-AC-9 | A fixture whose frontmatter defines `date: 1999-01-01`, `quire-export: {date: 1999-01-01}`, and whose body holds a YAML block defining the same, exports with the commit date on the title page and the YAML block text shown as body text, not as metadata. | Test |
-| FR-034-AC-10 | A fixture whose `title` is `*x* \`#pagebreak()\`{=typst}` and whose id holds a pipe and a bracket exports to PDF and to DOCX with both values present in the extracted text as written, no emphasis applied and no raw block interpreted. | Test |
+| FR-034-AC-10 | A fixture whose `title` is `*x* ` followed by a backtick span `#pagebreak()` with the raw attribute `{=typst}`, whose id holds a pipe and a bracket, and whose `--release` tag holds `*r*`, exports to PDF and to DOCX with the values present as written in the extracted text of the title page, of the header and of the footer, with no emphasis applied, no raw block interpreted and no page break added. | Test |
 | FR-034-AC-11 | An input path with a `filter=lfs` attribute is refused naming the filter; the working file differing from the blob only in CRLF is not refused. | Test |
+| FR-034-AC-12 | The `in/metadata.yaml` of that export holds each value as a double-quoted YAML string whose Markdown-significant characters are backslash-escaped, and a stand-in pandoc reads the same text for `quire-export.title` and `quire-export.release`. | Test |
 
 ## Dependencies
 

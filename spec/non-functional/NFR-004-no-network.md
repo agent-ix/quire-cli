@@ -52,6 +52,6 @@ confirms none are present (cross-platform); on Linux, each subcommand is run und
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| NFR-004-AC-1 | `cargo deny check bans` rejects `reqwest`, `hyper`, `tonic`, `surf`, `ureq`, `git2`, `libgit2-sys`, `openssl-sys`, `libssh2-sys`, `curl`, `curl-sys`, `gix-transport` and `gix-protocol`, so no git network transport can enter the dependency graph | Inspection |
+| NFR-004-AC-1 | `cargo deny check bans` rejects `reqwest`, `hyper`, `tonic`, `surf`, `ureq`, `git2`, `libgit2-sys`, `openssl-sys`, `libssh2-sys`, `curl`, `curl-sys` and `gix-transport`, and denies the `blocking-client` and `async-client` features of `gix-protocol` (a non-optional dependency of `gix` whose client features alone carry network code), so no git network transport can enter the dependency graph | Inspection |
 | NFR-004-AC-2 | An IT runs each subcommand under `strace -fe network` (or equivalent) on its happy path (registry present — including scoped discovery that finds modules) and asserts zero `socket()` calls in quire's own process and descendants. The scoped-`validate` empty-discovery lazy-init (which spawns `quoin`) is the documented exception ([ADR-0001](../assets/adr/0001-validate-lazy-init-module-bootstrap.md)) and is out of this happy-path scope | Test |
 | NFR-004-AC-3 | `Cargo.lock` audit (CI gate) lists no HTTP client crate | Inspection |

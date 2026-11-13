@@ -12,6 +12,8 @@ relationships:
     type: "consumes"
   - target: "ix://agent-ix/quire-rs/FR-032"
     type: "consumes"
+  - target: "ix://agent-ix/quire-rs/FR-006"
+    type: "implements"
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-006"
     type: "consumes"
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-007"
@@ -94,9 +96,9 @@ and [FR-033](./FR-033-export-errors.md) owns the failures.
 - The command SHALL pass the body of the artifact, the bytes after its YAML
   frontmatter block unchanged, to the converter as the Markdown source
   (`in/document.md`); the frontmatter is not converter input, and its `title` is
-  shown through the identity of FR-034. The body block boundary is the one the
-  `quire-rs` parse of [FR-002](./FR-002-parse-subcommand.md) reports, so `export`
-  finds it with no Markdown parsing of its own. The converter takes headings,
+  shown through the identity of FR-034. The body boundary is the one `extract_frontmatter` of
+  [quire-rs FR-006](ix://agent-ix/quire-rs/FR-006) reports, so `export` finds it
+  with no Markdown parsing of its own. The converter takes headings,
   ordered and unordered lists, tables, fenced code blocks, emphasis, links and
   block quotes from the body; those SHALL appear in the output.
 

@@ -57,3 +57,19 @@ scope:
 ## Verdict
 
 Changes required (FND-001). The FR-031, FR-032, NFR-010 and spec.md edits are consistent with each other and with FR-033 (exit codes 2, 3 and 4 match FR-007/FR-033). FR-040 cleanly extends the FR-033 error table without overlap. The FR and NFR relationship edges are well formed, and every cross-reference resolves to an existing file.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | The upstream API exists, but the citation is wrong. FR-002 is quire-cli's own `parse` subcommand, and its JSON output reports section offsets, not a body boundary. The API that returns exactly 'the bytes after the frontmatter block' is quire-rs `extract_frontmatter` (quire-rs FR-006, public through `quire_rs::extract_frontmatter`). It returns `body` = the text after the closing fence, with the BOM stripped and CRLF handled. On malformed or empty YAML it returns the whole input as body, which FR-031 validation (`title` and `id` required) refuses first. So no upstream requirement is missing. Cite quire-rs FR-006 in FR-031 and FR-034, and add the `implements`/`consumes` relationship to ix://agent-ix/quire-rs/FR-006 that StR-004-VC-1 requires. | spec/functional/FR-031-export-subcommand.md:95-99; quire-rs spec/functional/FR-006-frontmatter-with-fallback.md:18-22 |
+| FND-006 | low | StR-004 still says 'the converter reads the Markdown and its frontmatter itself'. After the fix, FR-031 and FR-034 strip the frontmatter, and pandoc runs with `yaml_metadata_block` disabled, so the converter never sees the frontmatter. Reword it to 'the converter reads the Markdown body; the frontmatter boundary comes from quire-rs'. | spec/stakeholder/StR-004-thin-boundary-over-quire-rs.md:25 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |

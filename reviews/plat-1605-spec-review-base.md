@@ -70,3 +70,19 @@ scope:
 ## Verdict
 
 Changes required. Ticket ACs met on paper: there is a default template, an organisation template from a local path, all identity fields (date from the committer date, no wall clock), stability as a differential property over extracted text and structure (NFR-011, with a fail-able control in AC-4), an approval block, bundles, and `quire validate` exits 0 (one new grammar warning on FR-034:54). ID numbering continues FR-033 -> FR-034..FR-040, NFR-010 -> NFR-011 and US-009 -> US-010 with no gaps or collisions. The FR-031, FR-032 and NFR-010 edits do not contradict PLAT-1434 FR-031..FR-033. Public-repo hygiene is clean: no roadmap or unreleased design, no standard text, no compatibility layer (fallback to the default template is forbidden), no pins or digests. NFR-010 is not broken by a generated default template: it is authored export code, not a copied file. Blocking: the specified pandoc mechanism cannot produce the DOCX parts (FND-001); the document's own frontmatter overrides the identity (FND-002); the bundle layout cannot be produced (FND-003).
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | medium | The fix commit put the six SR files in spec/reviews/. This repo's SpecReview root is reviews/ at the repository root: merged PR #181 (PLAT-1434) committed reviews/plat-1434-spec-review-*.md, and gap-analysis writes there too. spec/reviews/ holds only three legacy files. Move the six files to reviews/ under the same names, using the updated versions from this disposition pass. | spec/reviews/plat-1605-spec-review-*.md |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |
+| FND-005 | fixed | - |

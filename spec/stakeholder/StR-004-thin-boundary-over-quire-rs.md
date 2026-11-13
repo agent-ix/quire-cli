@@ -22,7 +22,7 @@ second narrow exception: quire-cli owns the presentation transform from an
 already-computed JSON report to Markdown tables,
 which are output formatting for an external converter and not Markdown artifact
 or engine semantics. Markdown artifacts are still parsed and validated only by
-`quire-rs`, and the converter reads the Markdown and its frontmatter itself.
+`quire-rs` (the frontmatter and body boundary come from its `extract_frontmatter`, [quire-rs FR-006](ix://agent-ix/quire-rs/FR-006)), and the converter reads the Markdown body itself.
 The export subcommand's further owned logic is bounded to three things, each
 output data or layout for the external converter and none a Markdown or engine
 semantic: the read-only git lookups of

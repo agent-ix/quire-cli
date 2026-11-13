@@ -47,3 +47,16 @@ scope:
 ## Verdict
 
 Changes required. The relationship edges (implements StR-004/US-010, extends FR-031/FR-033/FR-035, consumes FR-034 and EA FR-041) form no cycle, and the ix:// form for EA targets matches the repo's existing EA links (FR-019, FR-029). The no-network rule holds for the converters through producer-execute. Only the git library's transport features are unbounded (FND-001).
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | high | This was introduced by the fix. The new bans make the mandated dependency impossible. In gix 0.87.1 (the current release, read from ~/.cargo/registry), `gix-protocol` is a non-optional dependency of `gix`, and `gix-transport` is a non-optional dependency of `gix-protocol`. Only their `blocking-client`/`async-client` features carry network code. So `gix` with `default-features = false`, as FR-034 B requires, still puts both crates in Cargo.lock. `cargo deny check bans` with the deny.toml entries `gix-transport` and `gix-protocol` then fails, and FR-034-AC-6 and NFR-004-AC-1 cannot both pass. Fix: drop the two whole-crate bans and deny the features instead (cargo-deny `[bans] features`, e.g. `{ crate = "gix-transport", deny = ["blocking-client", "async-client", "http-client", "http-client-curl", "http-client-reqwest"] }` and the same for gix-protocol and gix), or use the lower-level gix-odb/gix-ref/gix-object crates directly. Mirror the fix in NFR-004-AC-1. | spec/non-functional/NFR-004-no-network.md:55; deny.toml:39-40; spec/functional/FR-034-document-identity.md:74-78, :109 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |

@@ -43,3 +43,10 @@ scope:
 ## Verdict
 
 Minor only. The FR-034, FR-036, FR-037, FR-038 and FR-040 statements are ubiquitous or unwanted-behaviour SHALL / SHALL NOT forms with a named subject (`quire export`, 'the command').
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
