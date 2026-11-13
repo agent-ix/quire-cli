@@ -29,7 +29,21 @@ deny = [
     { name = "tonic" },
     { name = "surf" },
     { name = "ureq" },
+    # FR-034 reads git objects in process; no git network transport may link.
+    { name = "git2" },
+    { name = "libgit2-sys" },
+    { name = "openssl-sys" },
+    { name = "libssh2-sys" },
+    { name = "curl" },
+    { name = "curl-sys" },
+    { name = "gix-transport" },
 ]
+
+# gix-protocol is a non-optional dependency of gix; only its client features
+# carry network code (FR-034).
+[[bans.features]]
+name = "gix-protocol"
+deny = ["blocking-client", "async-client"]
 
 [advisories]
 version = 2
