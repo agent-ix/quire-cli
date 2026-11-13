@@ -72,7 +72,7 @@ whether or not any module declares `design_relations`; the criteria rows then ar
   [FR-026](./FR-026-matrix-subcommand.md) §C and §D. The `Design` cell is never truncated, so no marker is
   cut; only the `|` escaping applies to it.
 - **Human.** Plain text, one block per requirement: the `document` path, the gap lines above, then
-  `  design: <union of the entry's elements | out of scope>`, then one line per criterion
+  `  design: <union of the entry's elements, then the design cell's markers | n/a | (none)>`, with `n/a` for an entry with no `design` key and `(none)` when the union is empty and nothing is appended, then one line per criterion
   `  <criterion>  <status>  design: <cell>  tests: <binders or (none)>`. The format has no truncation.
 - **JSON.** The engine's entries verbatim, each with its `design` key as the engine carries it, in
   FR-026's envelope. Element kind is `kind`. The key is absent for an entry out of scope.
@@ -94,7 +94,7 @@ whether or not any module declares `design_relations`; the criteria rows then ar
 When `--strict` is given and a **live** requirement has a block with `state: uncovered`, `matrix` SHALL
 exit 1. A requirement is live unless it has criteria and every one computes `retired`; a retired
 requirement's gap is still rendered and does not fail. `matrix` SHALL name each failing requirement on
-stderr, one line each, as `design gap: [<repo>:]<document> <check>`, with stdout the rendering. This sits
+stderr, one line per failing requirement and uncovered block, as `design gap: [<repo>:]<document> <check>`, so a requirement with two uncovered relations gets two lines, in block order, with stdout the rendering. This sits
 beside FR-026 §G's criterion rules, which are unchanged, and the verdict reads the entries alone. Without
 `--strict`, the gap is in the output and the exit code is 0. A requirement with no `design` key never
 fails the gate, so a module narrows the gate with `where` and holds the rule in data. With no
@@ -134,8 +134,10 @@ is exit 3 as in FR-030.
 | FR-043-AC-22 | The Design cell shows `n/a` for an entry with no `design` key and `(none)` for a criterion with empty `design_elements` under a `covered` entry, and a `no design element (<check>)` marker survives intact beside elements long enough that a Statement cell would be truncated. | Test |
 | FR-043-AC-23 | A block left `uncovered` by a kind mismatch prints `kind mismatch: <id> (<archetype>)` beside the gap marker. | Test |
 | FR-043-AC-24 | Under `--repo`, Markdown and human print `repo: <repo>` under the heading before the `Design gap:` lines, TSV has a leading `repo` column, an element in another repo prints `[kind:]<repo>/<id>`, and two members with the same document path are distinguishable on stdout and in the strict stderr line. | Test |
+| FR-043-AC-25 | In `--format human`, the `design:` line of an `uncovered` entry with no elements shows `no design element (<check>)`, of an entry with no `design` key shows `n/a`, and of a `covered` entry with no elements shows `(none)`. | Test |
+| FR-043-AC-26 | A requirement with two `uncovered` design relations fails `--strict` with two stderr lines, one per `<check>`, in block order. | Test |
 
 ## Dependencies
 
-- **Upstream**: [FR-026](./FR-026-matrix-subcommand.md); [FR-028](./FR-028-matrix-criticality-column.md); [FR-041](./FR-041-relations-design-mode.md); [FR-007](./FR-007-exit-codes.md); [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); quire-rs [FR-092](ix://agent-ix/quire-rs/FR-092), [FR-086](ix://agent-ix/quire-rs/FR-086), [FR-058](ix://agent-ix/quire-rs/FR-058)
+- **Upstream**: [FR-026](./FR-026-matrix-subcommand.md); [FR-028](./FR-028-matrix-criticality-column.md); [FR-041](./FR-041-relations-design-mode.md); [FR-007](./FR-007-exit-codes.md); [FR-030](./FR-030-relations-subcommand.md); [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); quire-rs [FR-092](ix://agent-ix/quire-rs/FR-092), [FR-086](ix://agent-ix/quire-rs/FR-086), [FR-085](ix://agent-ix/quire-rs/FR-085), [FR-058](ix://agent-ix/quire-rs/FR-058)
 - **Downstream**: `quoin matrix` (quoin FR-165)

@@ -55,3 +55,24 @@ Changes requested: 4 medium and 5 low findings, with no high finding. The follow
 - Gate scope is module data through the FR-058 `where`, `from` and `exclude` selectors (AC-8). No name is held in the CLI (AC-14, AC-15).
 - The no-`design_relations` path is the engine's own byte-identical output, not a compatibility layer.
 - There is no hash, digest or pin antipattern.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Distinct empty forms `n/a` (out of scope) and `(none)` (covered, no element for this criterion); AC-22 (FR-043:63-65) |
+| FND-002 | fixed | Design cell is never truncated, only pipe-escaped; AC-22 asserts the marker survives (FR-043:72-73) |
+| FND-003 | fixed | FR-043-AC-21: `--scope` with `--repo` exits 3 naming both flags, nothing on stdout |
+| FND-004 | fixed | `--repo` labels hold whether or not `design_relations` is declared; AC-11 covers both (FR-043:49-51) |
+| FND-005 | fixed | Synopsis `[--scope <DIR> \| --repo ...]`; `--scope` keeps its default `.` (FR-043:43,48) |
+| FND-006 | fixed | Gap-line order `repo:` then `Design gap:` for Markdown and human; AC-19 names its formats (FR-043:66-69,131) |
+| FND-007 | fixed | Stderr line `design gap: [<repo>:]<document> <check>`; AC-10 and AC-24 (FR-043:96-97) |
+| FND-008 | fixed | `kind mismatch: <id> (<archetype>)` appended to the cell; AC-23 (FR-043:62) |
+| FND-009 | fixed | TSV uses a leading `repo` column and `/` as the only repo separator in `design` (FR-043:81-84) |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-010 | low | Human block `design:` line for an `uncovered` entry with no elements is the empty union, so it prints `design: ` with nothing; the empty-form distinction the fix added for cells (`n/a` / `(none)`) is not applied to this line | spec/functional/FR-043-matrix-design-column.md:75 |
+| FND-011 | low | Strict stderr is "one line each" per requirement as `design gap: [<repo>:]<document> <check>`, with a single `<check>`; a requirement with two `uncovered` blocks has no stated form | spec/functional/FR-043-matrix-design-column.md:96-97 |

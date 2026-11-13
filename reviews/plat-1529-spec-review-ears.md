@@ -31,3 +31,9 @@ scope:
 ## Verdict
 
 Changes requested (1 low). The primary statement is a ubiquitous SHALL; behavior bullets follow the house prose style of FR-026/FR-041.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Gate restated event-driven: "When `--strict` is given and a live requirement has a block with `state: uncovered`, `matrix` SHALL exit 1" (FR-043:94-95) |

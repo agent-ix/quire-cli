@@ -30,3 +30,15 @@ scope:
 ## Verdict
 
 Changes requested (1 low). The FR-092 edge targets a spec still in open quire-rs PR 670, so the two PRs land together; the extends edge to FR-026 and its CR note agree.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `relationships:` now references quire-rs FR-085, FR-058 and local FR-007, FR-028, FR-030 (FR-043:17-26) |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-002 | low | The Dependencies Upstream list omits quire-rs FR-085 and local FR-030, which `relationships:` now declares | spec/functional/FR-043-matrix-design-column.md:140 |

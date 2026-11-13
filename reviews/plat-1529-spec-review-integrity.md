@@ -32,3 +32,10 @@ scope:
 ## Verdict
 
 Changes requested (1 medium, 1 low). AC ids are well-formed and unique within the file; the index entry matches title and path; FR-026 CR note link resolves.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Renumbered to FR-043 (no open PR uses it; PR 189 keeps FR-042); quire-rs FR-092 (merged) cites quire-cli FR-043 and quoin FR-165 |
+| FND-002 | fixed | AC table is in order AC-1..AC-24 |
