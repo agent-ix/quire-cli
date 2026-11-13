@@ -69,7 +69,7 @@
         {
           "clauseId": "PB-UNUSED-1",
           "kind": "direct",
-          "reason": "clause not in the binding report"
+          "reason": "unknown_clause"
         }
       ]
     }

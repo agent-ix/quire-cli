@@ -1197,7 +1197,7 @@ fn json_that_does_not_match_its_kind_exits_3_without_a_converter() {
     }
 }
 
-/// The character data of an XML text, tags removed.
+/// The character data of an XML text: tags removed, the five entities decoded.
 fn strip_tags(xml: &str) -> String {
     let mut text = String::new();
     let mut in_tag = false;
@@ -1209,7 +1209,11 @@ fn strip_tags(xml: &str) -> String {
             _ => {}
         }
     }
-    text
+    text.replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&amp;", "&")
 }
 
 fn require_real_tools() {
@@ -1260,9 +1264,9 @@ fn real_converters_keep_every_report_row_id() {
                 "PB-UNUSED-1",
                 "Pack: ember-pack",
                 "As of: 2026-11-12",
-                // The index table and the context table.
-                "fict/set-a@1",
-                "fict/set-b@2",
+                // The index table (its headers occur nowhere else) and the context table.
+                "clauseSet",
+                "rowCount",
                 "class",
             ],
         ),
