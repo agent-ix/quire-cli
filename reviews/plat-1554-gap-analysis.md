@@ -51,6 +51,11 @@ scope:
 | FND-001 | still-open | No fix landed. spec/functional/FR-030-relations-subcommand.md FR-030-AC-24 still names the `document: spec/tests.md` target form; the test still uses the exclude-glob form. |
 | FND-002 | still-open | No fix landed. tests/cli_relations.rs:652-657 still checks the both-members half only by absence of `gold-rule-idle` on stderr, with no exit-status assertion. |
 | FND-003 | still-open | No fix landed. tests/cli_relations.rs:539-547 still asserts only `o/a` and `no document root`; neither the `MissingDocumentRoot` kind nor the root path is asserted (the output carries both, re-checked at 603492f). |
+| FND-001 | fixed | Round 2 (681346d): FR-030-AC-24 now states the exclude-glob fixture the test uses (but see FND-007). |
+| FND-002 | fixed | Round 2 (681346d): the AC-20 both-members run asserts `status.success()` before the absence check. |
+| FND-003 | fixed | Round 2 (681346d): the AC-17 test asserts `member 'o/a'`, the `<bare>/spec` path, and `MissingDocumentRoot` under `--diagnostics-format json`. |
+| FND-004 | fixed | Round 2 (681346d): new AC-7 test with an untyped target asserts the absent `archetype` key and the `is (untyped)` line; the untyped-text mutation now fails it. |
+| FND-005 | fixed | Round 2 (681346d): AC-20 and AC-24 assert the `[o/a] ` / `[o/b] ` prefix, and the AC-24 excluded half asserts success. |
 
 ## New findings (disposition pass 1)
 
@@ -60,3 +65,13 @@ Re-review at head 603492f. `quire matrix --scope .` (quire 0.44.0, engine 0.59.1
 | --- | --- | --- | --- |
 | FND-004 | medium | The kind-mismatch branch for an untyped target (`KindMismatchEntry.archetype == None`, rendered `is an untyped document`) has no test. It is reachable: a gold rule with an `addresses` edge to a document without `type:` prints `kind mismatch: o/a:UNTYPED-1 is an untyped document (via addresses), accepted: Concern`, and its JSON entry omits `archetype`. Replacing the text with `MUTATED` left all 14 cli_relations tests green. Add an AC-7 case with an untyped target, asserting both the human line and the absent `archetype` key. | src/commands/relations.rs:228, tests/cli_relations.rs:345-367 |
 | FND-005 | low | The AC-20 and AC-24 member-identity checks are substring matches for `o/a` / `o/b` on stderr lines that also carry the absolute tempdir path (`<tmp>/a/spec/...`). A tempdir name ending in `o` makes `o/a` match without the `[o/a]` prefix, so the prefix mutation is killed only by chance of the random name. The AC-24 excluded half also asserts only absence, with no exit status (as FND-002 for AC-20). Assert the `[o/a] ` / `[o/b] ` prefix and the exit status. | tests/cli_relations.rs:660-665, tests/cli_relations.rs:726-737 |
+
+## New findings (disposition pass 2)
+
+Round 2 at head 0377fb2. `quire matrix --scope .`: all Test-method FR-030 criteria remain `tagged`; FR-030-AC-9 now has three binders (lines 399, 422, 447).
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | low | `module_discovery_without_module_is_bounded_by_the_first_repo_member` is tagged FR-030-AC-9 (unknown `--relation` exits 3), which it does not test. It tests the first-member discovery rule that round 2 added to FR-030's prose, and that rule has no acceptance criterion. Add an AC for the rule and tag the test with it. | tests/cli_relations.rs:445-447, spec/functional/FR-030-relations-subcommand.md:51-53 |
+| FND-007 | low | The amended FR-030-AC-24 still opens with "member `o/a` holds `<A>/spec/tests.md`", left over from the deleted `document:` form. The new fixture has no `tests.md` and the rest of the AC does not use it. Drop the clause. | spec/functional/FR-030-relations-subcommand.md:104 |
+

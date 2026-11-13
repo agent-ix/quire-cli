@@ -50,6 +50,11 @@ scope:
 | FND-001 | still-open | No fix landed. Head 603492f only merges main into b429ebb; src/commands/relations.rs:185 still renders the direction with `format!("{:?}", section.direction).to_lowercase()`. |
 | FND-002 | still-open | No fix landed. src/commands/relations.rs:77-94 still computes `compute_report` for every member before `relation_report` refuses an unknown `--relation` name. |
 | FND-003 | still-open | No fix landed. A `--repo` member with no `spec/` still gets "point --scope at the repository root" (src/commands/mod.rs:105), reproduced at 603492f with `--repo o/a=bare`. |
+| FND-001 | fixed | Round 2 (681346d): `direction_word` exhaustive match over Incoming/Outgoing/Either at src/commands/relations.rs:163. |
+| FND-002 | fixed | Round 2 (681346d): `--relation` names checked against `required_relations` before any `compute_report` (src/commands/relations.rs:80-86); removing the check fails the new single-stderr-line test. |
+| FND-003 | fixed | Round 2 (681346d): `DocumentRootError` text now says "name the repository root" (src/commands/mod.rs:105); test asserts no "point --scope". |
+| FND-004 | fixed | Round 2 (681346d): first-member discovery rule stated in FR-030 and in `relations --module` / `validate --repo` help, and tested in both orders (but see FND-006). |
+| FND-005 | fixed | Round 2 (681346d): single `UNTYPED = "(untyped)"`, the engine's spelling (src/commands/relations.rs:173). |
 
 ## New findings (disposition pass 1)
 
@@ -59,3 +64,12 @@ Re-review at head 603492f (merge of origin/main 5a051d3; Cargo.lock now resolves
 | --- | --- | --- | --- |
 | FND-004 | medium | Without `--module`, ambient module discovery is bounded by the first `--repo` member only, in both `relations` (`corpus.members[0].root`) and `validate --okf` (`args.repo.first()`). A member's own `manifest.yaml` or `.ix/modules` is used when it is listed first and ignored otherwise, so reordering `--repo` flags can change the loaded module set and with it the rows and findings. FR-030 does not state which member bounds discovery, and the `relations --repo`/`--module` help does not say it either; no test covers it. State the rule in FR-030 and in the `--repo` help (or require `--module` when several members are given). | src/commands/relations.rs:64-65, src/commands/validate.rs:168-175 |
 | FND-005 | low | The untyped kind-mismatch target has three spellings: this PR's human output prints `is an untyped document` (added in the merge), the engine's `validate --okf` finding for the same edge says `of archetype '(untyped)'`, and stacked PR #196 introduces `UNTYPED = "untyped"` on the same line, which will conflict when #196 is rebased onto this head. Pick one spelling (the engine's) and use it in both PRs. | src/commands/relations.rs:228 |
+
+## New findings (disposition pass 2)
+
+Round 2 at head 0377fb2 (681346d fixes, 0377fb2 commits the round-1 SR files, identical to the reviewer's copies). Gates: `cargo fmt --check` clean; clippy `--all-targets --all-features -D warnings` clean; `cargo test --test cli_relations --test cli_okf --test cli_validate --test cli_help` 58 passed, 0 failed. Mutations: the surviving untyped-text mutation now fails `an_untyped_kind_mismatch_target_prints_the_engines_untyped_wording`; removing the `--relation` pre-check fails `an_unknown_relation_name_is_refused_before_any_coverage_is_computed` on its stderr line-count assertion.
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | medium | `module_discovery_without_module_is_bounded_by_the_first_repo_member` depends on the host's installed modules. With `o/b` first, no module is at `b`, so discovery falls through to `~/.ix/filament/modules`; the `b_first` run succeeds only because this host has spec-objects-safety/security there, which declare `required_relations`. With an empty HOME and no quoin on PATH the same invocation exits 3 ("no modules found for scoped validation"), so the test fails on a clean host; with quoin on PATH it lazy-installs the default modules from inside a test. Make the run hermetic: give `b` its own manifest with a different relation name and assert each order reports its first member's relation, or point HOME / `IX_FILAMENT_MODULES_PATH` at a tempdir. | tests/cli_relations.rs:447-472 |
+

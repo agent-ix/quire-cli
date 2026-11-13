@@ -442,16 +442,19 @@ fn an_unknown_relation_name_is_refused_before_any_coverage_is_computed() {
     assert!(stderr(&unknown).contains("unknown --relation 'no-such-relation'"));
 }
 
-#[trace("FR-030-AC-9")]
+#[trace("FR-030-AC-25")]
 #[test]
 fn module_discovery_without_module_is_bounded_by_the_first_repo_member() {
     let world = World::new();
     let a = world.repo("a", &[("CON-001", concern("CON-001"))], &[]);
     let b = world.repo("b", &[("CON-002", concern("CON-002"))], &[]);
-    // Only member `a` carries a module at its root.
-    fs::copy(
-        world.module_dir().join("manifest.yaml"),
-        a.join("manifest.yaml"),
+    // Each member carries its own module at its root, with a different relation
+    // name, so the run never falls through to host-installed modules.
+    let manifest_a = fs::read_to_string(world.module_dir().join("manifest.yaml")).unwrap();
+    fs::write(a.join("manifest.yaml"), &manifest_a).unwrap();
+    fs::write(
+        b.join("manifest.yaml"),
+        manifest_a.replace("concern-is-addressed", "concern-is-handled"),
     )
     .unwrap();
     let (arg_a, arg_b) = (
@@ -460,14 +463,12 @@ fn module_discovery_without_module_is_bounded_by_the_first_repo_member() {
     );
     let a_first = quire(&[&"relations", &"--repo", &arg_a, &"--repo", &arg_b]);
     assert!(a_first.status.success(), "{}", stderr(&a_first));
-    assert!(stdout(&a_first).contains("concern-is-addressed"));
+    let text = stdout(&a_first);
+    assert!(text.contains("concern-is-addressed") && !text.contains("concern-is-handled"));
     let b_first = quire(&[&"relations", &"--repo", &arg_b, &"--repo", &arg_a]);
     assert!(b_first.status.success(), "{}", stderr(&b_first));
-    assert!(
-        !stdout(&b_first).contains("concern-is-addressed"),
-        "member a's module is ignored when it is not first: {}",
-        stdout(&b_first)
-    );
+    let text = stdout(&b_first);
+    assert!(text.contains("concern-is-handled") && !text.contains("concern-is-addressed"));
 }
 
 /// One concern per rule, each addressed by its rule; `criteria`/`tagged`
