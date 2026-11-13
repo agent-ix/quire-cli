@@ -1,3 +1,4 @@
+manifest_version: 1.0.0
 name: when-any-mod
 version: 0.1.0
 description: 'Fixture module for validate --okf: a required relation narrowed by the quire-rs FR-058 when_any selector.'

@@ -16,6 +16,9 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-038"
     type: "consumes"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-058"
+    type: "consumes"
+    cardinality: "1:1"
 ---
 
 > **CR note (OKF bundle posture, 2026-06-16):** new `--okf` flag on the existing

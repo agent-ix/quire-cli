@@ -1,6 +1,6 @@
 //! `validate --okf` over a module whose required relation is narrowed by the
-//! quire-rs FR-058 `when_any` selector (FR-014-AC-17). The CLI only loads the
-//! module and surfaces the engine's findings; scope is decided by quire-rs.
+//! quire-rs `when_any` selector. The CLI only loads the module and surfaces
+//! the engine's findings; scope is decided by quire-rs.
 
 mod common;
 
@@ -34,9 +34,9 @@ fn write_doc(root: &Path, id: &str, kind: &str, edges: &[(&str, &str)]) {
     fs::write(root.join(format!("{id}.md")), body).expect("write doc");
 }
 
-/// C-1 mitigates a hazard and nothing satisfies it (in scope, reported); C-2
-/// mitigates nothing (out of scope); C-3 mitigates a hazard and R-1 satisfies
-/// it (in scope, satisfied).
+/// C-1 and C-4 mitigate a hazard and nothing satisfies them (in scope,
+/// reported); C-2 mitigates nothing (out of scope); C-3 mitigates a hazard and
+/// R-1 satisfies it (in scope, satisfied).
 fn bundle() -> TempDir {
     let dir = TempDir::new().expect("tempdir");
     let root = dir.path();
@@ -44,6 +44,7 @@ fn bundle() -> TempDir {
     write_doc(root, "C-1", "control", &[("mitigates", "HZ-1")]);
     write_doc(root, "C-2", "control", &[]);
     write_doc(root, "C-3", "control", &[("mitigates", "HZ-1")]);
+    write_doc(root, "C-4", "control", &[("mitigates", "HZ-1")]);
     write_doc(root, "R-1", "requirement", &[("satisfies", "C-3")]);
     dir
 }
@@ -60,17 +61,19 @@ fn okf(dir: &TempDir, module: &Path) -> assert_cmd::assert::Assert {
 
 #[trace("FR-014-AC-17")]
 #[test]
-fn when_any_reports_only_the_in_scope_document_lacking_the_edge() {
+fn when_any_reports_each_in_scope_document_lacking_the_edge() {
     let dir = bundle();
     let output = okf(&dir, &when_any_module()).success().get_output().clone();
     let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
     let reported: Vec<&str> = stderr.lines().filter(|l| l.ends_with(CHECK)).collect();
-    assert_eq!(reported.len(), 1, "{stderr}");
-    assert!(reported[0].starts_with("warning: "), "{stderr}");
-    assert!(
-        reported[0].contains("C-1.md: nothing reaches 'C-1'"),
-        "{stderr}"
-    );
+    assert_eq!(reported.len(), 2, "{stderr}");
+    for (line, id) in reported.iter().zip(["C-1", "C-4"]) {
+        assert!(line.starts_with("warning: "), "{stderr}");
+        assert!(
+            line.contains(&format!("{id}.md: nothing reaches '{id}'")),
+            "{stderr}"
+        );
+    }
     for absent in ["'C-2'", "'C-3'"] {
         assert!(!stderr.contains(absent), "{absent} reported: {stderr}");
     }
