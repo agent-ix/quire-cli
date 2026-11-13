@@ -424,7 +424,9 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
         // cross-repo `ix://<other-org>/<other-repo>/ID` target be skipped
         // instead of reported dangling; an in-repo miss stays dangling.
         if let Some(package) = repo_bundle_package(&document_root) {
-            spec = spec.with_bundle_package(&package);
+            spec = spec
+                .with_bundle_package(&package)
+                .with_context(|| format!("declaring the identity of bundle '{package}'"))?;
         }
         let report =
             quire_rs::validate_bundle(&spec, registry, posture, &document_root, &reference_root);

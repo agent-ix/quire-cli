@@ -9,8 +9,8 @@ use super::identity::{self, Identity, Source, SourceOptions};
 use super::template::{self, escape_markdown, raw_block};
 use super::{approval, custom};
 use super::{
-    check_flags, check_output_is_not_input, check_output_target, input_class, producer, read_utf8,
-    validate, write_output, Args, Ctx, Format, InputClass,
+    check_flags, check_output_is_not_input, check_output_target, input_class, mermaid_blocks,
+    producer, read_utf8, validate, write_output, Args, Ctx, Format, InputClass,
 };
 
 /// The most inputs one bundle holds.
@@ -37,7 +37,13 @@ pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
         epoch: first.identity.epoch,
     };
     let documents: Vec<&Identity> = sources.iter().map(|source| &source.identity).collect();
-    let converters = producer::Converters::resolve(args)?;
+    let diagrams: Vec<_> = args
+        .input
+        .iter()
+        .zip(&sources)
+        .flat_map(|(input, source)| mermaid_blocks(input, &source.committed))
+        .collect();
+    let converters = producer::Converters::resolve(args, !diagrams.is_empty())?;
     let generated = producer::Generated {
         body: "",
         bundle: sources
@@ -49,6 +55,7 @@ pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
             .collect(),
         approval: approval.as_deref(),
         metadata: &template::metadata_yaml(&identity)?,
+        diagrams,
         identity_parts: Some(producer::IdentityParts {
             front: &template::bundle_front_matter(&identity, &documents, args.to),
             template: match (organisation_template, args.to) {

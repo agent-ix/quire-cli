@@ -21,11 +21,6 @@ The implementation SHALL satisfy the described behavior under all inputs.
 fn quill_fixture() {}
 ```
 
-```mermaid
-graph TD
-  A --> B
-```
-
 ## Acceptance Criteria
 
 | ID | Criteria |

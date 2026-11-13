@@ -62,12 +62,13 @@ const MAX_COLUMN_WIDTH: usize = 48;
 pub(super) fn export(args: &Args, kind: Kind, text: &str) -> anyhow::Result<()> {
     let name = args.input[0].display().to_string();
     let markdown = to_markdown(kind, &name, text)?;
-    let converters = producer::Converters::resolve(args)?;
+    let converters = producer::Converters::resolve(args, false)?;
     let generated = producer::Generated {
         body: &markdown,
         bundle: Vec::new(),
         approval: None,
         metadata: "{}\n",
+        diagrams: Vec::new(),
         identity_parts: None,
         epoch: REPORT_EPOCH,
     };

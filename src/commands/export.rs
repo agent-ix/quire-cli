@@ -9,6 +9,7 @@
 mod approval;
 mod bundle;
 mod custom;
+mod diagrams;
 mod identity;
 mod json;
 mod producer;
@@ -113,6 +114,11 @@ pub struct Args {
     /// Path to `typst`, overriding the PATH lookup.
     #[arg(long, value_name = "PATH")]
     pub typst: Option<PathBuf>,
+
+    /// Path to `mmdr`, overriding the PATH lookup; used only when a Markdown
+    /// input holds a `mermaid` block.
+    #[arg(long, value_name = "PATH")]
+    pub mmdr: Option<PathBuf>,
 
     /// Path to `engineering-assurance`, overriding the PATH lookup.
     #[arg(long, value_name = "PATH")]
@@ -300,13 +306,15 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
         validate::Source::Committed(&source.committed),
     )?;
 
-    let converters = producer::Converters::resolve(args)?;
+    let diagrams = mermaid_blocks(&args.input[0], &source.committed);
+    let converters = producer::Converters::resolve(args, !diagrams.is_empty())?;
     let identity = &source.identity;
     let generated = producer::Generated {
         body: &source.body,
         bundle: Vec::new(),
         approval: approval.as_deref(),
         metadata: &template::metadata_yaml(identity)?,
+        diagrams,
         identity_parts: Some(producer::IdentityParts {
             front: &template::front_matter(identity, args.to),
             template: match (organisation_template, args.to) {
@@ -319,6 +327,15 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
     };
     let rendered = producer::convert(&converters, args.to, &generated)?;
     write_output(&args.output, rendered.as_ref())
+}
+
+/// The `mermaid` blocks of the committed text of `input`. The parse sits in this
+/// dispatch file, where the thin-boundary audit admits it.
+fn mermaid_blocks(input: &Path, committed: &str) -> Vec<diagrams::Block> {
+    diagrams::find(
+        &input.display().to_string(),
+        &quire_rs::parse_document(committed),
+    )
 }
 
 /// Copies the converter output to `--output` through a sibling temporary file,
