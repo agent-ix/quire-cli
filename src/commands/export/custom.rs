@@ -28,9 +28,14 @@ pub(super) fn load(path: &Path, to: Format) -> anyhow::Result<Vec<u8>> {
         return Err(invalid(path, &format!("the extension must be .{wanted}")));
     }
     let resolved = fs::canonicalize(path).map_err(|error| io_error(path, error))?;
+    // Checked before opening: opening a FIFO would block.
+    let before = fs::metadata(&resolved).map_err(|error| io_error(path, error))?;
+    if !before.is_file() {
+        return Err(invalid(path, "not a regular file"));
+    }
     let file = File::open(&resolved).map_err(|error| io_error(path, error))?;
-    let metadata = file.metadata().map_err(|error| io_error(path, error))?;
-    if !metadata.is_file() {
+    let opened = file.metadata().map_err(|error| io_error(path, error))?;
+    if !opened.is_file() {
         return Err(invalid(path, "not a regular file"));
     }
     // One byte past the limit tells an oversized file from one at the limit.
@@ -48,11 +53,17 @@ fn invalid(path: &Path, cause: &str) -> anyhow::Error {
     failure::invalid(anyhow::anyhow!("--template '{}': {cause}", path.display()))
 }
 
+/// A permission refusal is exit 2; every other path error is a template that
+/// cannot be used, exit 3.
 fn io_error(path: &Path, error: std::io::Error) -> anyhow::Error {
-    failure::input(
-        anyhow::Error::from(error)
-            .context(format!("--template '{}' cannot be read", path.display())),
-    )
+    let refused = error.kind() == std::io::ErrorKind::PermissionDenied;
+    let error = anyhow::Error::from(error)
+        .context(format!("--template '{}' cannot be read", path.display()));
+    if refused {
+        failure::refused(error)
+    } else {
+        failure::invalid(error)
+    }
 }
 
 #[cfg(test)]
@@ -85,5 +96,18 @@ mod tests {
         let exact = dir.path().join("exact.typ");
         fs::write(&exact, vec![0u8; MAX_TEMPLATE_BYTES as usize]).expect("write");
         assert!(load(&exact, Format::Pdf).is_ok());
+    }
+
+    #[test]
+    #[trace("FR-040-AC-2")]
+    fn a_permission_refusal_is_exit_2_and_any_other_path_error_exit_3() {
+        let path = Path::new("t.typ");
+        let denied = io_error(path, std::io::ErrorKind::PermissionDenied.into());
+        assert_eq!(
+            failure::outcome(&denied),
+            ix_cli_kit::exit::Outcome::Refused
+        );
+        let other = io_error(path, std::io::ErrorKind::NotADirectory.into());
+        assert_eq!(failure::outcome(&other), ix_cli_kit::exit::Outcome::Invalid);
     }
 }

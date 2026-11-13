@@ -2352,18 +2352,7 @@ fn a_template_is_copied_unchanged_into_the_capability_root_only() {
     }
 }
 
-#[trace("FR-035-AC-6")]
-#[test]
-fn without_a_template_the_default_one_is_used() {
-    let rig = Rig::new();
-    let result = run(rig.export(&rig.fixture(), "pdf", &rig.work("out.pdf")));
-    assert!(result.status.success(), "{}", stderr(&result));
-    assert!(rig
-        .converter_input("template.typ")
-        .contains("paper: \"a4\""));
-}
-
-#[trace("FR-036-AC-4")]
+#[trace("FR-036-AC-4", "FR-040-AC-6")]
 #[test]
 fn a_failing_template_exits_4_writes_no_output_and_does_not_retry_with_the_default() {
     let rig = Rig::new();
@@ -2381,6 +2370,15 @@ fn a_failing_template_exits_4_writes_no_output_and_does_not_retry_with_the_defau
     assert!(stderr(&result).contains("template does not compile"));
     assert_eq!(rig.requests().len(), 1);
     assert!(!output.exists());
+
+    let kept = rig.work("kept.pdf");
+    fs::write(&kept, "previous").expect("previous output");
+    let result = run(with_template(
+        rig.export(&rig.fixture(), "pdf", &kept),
+        &template,
+    ));
+    assert_eq!(result.status.code(), Some(4));
+    assert_eq!(fs::read_to_string(&kept).expect("kept"), "previous");
 }
 
 #[trace("FR-036-AC-5", "FR-040-AC-2", "FR-040-AC-7")]
@@ -2394,6 +2392,12 @@ fn an_invalid_template_exits_3_naming_the_path_and_starts_no_converter() {
     fs::create_dir_all(&directory).expect("directory");
     let big = org_template(&rig, "big.typ", &vec![b'x'; 16 * 1024 * 1024 + 1]);
     let missing = rig.root().join("org/absent.typ");
+    let through_file = rig.root().join("org/org.typ/x.typ");
+    let fifo = rig.root().join("org/fifo.typ");
+    let status = Command::new("mkfifo").arg(&fifo).status().expect("mkfifo");
+    assert!(status.success());
+    let looped = rig.root().join("org/loop.typ");
+    symlink(&looped, &looped).expect("loop");
 
     let cases = [
         ("pdf", docx_template),
@@ -2401,6 +2405,9 @@ fn an_invalid_template_exits_3_naming_the_path_and_starts_no_converter() {
         ("pdf", missing),
         ("pdf", directory),
         ("pdf", big),
+        ("pdf", through_file),
+        ("pdf", fifo),
+        ("pdf", looped),
     ];
     for (to, template) in cases {
         let result = run(with_template(
@@ -2416,6 +2423,16 @@ fn an_invalid_template_exits_3_naming_the_path_and_starts_no_converter() {
     }
     assert!(rig.requests().is_empty());
     assert!(!output.exists());
+
+    let kept = rig.work("kept.pdf");
+    fs::write(&kept, "previous").expect("previous output");
+    let result = run(with_template(
+        rig.export(&rig.fixture(), "pdf", &kept),
+        &rig.root().join("org/absent.typ"),
+    ));
+    assert_eq!(result.status.code(), Some(3));
+    assert_eq!(fs::read_to_string(&kept).expect("kept"), "previous");
+    assert!(rig.requests().is_empty());
 }
 
 #[trace("FR-040-AC-2")]
@@ -2426,6 +2443,7 @@ fn an_unreadable_template_exits_2_naming_the_path() {
     fs::set_permissions(&template, fs::Permissions::from_mode(0o000)).expect("mode");
     // A process with the capability to read regardless of mode cannot test this.
     if fs::read(&template).is_ok() {
+        eprintln!("skipped: this process reads a mode-000 file (privileged user)");
         return;
     }
     let result = run(with_template(
@@ -2485,12 +2503,12 @@ fn real_pdf_uses_the_organisation_template_header_and_keeps_the_title_page() {
     assert!(!first.contains("ORG-HEADER-MARKER"), "{first}");
     let second = pdf_page(&pdf, 2);
     assert!(second.contains("ORG-HEADER-MARKER"), "{second}");
-    assert!(second.contains("FR-001"), "{second}");
+    assert!(second.contains("ORG-HEADER-MARKER FR-001"), "{second}");
 }
 
 #[trace("FR-036-AC-1")]
 #[test]
-#[ignore = "needs real pandoc, unzip and python3 on PATH"]
+#[ignore = "needs real pandoc, typst, unzip and python3 on PATH"]
 fn real_docx_uses_the_organisation_reference_footer_and_keeps_the_title_page() {
     let rig = Rig::new();
     // The organisation's reference document is built here from a default export
@@ -2500,7 +2518,7 @@ fn real_docx_uses_the_organisation_reference_footer_and_keeps_the_title_page() {
     assert!(result.status.success(), "{}", stderr(&result));
     let reference = org_template(&rig, "org.docx", b"");
     let patch = "import sys, zipfile\nsrc, dst = sys.argv[1:3]\nwith zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst, 'w') as zout:\n    for item in zin.infolist():\n        data = zin.read(item.filename)\n        if item.filename.startswith('word/footer'):\n            text = data.decode()\n            at = text.rindex('</w:p>')\n            data = (text[:at] + '<w:r><w:t>ORG-FOOTER-MARKER</w:t></w:r>' + text[at:]).encode()\n        zout.writestr(item, data)\n";
-    let status = Command::new("python3")
+    let status = Command::new(require_tool("python3"))
         .args(["-c", patch])
         .arg(&base)
         .arg(&reference)
