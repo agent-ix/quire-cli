@@ -78,6 +78,13 @@ in the column title.
   In the default template it is a table with the columns Person, Signed at
   (signer's claim), Meaning, Verdict and Record; an organisation template styles
   the same table.
+- The command SHALL allow a line break (U+200B) after every 16 characters of an
+  unbroken run in any cell of the table, such as a 71-character record digest or
+  a URL in a meaning. Text extraction of such a cell may therefore contain
+  U+200B; the verified record, not the extracted text, is the identity of the
+  signed record.
+- The command SHALL size every column of the table to at least its longest
+  unbreakable run, so no cell content overflows into a neighbouring column.
 - The command SHALL NOT infer a person from the commit author, tagger, an email
   or any member other than those in the table, and SHALL NOT default a missing
   meaning.
@@ -98,6 +105,7 @@ in the column title.
 | FR-038-AC-5 | A verdict whose meaning is `*x* \`#pagebreak()\`{=typst}` and whose principal holds a pipe shows both as literal text in PDF and DOCX, adds no table row and applies no emphasis. | Test |
 | FR-038-AC-6 | A file that is not an approval-verify result, a file lacking `status`, and `--approval` with a JSON input each exit 3 naming the file or flag, with no converter started. | Test |
 | FR-038-AC-7 | An export with no `--approval` holds no `Approval` heading and no `in/approval.md`. | Test |
+| FR-038-AC-9 | An approval whose record digest is `sha256:` followed by 64 hexadecimal digits and an `untrusted_signer` entry whose meaning is a 73-character URL, exports to PDF with every cell's content inside its own column: no word of one column's text overlaps another column's in the page geometry. | Test |
 | FR-038-AC-8 | The same verdict files exported from two different source repositories yield a byte-identical `in/approval.md`; the approval is built from the verdict files alone. | Test |
 
 ## Dependencies

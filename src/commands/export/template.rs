@@ -76,7 +76,8 @@ pub(super) fn front_matter(identity: &Identity, to: Format) -> String {
 }
 
 /// `in/front.md` of a bundle: the title page, a page break, the list of
-/// `documents`, a page break, the table of contents and a page break.
+/// `documents`, a page break and the table of contents; the first separator
+/// supplies the break after it.
 pub(super) fn bundle_front_matter(
     bundle: &Identity,
     documents: &[&Identity],
@@ -132,7 +133,10 @@ fn compose_front(identity: &Identity, to: Format, id_label: &str, list: Option<&
         front.push_str("::: {custom-style=\"TOC Heading\"}\nContents\n:::\n\n");
     }
     front.push_str(&raw_block(to, TOC_TYPST, TOC_OPENXML));
-    front.push_str(&raw_block(to, PAGE_BREAK_TYPST, PAGE_BREAK_OPENXML));
+    // A bundle's first separator opens with its own page break.
+    if list.is_none() {
+        front.push_str(&raw_block(to, PAGE_BREAK_TYPST, PAGE_BREAK_OPENXML));
+    }
     front
 }
 

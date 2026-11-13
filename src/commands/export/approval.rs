@@ -202,25 +202,80 @@ fn flatten(text: &str) -> String {
         .collect()
 }
 
-/// A cell the converter shows as literal text on one line.
+/// A cell the converter shows as literal text on one line, with a break
+/// opportunity in each long unbroken run so it wraps inside its column.
 fn cell(text: &str) -> String {
-    escape_markdown(&flatten(text))
+    breakable(&escape_markdown(&flatten(text)))
+}
+
+/// A cell can break at a zero width space, so a long run such as a record digest
+/// or a URL in a meaning wraps instead of running into the next column.
+const BREAK_OPPORTUNITY: char = '\u{200B}';
+/// The longest unbroken run in a cell, in characters.
+const MAX_RUN: usize = 16;
+
+/// `text` with a break opportunity after every `MAX_RUN` characters of any run
+/// without a space. The text is already escaped, so a break never follows a
+/// backslash: it would separate an escape from the character it escapes.
+fn breakable(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut run = 0;
+    let mut previous = ' ';
+    for ch in text.chars() {
+        if ch.is_whitespace() {
+            run = 0;
+        } else {
+            if run >= MAX_RUN && previous != '\\' {
+                out.push(BREAK_OPPORTUNITY);
+                run = 0;
+            }
+            run += 1;
+        }
+        out.push(ch);
+        previous = ch;
+    }
+    out
+}
+
+/// The dash count of each column: as wide as its longest cell up to
+/// `MAX_COLUMN_WIDTH`, and at least 1.5 times its longest unbreakable run (a
+/// run between spaces and break opportunities), whose width a proportional font
+/// can exceed its character count. The counts are relative, so this keeps a
+/// run from overflowing only because every run is short, which `breakable`
+/// ensures for the Record cell.
+fn column_widths(rows: &[[String; 5]]) -> Vec<usize> {
+    (0..COLUMNS.len())
+        .map(|index| {
+            let cells = || {
+                rows.iter()
+                    .map(move |row| row[index].as_str())
+                    .chain([COLUMNS[index]])
+            };
+            let longest = cells()
+                .map(|text| text.chars().count())
+                .max()
+                .unwrap_or(MIN_COLUMN_WIDTH);
+            let run = cells()
+                .flat_map(|text| {
+                    text.split(|ch: char| ch.is_whitespace() || ch == BREAK_OPPORTUNITY)
+                })
+                .map(|run| run.chars().count())
+                .max()
+                .unwrap_or(MIN_COLUMN_WIDTH);
+            longest
+                .clamp(MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH)
+                .max(run + run / 2)
+        })
+        .collect()
 }
 
 /// The level-1 heading `Approval` and the pipe table, one row per entry.
 fn markdown(rows: &[[String; 5]]) -> String {
-    let widths: Vec<usize> = COLUMNS
+    let rows: Vec<[String; 5]> = rows
         .iter()
-        .enumerate()
-        .map(|(index, title)| {
-            rows.iter()
-                .map(|row| row[index].chars().count())
-                .chain([title.chars().count()])
-                .max()
-                .unwrap_or(MIN_COLUMN_WIDTH)
-                .clamp(MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH)
-        })
+        .map(|row| row.each_ref().map(|text| cell(text)))
         .collect();
+    let widths = column_widths(&rows);
     let line = |cells: Vec<String>| format!("| {} |\n", cells.join(" | "));
     let mut out = String::from("# Approval\n\n");
     out.push_str(&line(COLUMNS.iter().map(|title| cell(title)).collect()));
@@ -228,7 +283,7 @@ fn markdown(rows: &[[String; 5]]) -> String {
         widths.iter().map(|width| "-".repeat(*width)).collect(),
     ));
     for row in rows {
-        out.push_str(&line(row.iter().map(|text| cell(text)).collect()));
+        out.push_str(&line(row.into_iter().collect()));
     }
     out.push('\n');
     out
@@ -261,6 +316,39 @@ mod tests {
             assert_eq!(format_instant(bad), None, "{bad}");
         }
         assert!(format_instant("2024-02-29T23:59:59Z").is_some());
+    }
+
+    #[test]
+    #[trace("FR-038-AC-9")]
+    fn a_long_run_in_any_cell_wraps_and_every_column_keeps_its_longest_run() {
+        let digest = format!("sha256:{}", "ab".repeat(32));
+        assert_eq!(digest.len(), 71);
+        let url = "https://reviews.example.org/approvals/2026/11/a_very_long_path_*_x|y/index.html";
+        let record = format!("id: REC-1; digest: {digest}; tag: approvals/v1");
+        for text in [url, record.as_str()] {
+            let shown = cell(text);
+            assert!(shown.contains(BREAK_OPPORTUNITY), "{shown}");
+            // Removing the break points leaves exactly the escaped text, and no
+            // break separates an escape from its character.
+            assert_eq!(shown.replace(BREAK_OPPORTUNITY, ""), escape_markdown(text));
+            assert!(
+                !shown.contains(&format!("\\{BREAK_OPPORTUNITY}")),
+                "{shown}"
+            );
+        }
+        let row = |meaning: &str, verdict: &str| {
+            [
+                "Ada".to_string(),
+                "n/a".to_string(),
+                cell(meaning),
+                verdict.to_string(),
+                cell(&record),
+            ]
+        };
+        let widths = column_widths(&[row(url, "untrusted_signer"), row("ok", "approved")]);
+        assert!(widths[3] >= "untrusted_signer".len() * 3 / 2, "{widths:?}");
+        assert!(widths[2] <= MAX_COLUMN_WIDTH, "{widths:?}");
+        assert!(widths[4] < widths.iter().sum::<usize>() / 2, "{widths:?}");
     }
 
     #[test]

@@ -43,7 +43,7 @@ whatever the template:
 
 | Part | File | Position | Content |
 | --- | --- | --- | --- |
-| Front matter | `in/front.md` | Before the document | The title page, a page break, the table of contents, a page break. |
+| Front matter | `in/front.md` | Before the document | The title page, a page break, the table of contents, a page break. A bundle's front matter ends at the table of contents, since the first separator supplies the break ([FR-039](./FR-039-export-bundle.md)). |
 | Separators | `in/separator-<n>.md` | Before document n of a bundle | See [FR-039](./FR-039-export-bundle.md). |
 | Approval | `in/approval.md` | After the document | See [FR-038](./FR-038-approval-block.md); present only with `--approval`. |
 
