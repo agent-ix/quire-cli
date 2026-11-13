@@ -58,21 +58,21 @@ images ([FR-042](./FR-042-export-mermaid-diagrams.md)); it converts no document.
 - `--to docx` SHALL make one pandoc request. `--to pdf` SHALL make a pandoc
   request that writes `typ/document.typ`, then a typst request that compiles it
   to `out/document.pdf`. The typst request is made only if the pandoc request
-  completed. Both requests of one export SHALL share one capability root.
+  completed. All requests of one export, including the `mmdr` requests of FR-042, SHALL share one capability root.
 - Each request is the complete field set below. Fields not listed are not set.
 
 | Request field | Export definition |
 | --- | --- |
 | `protocol` | `engineering-assurance.producer-execution-request/v1`. |
-| `producer` | `name` `pandoc` or `typst`; `executable` the canonical absolute path (below); `version` the literal `unreported`. `quire` does not probe a converter for its version, because a probe would be a second launch. |
+| `producer` | `name` `pandoc`, `typst` or `mmdr` ([FR-042](./FR-042-export-mermaid-diagrams.md)); `executable` the canonical absolute path (below); `version` the literal `unreported`. `quire` does not probe a converter for its version, because a probe would be a second launch. |
 | `caller` | `{"kind": "quire.export", "version": "1"}`. |
 | `procedure` | `direct`. |
-| `capabilityRoot` | A fresh absolute temporary directory holding `in/` (the Markdown, `in/document.md`, with `in/metadata.yaml` and the template copy), `typ/` (the Typst source, PDF only) and `out/` (the output, and the tool's home and temporary directories). |
-| `arguments` | Literal entries in order. Pandoc: `--sandbox`, `--standalone`, `--from`, `markdown-yaml_metadata_block`, `--to`, then `docx` or `typst`, `--output`, `out/document.docx` or `typ/document.typ`, `--metadata-file`, `in/metadata.yaml`, then `--template`, `in/template.typ` (PDF) or `--reference-doc`, `in/template.docx` (DOCX), then the input files in order: `in/front.md`, then `in/document.md` (one input) or, for each document n of a bundle, `in/separator-<n>.md` and `in/document-<n>.md` ([FR-039](./FR-039-export-bundle.md)), then `in/approval.md` when `--approval` is given ([FR-038](./FR-038-approval-block.md)). The generated files are written by [FR-034](./FR-034-document-identity.md) through [FR-039](./FR-039-export-bundle.md); no argument holds input text. Typst: `compile`, `typ/document.typ`, `out/document.pdf`. |
+| `capabilityRoot` | A fresh absolute temporary directory holding `in/` (the Markdown, `in/document.md`, with `in/metadata.yaml` and the template copy), `typ/` (the Typst source, PDF only), and for a Markdown input with Mermaid blocks `in/diagrams/`, `in/diagrams.lua` and `img/` (DOCX) or `typ/img/` (PDF), and `out/` (the output, and the tool's home and temporary directories). |
+| `arguments` | Literal entries in order. Pandoc: `--sandbox`, `--standalone`, `--from`, `markdown-yaml_metadata_block`, `--to`, then `docx` or `typst`, `--output`, `out/document.docx` or `typ/document.typ`, `--metadata-file`, `in/metadata.yaml`, then `--template`, `in/template.typ` (PDF) or `--reference-doc`, `in/template.docx` (DOCX), then, when the input holds Mermaid blocks, `--lua-filter`, `in/diagrams.lua`, then the input files in order: `in/front.md`, then `in/document.md` (one input) or, for each document n of a bundle, `in/separator-<n>.md` and `in/document-<n>.md` ([FR-039](./FR-039-export-bundle.md)), then `in/approval.md` when `--approval` is given ([FR-038](./FR-038-approval-block.md)). The generated files are written by [FR-034](./FR-034-document-identity.md) through [FR-039](./FR-039-export-bundle.md); no argument holds input text. Typst: `compile`, `typ/document.typ`, `out/document.pdf`. |
 | `environment` | `HOME=<capabilityRoot>/out/home` and `TMPDIR=<capabilityRoot>/out/tmp`, both created empty before the run, and `SOURCE_DATE_EPOCH` ([FR-037](./FR-037-export-clock-free-output.md)). No other variable. |
 | `inputs` | Empty. The tools read their input from the capability root. |
 | `stdin` | `{"kind": "null"}`. |
-| `outputs` | One entry: role `document`, path the `--output` target above, `required` true. |
+| `outputs` | One entry: role `document`, path the `--output` target above, `required` true; for an `mmdr` request one entry, role `diagram`, the image path ([FR-042](./FR-042-export-mermaid-diagrams.md)). |
 | `containment` | `{"profile": "process-group-v1", "contract": {"kind": "quire.export-containment", "version": "1"}}`. |
 | `cancellation` | `{"kind": "disabled"}`. |
 | `budget` | `timeoutMillis` 120000, `maxStdoutBytes` 1048576, `maxStderrBytes` 1048576, `maxInputBytes` 268435456, `maxOutputArtifacts` 1, `maxOutputBytes` 268435456, `maxDescendants` 64, `maxConcurrency` 1. |
@@ -111,8 +111,8 @@ images ([FR-042](./FR-042-export-mermaid-diagrams.md)); it converts no document.
 | FR-032-AC-4 | When the pandoc request does not complete, no typst request is made. | Test |
 | FR-032-AC-5 | During a run, the only child process `quire` itself starts is `engineering-assurance`. | Test |
 | FR-032-AC-6 | After success and after each failure of [FR-033](./FR-033-export-errors.md), the one temporary capability root no longer exists. | Test |
-| FR-032-AC-8 | The requests of an export with Mermaid blocks are those of FR-042-AC-2 and FR-042-AC-3; an export without Mermaid blocks makes no `mmdr` request and its pandoc request carries no `--lua-filter`. | Test |
 | FR-032-AC-7 | With real pandoc and typst, a fixture exports to a DOCX that opens as a zip and a PDF that starts with `%PDF`. The test fails naming the missing tool if either is unavailable. | Test |
+| FR-032-AC-8 | The requests of an export with Mermaid blocks are those of FR-042-AC-2 and FR-042-AC-3; an export without Mermaid blocks makes no `mmdr` request and its pandoc request carries no `--lua-filter`. | Test |
 
 ## Dependencies
 

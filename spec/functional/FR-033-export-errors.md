@@ -25,8 +25,8 @@ leave no file at `--output`.
 | Kind | Cause | Exit | Diagnostic |
 | --- | --- | --- | --- |
 | Missing converter | `pandoc` (or `typst` for `--to pdf`, or `mmdr` for a Markdown input with a Mermaid block) or `engineering-assurance` is not found on PATH or at the flag path or is not executable, or the result state is `unavailable`. | 3 | Names the tool, the flag that overrides it and where it looked. |
-| Converter failure | The result state is `failed`, `timed_out`, `refused`, `malformed_response` or `cancelled`, or the required output is absent. | 4 | Names the tool, the state, the exit code if any, and the producer's stderr as the executor retains it. |
-| Diagram failure | An `mmdr` request for a Mermaid block ends in a state other than `completed`, its PNG is absent or empty, or pandoc and `quire` count different numbers of Mermaid blocks ([FR-042](./FR-042-export-mermaid-diagrams.md)). | 4 | Names the block by document path, ordinal, line number and section heading, then the state, the exit code if any and the stderr; for a count mismatch, both counts. |
+| Converter failure | The result state is `failed`, `timed_out`, `refused`, `malformed_response` or `cancelled`, or the required output is absent. | 4 | Names the tool, the state, the exit code if any, and the producer's stderr as the executor retains it. A failure of the pandoc diagram filter of FR-042 (a block mismatch, a count mismatch or an unreadable image) is a pandoc failure of this kind; its stderr carries the block number or both counts, and the outcome is not decided from that text. |
+| Diagram failure | An `mmdr` request for a Mermaid block ends in a state other than `completed`, or its PNG is absent or empty ([FR-042](./FR-042-export-mermaid-diagrams.md)). | 4 | Names the block by document path, ordinal, line number and section heading, then the state, the exit code if any and the stderr. |
 | Unsupported host | The result state is `containment_failure` on a host other than Linux. | 4 | States that export is unsupported on this host because producer-execute containment requires Linux. |
 | Containment failure | The result state is `containment_failure` on Linux. | 4 | Names the state `containment_failure`; the result carries no further reason. |
 | Executor error | `producer-execute` exits 2 with an `engineering-assurance.error/v1` machine error, for example `producer_execute_request_invalid`. | 4 | Names the machine-error code and message, and says the installed `engineering-assurance` may not match this `quire`. |
@@ -57,8 +57,8 @@ leave no file at `--output`.
 | FR-033-AC-7 | After a failed export over a pre-existing `--output`, that file's bytes are unchanged. | Test |
 | FR-033-AC-8 | A stand-in `engineering-assurance` that exits 2 with a machine error makes the export exit 4 naming the error code; a stand-in result `containment_failure` on a non-Linux host makes the export exit 4 with the unsupported-host message. | Test |
 | FR-033-AC-9 | An input without read permission exits 2; `--output` equal to the input exits 2 and leaves the input unchanged; a missing output directory and an `--output` that is a directory each exit 4; none starts a converter. | Test |
-| FR-033-AC-11 | A failing `mmdr` for one block is a diagram failure (exit 4) naming that block, and an absent `mmdr` for a document with a Mermaid block is a missing converter (exit 3), as FR-042-AC-4 and FR-042-AC-6 define; neither leaves a file at `--output`. | Test |
 | FR-033-AC-10 | A fixture whose first heading reads `--output=/tmp/x` exports with that text in the document and no change to the arguments of any request. | Test |
+| FR-033-AC-11 | A failing `mmdr` for one block is a diagram failure (exit 4) naming that block, and an absent `mmdr` for a document with a Mermaid block is a missing converter (exit 3), as FR-042-AC-4 and FR-042-AC-6 define; neither leaves a file at `--output`. | Test |
 
 ## Dependencies
 

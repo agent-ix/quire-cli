@@ -51,7 +51,7 @@ documents and stand-in scripts.
 | NFR-010-AC-1 | Review of the export code finds no process launch other than the one of `engineering-assurance producer-execute`, and no converter other than pandoc and typst and no renderer other than `mmdr`. | Inspection |
 | NFR-010-AC-2 | The published npm package file list and the repository tree hold no pandoc, typst or mmdr binary, no font or Mermaid theme file, template file (`.typ`, `.docx`, `.dotx`) other than inline test strings, or reference document. | Inspection |
 | NFR-010-AC-3 | Adding the export adds no network client crate to the dependency list. | Test |
-| NFR-010-AC-4 | With real `mmdr` run under `strace -fe network` on a fixture of each supported diagram type, `mmdr` makes zero `socket()` calls, and the descendants of the request stay in its process group. | Test |
+| NFR-010-AC-4 | With real `mmdr` on a fixture of each guaranteed diagram type of FR-042, run under `strace -fe network`, `mmdr` makes zero `socket()` calls; and the producer-execute result of each real `mmdr` request has state `completed` and none has `containment_failure`, which is the executor's own check that no descendant left the request's containment group. | Test |
 
 ## Verification
 

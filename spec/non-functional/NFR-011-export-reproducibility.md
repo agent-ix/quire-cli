@@ -34,7 +34,7 @@ extracted text or structure.
   `word/footer*.xml` in part-name order.
 - **Extracted structure**: the sequence of heading levels and heading texts, the
   grid of cell texts of every table (rows, columns, text), the page count for PDF,
-  the table-of-contents entries, and the set of word-processor fields in DOCX, and for a Mermaid diagram its position in the sequence of blocks, its pixel width and height, and the bytes of its PNG (the `word/media` part for DOCX, the image of `pdfimages -list` for PDF).
+  the table-of-contents entries, and the set of word-processor fields in DOCX, and for a Mermaid diagram its position in the sequence of blocks, its pixel width and height, and its image bytes (the bytes of the `word/media` part for DOCX; for PDF the image data extracted by `pdfimages -png`, because Typst re-encodes the PNG into the PDF).
 
 ## Scope
 
@@ -59,8 +59,8 @@ are outside the property.
 | NFR-011-AC-1 | Exporting one committed fixture twice to each format with real pandoc and typst, once with the process clock and `TZ` changed between runs, yields equal extracted text and equal extracted structure; the test fails naming the missing tool if a converter or extractor is unavailable. | Test |
 | NFR-011-AC-2 | The property of NFR-011-AC-1 holds for the default template, a fixture organisation template, a fixture with two approval verdicts, and a bundle of three fixtures. | Test |
 | NFR-011-AC-3 | Exporting the same fixture from two different working directories and two different output directories yields equal extracted text and structure. | Test |
-| NFR-011-AC-5 | Exporting a fixture with two Mermaid diagrams twice, with the clock and `TZ` changed, yields equal extracted text and structure, with equal image count, pixel dimensions and PNG bytes. | Test |
 | NFR-011-AC-4 | A fixture changed by one word yields a different extracted text, so the comparison can fail. | Test |
+| NFR-011-AC-5 | Exporting a fixture with two Mermaid diagrams twice, with the clock and `TZ` changed, yields equal extracted text and structure, with equal image count, pixel dimensions and image bytes as the definition above gives them; this checks the assumption of FR-042 that `mmdr` output depends on the diagram text, its version and the fonts only. | Test |
 
 ## Verification
 
