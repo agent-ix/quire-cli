@@ -302,6 +302,7 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
             strict: false,
             summary: false,
             severity: Vec::new(),
+            repo: Vec::new(),
         },
         validate::Source::Committed(&source.committed),
     )?;

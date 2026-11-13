@@ -1,0 +1,199 @@
+{
+  "relations": [
+    {
+      "name": "concern-is-addressed",
+      "check": "unaddressed-concern",
+      "direction": "incoming",
+      "summary": {
+        "rows": 3,
+        "state": {
+          "uncovered": 1,
+          "covered": 2
+        },
+        "verification": {
+          "verified": 1,
+          "partial": 0,
+          "unverified": 1,
+          "not-tracked": 1
+        }
+      },
+      "rows": [
+        {
+          "relation": "concern-is-addressed",
+          "check": "unaddressed-concern",
+          "direction": "incoming",
+          "document": {
+            "id": "CON-001",
+            "path": "spec/CON-001.md",
+            "archetype": "Concern",
+            "verification": "not-tracked",
+            "criteria": {
+              "backed": 0,
+              "unbacked": 0,
+              "not_measured": 0
+            }
+          },
+          "state": "uncovered",
+          "verification": "not-tracked",
+          "linked": [],
+          "dangling": [],
+          "kind_mismatch": []
+        },
+        {
+          "relation": "concern-is-addressed",
+          "check": "unaddressed-concern",
+          "direction": "incoming",
+          "document": {
+            "id": "CON-002",
+            "path": "spec/CON-002.md",
+            "archetype": "Concern",
+            "verification": "not-tracked",
+            "criteria": {
+              "backed": 0,
+              "unbacked": 0,
+              "not_measured": 0
+            }
+          },
+          "state": "covered",
+          "verification": "unverified",
+          "linked": [
+            {
+              "id": "RULE-002",
+              "path": "spec/RULE-002.md",
+              "archetype": "Rule",
+              "verification": "unverified",
+              "criteria": {
+                "backed": 0,
+                "unbacked": 1,
+                "not_measured": 0
+              },
+              "verb": "addresses",
+              "resolution": "resolved"
+            }
+          ],
+          "dangling": [],
+          "kind_mismatch": []
+        },
+        {
+          "relation": "concern-is-addressed",
+          "check": "unaddressed-concern",
+          "direction": "incoming",
+          "document": {
+            "id": "CON-003",
+            "path": "spec/CON-003.md",
+            "archetype": "Concern",
+            "verification": "not-tracked",
+            "criteria": {
+              "backed": 0,
+              "unbacked": 0,
+              "not_measured": 0
+            }
+          },
+          "state": "covered",
+          "verification": "verified",
+          "linked": [
+            {
+              "id": "RULE-001",
+              "path": "spec/RULE-001.md",
+              "archetype": "Rule",
+              "verification": "verified",
+              "criteria": {
+                "backed": 1,
+                "unbacked": 0,
+                "not_measured": 0
+              },
+              "verb": "addresses",
+              "resolution": "resolved"
+            }
+          ],
+          "dangling": [],
+          "kind_mismatch": []
+        }
+      ]
+    },
+    {
+      "name": "gold-rule-addresses",
+      "check": "gold-rule-idle",
+      "direction": "outgoing",
+      "summary": {
+        "rows": 2,
+        "state": {
+          "uncovered": 1,
+          "covered": 1
+        },
+        "verification": {
+          "verified": 1,
+          "partial": 0,
+          "unverified": 0,
+          "not-tracked": 1
+        }
+      },
+      "rows": [
+        {
+          "relation": "gold-rule-addresses",
+          "check": "gold-rule-idle",
+          "direction": "outgoing",
+          "document": {
+            "id": "RULE-001",
+            "path": "spec/RULE-001.md",
+            "archetype": "Rule",
+            "verification": "verified",
+            "criteria": {
+              "backed": 1,
+              "unbacked": 0,
+              "not_measured": 0
+            }
+          },
+          "selector": {
+            "field": "tier",
+            "value": "gold"
+          },
+          "state": "covered",
+          "verification": "verified",
+          "linked": [
+            {
+              "id": "CON-003",
+              "path": "spec/CON-003.md",
+              "archetype": "Concern",
+              "verification": "not-tracked",
+              "criteria": {
+                "backed": 0,
+                "unbacked": 0,
+                "not_measured": 0
+              },
+              "verb": "addresses",
+              "resolution": "resolved"
+            }
+          ],
+          "dangling": [],
+          "kind_mismatch": []
+        },
+        {
+          "relation": "gold-rule-addresses",
+          "check": "gold-rule-idle",
+          "direction": "outgoing",
+          "document": {
+            "id": "RULE-003",
+            "path": "spec/RULE-003.md",
+            "archetype": "Rule",
+            "verification": "not-tracked",
+            "criteria": {
+              "backed": 0,
+              "unbacked": 0,
+              "not_measured": 0
+            }
+          },
+          "selector": {
+            "field": "tier",
+            "value": "gold"
+          },
+          "state": "uncovered",
+          "verification": "not-tracked",
+          "linked": [],
+          "dangling": [],
+          "kind_mismatch": []
+        }
+      ]
+    }
+  ]
+}

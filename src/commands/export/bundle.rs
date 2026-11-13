@@ -161,6 +161,7 @@ fn resolve_sources(ctx: &Ctx, args: &Args) -> anyhow::Result<Vec<Source>> {
                 strict: false,
                 summary: false,
                 severity: Vec::new(),
+                repo: Vec::new(),
             },
             validate::Source::Committed(&source.committed),
         )?;
