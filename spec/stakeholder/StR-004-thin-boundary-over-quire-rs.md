@@ -23,7 +23,7 @@ already-computed JSON report to Markdown tables,
 which are output formatting for an external converter and not Markdown artifact
 or engine semantics. Markdown artifacts are still parsed and validated only by
 `quire-rs`, and the converter reads the Markdown and its frontmatter itself.
-This exception authorizes no document parser, engine model, graph, assurance,
+The identity read of [FR-034](../functional/FR-034-document-identity.md) (commit, date and tag from the repository's object store) and the approval entries of [FR-038](../functional/FR-038-approval-block.md) are likewise output data for the converter, not Markdown semantics. This exception authorizes no document parser, engine model, graph, assurance,
 source-analysis, or general qualification-tool duplication. The existing
 private `quire-qualify` package remains repository-local under
 [FR-025](../functional/FR-025-rust-qualification-tooling.md).

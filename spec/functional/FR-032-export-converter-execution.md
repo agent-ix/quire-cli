@@ -37,7 +37,10 @@ PDF.
   executable, where a LaTeX distribution is many packages.
 - Pandoc and Typst are installed by the user and found on PATH or through the
   flags of [FR-031](./FR-031-export-subcommand.md). No converter binary,
-  template or reference document is added to this repository or its package.
+  template file or reference document is added to this repository or its package;
+  the default template is generated at export time
+  ([FR-035](./FR-035-default-export-template.md)) and an organisation template is
+  the user's local file ([FR-036](./FR-036-organisation-export-template.md)).
 
 ## Behavior
 
@@ -55,9 +58,9 @@ PDF.
 | `producer` | `name` `pandoc` or `typst`; `executable` the canonical absolute path (below); `version` the literal `unreported`. `quire` does not probe a converter for its version, because a probe would be a second launch. |
 | `caller` | `{"kind": "quire.export", "version": "1"}`. |
 | `procedure` | `direct`. |
-| `capabilityRoot` | A fresh absolute temporary directory holding `in/` (the assembled Markdown, `in/document.md`), `typ/` (the Typst source, PDF only) and `out/` (the output, and the tool's home and temporary directories). |
-| `arguments` | Literal entries in order. Pandoc: `--sandbox`, `--standalone`, `--from`, `markdown`, `--to`, then `docx` or `typst`, `--output`, `out/document.docx` or `typ/document.typ`, `in/document.md`. Typst: `compile`, `typ/document.typ`, `out/document.pdf`. |
-| `environment` | `HOME=<capabilityRoot>/out/home` and `TMPDIR=<capabilityRoot>/out/tmp`, both created empty before the run. No other variable. |
+| `capabilityRoot` | A fresh absolute temporary directory holding `in/` (the Markdown, `in/document.md`, with `in/metadata.yaml` and the template copy), `typ/` (the Typst source, PDF only) and `out/` (the output, and the tool's home and temporary directories). |
+| `arguments` | Literal entries in order. Pandoc: `--sandbox`, `--standalone`, `--from`, `markdown`, `--to`, then `docx` or `typst`, `--output`, `out/document.docx` or `typ/document.typ`, `in/document.md`. Pandoc also receives, in this order before the input, `--metadata-file`, `in/metadata.yaml`; `--table-of-contents` and `--toc-depth`, `3`; and `--template`, `in/template.typ` (PDF) or `--reference-doc`, `in/template.docx` (DOCX); the inputs of a bundle are `in/document-1.md` through `in/document-<n>.md` ([FR-039](./FR-039-export-bundle.md)). These entries are written by [FR-034](./FR-034-document-identity.md) through [FR-036](./FR-036-organisation-export-template.md) and hold no input text. Typst: `compile`, `typ/document.typ`, `out/document.pdf`. |
+| `environment` | `HOME=<capabilityRoot>/out/home` and `TMPDIR=<capabilityRoot>/out/tmp`, both created empty before the run, and `SOURCE_DATE_EPOCH` ([FR-037](./FR-037-export-clock-free-output.md)). No other variable. |
 | `inputs` | Empty. The tools read their input from the capability root. |
 | `stdin` | `{"kind": "null"}`. |
 | `outputs` | One entry: role `document`, path the `--output` target above, `required` true. |
@@ -95,7 +98,7 @@ PDF.
 | --- | --- | --- |
 | FR-032-AC-1 | With fixture executables standing in for pandoc and typst, `--to docx` produces exactly one producer-execute request, and `--to pdf` produces a pandoc request followed by a typst request; no other process is started by `quire` and no version probe is made. | Test |
 | FR-032-AC-2 | Every request used by the tests validates against the schema published by `engineering-assurance producer-execute --schema request`, names a canonical `producer.executable`, and equals the field table above. A converter reached through a symbolic link is passed as its resolved target, and a link to a non-file is reported as a missing converter. | Test |
-| FR-032-AC-3 | The pandoc request carries `--sandbox`, `--standalone`, `--from markdown`, one `--output` under `out/` (DOCX) or `typ/` (PDF) and the input `in/document.md`; the typst request carries exactly `compile`, one input `typ/document.typ` and one output `out/document.pdf`. | Inspection |
+| FR-032-AC-3 | The pandoc request carries `--sandbox`, `--standalone`, `--from markdown`, `--metadata-file in/metadata.yaml`, one template argument under `in/`, one `--output` under `out/` (DOCX) or `typ/` (PDF) and the input `in/document.md`; the typst request carries exactly `compile`, one input `typ/document.typ` and one output `out/document.pdf`. | Inspection |
 | FR-032-AC-4 | When the pandoc request does not complete, no typst request is made. | Test |
 | FR-032-AC-5 | During a run, the only child process `quire` itself starts is `engineering-assurance`. | Test |
 | FR-032-AC-6 | After success and after each failure of [FR-033](./FR-033-export-errors.md), the one temporary capability root no longer exists. | Test |

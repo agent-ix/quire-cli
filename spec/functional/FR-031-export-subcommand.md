@@ -22,6 +22,8 @@ relationships:
     type: "references"
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-033"
     type: "references"
+  - target: "ix://agent-ix/quire-cli/spec/functional/FR-034"
+    type: "references"
 ---
 # FR-031: quire export subcommand
 
@@ -45,7 +47,16 @@ quire export <INPUT> --to pdf|docx --output <PATH>
              [--kind matrix|rmm|soup|table] [--module <PATH>]...
              [--pandoc <PATH>] [--typst <PATH>]
              [--engineering-assurance <PATH>]
+             [--template <PATH>] [--source-repo <DIR>] [--source-rev <REV>]
+             [--release <TAG>] [--approval <PATH>]...
+             [--bundle-title <TEXT>] [--bundle-id <ID>]
 ```
+
+The last two lines of options, and the identity, title page and layout a Markdown
+input receives, are specified by [FR-034](./FR-034-document-identity.md) through
+[FR-039](./FR-039-export-bundle.md); a Markdown `<INPUT>` may repeat for a
+bundle. This FR's section A states the content the converter takes from the
+source; the template of FR-035 or FR-036 frames it.
 
 The conversion is the work of external tools launched by Engineering
 Assurance; [FR-032](./FR-032-export-converter-execution.md) owns that execution
@@ -122,14 +133,18 @@ it hands to the converter.
 ### D. Scope exclusions
 
 Document identity, title page, headers and footers, organisation templates,
-approval and signature blocks, bundles and stable styling are outside this FR
-(PLAT-1605). The command takes no template option.
+approval and signature blocks, bundles and stable styling are specified by
+[FR-034](./FR-034-document-identity.md) through
+[FR-040](./FR-040-export-template-and-identity-errors.md) and
+[NFR-011](../non-functional/NFR-011-export-reproducibility.md), not by this FR.
+A Markdown input exported by the commands of those FRs needs a committed source
+and an identity; JSON inputs carry none.
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 | --- | --- | --- |
-| FR-031-AC-1 | Exporting a fixture FR artifact containing headings, a list, a table and a code block to `pdf` and to `docx` writes both files, and the text extracted from each contains every fixture heading and the code block text. The extractors are `pdftotext` for PDF and an unzip of `word/document.xml` for DOCX, and the test fails, naming the missing tool, if real pandoc, typst or the extractor is unavailable. | Test |
+| FR-031-AC-1 | Exporting a committed fixture FR artifact containing headings, a list, a table and a code block to `pdf` and to `docx` writes both files, and the text extracted from each contains every fixture heading and the code block text. The extractors are `pdftotext` for PDF and an unzip of `word/document.xml` for DOCX, and the test fails, naming the missing tool, if real pandoc, typst or the extractor is unavailable. | Test |
 | FR-031-AC-2 | Exporting a Markdown file that fails validation against the `--module` set exits 3, writes no output file and starts no converter; the same file passes against a module set that admits it. | Test |
 | FR-031-AC-3 | A JSON input without `--kind`, a Markdown input with `--kind`, and a JSON input with `--module` each exit 3 with a diagnostic naming the flag. | Test |
 | FR-031-AC-4 | Exporting a `quire matrix --format json` fixture with `--kind matrix` to `docx` yields tables whose rows hold every criterion id of the fixture, extracted as in FR-031-AC-1; a fixture without `coverage_matrix` yields the zero-population line. | Test |

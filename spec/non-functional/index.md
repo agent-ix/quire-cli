@@ -15,3 +15,4 @@ description: "Index of artifacts in this directory."
 * [NFR-006: CLI surface stability under SemVer](./NFR-006-cli-stability.md)
 * [NFR-009: Native qualification boundary](./NFR-009-native-qualification-boundary.md)
 * [NFR-010: Export uses declared converters through one execution path and vendors none](./NFR-010-export-single-converter-single-path.md)
+* [NFR-011: Same input and template give the same exported document](./NFR-011-export-reproducibility.md)
