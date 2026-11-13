@@ -1,9 +1,27 @@
 {
-  "title": "ignored scalar",
   "items": [
-    {"id": "ROW-1", "detail": {"nested": [1, 2], "ok": true}},
-    {"id": "ROW-2", "extra": "late member"},
-    {"id": "ROW-3"}
+    {
+      "detail": {
+        "nested": [
+          1,
+          2
+        ],
+        "ok": true
+      },
+      "id": "ROW-1"
+    },
+    {
+      "extra": "late member",
+      "id": "ROW-2"
+    },
+    {
+      "id": "ROW-3"
+    }
   ],
-  "others": [{"name": "OTHER-1"}]
+  "others": [
+    {
+      "name": "OTHER-1"
+    }
+  ],
+  "title": "ignored scalar"
 }

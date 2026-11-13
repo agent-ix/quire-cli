@@ -1,18 +1,42 @@
 {
   "coverage_matrix": [
     {
-      "document": "spec/functional/FR-901-ember.md",
       "criteria": [
-        {"id": "FR-901-AC-1", "statement": "Ember | glows `red`", "method": "Test",
-         "binders": [{"path": "tests/ember.rs", "line": 7, "kind": "test_function"}], "status": "tagged"},
-        {"id": "FR-901-AC-2", "statement": "Ember\ndims <w:p>raw</w:p>", "method": "Test", "binders": [], "status": "untagged"}
-      ]
+        {
+          "binders": [
+            {
+              "kind": "test_function",
+              "line": 7,
+              "path": "tests/ember.rs"
+            }
+          ],
+          "id": "FR-901-AC-1",
+          "method": "Test",
+          "statement": "Ember | glows `red`",
+          "status": "tagged"
+        },
+        {
+          "binders": [],
+          "id": "FR-901-AC-2",
+          "method": "Test",
+          "statement": "Ember\ndims <w:p>raw</w:p>",
+          "status": "untagged"
+        }
+      ],
+      "document": "spec/functional/FR-901-ember.md"
     },
     {
-      "document": "spec/functional/FR-902-cinder.md",
       "criteria": [
-        {"id": "FR-902-AC-1", "statement": "Cinder cools", "method": "Demonstration", "binders": [], "status": "untagged", "criticality": "high"}
-      ]
+        {
+          "binders": [],
+          "criticality": "high",
+          "id": "FR-902-AC-1",
+          "method": "Demonstration",
+          "statement": "Cinder #strong[cools] $x$ @ref",
+          "status": "untagged"
+        }
+      ],
+      "document": "spec/functional/FR-902-cinder.md"
     }
   ],
   "engine": "0.0.0"

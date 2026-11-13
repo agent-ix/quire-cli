@@ -1,24 +1,102 @@
 {
   "as_of": "2026-11-12",
   "rows": [
-    {"purl": "pkg:cargo/ember@1.0.0", "id": "SOUP-EMBER", "path": "soup/ember.md", "version": "1.0.0",
-     "serves": {"state": "stated", "items": ["FR-901"]},
-     "known_anomalies": {"state": "none", "items": []},
-     "support_status": {"value": "unknown", "origin": "none"},
-     "end_of_support": {"value": "unknown", "origin": "none"},
-     "unresolved_advisory": true, "past_end_of_support": false, "support_disagreement": false,
-     "disposition_clause": null,
-     "advisories": [{"tool": "audit", "rule_id": "RUSTSEC-0000-0001", "resolution": {"state": "unresolved", "reason": "no disposition"}}],
-     "no_advisory_reported_by": []},
-    {"purl": "pkg:cargo/cinder@2.0.0", "id": "SOUP-CINDER", "path": "soup/cinder.md", "version": "2.0.0",
-     "serves": {"state": "none", "items": []},
-     "known_anomalies": {"state": "none", "items": []},
-     "support_status": {"value": "active", "origin": "record"},
-     "end_of_support": {"value": "2030-01-01", "origin": "record"},
-     "unresolved_advisory": false, "past_end_of_support": false, "support_disagreement": false,
-     "disposition_clause": null, "advisories": [], "no_advisory_reported_by": ["audit"]}
+    {
+      "advisories": [
+        {
+          "message": "fictional advisory",
+          "package": "ember",
+          "resolution": {
+            "reason": "no disposition",
+            "state": "unresolved"
+          },
+          "rule_id": "RUSTSEC-0000-0001",
+          "scan_timestamp": "2026-11-01T00:00:00Z",
+          "severity": "high",
+          "tool": "audit"
+        }
+      ],
+      "disposition_clause": null,
+      "end_of_support": {
+        "origin": "none",
+        "value": "unknown"
+      },
+      "id": "SOUP-EMBER",
+      "known_anomalies": {
+        "items": [],
+        "state": "none"
+      },
+      "no_advisory_reported_by": [],
+      "past_end_of_support": false,
+      "path": "soup/ember.md",
+      "purl": "pkg:cargo/ember@1.0.0",
+      "serves": {
+        "items": [
+          "FR-901"
+        ],
+        "state": "stated"
+      },
+      "support_disagreement": false,
+      "support_status": {
+        "origin": "none",
+        "value": "unknown"
+      },
+      "unresolved_advisory": true,
+      "version": "1.0.0"
+    },
+    {
+      "advisories": [],
+      "disposition_clause": null,
+      "end_of_support": {
+        "origin": "record",
+        "value": "2030-01-01"
+      },
+      "id": "SOUP-CINDER",
+      "known_anomalies": {
+        "items": [],
+        "state": "none"
+      },
+      "no_advisory_reported_by": [
+        "audit"
+      ],
+      "past_end_of_support": false,
+      "path": "soup/cinder.md",
+      "purl": "pkg:cargo/cinder@2.0.0",
+      "serves": {
+        "items": [],
+        "state": "none"
+      },
+      "support_disagreement": false,
+      "support_status": {
+        "origin": "record",
+        "value": "active"
+      },
+      "unresolved_advisory": false,
+      "version": "2.0.0"
+    }
   ],
-  "unmatched": [{"tool": "audit", "rule_id": "RUSTSEC-UNMATCHED-9", "package": null, "severity": null, "reason": "no record"}],
-  "scans": [{"tool": "audit", "outcome": "read", "suite": "SCAN-SUITE-7"}],
-  "unreadable_scans": ["scans/broken-scan-1.json", "scans/broken-scan-2.json"]
+  "scans": [
+    {
+      "advisories": 1,
+      "diagnostics_not_read": 0,
+      "older_suites_not_read": [],
+      "state": "read",
+      "suite": "SCAN-SUITE-7",
+      "timestamp": "2026-11-01T00:00:00Z",
+      "tool": "audit"
+    }
+  ],
+  "unmatched": [
+    {
+      "package": null,
+      "reason": "no record",
+      "rule_id": "RUSTSEC-UNMATCHED-9",
+      "severity": null,
+      "tool": "audit"
+    }
+  ],
+  "unreadable_scans": [
+    "scans/broken-scan-1.json",
+    "scans/broken-scan-2.json"
+  ]
 }

@@ -1,16 +1,44 @@
 {
-  "schemaVersion": "requirements-mapping-v1",
-  "clauseSet": {"authority": "fict", "id": "ember-std", "version": "1"},
   "asOf": "2026-11-12T00:00:00Z",
+  "clauseSet": {
+    "authority": "fict",
+    "id": "ember-std",
+    "version": "1"
+  },
   "rows": [
-    {"clauseId": "EMB-4.1", "force": "shall", "applicability": "applicable", "compliance": "compliant",
-     "evidenceRefs": ["ev/ember-1"]},
-    {"clauseId": "EMB-4.2", "force": "shall", "applicability": "applicable", "compliance": "undischarged",
-     "reason": "no fact", "evidenceRefs": []},
-    {"clauseId": "EMB-4.3", "force": "should", "applicability": "not_applicable", "compliance": "not_applicable",
-     "evidenceRefs": [], "tailoringDescription": "approved", "tailoringRationale": "n/a here"}
+    {
+      "applicability": "applicable",
+      "clauseId": "EMB-4.1",
+      "compliance": "compliant",
+      "evidenceRefs": [
+        "ev/ember-1"
+      ],
+      "force": "shall"
+    },
+    {
+      "applicability": "applicable",
+      "clauseId": "EMB-4.2",
+      "compliance": "undischarged",
+      "evidenceRefs": [],
+      "force": "shall",
+      "reason": "no fact"
+    },
+    {
+      "applicability": "not_applicable",
+      "clauseId": "EMB-4.3",
+      "compliance": "not_applicable",
+      "evidenceRefs": [],
+      "force": "should",
+      "tailoringDescription": "approved",
+      "tailoringRationale": "n/a here"
+    }
   ],
+  "schemaVersion": "requirements-mapping-v1",
   "unusedFacts": [
-    {"factId": "FACT-UNUSED-1", "reason": "no clause"}
+    {
+      "clauseId": "FACT-UNUSED-1",
+      "kind": "direct",
+      "reason": "clause not in the binding report"
+    }
   ]
 }
