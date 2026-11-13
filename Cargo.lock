@@ -619,7 +619,7 @@ dependencies = [
  "gix-parallel",
  "gix-path",
  "gix-quote",
- "gix-trace 0.3.1",
+ "gix-trace",
  "smallvec",
  "unicode-bom",
 ]
@@ -670,18 +670,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gix-features"
-version = "0.48.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1849ae154d38bc403185be14fa871e38e3c93ee606875d94e207fdb9fba52dbc"
-dependencies = [
- "gix-trace 0.1.21",
- "libc",
- "thiserror",
- "zlib-rs",
-]
-
-[[package]]
 name = "gix-fs"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -706,7 +694,7 @@ dependencies = [
  "bstr",
  "gix-fs",
  "gix-path",
- "gix-trace 0.3.1",
+ "gix-trace",
  "gix-utils",
 ]
 
@@ -780,7 +768,7 @@ dependencies = [
  "gix-parallel",
  "gix-path",
  "gix-quote",
- "gix-trace 0.3.1",
+ "gix-trace",
  "gix-utils",
  "gix-zlib",
  "memmap2",
@@ -801,7 +789,7 @@ dependencies = [
  "gix-object",
  "gix-parallel",
  "gix-path",
- "gix-trace 0.3.1",
+ "gix-trace",
  "gix-utils",
  "gix-zlib",
  "memmap2",
@@ -814,7 +802,7 @@ version = "0.50.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58e7e10f8343e05f6ad8651f97dffa1caca1531bb274bfc8e3050e80e3ed5946"
 dependencies = [
- "gix-trace 0.3.1",
+ "gix-trace",
 ]
 
 [[package]]
@@ -825,7 +813,7 @@ checksum = "83976e926a485e6fb4b8d9a0d7a30c53c1f607b81b5d310f06f92fd8385bf16a"
 dependencies = [
  "bstr",
  "gix-error",
- "gix-trace 0.3.1",
+ "gix-trace",
  "gix-validate",
 ]
 
@@ -884,12 +872,6 @@ dependencies = [
  "tempfile",
  "windows-sys",
 ]
-
-[[package]]
-name = "gix-trace"
-version = "0.1.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be3eb81d9dc914335923e50d52829c551feefd6a72d176c4130c546b67a60814"
 
 [[package]]
 name = "gix-trace"
@@ -1667,7 +1649,6 @@ dependencies = [
  "crc32fast",
  "gix-attributes",
  "gix-discover",
- "gix-features",
  "gix-glob",
  "gix-hash",
  "gix-object",

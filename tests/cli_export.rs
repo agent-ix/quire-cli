@@ -165,6 +165,34 @@ impl Rig {
 
     /// `quire export <input> --to <to> --output <output>` with every tool named.
     fn export(&self, input: &Path, to: &str, output: &Path) -> Command {
+        self.export_with_module(input, to, output, &validate_module())
+    }
+
+    /// A copy of the `validate-mod` module whose `FR` type requires no body
+    /// sections, so a document without headings is valid.
+    fn lenient_module(&self) -> PathBuf {
+        let source = validate_module();
+        let root = self.root().join("lenient-module");
+        fs::create_dir_all(root.join("schemas")).expect("module directory");
+        let manifest = fs::read_to_string(source.join("manifest.yaml")).expect("manifest");
+        let start = manifest
+            .find("  body_extraction:")
+            .expect("body_extraction");
+        let end = manifest.find("object_types:").expect("object_types");
+        fs::write(
+            root.join("manifest.yaml"),
+            format!("{}{}", &manifest[..start], &manifest[end..]),
+        )
+        .expect("manifest");
+        fs::copy(
+            source.join("schemas/fr-frontmatter.schema.json"),
+            root.join("schemas/fr-frontmatter.schema.json"),
+        )
+        .expect("schema");
+        root
+    }
+
+    fn export_with_module(&self, input: &Path, to: &str, output: &Path, module: &Path) -> Command {
         let mut command = quire();
         command
             .current_dir(self.root().join("work"))
@@ -173,7 +201,7 @@ impl Rig {
             .args(["--to", to, "--output"])
             .arg(output)
             .arg("--module")
-            .arg(validate_module())
+            .arg(module)
             .arg("--pandoc")
             .arg(self.bin("pandoc"))
             .arg("--typst")
@@ -261,13 +289,7 @@ fn pandoc_arguments(to: &str, output: &str) -> Vec<String> {
         .collect()
 }
 
-#[trace(
-    "FR-032-AC-1",
-    "FR-032-AC-2",
-    "FR-032-AC-3",
-    "FR-032-AC-5",
-    "FR-031-AC-6"
-)]
+#[trace("FR-032-AC-1", "FR-032-AC-2", "FR-032-AC-3", "FR-031-AC-6")]
 #[test]
 fn docx_export_makes_exactly_one_valid_pandoc_request() {
     let rig = Rig::new();
@@ -984,7 +1006,7 @@ fn a_release_tag_on_the_source_commit_is_the_release_and_missing_fields_are_name
     assert_eq!(rig.requests().len(), 1);
 }
 
-#[trace("FR-040-AC-3")]
+#[trace("FR-040-AC-3", "FR-040-AC-7")]
 #[test]
 fn unresolvable_sources_are_refused_naming_the_cause() {
     let rig = Rig::new();
@@ -995,7 +1017,7 @@ fn unresolvable_sources_are_refused_naming_the_cause() {
         (
             "--source-repo",
             "/nonexistent-quire-repo",
-            "no git repository",
+            "not a git repository",
         ),
     ] {
         let mut command = rig.export(&rig.fixture(), "docx", &output);
@@ -1131,6 +1153,11 @@ fn a_filter_attribute_is_refused_naming_the_filter() {
     assert!(result.status.success(), "{}", stderr(&result));
 }
 
+/// A release tag git accepts that is full of Markdown, Typst and XML syntax.
+/// (Git rejects `*`, `[`, `\\` and spaces in a ref name; those forms are covered
+/// by the escaping unit test.)
+const HOSTILE_TAG: &str = "`a`#b|c<d>&e$f{=typst}";
+
 #[trace("FR-034-AC-7", "FR-034-AC-10", "FR-034-AC-12")]
 #[test]
 fn hostile_identity_values_reach_the_converter_only_as_escaped_data() {
@@ -1142,9 +1169,9 @@ fn hostile_identity_values_reach_the_converter_only_as_escaped_data() {
             "title: \"*x* `#pagebreak()`{=typst} --output=/tmp/x\"",
         );
     let hostile = rig.commit("hostile-identity.md", &text, COMMIT_DATE);
-    git(&rig.repo(), &["tag", "r(1)+x"], None);
+    git(&rig.repo(), &["tag", HOSTILE_TAG], None);
     let mut command = rig.export(&hostile, "pdf", &rig.work("out.pdf"));
-    command.args(["--release", "r(1)+x"]);
+    command.args(["--release", HOSTILE_TAG]);
     let result = run(command);
     assert!(result.status.success(), "{}", stderr(&result));
 
@@ -1155,13 +1182,13 @@ fn hostile_identity_values_reach_the_converter_only_as_escaped_data() {
         ),
         "{metadata}"
     );
-    assert_eq!(exported_identity(&rig)["release"], "r\\(1\\)\\+x");
+    assert_eq!(exported_identity(&rig)["release"], escaped(HOSTILE_TAG));
     let front = rig.converter_input("front.md");
     assert!(
         front.contains("\\*x\\* \\`\\#pagebreak\\(\\)\\`\\{\\=typst\\}"),
         "{front}"
     );
-    assert!(front.contains("Release: r\\(1\\)\\+x\n"));
+    assert!(front.contains(&format!("Release: {}\n", escaped(HOSTILE_TAG))));
     assert_eq!(front.matches("```{=typst}").count(), 3);
     for request in rig.requests() {
         for argument in literals(&request) {
@@ -1222,6 +1249,236 @@ fn source_options_are_refused_for_a_json_input() {
             stderr(&result)
         );
     }
+}
+
+#[trace("FR-031-AC-7")]
+#[test]
+fn the_title_is_on_the_title_page_and_no_frontmatter_line_reaches_the_converter() {
+    let rig = Rig::new();
+    let result = run(rig.export(&rig.fixture(), "docx", &rig.work("out.docx")));
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert!(rig
+        .converter_input("front.md")
+        .contains("Fictional export fixture"));
+    for name in ["front.md", "document.md", "metadata.yaml"] {
+        let text = rig.converter_input(name);
+        assert!(
+            !text.contains("type:") && !text.contains("type\":"),
+            "{name}: {text}"
+        );
+    }
+}
+
+#[trace("FR-035-AC-7")]
+#[test]
+fn a_document_without_headings_keeps_the_title_page_and_the_contents_block() {
+    let rig = Rig::new();
+    let result = run(rig.export(&rig.fixture(), "pdf", &rig.work("with.pdf")));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let with_headings = rig
+        .converter_input("front.md")
+        .replace(&rig.head(), "COMMIT");
+    let text = fs::read_to_string(export_fixture()).expect("fixture");
+    let body_start = text.find("# [FR-001]").expect("heading");
+    let plain = rig.commit(
+        "plain-body.md",
+        &format!("{}Plain text with no headings.\n", &text[..body_start]),
+        COMMIT_DATE,
+    );
+    let module = rig.lenient_module();
+    let result = run(rig.export_with_module(&plain, "pdf", &rig.work("without.pdf"), &module));
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(
+        rig.converter_input("front.md")
+            .replace(&rig.head(), "COMMIT"),
+        with_headings
+    );
+    assert!(rig
+        .converter_input("front.md")
+        .contains("#outline(depth: 3)"));
+    assert_eq!(
+        rig.converter_input("document.md"),
+        "Plain text with no headings.\n"
+    );
+}
+
+#[trace("FR-034-AC-6", "FR-032-AC-5")]
+#[test]
+fn quire_starts_no_process_but_the_executor() {
+    let rig = Rig::new();
+    let trace = rig.work("execve.trace");
+    let mut command = Command::new("strace");
+    command
+        .args(["-f", "-e", "trace=execve", "-o"])
+        .arg(&trace)
+        .arg(env!("CARGO_BIN_EXE_quire"))
+        .current_dir(rig.root().join("work"))
+        .arg("export")
+        .arg(rig.fixture())
+        .args(["--to", "docx", "--output"])
+        .arg(rig.work("out.docx"))
+        .arg("--module")
+        .arg(validate_module())
+        .arg("--pandoc")
+        .arg(rig.bin("pandoc"))
+        .arg("--engineering-assurance")
+        .arg(rig.bin("engineering-assurance"));
+    let result = command.output().expect("strace is needed for this test");
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let log = fs::read_to_string(&trace).expect("trace");
+    let executed: Vec<&str> = log
+        .lines()
+        .filter(|line| line.contains("execve(") && !line.contains("ENOENT"))
+        .collect();
+    // quire itself, then its one child, the executor; everything after belongs
+    // to the executor's own tree.
+    assert!(executed[0].contains("target/debug/quire") || executed[0].contains("quire"));
+    assert!(
+        executed[1].contains(&rig.bin("engineering-assurance").display().to_string()),
+        "the first process quire starts is not the executor: {}",
+        executed[1]
+    );
+    assert!(
+        !log.lines()
+            .any(|line| line.contains("execve(\"/usr/bin/git\"") || line.contains("/bin/git\"")),
+        "a git process was started:\n{log}"
+    );
+}
+
+#[trace("FR-034-AC-5")]
+#[test]
+fn an_export_from_a_linked_worktree_reads_that_worktrees_commit() {
+    let rig = Rig::new();
+    let linked = rig.root().join("linked");
+    git(
+        &rig.repo(),
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "side",
+            linked.to_str().expect("UTF-8"),
+        ],
+        None,
+    );
+    let text = fs::read_to_string(export_fixture()).expect("fixture");
+    fs::write(linked.join("export-fr.md"), format!("{text}\nside\n")).expect("write");
+    git(
+        &linked,
+        &["commit", "-q", "-am", "side"],
+        Some("2003-04-05T06:07:08+00:00"),
+    );
+    let result = run(rig.export(&linked.join("export-fr.md"), "docx", &rig.work("out.docx")));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let identity = exported_identity(&rig);
+    assert_eq!(
+        identity["commit"],
+        git(&linked, &["rev-parse", "HEAD"], None)
+    );
+    assert_eq!(identity["date"], "2003\\-04\\-05");
+}
+
+#[trace("FR-034-AC-11", "FR-040-AC-4")]
+#[test]
+fn info_attributes_and_attribute_macros_that_set_a_filter_are_refused() {
+    let rig = Rig::new();
+    let text = fs::read_to_string(export_fixture()).expect("fixture");
+    let info = rig.commit("info.md", &text, COMMIT_DATE);
+    fs::create_dir_all(rig.repo().join(".git/info")).expect("info");
+    fs::write(
+        rig.repo().join(".git/info/attributes"),
+        "info.md filter=lfs\n",
+    )
+    .expect("info");
+    let result = run(rig.export(&info, "docx", &rig.work("out.docx")));
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("filter=lfs"),
+        "{}",
+        stderr(&result)
+    );
+    fs::remove_file(rig.repo().join(".git/info/attributes")).expect("remove");
+
+    fs::write(
+        rig.repo().join(".gitattributes"),
+        "[attr]mylfs filter=lfs -text\nmacro.md mylfs\n",
+    )
+    .expect("attributes");
+    git(&rig.repo(), &["add", ".gitattributes"], None);
+    git(
+        &rig.repo(),
+        &["commit", "-q", "-m", "macro"],
+        Some(COMMIT_DATE),
+    );
+    let macro_input = rig.commit("macro.md", &text, COMMIT_DATE);
+    let result = run(rig.export(&macro_input, "docx", &rig.work("out.docx")));
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("filter=lfs"),
+        "{}",
+        stderr(&result)
+    );
+    assert!(rig.requests().is_empty());
+}
+
+#[trace("FR-040-AC-3")]
+#[test]
+fn a_plain_subdirectory_is_not_a_source_repository() {
+    let rig = Rig::new();
+    let sub = rig.repo().join("sub");
+    fs::create_dir(&sub).expect("sub");
+    let mut command = rig.export(&rig.fixture(), "docx", &rig.work("out.docx"));
+    command.arg("--source-repo").arg(&sub);
+    let result = run(command);
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("not a git repository"),
+        "{}",
+        stderr(&result)
+    );
+    let mut command = rig.export(&rig.fixture(), "docx", &rig.work("out.docx"));
+    command.arg("--source-repo").arg(rig.repo());
+    assert!(run(command).status.success());
+}
+
+#[trace("FR-034-AC-1")]
+#[test]
+fn a_numeric_version_is_the_version_and_a_blank_led_title_is_literal() {
+    let rig = Rig::new();
+    let text = fs::read_to_string(export_fixture())
+        .expect("fixture")
+        .replace("version: \"1.0\"", "version: 2")
+        .replace(
+            "title: Fictional export fixture",
+            "title: \"    indented title\"",
+        );
+    let input = rig.commit("numeric.md", &text, COMMIT_DATE);
+    let result = run(rig.export(&input, "docx", &rig.work("out.docx")));
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(exported_identity(&rig)["version"], "2");
+    let front = rig.converter_input("front.md");
+    assert!(front.contains("Version: 2\n"));
+    assert!(front.contains("\\ \\ \\ \\ indented title\n"), "{front}");
+}
+
+#[trace("FR-040-AC-3")]
+#[test]
+fn an_abbreviated_revision_is_refused_with_the_accepted_forms() {
+    let rig = Rig::new();
+    let mut command = rig.export(&rig.fixture(), "docx", &rig.work("out.docx"));
+    command.args(["--source-rev", &rig.head()[..8]]);
+    let result = run(command);
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("full 40-digit hash"),
+        "{}",
+        stderr(&result)
+    );
 }
 
 fn require_tool(name: &str) -> PathBuf {
@@ -1913,9 +2170,10 @@ fn real_converters_show_hostile_identity_values_as_literal_text() {
         .replace(
             "title: Fictional export fixture",
             &format!("title: \"{title}\""),
-        );
+        )
+        .replace("version: \"1.0\"\n", "");
     let hostile = rig.commit("hostile.md", &text, COMMIT_DATE);
-    git(&rig.repo(), &["tag", "r(1)+x"], None);
+    git(&rig.repo(), &["tag", HOSTILE_TAG], None);
     let baseline = rig.work("baseline.pdf");
     let result = real_export(&rig, &rig.fixture(), "pdf", &baseline);
     assert!(result.status.success(), "{}", stderr(&result));
@@ -1927,22 +2185,60 @@ fn real_converters_show_hostile_identity_values_as_literal_text() {
             .current_dir(rig.work(""))
             .arg("export")
             .arg(&hostile)
-            .args(["--to", to, "--release", "r(1)+x", "--output"])
+            .args(["--to", to, "--release", HOSTILE_TAG, "--output"])
             .arg(path)
             .arg("--module")
             .arg(validate_module());
         let result = run(command);
         assert!(result.status.success(), "{}", stderr(&result));
     }
+    // Page 1 holds the title and the release; the header and footer of a later
+    // page hold the release (no version) and the commit prefix.
     let first = pdf_page(&pdf, 1);
     assert!(first.contains(title), "{first}");
-    assert!(first.contains("r(1)+x"), "{first}");
-    assert!(pdf_page(&pdf, 3).contains("FR-001"));
+    assert!(first.contains(HOSTILE_TAG), "{first}");
+    let third = pdf_page(&pdf, 3);
+    assert!(third.contains(HOSTILE_TAG), "header: {third}");
+    assert!(third.contains(&rig.head()[..12]), "footer: {third}");
     assert_eq!(pdf_page_count(&pdf), pdf_page_count(&baseline));
-    let document = docx_part(&docx, "word/document.xml");
-    assert!(
-        document.contains(title) || document.contains("*x*"),
-        "{document}"
+    let visible = strip_tags(&docx_part(&docx, "word/document.xml"));
+    assert!(visible.contains(title), "{visible}");
+    assert!(visible.contains(HOSTILE_TAG), "{visible}");
+    let header = strip_tags(&docx_parts(&docx, "word/header"));
+    assert!(header.contains(HOSTILE_TAG), "{header}");
+    assert!(strip_tags(&docx_parts(&docx, "word/footer")).contains(&rig.head()[..12]));
+}
+
+#[trace("FR-035-AC-7")]
+#[test]
+#[ignore = "needs real pandoc, typst and pdftotext on PATH"]
+fn real_pdf_without_headings_exports_with_the_same_title_page() {
+    let rig = Rig::new();
+    let text = fs::read_to_string(export_fixture()).expect("fixture");
+    let body_start = text.find("# [FR-001]").expect("heading");
+    let plain = rig.commit(
+        "plain-body.md",
+        &format!("{}Plain text with no headings.\n", &text[..body_start]),
+        COMMIT_DATE,
     );
-    assert!(docx_parts(&docx, "word/header").contains("FR-001"));
+    let with = rig.work("with.pdf");
+    let without = rig.work("without.pdf");
+    let result = real_export(&rig, &rig.fixture(), "pdf", &with);
+    assert!(result.status.success(), "{}", stderr(&result));
+    let result = {
+        require_tool("pandoc");
+        require_tool("typst");
+        let mut real = quire();
+        real.current_dir(rig.work(""))
+            .arg("export")
+            .arg(&plain)
+            .args(["--to", "pdf", "--output"])
+            .arg(&without)
+            .arg("--module")
+            .arg(rig.lenient_module());
+        run(real)
+    };
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(pdf_page(&with, 1), pdf_page(&without, 1));
+    assert!(pdf_page(&without, 3).contains("Plain text with no headings."));
 }

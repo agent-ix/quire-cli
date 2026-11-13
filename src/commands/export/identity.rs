@@ -41,6 +41,8 @@ pub(super) struct Source {
     pub(super) identity: Identity,
     /// The committed blob after its frontmatter, the converter input.
     pub(super) body: String,
+    /// The whole committed blob, the text that is validated.
+    pub(super) committed: String,
 }
 
 /// Reads the committed revision of `input` and assembles its identity.
@@ -80,26 +82,30 @@ pub(super) fn resolve(
     let document_id = text_member(frontmatter, "id");
     let version = text_member(frontmatter, "version");
     let release = options.release.map(str::to_string);
-    let mut missing = Vec::new();
-    if title.is_none() {
-        missing.push("title");
-    }
-    if document_id.is_none() {
-        missing.push("id");
-    }
-    if version.is_none() && release.is_none() {
-        missing.push("version (or pass --release)");
-    }
-    if !missing.is_empty() {
+    let (Some(title), Some(document_id), true) = (
+        title.clone(),
+        document_id.clone(),
+        version.is_some() || release.is_some(),
+    ) else {
+        let mut missing = Vec::new();
+        if title.is_none() {
+            missing.push("title");
+        }
+        if document_id.is_none() {
+            missing.push("id");
+        }
+        if version.is_none() && release.is_none() {
+            missing.push("version (or pass --release)");
+        }
         return Err(failure::invalid(anyhow::anyhow!(
             "'{name}' lacks the identity field(s): {}",
             missing.join(", ")
         )));
-    }
+    };
     Ok(Source {
         identity: Identity {
-            title: title.unwrap_or_default(),
-            document_id: document_id.unwrap_or_default(),
+            title,
+            document_id,
             version,
             release,
             commit: commit.id.to_string(),
@@ -107,16 +113,18 @@ pub(super) fn resolve(
             epoch: commit.seconds,
         },
         body: parsed.body.to_string(),
+        committed,
     })
 }
 
-/// A non-empty string frontmatter member.
+/// A non-empty frontmatter member written as a string or a number.
 fn text_member(frontmatter: Option<&Map<String, Value>>, key: &str) -> Option<String> {
-    frontmatter
-        .and_then(|map| map.get(key))
-        .and_then(Value::as_str)
-        .filter(|text| !text.trim().is_empty())
-        .map(str::to_string)
+    let text = match frontmatter?.get(key)? {
+        Value::String(text) => text.clone(),
+        Value::Number(number) => number.to_string(),
+        _ => return None,
+    };
+    (!text.trim().is_empty()).then_some(text)
 }
 
 /// The committer date as `YYYY-MM-DD` in UTC (civil-from-days).
@@ -150,6 +158,8 @@ struct Repo {
     refs: gix_ref::file::Store,
     /// The input path relative to the work tree, `/`-separated.
     relative: String,
+    /// The shared repository directory (objects, refs, config, info).
+    common: PathBuf,
 }
 
 impl Repo {
@@ -160,6 +170,15 @@ impl Repo {
             Some(dir) => dir.to_path_buf(),
             None => input.parent().map(Path::to_path_buf).unwrap_or_default(),
         };
+        if explicit.is_some()
+            && !start.join(".git").exists()
+            && gix_discover::is_git(&start).is_err()
+        {
+            return Err(failure::invalid(anyhow::anyhow!(
+                "source commit unavailable: --source-repo '{}' is not a git repository",
+                start.display()
+            )));
+        }
         let (found, _trust) = gix_discover::upwards(&start).map_err(|error| {
             failure::invalid(anyhow::anyhow!(
                 "source commit unavailable: no git repository contains '{}' (looked at '{}'): {error}",
@@ -190,7 +209,7 @@ impl Repo {
                 failure::invalid(anyhow::anyhow!("'{}' is not a UTF-8 path", input.display()))
             })?
             .join("/");
-        let common = common_dir(&git_dir);
+        let common = crate::commands::validate::git_common_dir(&git_dir);
         let unreadable = |what: &str, error: String| {
             failure::invalid(anyhow::anyhow!(
                 "source commit unavailable: the object store of '{}' is unreadable ({what}: {error})",
@@ -213,6 +232,7 @@ impl Repo {
             odb,
             refs,
             relative,
+            common,
         })
     }
 
@@ -263,7 +283,7 @@ impl Repo {
             .refs
             .try_find(rev)
             .map_err(|error| self.unavailable(rev, error))?
-            .ok_or_else(|| self.unavailable(rev, "it does not resolve"))?;
+            .ok_or_else(|| self.unavailable(rev, "it does not resolve (only a full 40-digit hash or a reference name is accepted)"))?;
         reference
             .peel_to_id(&self.refs, &self.odb)
             .map_err(|error| self.unavailable(rev, error))
@@ -352,12 +372,14 @@ impl Repo {
         Ok(data.data.to_vec())
     }
 
-    /// The `filter` attribute value that git applies to `path` at `commit`,
-    /// from the `.gitattributes` files of the committed tree. Deeper files
-    /// and later lines take precedence.
+    /// The `filter` attribute value that git applies to `path` at `commit`:
+    /// the committed `.gitattributes` files from the root down, then the
+    /// repository's `info/attributes`, which has the highest precedence. Deeper
+    /// files and later lines win. Attribute macros are expanded.
     fn filter_attribute(&self, commit: &CommitInfo, path: &str) -> anyhow::Result<Option<String>> {
         let parts: Vec<&str> = path.split('/').collect();
-        let mut filter = None;
+        // (bytes, path below the file's directory)
+        let mut files: Vec<(Vec<u8>, String)> = Vec::new();
         for depth in 0..parts.len() {
             let directory = parts[..depth].join("/");
             let attributes = if directory.is_empty() {
@@ -376,51 +398,115 @@ impl Repo {
             else {
                 continue;
             };
-            let relative = parts[depth..].join("/");
-            apply_attributes(data.data, &relative, &mut filter);
+            files.push((data.data.to_vec(), parts[depth..].join("/")));
         }
-        Ok(filter)
+        let info = self.common.join("info/attributes");
+        if let Ok(bytes) = fs::read(&info) {
+            files.push((bytes, path.to_string()));
+        }
+        let mut state = Attributes::default();
+        // Macros are honoured from the top-level file and `info/attributes` only.
+        if let Some((bytes, _)) = files.iter().find(|(_, relative)| relative == path) {
+            state.define_macros(bytes);
+        }
+        if let Some((bytes, _)) = files.last().filter(|_| info.is_file()) {
+            state.define_macros(bytes);
+        }
+        for (bytes, relative) in &files {
+            state.apply(bytes, relative);
+        }
+        Ok(state.filter)
     }
 }
 
-/// Applies one `.gitattributes` file to `relative` (the path below the file's
-/// directory), updating the `filter` state.
-fn apply_attributes(bytes: &[u8], relative: &str, filter: &mut Option<String>) {
-    let basename_start = relative.rfind('/').map(|position| position + 1);
-    for line in gix_attributes::parse(bytes).flatten() {
-        let (gix_attributes::parse::Kind::Pattern(pattern), assignments, _) = line else {
-            continue;
-        };
-        let matched = pattern.matches_repo_relative_path(
-            relative.as_bytes().as_bstr(),
-            basename_start,
-            Some(false),
-            gix_glob::pattern::Case::Sensitive,
-            gix_glob::wildmatch::Mode::NO_MATCH_SLASH_LITERAL,
-        );
-        if !matched {
-            continue;
+/// An attribute state, owned.
+#[derive(Clone)]
+enum State {
+    Set,
+    Unset,
+    Unspecified,
+    Value(String),
+}
+
+impl State {
+    fn from_ref(state: gix_attributes::StateRef<'_>) -> Self {
+        match state {
+            gix_attributes::StateRef::Set => Self::Set,
+            gix_attributes::StateRef::Unset => Self::Unset,
+            gix_attributes::StateRef::Unspecified => Self::Unspecified,
+            gix_attributes::StateRef::Value(value) => Self::Value(value.as_bstr().to_string()),
         }
-        for assignment in assignments.flatten() {
-            if assignment.name.as_str() != "filter" {
+    }
+}
+
+/// The attribute evaluation that matters to an export: the `filter` attribute
+/// and the macros that can set it.
+#[derive(Default)]
+struct Attributes {
+    macros: std::collections::HashMap<String, Vec<(String, State)>>,
+    filter: Option<String>,
+}
+
+/// A macro may expand to another; a chain longer than this is not followed.
+const MACRO_DEPTH: usize = 8;
+
+impl Attributes {
+    fn define_macros(&mut self, bytes: &[u8]) {
+        for line in gix_attributes::parse(bytes).flatten() {
+            let (gix_attributes::parse::Kind::Macro(name), assignments, _) = line else {
+                continue;
+            };
+            let body = assignments
+                .flatten()
+                .map(|assignment| {
+                    (
+                        assignment.name.as_str().to_string(),
+                        State::from_ref(assignment.state),
+                    )
+                })
+                .collect();
+            self.macros.insert(name.as_str().to_string(), body);
+        }
+    }
+
+    /// Applies one attributes file to `relative` (the path below the file's
+    /// directory).
+    fn apply(&mut self, bytes: &[u8], relative: &str) {
+        let basename_start = relative.rfind('/').map(|position| position + 1);
+        for line in gix_attributes::parse(bytes).flatten() {
+            let (gix_attributes::parse::Kind::Pattern(pattern), assignments, _) = line else {
+                continue;
+            };
+            let matched = pattern.matches_repo_relative_path(
+                relative.as_bytes().as_bstr(),
+                basename_start,
+                Some(false),
+                gix_glob::pattern::Case::Sensitive,
+                gix_glob::wildmatch::Mode::NO_MATCH_SLASH_LITERAL,
+            );
+            if !matched {
                 continue;
             }
-            *filter = match assignment.state {
-                gix_attributes::StateRef::Value(value) => Some(value.as_bstr().to_string()),
-                _ => None,
-            };
+            for assignment in assignments.flatten() {
+                let state = State::from_ref(assignment.state);
+                self.assign(assignment.name.as_str(), &state, 0);
+            }
         }
     }
-}
 
-/// `common_dir` of a linked work tree's git dir, otherwise the git dir itself.
-fn common_dir(git_dir: &Path) -> PathBuf {
-    match fs::read_to_string(git_dir.join("commondir")) {
-        Ok(text) => {
-            let relative = git_dir.join(text.trim());
-            fs::canonicalize(&relative).unwrap_or(relative)
+    fn assign(&mut self, name: &str, state: &State, depth: usize) {
+        if name == "filter" {
+            self.filter = match state {
+                State::Value(value) => Some(value.clone()),
+                _ => None,
+            };
+        } else if matches!(state, State::Set) && depth < MACRO_DEPTH {
+            if let Some(body) = self.macros.get(name).cloned() {
+                for (inner, inner_state) in &body {
+                    self.assign(inner, inner_state, depth + 1);
+                }
+            }
         }
-        Err(_) => git_dir.to_path_buf(),
     }
 }
 
@@ -441,14 +527,38 @@ mod tests {
     #[test]
     #[trace("FR-034-AC-11")]
     fn a_filter_attribute_is_found_by_pattern() {
-        let mut filter = None;
-        apply_attributes(b"*.md filter=lfs diff=lfs\n", "docs/a.md", &mut filter);
-        assert_eq!(filter.as_deref(), Some("lfs"));
-        let mut filter = None;
-        apply_attributes(b"*.txt filter=lfs\n", "a.md", &mut filter);
-        assert_eq!(filter, None);
-        let mut filter = Some("lfs".to_string());
-        apply_attributes(b"a.md -filter\n", "a.md", &mut filter);
-        assert_eq!(filter, None);
+        let filter_of = |files: &[(&str, &str)], path: &str| {
+            let mut attributes = Attributes::default();
+            for (bytes, _) in files {
+                attributes.define_macros(bytes.as_bytes());
+            }
+            for (bytes, relative) in files {
+                let relative = if relative.is_empty() { path } else { relative };
+                attributes.apply(bytes.as_bytes(), relative);
+            }
+            attributes.filter
+        };
+        assert_eq!(
+            filter_of(&[("*.md filter=lfs diff=lfs\n", "")], "docs/a.md").as_deref(),
+            Some("lfs")
+        );
+        assert_eq!(filter_of(&[("*.txt filter=lfs\n", "")], "a.md"), None);
+        assert_eq!(
+            filter_of(&[("*.md filter=lfs\n", ""), ("a.md -filter\n", "")], "a.md"),
+            None
+        );
+        // A macro that sets the filter is expanded.
+        assert_eq!(
+            filter_of(
+                &[("[attr]mylfs filter=lfs -text\na.md mylfs\n", "")],
+                "a.md"
+            )
+            .as_deref(),
+            Some("lfs")
+        );
+        assert_eq!(
+            filter_of(&[("[attr]mylfs filter=lfs\nb.md mylfs\n", "")], "a.md"),
+            None
+        );
     }
 }

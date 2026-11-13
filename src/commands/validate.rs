@@ -468,17 +468,46 @@ fn bundle_fields<'a>(
 
 /// The repository identity (`<org>/<repo>`) taken from the `origin`
 /// git remote, or `None` when the directory is not a git checkout with a remote.
+/// The remote URL is read from the repository config in process; no `git`
+/// process is started.
 fn repo_bundle_package(dir: &Path) -> Option<String> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(["remote", "get-url", "origin"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
+    let (found, _trust) = gix_discover::upwards(dir).ok()?;
+    let (git_dir, _) = found.into_repository_and_work_tree_directories();
+    let config = std::fs::read_to_string(git_common_dir(&git_dir).join("config")).ok()?;
+    parse_remote_package(origin_url(&config)?)
+}
+
+/// The directory that holds the shared repository state (objects, refs,
+/// config): the `commondir` of a linked work tree's git dir, otherwise the git
+/// dir itself.
+pub(crate) fn git_common_dir(git_dir: &Path) -> std::path::PathBuf {
+    match std::fs::read_to_string(git_dir.join("commondir")) {
+        Ok(text) => {
+            let relative = git_dir.join(text.trim());
+            std::fs::canonicalize(&relative).unwrap_or(relative)
+        }
+        Err(_) => git_dir.to_path_buf(),
     }
-    parse_remote_package(String::from_utf8_lossy(&output.stdout).trim())
+}
+
+/// The `url` of `[remote "origin"]` in git config text.
+fn origin_url(config: &str) -> Option<&str> {
+    let mut in_origin = false;
+    for line in config.lines().map(str::trim) {
+        if let Some(header) = line.strip_prefix('[') {
+            let header = header.trim_end_matches(']').trim();
+            in_origin = header
+                .strip_prefix("remote")
+                .is_some_and(|rest| rest.trim() == "\"origin\"");
+        } else if in_origin {
+            if let Some((key, value)) = line.split_once('=') {
+                if key.trim().eq_ignore_ascii_case("url") {
+                    return Some(value.trim().trim_matches('"'));
+                }
+            }
+        }
+    }
+    None
 }
 
 /// Extract `<org>/<repo>` from an https, ssh or scp-style git remote URL.
@@ -905,6 +934,16 @@ mod bundle_package_tests {
     use super::*;
 
     // PLAT-50: the bundle package comes from the origin remote in any URL form.
+    #[test]
+    fn origin_url_is_read_from_config_text() {
+        let config = "[core]\n\turl = nope\n[remote \"upstream\"]\n\turl = a:b/c\n[remote \"origin\"]\n\tfetch = x\n\turl = git@github.com:agent-ix/quire-cli.git\n";
+        assert_eq!(
+            origin_url(config),
+            Some("git@github.com:agent-ix/quire-cli.git")
+        );
+        assert_eq!(origin_url("[core]\n"), None);
+    }
+
     #[test]
     fn remote_urls_yield_org_and_repo() {
         for url in [

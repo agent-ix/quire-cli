@@ -14,15 +14,26 @@ use super::Format;
 pub(super) fn escape_markdown(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
     let mut chars = value.chars().peekable();
+    let mut leading = true;
     while let Some(character) = chars.next() {
+        // Leading blanks would start an indented code block.
+        if leading && matches!(character, ' ' | '\t') {
+            escaped.push_str("\\ ");
+            continue;
+        }
+        leading = false;
         match character {
             '\r' => {
                 if chars.peek() == Some(&'\n') {
                     chars.next();
                 }
                 escaped.push(' ');
+                leading = true;
             }
-            '\n' => escaped.push(' '),
+            '\n' => {
+                escaped.push(' ');
+                leading = true;
+            }
             other if other.is_ascii_punctuation() => {
                 escaped.push('\\');
                 escaped.push(other);
@@ -223,9 +234,9 @@ fn style(id: &str, name: &str, based_on: Option<&str>, run: &str, paragraph: &st
 }
 
 fn styles_part() -> String {
-    let serif =
-        r#"<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>"#;
-    let mono = r#"<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>"#;
+    // The names resolve through the generic families of `fontTable.xml`.
+    let serif = r#"<w:rFonts w:ascii="Serif" w:hAnsi="Serif" w:cs="Serif"/>"#;
+    let mono = r#"<w:rFonts w:ascii="Monospace" w:hAnsi="Monospace" w:cs="Monospace"/>"#;
     let mut styles = String::new();
     styles.push_str(&format!(
         r#"<w:docDefaults><w:rPrDefault><w:rPr>{serif}<w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="en-US"/></w:rPr></w:rPrDefault></w:docDefaults>"#
@@ -314,17 +325,21 @@ fn styles_part() -> String {
     format!(r#"{XML_DECLARATION}<w:styles {W_NAMESPACES}>{styles}</w:styles>"#)
 }
 
+/// Two font names that only declare a generic family (serif, fixed-pitch), so
+/// the document names no concrete font.
+const FONT_TABLE: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:fonts xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:font w:name="Serif"><w:family w:val="roman"/><w:pitch w:val="variable"/></w:font><w:font w:name="Monospace"><w:family w:val="modern"/><w:pitch w:val="fixed"/></w:font></w:fonts>"#;
+
 fn document_part() -> String {
     format!(
         r#"{XML_DECLARATION}<w:document {W_NAMESPACES}><w:body><w:p/><w:sectPr><w:headerReference w:type="default" r:id="rId10"/><w:headerReference w:type="first" r:id="rId11"/><w:footerReference w:type="default" r:id="rId12"/><w:footerReference w:type="first" r:id="rId13"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1417" w:bottom="1417" w:left="1417" w:header="708" w:footer="708" w:gutter="0"/><w:titlePg/></w:sectPr></w:body></w:document>"#
     )
 }
 
-const CONTENT_TYPES: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/header2.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/word/footer2.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>"#;
+const CONTENT_TYPES: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/header2.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/word/footer2.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>"#;
 
 const ROOT_RELS: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>"#;
 
-const DOCUMENT_RELS: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId10" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/><Relationship Id="rId11" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header2.xml"/><Relationship Id="rId12" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/><Relationship Id="rId13" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer2.xml"/></Relationships>"#;
+const DOCUMENT_RELS: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/><Relationship Id="rId10" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/><Relationship Id="rId11" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header2.xml"/><Relationship Id="rId12" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/><Relationship Id="rId13" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer2.xml"/></Relationships>"#;
 
 /// A ZIP archive of stored (uncompressed) entries with the fixed timestamp
 /// 1980-01-01, so the bytes do not depend on the clock.
@@ -382,12 +397,13 @@ fn stored_zip(entries: &[(&str, &[u8])]) -> anyhow::Result<Vec<u8>> {
 /// footer carrying the identity as literal text with `PAGE` and `NUMPAGES`
 /// fields, a different first page without either.
 pub(super) fn docx_reference(identity: &Identity) -> anyhow::Result<Vec<u8>> {
-    let parts: [(&str, String); 9] = [
+    let parts: [(&str, String); 10] = [
         ("[Content_Types].xml", CONTENT_TYPES.to_string()),
         ("_rels/.rels", ROOT_RELS.to_string()),
         ("word/document.xml", document_part()),
         ("word/_rels/document.xml.rels", DOCUMENT_RELS.to_string()),
         ("word/styles.xml", styles_part()),
+        ("word/fontTable.xml", FONT_TABLE.to_string()),
         ("word/header1.xml", header_part(identity)),
         ("word/header2.xml", empty_header_footer("hdr")),
         ("word/footer1.xml", footer_part(identity)),
@@ -424,6 +440,69 @@ mod tests {
             escape_markdown("*x* `a`{=typst}\r\nb\nc"),
             "\\*x\\* \\`a\\`\\{\\=typst\\} b c"
         );
+    }
+
+    #[test]
+    #[trace("FR-034-AC-10")]
+    fn forms_git_cannot_name_are_still_escaped_and_leading_blanks_are_kept() {
+        // Characters a ref name cannot hold are still escaped when they reach a
+        // value through the title or the id.
+        assert_eq!(escape_markdown("*r* [a|b]"), "\\*r\\* \\[a\\|b\\]");
+        assert_eq!(escape_markdown("    indented"), "\\ \\ \\ \\ indented");
+        assert_eq!(escape_markdown("\tx"), "\\ x");
+    }
+
+    /// Reads a stored ZIP: returns (name, bytes) per entry after checking the
+    /// local headers, the central directory, offsets and CRCs.
+    fn read_stored_zip(bytes: &[u8]) -> Vec<(String, Vec<u8>)> {
+        let u16_at = |at: usize| usize::from(u16::from_le_bytes([bytes[at], bytes[at + 1]]));
+        let u32_at = |at: usize| {
+            u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]) as usize
+        };
+        let end = bytes.len() - 22;
+        assert_eq!(&bytes[end..end + 4], b"PK\x05\x06");
+        let count = u16_at(end + 10);
+        let mut at = u32_at(end + 16);
+        assert_eq!(u32_at(end + 12), end - at, "central directory size");
+        let mut entries = Vec::new();
+        for _ in 0..count {
+            assert_eq!(&bytes[at..at + 4], b"PK\x01\x02");
+            let crc = u32_at(at + 16) as u32;
+            let size = u32_at(at + 24);
+            let name_length = u16_at(at + 28);
+            let offset = u32_at(at + 42);
+            let name = String::from_utf8(bytes[at + 46..at + 46 + name_length].to_vec())
+                .expect("UTF-8 name");
+            assert_eq!(&bytes[offset..offset + 4], b"PK\x03\x04");
+            assert_eq!(u16_at(offset + 8), 0, "stored");
+            assert_eq!(u32_at(offset + 14) as u32, crc);
+            assert_eq!(u32_at(offset + 22), size);
+            let data_at = offset + 30 + u16_at(offset + 26) + u16_at(offset + 28);
+            let data = bytes[data_at..data_at + size].to_vec();
+            assert_eq!(crc32fast::hash(&data), crc, "{name}");
+            entries.push((name, data));
+            at += 46 + name_length;
+        }
+        entries
+    }
+
+    #[test]
+    #[trace("FR-035-AC-5")]
+    fn the_reference_document_is_a_well_formed_zip_and_is_byte_stable() {
+        let first = docx_reference(&identity()).expect("reference");
+        let second = docx_reference(&identity()).expect("reference");
+        assert_eq!(first, second);
+        let entries = read_stored_zip(&first);
+        let names: Vec<_> = entries.iter().map(|(name, _)| name.as_str()).collect();
+        assert!(names.contains(&"[Content_Types].xml"));
+        assert!(names.contains(&"word/footer1.xml"));
+        assert!(names.contains(&"word/fontTable.xml"));
+        for (name, data) in &entries {
+            let text = std::str::from_utf8(data).expect("UTF-8 part");
+            assert!(text.starts_with("<?xml"), "{name}");
+        }
+        let all = String::from_utf8_lossy(&first);
+        assert!(!all.contains("Times New Roman") && !all.contains("Courier New"));
     }
 
     #[test]
