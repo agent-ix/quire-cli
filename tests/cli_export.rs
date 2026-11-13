@@ -2707,7 +2707,7 @@ fn a_bad_bundle_request_exits_3_naming_the_cause_before_any_converter() {
     no_id.arg(&two).args(["--bundle-title", "T"]);
     let mut one_input = rig.export(&one, "docx", &output);
     one_input.args(["--bundle-title", "T", "--bundle-id", "BND-7"]);
-    let many: Vec<&Path> = std::iter::repeat(one.as_path()).take(257).collect();
+    let many: Vec<&Path> = std::iter::repeat_n(one.as_path(), 257).collect();
     for (mut command, needle) in [
         (no_options, "--bundle-title and --bundle-id"),
         (no_title, "--bundle-title"),
@@ -2733,7 +2733,7 @@ fn a_bad_bundle_request_exits_3_naming_the_cause_before_any_converter() {
     }
 
     // Exactly 256 inputs is accepted.
-    let allowed: Vec<&Path> = std::iter::repeat(one.as_path()).take(256).collect();
+    let allowed: Vec<&Path> = std::iter::repeat_n(one.as_path(), 256).collect();
     let result = run(bundle_command(
         &rig,
         &allowed,
