@@ -56,7 +56,7 @@ whether or not any module declares `design_relations`; the criteria rows then ar
   entries. When no loaded module declares `design_relations`, nothing below about design applies and, for a
   single `--scope`, output is FR-026's unchanged.
 - **Design cell.** A criterion's design cell is its `design_elements`, each resolved to the entry's
-  element and printed as FR-041 prints it (`id (kind)`, with its repo when present; `id` alone when the
+  element and printed as FR-041 prints it (`id (kind)`, with its repo when present as `<repo>/<id> (kind)`; `id` alone when the
   element has no `kind`). Then, in order: `no design element (<check>)` for each `uncovered` block;
   `-> <reference> (dangling)` for each `dangling` reference of a `covered` block with no elements; and
   `kind mismatch: <id> (<archetype>)` for each `kind_mismatch` entry, as FR-041 reports it. The cell has
@@ -111,7 +111,7 @@ is exit 3 as in FR-030.
 | ID | Criteria | Verification |
 |----|----------|--------------|
 | FR-043-AC-1 | `quire matrix --scope <DIR> --module $M` over a fixture with one realized and one unrealized requirement prints, in Markdown, a `Design` column between `Statement` and `Binders`, with the realized requirement's rows listing `id (kind)` and the other's rows reading `no design element (<check>)`. | Test |
-| FR-043-AC-2 | `--format human` prints, per requirement, the `design:` line (elements, or `out of scope`), the `Design gap:` lines, and one line per criterion with its status, design cell and tests. | Test |
+| FR-043-AC-2 | `--format human` prints, per requirement, the `repo:` and `Design gap:` lines, then the `design:` line (elements, or `n/a`), and one line per criterion with its status, design cell and tests. | Test |
 | FR-043-AC-3 | `--format json` carries each entry's `design` key as quire-rs emits it, names each element's `kind`, and omits `design` for an out-of-scope entry; two runs are byte-identical. | Test |
 | FR-043-AC-4 | `--format tsv` emits the header `document criterion design design_state status binders statement requirement_criticality`, a `[kind:]<id>` list in `design`, `uncovered` or `covered` in `design_state`, and empty values for an out-of-scope entry. | Test |
 | FR-043-AC-5 | A requirement whose criteria are named by `realized_criteria` shows an element only on those criteria, and an element realizing the requirement as a whole shows on every criterion row. | Test |

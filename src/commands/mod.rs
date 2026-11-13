@@ -39,6 +39,7 @@ pub(crate) mod failure;
 pub mod assurance;
 pub mod check_lock;
 pub mod clauses;
+pub mod corpus_input;
 pub mod coverage;
 pub mod edit;
 pub mod export;
@@ -52,6 +53,7 @@ pub mod parse;
 pub mod properties;
 pub mod provenance;
 pub mod publish_check;
+pub mod relations;
 pub mod schema;
 pub mod symbols;
 pub mod trace;
@@ -101,7 +103,7 @@ impl std::fmt::Display for DocumentRootError {
             Self::Missing { path } => write!(
                 f,
                 "no document root at '{}': spec documents live in `{DOCUMENT_ROOT_DIR}/` \
-                 under --scope (quire-rs FR-050 two-roots); point --scope at the \
+                 under the repository root (quire-rs FR-050 two-roots); name the \
                  repository root, or create {DOCUMENT_ROOT_DIR}/",
                 path.display()
             ),

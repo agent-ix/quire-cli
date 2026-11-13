@@ -10,18 +10,14 @@
 //! The rendering is a view, never an artifact: it goes to stdout and nowhere
 //! else. There is no output-path flag and no write anywhere under the scope.
 
-use std::path::PathBuf;
-
 use anyhow::Context;
 use clap::Parser;
 use quire_cli::safety;
-use quire_rs::corpus::walk::load_repo;
 use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixStatus};
-use quire_rs::{
-    design_matrix, CorpusMember, CoverageReport, DesignMatrixEntry, RelationReportMember, Spec,
-};
+use quire_rs::{design_matrix, CoverageReport, DesignMatrixEntry, RelationReportMember};
 use serde::Serialize;
 
+use crate::commands::corpus_input::{parse_repo, Corpus, RepoArg};
 use crate::commands::coverage::{compute_report, load_registry_for, tsv_cell, Target};
 use crate::commands::matrix_design as design;
 use crate::commands::Ctx;
@@ -35,8 +31,8 @@ pub struct Args {
     /// (repeatable), so design elements held in a sibling repository join.
     /// Conflicts with `--scope`. Module discovery without `--module` starts at
     /// the first `<DIR>`.
-    #[arg(long, value_name = "ORG/REPO=DIR", conflicts_with = "scope")]
-    pub repo: Vec<String>,
+    #[arg(long, value_name = "ORG/REPO=DIR", conflicts_with = "scope", value_parser = parse_repo)]
+    pub repo: Vec<RepoArg>,
 
     /// Output form: a `markdown` table per requirement (default), plain-text
     /// `human` blocks, the engine's matrix value as `json`, or one `tsv`
@@ -94,47 +90,16 @@ struct Payload {
     coverage_matrix: Vec<DesignMatrixEntry>,
 }
 
-/// One repository of the corpus: its declared identity and root.
-struct Member {
-    identity: Option<String>,
-    root: PathBuf,
-}
-
-/// Split one `--repo <ORG/REPO>=<DIR>` value.
-fn parse_repo(value: &str) -> anyhow::Result<(&str, &str)> {
-    match value.split_once('=') {
-        Some((identity, dir))
-            if !dir.is_empty() && identity.split('/').filter(|s| !s.is_empty()).count() == 2 =>
-        {
-            Ok((identity, dir))
-        }
-        _ => Err(invalid_error!("--repo '{value}' is not <ORG/REPO>=<DIR>")),
-    }
-}
-
-/// The corpus members the flags name: `--repo` occurrences in flag order, or
-/// the one `--scope` repository with no identity.
-fn resolve_members(args: &Args) -> anyhow::Result<Vec<Member>> {
+/// The corpus the flags name: the `--repo` members in flag order, or the one
+/// `--scope` repository with no identity.
+fn resolve_corpus(args: &Args) -> anyhow::Result<Corpus> {
     if args.repo.is_empty() {
         let root = safety::validate_dir_path("--scope", &args.target.scope)
             .with_context(|| format!("validating --scope '{}'", args.target.scope))?;
-        return Ok(vec![Member {
-            identity: None,
-            root,
-        }]);
+        Corpus::from_scope(&root)
+    } else {
+        Corpus::from_repos(&args.repo)
     }
-    args.repo
-        .iter()
-        .map(|value| {
-            let (identity, dir) = parse_repo(value)?;
-            let root = safety::validate_dir_path("--repo", dir)
-                .with_context(|| format!("validating --repo '{value}'"))?;
-            Ok(Member {
-                identity: Some(identity.to_string()),
-                root,
-            })
-        })
-        .collect()
 }
 
 /// Emit the engine's own explanation of tags it refused or could only partly
@@ -177,28 +142,22 @@ fn emit_report_diagnostics(ctx: &Ctx, report: &CoverageReport) {
 
 /// Compute the design matrix over every member (FR-092): each member's
 /// `coverage_matrix` through the shared computation, then the one join.
+/// `compute_report` walks a member's documents itself (the engine's per-member
+/// view is not public), so the corpus walk is the second of two.
 fn compute_matrix(
     ctx: &Ctx,
-    members: &[Member],
+    corpus: &Corpus,
     registry: &quire_rs::Registry,
 ) -> anyhow::Result<Vec<DesignMatrixEntry>> {
-    let mut reports = Vec::with_capacity(members.len());
-    let mut corpus_members = Vec::with_capacity(members.len());
-    for member in members {
-        let label = member.identity.as_deref().unwrap_or("--scope");
+    let mut reports = Vec::with_capacity(corpus.members.len());
+    for member in &corpus.members {
         let report = compute_report(ctx, &member.root, registry)
-            .with_context(|| format!("member '{label}' at {}", member.root.display()))?;
+            .with_context(|| format!("member at {}", member.root.display()))?;
         emit_report_diagnostics(ctx, &report);
         reports.push(report);
-        let spec_root = super::spec_root_of(&member.root)
-            .with_context(|| format!("member '{label}' at {}", member.root.display()))?;
-        corpus_members.push(CorpusMember {
-            identity: member.identity.clone(),
-            load: load_repo(&spec_root),
-        });
     }
-    let corpus = Spec::from_members(corpus_members).map_err(|e| invalid_error!("{e}"))?;
-    let inputs: Vec<RelationReportMember<'_>> = members
+    let inputs: Vec<RelationReportMember<'_>> = corpus
+        .members
         .iter()
         .zip(&reports)
         .map(|(member, report)| RelationReportMember {
@@ -206,18 +165,13 @@ fn compute_matrix(
             matrix: &report.coverage_matrix,
         })
         .collect();
-    design_matrix(&corpus, registry, &inputs).map_err(|e| invalid_error!("{e}"))
+    design_matrix(&corpus.spec, registry, &inputs).map_err(|e| invalid_error!("{e}"))
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let members = resolve_members(&args)?;
-    let first = members.first().map(|m| m.root.as_path());
-    let registry = load_registry_for(
-        ctx,
-        &args.target.module,
-        first.unwrap_or_else(|| std::path::Path::new(".")),
-    )?;
-    let matrix = compute_matrix(ctx, &members, &registry)?;
+    let corpus = resolve_corpus(&args)?;
+    let registry = load_registry_for(ctx, &args.target.module, &corpus.members[0].root)?;
+    let matrix = compute_matrix(ctx, &corpus, &registry)?;
     let view = View {
         design: registry
             .traceability()

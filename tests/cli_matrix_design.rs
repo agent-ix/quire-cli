@@ -184,6 +184,25 @@ fn json(out: &Output) -> Value {
         .unwrap_or_else(|e| panic!("stdout is not JSON ({e}): {}", stderr(out)))
 }
 
+/// Every file under `root` with its bytes, sorted by path.
+fn tree(root: &Path) -> Vec<(std::path::PathBuf, Vec<u8>)> {
+    fn walk(dir: &Path, out: &mut Vec<(std::path::PathBuf, Vec<u8>)>) {
+        for entry in fs::read_dir(dir).expect("read_dir") {
+            let path = entry.expect("entry").path();
+            if path.is_dir() {
+                walk(&path, out);
+            } else {
+                let bytes = fs::read(&path).expect("read");
+                out.push((path, bytes));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(root, &mut out);
+    out.sort();
+    out
+}
+
 fn design_lines(err: &str) -> Vec<&str> {
     err.lines()
         .filter(|l| l.starts_with("design gap:"))
@@ -215,7 +234,7 @@ fn lit_and_dark() -> (Fixture, Repo) {
 #[test]
 fn markdown_puts_a_design_column_between_statement_and_binders() {
     let (f, r) = lit_and_dark();
-    let before = fs::read(r.root.join("spec/GLY-001.md")).expect("read");
+    let before = tree(&r.root);
     let out = f.matrix(&r, &[]);
     assert_eq!(code(&out), 0, "{}", stderr(&out));
     let text = stdout(&out);
@@ -242,14 +261,12 @@ fn markdown_puts_a_design_column_between_statement_and_binders() {
         text.contains("## spec/GLY-002.md\n\nDesign gap: no design element (glyph-dark)\n\n|"),
         "{text}"
     );
-    // AC-16: no format writes anything.
+    // AC-16: no format writes anything under the scope, and each succeeds.
     for format in ["human", "json", "tsv", "markdown"] {
-        f.matrix(&r, &["--format", format]);
+        let out = f.matrix(&r, &["--format", format]);
+        assert_eq!(code(&out), 0, "{format}: {}", stderr(&out));
     }
-    assert_eq!(
-        before,
-        fs::read(r.root.join("spec/GLY-001.md")).expect("read")
-    );
+    assert_eq!(before, tree(&r.root));
 }
 
 #[trace("FR-043-AC-2", "FR-043-AC-25")]
@@ -608,6 +625,15 @@ fn a_sibling_repository_realizes_a_requirement_and_repos_stay_distinct() {
     );
     let strict = f.matrix_repos(&[("o/a", &a), ("o/c", &c)], &["--strict"]);
     assert_eq!(code(&strict), 1);
+    let shown = stdout(&strict);
+    assert!(
+        shown.contains("## spec/GLY-001.md\n\nrepo: o/a\n"),
+        "{shown}"
+    );
+    assert!(
+        shown.contains("## spec/GLY-001.md\n\nrepo: o/c\n"),
+        "{shown}"
+    );
     let lines = design_lines(&stderr(&strict)).join("\n");
     assert!(
         lines.contains("design gap: o/a:spec/GLY-001.md glyph-dark"),
@@ -747,5 +773,143 @@ fn a_kind_mismatch_prints_beside_the_gap_marker() {
             "| chk-a | A. | no design element (glyph-dark), kind mismatch: BUL-001 (Bulb) |"
         ),
         "{md}"
+    );
+}
+
+#[trace("FR-043-AC-25")]
+#[test]
+fn human_design_line_has_three_distinct_forms() {
+    let f = Fixture::new(&manifest(
+        &LIT.replace(
+            "from: Glyph",
+            "from: Glyph\n    where: { field: tier, values: [high] }",
+        ),
+        "  design_relations: [glyph-has-lantern]\n",
+    ));
+    let r = f.repo(
+        "r",
+        &[
+            doc("GLY-001", "Glyph", "tier: low\n", &[], &[("chk-a", "A.")]),
+            doc(
+                "GLY-002",
+                "Glyph",
+                "tier: high\n",
+                &[],
+                &[("chk-b", "B."), ("chk-c", "C.")],
+            ),
+            doc("GLY-003", "Glyph", "tier: high\n", &[], &[("chk-d", "D.")]),
+            lantern("LAN-001", &[("kindles", "chk-b")]),
+        ],
+        &["chk-a", "chk-b", "chk-c"],
+    );
+    let human = stdout(&f.matrix(&r, &["--format", "human"]));
+    // Out of scope: n/a. Covered entry, criterion no element names: (none).
+    assert!(
+        human.contains("spec/GLY-001.md\n  design: n/a\n"),
+        "{human}"
+    );
+    assert!(
+        human.contains("  chk-c  tagged  design: (none)  tests:"),
+        "{human}"
+    );
+    // Uncovered entry with no elements.
+    assert!(
+        human.contains("spec/GLY-003.md\nDesign gap: no design element (glyph-dark)\n  design: no design element (glyph-dark)\n"),
+        "{human}"
+    );
+}
+
+#[test]
+fn a_malformed_repo_value_exits_three() {
+    let (f, r) = lit_and_dark();
+    for bad in ["o//a", "/o/a", "o/a/", "o", "o/a", "o/a="] {
+        let value = if bad.contains('=') || bad == "o/a" {
+            bad.to_string()
+        } else {
+            format!("{bad}={}", r.dir())
+        };
+        let out = common::quire()
+            .args(["matrix", "--module", &f.module(), "--repo", &value])
+            .output()
+            .expect("run");
+        assert_eq!(code(&out), 3, "{value}: {}", stderr(&out));
+        assert!(out.stdout.is_empty(), "{value}");
+    }
+}
+
+#[trace("FR-043-AC-18")]
+#[test]
+fn a_dangling_edge_beside_an_element_prints_no_dangling_marker() {
+    let open = "  - name: glyph-open
+    from: Glyph
+    edges: [kindled_by]
+    to: []
+    direction: outgoing
+    check: glyph-open-dark
+";
+    let f = Fixture::new(&manifest(open, "  design_relations: [glyph-open]\n"));
+    let r = f.repo(
+        "r",
+        &[
+            glyph(
+                "GLY-001",
+                &[
+                    ("kindled_by", "LAN-001"),
+                    ("kindled_by", "ix://o/b/spec/LAN-404"),
+                ],
+                &[("chk-a", "A.")],
+            ),
+            lantern("LAN-001", &[]),
+        ],
+        &["chk-a"],
+    );
+    let md = stdout(&f.matrix(&r, &[]));
+    assert!(md.contains("| chk-a | A. | LAN-001 (Lantern) |"), "{md}");
+    assert!(!md.contains("(dangling)"), "{md}");
+}
+
+/// A module whose retired vocabulary lets the engine class a row `retired`.
+fn retired_fixture(rows: &str) -> (Fixture, Repo) {
+    let mut text = manifest(LIT, "  design_relations: [glyph-has-lantern]\n");
+    text = text.replace(
+        "  obligations:",
+        "  document_references:\n  - name: verification\n    archetype: Glyph\n\
+         \x20   section: Acceptance Criteria\n    column: Verification\n\
+         \x20   row_id_column: ID\n    pattern: '(chk-[a-z])'\n    targets: [glyph-check]\n\
+         \x20 status:\n    column: Status\n    complete: [done]\n    pending: [planned]\n\
+         \x20 vocabularies:\n    retired: [Withdrawn]\n  obligations:",
+    );
+    let f = Fixture::new(&text);
+    let doc = format!(
+        "---\nid: GLY-001\ntype: Glyph\ntitle: g\n---\n\n## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification | Status |\n|---|---|---|---|\n{rows}"
+    );
+    let r = f.repo("r", &[doc], &["chk-b"]);
+    (f, r)
+}
+
+#[trace("FR-043-AC-9")]
+#[test]
+fn a_retired_requirement_keeps_its_gap_without_failing_strict() {
+    let (f, r) = retired_fixture("| chk-a | Withdrawn behaviour. | Withdrawn | planned |\n");
+    let out = f.matrix(&r, &["--strict"]);
+    assert_eq!(code(&out), 0, "{}", stderr(&out));
+    let text = stdout(&out);
+    assert!(text.contains("retired"), "{text}");
+    assert!(
+        text.contains("Design gap: no design element (glyph-dark)"),
+        "{text}"
+    );
+    assert!(design_lines(&stderr(&out)).is_empty());
+
+    let (f, r) = retired_fixture(
+        "| chk-a | Withdrawn behaviour. | Withdrawn | planned |\n\
+         | chk-b | Live behaviour. | Test | done |\n",
+    );
+    let out = f.matrix(&r, &["--strict"]);
+    assert_eq!(code(&out), 1, "{}", stderr(&out));
+    assert_eq!(
+        design_lines(&stderr(&out)),
+        ["design gap: spec/GLY-001.md glyph-dark"]
     );
 }
