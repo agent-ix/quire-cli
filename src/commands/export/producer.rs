@@ -12,6 +12,7 @@ use ix_cli_kit::exit::Outcome;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use super::diagrams::{self, Block};
 use super::tool::{self, Tool};
 use super::{Args, Format};
 use crate::commands::failure;
@@ -24,10 +25,14 @@ pub(super) struct Converters {
     executor: Tool,
     pandoc: Tool,
     typst: Option<Tool>,
+    /// Resolved only when the export has a Mermaid block (FR-042).
+    mmdr: Option<Tool>,
 }
 
 impl Converters {
-    pub(super) fn resolve(args: &Args) -> anyhow::Result<Self> {
+    /// `diagrams` is true when the export holds at least one Mermaid block, the
+    /// only case that needs `mmdr` (FR-042).
+    pub(super) fn resolve(args: &Args, diagrams: bool) -> anyhow::Result<Self> {
         let executor = tool::resolve(
             "engineering-assurance",
             "--engineering-assurance",
@@ -38,10 +43,16 @@ impl Converters {
             Format::Pdf => Some(tool::resolve("typst", "--typst", args.typst.as_deref())?),
             Format::Docx => None,
         };
+        let mmdr = if diagrams {
+            Some(tool::resolve("mmdr", "--mmdr", args.mmdr.as_deref())?)
+        } else {
+            None
+        };
         Ok(Self {
             executor,
             pandoc,
             typst,
+            mmdr,
         })
     }
 }
@@ -55,13 +66,6 @@ enum Step {
 }
 
 impl Step {
-    fn producer(self) -> &'static str {
-        match self {
-            Self::PandocDocx | Self::PandocTypst => "pandoc",
-            Self::TypstPdf => "typst",
-        }
-    }
-
     /// The path, relative to the capability root, of the required output.
     fn output(self) -> &'static str {
         match self {
@@ -71,7 +75,14 @@ impl Step {
         }
     }
 
-    fn arguments(self, with_identity: bool, documents: usize, approval: bool) -> Vec<String> {
+    fn arguments(self, plan: Plan) -> Vec<String> {
+        let Plan {
+            with_identity,
+            documents,
+            approval,
+            diagrams,
+            ..
+        } = plan;
         let pandoc = |to: &'static str, output: &'static str, template: [&'static str; 2]| {
             let mut arguments: Vec<String> = [
                 "--sandbox",
@@ -88,7 +99,13 @@ impl Step {
             .map(str::to_string)
             .to_vec();
             if with_identity {
-                arguments.extend([template[0], template[1], "in/front.md"].map(str::to_string));
+                arguments.extend([template[0], template[1]].map(str::to_string));
+            }
+            if diagrams {
+                arguments.extend(["--lua-filter", diagrams::FILTER].map(str::to_string));
+            }
+            if with_identity {
+                arguments.push("in/front.md".to_string());
             }
             if documents == 0 {
                 arguments.push("in/document.md".to_string());
@@ -146,6 +163,10 @@ pub(super) struct Generated<'a> {
     /// The approval block, written to `in/approval.md` and passed last.
     pub(super) approval: Option<&'a str>,
     pub(super) metadata: &'a str,
+    /// The Mermaid blocks of the export in document order (bundle: input order),
+    /// each rendered to an image before pandoc runs (FR-042). Empty when there
+    /// is none.
+    pub(super) diagrams: Vec<Block>,
     /// Front matter and the template, present for a Markdown input;
     /// a JSON report carries no identity and gets neither.
     pub(super) identity_parts: Option<IdentityParts<'a>>,
@@ -212,8 +233,39 @@ pub(super) fn convert(
     if let Some(approval) = generated.approval {
         files.push(("in/approval.md".to_string(), approval.as_bytes()));
     }
-    for (name, content) in files {
+    let filter = diagrams::filter_source(generated.diagrams.len(), image_directory(to));
+    if !generated.diagrams.is_empty() {
+        for directory in ["in/diagrams", image_directory(to)] {
+            fs::create_dir_all(root_path.join(directory))
+                .with_context(|| format!("creating {directory}"))?;
+        }
+        files.push((diagrams::FILTER.to_string(), filter.as_bytes()));
+    }
+    let diagram_files: Vec<(String, &[u8])> = generated
+        .diagrams
+        .iter()
+        .zip(1..)
+        .flat_map(|(block, number)| {
+            [
+                (diagrams::source_file(number), block.source.as_bytes()),
+                (diagrams::alt_file(number), block.alt.as_bytes()),
+            ]
+        })
+        .collect();
+    for (name, content) in files.into_iter().chain(diagram_files) {
         fs::write(root_path.join(&name), content).with_context(|| format!("writing {name}"))?;
+    }
+
+    for (block, number) in generated.diagrams.iter().zip(1..) {
+        render_diagram(
+            converters,
+            &root_path,
+            &root_text,
+            generated.epoch,
+            to,
+            block,
+            number,
+        )?;
     }
 
     let steps: &[Step] = match to {
@@ -230,6 +282,7 @@ pub(super) fn convert(
                 with_identity: generated.identity_parts.is_some(),
                 documents: generated.bundle.len(),
                 approval: generated.approval.is_some(),
+                diagrams: !generated.diagrams.is_empty(),
                 epoch: generated.epoch,
             },
         )?;
@@ -259,7 +312,66 @@ struct Plan {
     /// The number of bundle documents; 0 for a single export.
     documents: usize,
     approval: bool,
+    /// The export has Mermaid blocks, so pandoc runs the generated filter.
+    diagrams: bool,
     epoch: i64,
+}
+
+/// The image directory of an output format, relative to the capability root:
+/// where `mmdr` writes and where the filter reads (FR-042 section B).
+fn image_directory(to: Format) -> &'static str {
+    match to {
+        Format::Pdf => "typ/img",
+        Format::Docx => "img",
+    }
+}
+
+/// Renders block `number` (1-based over the export) with one `mmdr` request. A
+/// request that does not complete, or leaves no PNG or an empty one, is an
+/// export error that names the block (FR-042 section D).
+fn render_diagram(
+    converters: &Converters,
+    root: &Path,
+    root_text: &str,
+    epoch: i64,
+    to: Format,
+    block: &Block,
+    number: usize,
+) -> anyhow::Result<()> {
+    let mmdr = converters.mmdr.as_ref().context("mmdr was not resolved")?;
+    let image = format!("{}/{number}.png", image_directory(to));
+    let arguments = [
+        "-i",
+        &diagrams::source_file(number),
+        "-o",
+        &image,
+        "-e",
+        "png",
+    ]
+    .map(str::to_string)
+    .to_vec();
+    let request = envelope(
+        root_text,
+        mmdr,
+        epoch,
+        &arguments,
+        json!({"role": "diagram", "path": image, "required": true}),
+        60_000,
+    );
+    let named = |error: anyhow::Error| {
+        failure::classified(
+            failure::outcome(&error),
+            anyhow::anyhow!("{}: {error:#}", block.describe()),
+        )
+    };
+    let result = execute(&converters.executor, &request).map_err(named)?;
+    interpret(mmdr, root, &result, cfg!(target_os = "linux")).map_err(named)?;
+    if fs::metadata(root.join(&image)).map_or(true, |meta| !meta.is_file() || meta.len() == 0) {
+        return Err(named(converter_failure(format!(
+            "mmdr reported completion but wrote no {image}"
+        ))));
+    }
+    Ok(())
 }
 
 fn run_step(
@@ -289,40 +401,57 @@ fn run_step(
     Ok(())
 }
 
-/// The complete FR-032 request for one step. Fields not in the table are not set.
+/// The complete FR-032 request for one pandoc or typst step.
 fn request(root: &str, tool: &Tool, plan: Plan) -> Value {
-    let step = plan.step;
+    envelope(
+        root,
+        tool,
+        plan.epoch,
+        &plan.step.arguments(plan),
+        json!({"role": "document", "path": plan.step.output(), "required": true}),
+        120_000,
+    )
+}
+
+/// The FR-032 request field set for `tool`. Fields not in the table are not set.
+fn envelope(
+    root: &str,
+    tool: &Tool,
+    epoch: i64,
+    arguments: &[String],
+    output: Value,
+    timeout_millis: u64,
+) -> Value {
     let environment = json!({
         "HOME": format!("{root}/out/home"),
         "TMPDIR": format!("{root}/out/tmp"),
-        "SOURCE_DATE_EPOCH": plan.epoch.to_string(),
+        "SOURCE_DATE_EPOCH": epoch.to_string(),
     });
     json!({
         "protocol": "engineering-assurance.producer-execution-request/v1",
         "producer": {
-            "name": step.producer(),
+            "name": tool.name,
             "version": "unreported",
             "executable": tool.executable,
         },
         "caller": {"kind": "quire.export", "version": "1"},
         "procedure": "direct",
         "capabilityRoot": root,
-        "arguments": step
-            .arguments(plan.with_identity, plan.documents, plan.approval)
-            .into_iter()
+        "arguments": arguments
+            .iter()
             .map(|value| json!({"kind": "literal", "value": value}))
             .collect::<Vec<_>>(),
         "environment": environment,
         "inputs": [],
         "stdin": {"kind": "null"},
-        "outputs": [{"role": "document", "path": step.output(), "required": true}],
+        "outputs": [output],
         "containment": {
             "profile": "process-group-v1",
             "contract": {"kind": "quire.export-containment", "version": "1"},
         },
         "cancellation": {"kind": "disabled"},
         "budget": {
-            "timeoutMillis": 120_000,
+            "timeoutMillis": timeout_millis,
             "maxStdoutBytes": 1_048_576,
             "maxStderrBytes": 1_048_576,
             "maxInputBytes": 268_435_456,
