@@ -221,7 +221,61 @@ fn docx_export_makes_exactly_one_valid_pandoc_request() {
         request["cancellation"],
         serde_json::json!({"kind": "disabled"})
     );
-    assert_eq!(request["budget"]["timeoutMillis"], 120_000);
+    assert_eq!(request["caller"]["version"], "1");
+    assert_eq!(
+        request["containment"],
+        serde_json::json!({
+            "profile": "process-group-v1",
+            "contract": {"kind": "quire.export-containment", "version": "1"}
+        })
+    );
+    assert_eq!(
+        request["response"],
+        serde_json::json!({
+            "protocol": {"kind": "engineering-assurance.process-evidence", "version": "1"},
+            "adapter": {"kind": "engineering-assurance.cli-process-evidence-adapter", "version": "1"},
+            "exitCodes": {"kind": "exact", "codes": [0]}
+        })
+    );
+    assert_eq!(
+        request["budget"],
+        serde_json::json!({
+            "timeoutMillis": 120_000,
+            "maxStdoutBytes": 1_048_576,
+            "maxStderrBytes": 1_048_576,
+            "maxInputBytes": 268_435_456,
+            "maxOutputArtifacts": 1,
+            "maxOutputBytes": 268_435_456,
+            "maxDescendants": 64,
+            "maxConcurrency": 1
+        })
+    );
+    let mut keys: Vec<_> = request
+        .as_object()
+        .expect("object")
+        .keys()
+        .cloned()
+        .collect();
+    keys.sort();
+    assert_eq!(
+        keys,
+        [
+            "arguments",
+            "budget",
+            "caller",
+            "cancellation",
+            "capabilityRoot",
+            "containment",
+            "environment",
+            "inputs",
+            "outputs",
+            "procedure",
+            "producer",
+            "protocol",
+            "response",
+            "stdin"
+        ]
+    );
     assert_eq!(
         request["outputs"],
         serde_json::json!([{"role": "document", "path": "out/document.docx", "required": true}])
@@ -236,6 +290,11 @@ fn docx_export_makes_exactly_one_valid_pandoc_request() {
         pandoc_arguments("docx", "out/document.docx")
     );
     assert_eq!(rig.calls(), "pandoc\n");
+    // quire passes exactly `producer-execute --request -`, the request on stdin.
+    assert_eq!(
+        fs::read_to_string(rig.root().join("log/argv")).expect("argv"),
+        "producer-execute --request -\n"
+    );
 
     // The converter input is the committed body, and the output is its copy.
     let text = fs::read_to_string(export_fixture()).expect("fixture");
@@ -779,6 +838,10 @@ fn real_converters_keep_the_fixture_headings_and_code() {
             "Specification",
             "Acceptance Criteria",
             "quill_fixture",
+            "first fixture item",
+            "second fixture item",
+            "FR-001-AC-1",
+            "It does the other thing",
         ] {
             assert!(text.contains(needle), "missing {needle:?} in {text}");
         }

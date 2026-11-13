@@ -79,3 +79,17 @@ The tests drive the real binary and the real `producer-execute` over generated s
 - `SOURCE_DATE_EPOCH` belongs to FR-037.
 - The title page (FR-031-AC-7, real-converter half) belongs to FR-034 and FR-035.
 - Mermaid with no image (FR-031-AC-6, real-converter half) belongs to PLAT-1604.
+
+## Dispositions
+
+Round 1, at head 67afa73. The test results are as recorded in SR-20261112234823's dispositions.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | still-open | `make test-export-real` (`cargo test --locked --test cli_export -- --ignored`) is added, and the PR body states that ticket AC 1 stays unchecked until it passes on a host with the tools. That part is accepted as a deferred, non-blocking execution. However, `real_converters_keep_the_fixture_headings_and_code` is unchanged: it still asserts no list item and no table cell, although ticket AC 1 requires both and the fixture has both. Adding `"first fixture item"` and `"FR-001-AC-1"` to its needles closes this finding. |
+| FND-002 | fixed | The new test `a_timed_out_converter_exits_4_naming_the_state` uses a stand-in result `timed_out` and asserts exit 4, `timed_out` and no output. |
+| FND-003 | fixed | `interpret` takes a `linux: bool`. The unit tests `a_non_linux_host_reports_the_unsupported_host_message` and `containment_failure_message_depends_on_the_host` cover both arms. |
+| FND-004 | still-open | The fix commit adds no assertions on `containment`, `response`, the remaining `budget` members or `caller.version`. The new FR-032-AC-2-tagged tests cover the refused diagnostic and the UTF-8 refusal, not field-table equality. Comparing the whole request against a literal `json!` of the FR-032 table, with `capabilityRoot` substituted, would close it. |
+| FND-005 | still-open | The rig now appends `$*` to `$LOG/argv`, but no test reads that file, so `producer-execute --request -` is still unverified. An assertion such as `assert_eq!(read(log/argv), "producer-execute --request -\n")` in the docx test would close it. |
+| FND-006 | fixed | The new test `the_export_adds_no_network_client_crate`, tagged NFR-010-AC-3, checks the `[dependencies]` table for network client crates. |
+| FND-007 | fixed | The FR-033 row now reads "Names the state `containment_failure`; the result carries no further reason." The Linux code message is "containment_failure: producer-execute could not contain the converter", which names the state, so the spec and the code agree. The spec file passes `quire validate`. |

@@ -115,6 +115,15 @@ pub(super) fn convert(
         .path()
         .canonicalize()
         .context("resolving the capability root")?;
+    let root_text = root_path
+        .to_str()
+        .ok_or_else(|| {
+            failure::invalid(anyhow::anyhow!(
+                "the capability root {} is not valid UTF-8; set TMPDIR to a UTF-8 path",
+                root_path.display()
+            ))
+        })?
+        .to_string();
     for directory in ["in", "typ", "out/home", "out/tmp"] {
         fs::create_dir_all(root_path.join(directory))
             .with_context(|| format!("creating {directory}"))?;
@@ -127,7 +136,7 @@ pub(super) fn convert(
         Format::Pdf => &[Step::PandocTypst, Step::TypstPdf],
     };
     for &step in steps {
-        run_step(converters, &root_path, step)?;
+        run_step(converters, &root_path, &root_text, step)?;
     }
     let last = steps.last().map_or("", |step| step.output());
     let path = root_path.join(last);
@@ -146,7 +155,12 @@ impl AsRef<Path> for RenderedFile {
     }
 }
 
-fn run_step(converters: &Converters, root: &Path, step: Step) -> anyhow::Result<()> {
+fn run_step(
+    converters: &Converters,
+    root: &Path,
+    root_text: &str,
+    step: Step,
+) -> anyhow::Result<()> {
     let tool = match step {
         Step::TypstPdf => converters
             .typst
@@ -154,7 +168,7 @@ fn run_step(converters: &Converters, root: &Path, step: Step) -> anyhow::Result<
             .context("typst was not resolved")?,
         Step::PandocDocx | Step::PandocTypst => &converters.pandoc,
     };
-    let request = request(root, tool, step);
+    let request = request(root_text, tool, step);
     let result = execute(&converters.executor, &request)?;
     interpret(tool, root, &result, cfg!(target_os = "linux"))?;
     if !root.join(step.output()).is_file() {
@@ -168,14 +182,13 @@ fn run_step(converters: &Converters, root: &Path, step: Step) -> anyhow::Result<
 }
 
 /// The complete FR-032 request for one step. Fields not in the table are not set.
-fn request(root: &Path, tool: &Tool, step: Step) -> Value {
-    let root = root.to_str().unwrap_or_default().to_string();
+fn request(root: &str, tool: &Tool, step: Step) -> Value {
     json!({
         "protocol": "engineering-assurance.producer-execution-request/v1",
         "producer": {
             "name": step.producer(),
             "version": "unreported",
-            "executable": tool.path.to_str().unwrap_or_default(),
+            "executable": tool.executable,
         },
         "caller": {"kind": "quire.export", "version": "1"},
         "procedure": "direct",
@@ -414,6 +427,7 @@ mod tests {
         let tool = Tool {
             name: "pandoc",
             path: PathBuf::from("/x/pandoc"),
+            executable: "/x/pandoc".to_string(),
         };
         let result = ExecutionResult {
             protocol: RESULT_PROTOCOL.to_string(),

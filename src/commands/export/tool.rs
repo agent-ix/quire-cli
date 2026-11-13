@@ -11,6 +11,8 @@ use crate::commands::failure;
 pub(super) struct Tool {
     pub(super) name: &'static str,
     pub(super) path: PathBuf,
+    /// `path` as UTF-8 text, the form the producer request carries.
+    pub(super) executable: String,
 }
 
 /// Resolves `name` to a canonical regular executable file: the `flag` path when
@@ -40,12 +42,23 @@ pub(super) fn resolve(
         .and_then(|path| fs::canonicalize(path).ok())
         .filter(|path| is_executable(path));
     match canonical {
-        Some(path) if path.to_str().is_none() => Err(failure::invalid(anyhow::anyhow!(
-            "'{name}' resolves to a path that is not valid UTF-8 ({}); \
-             the producer request cannot carry it",
-            path.display()
-        ))),
-        Some(path) => Ok(Tool { name, path }),
+        Some(path) => {
+            let executable = path
+                .to_str()
+                .ok_or_else(|| {
+                    failure::invalid(anyhow::anyhow!(
+                        "'{name}' resolves to a path that is not valid UTF-8 ({}); \
+                         the producer request cannot carry it",
+                        path.display()
+                    ))
+                })?
+                .to_string();
+            Ok(Tool {
+                name,
+                path,
+                executable,
+            })
+        }
         None => Err(failure::invalid(anyhow::anyhow!(
             "missing converter: '{name}' is not an executable file; looked at {looked}; \
              pass {flag} <PATH> to name it"

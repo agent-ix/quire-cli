@@ -55,3 +55,19 @@ These parts were checked and are correct:
 - **Exit codes.** The mapping (3 for a missing converter or invalid input, 2 for permission or output-equals-input, 4 for a converter, executor or containment failure) matches FR-007 and FR-033.
 - **Dependencies.** No network crate was added, and `tempfile` was correctly moved to `[dependencies]`.
 - **Clean of ceremony.** Nothing is vendored, there are no pins or SHA ceremony, and there is no Markdown parsing beyond `extract_frontmatter`.
+
+## Dispositions
+
+Round 1, at head 67afa73 (fix commit "PLAT-1435: fix review round 1"). These gates pass at this head:
+- `cargo fmt --check`;
+- `cargo clippy --all-targets --all-features -D warnings`;
+- `cargo test --test cli_export`: 20 passed, 1 ignored;
+- the export unit tests: 5 passed.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `check_output_target` now probes the output directory with `NamedTempFile::new_in(parent)` and classifies a failure as exit 4. The new test `an_unwritable_output_directory_is_refused_before_any_conversion` asserts exit 4, "not writable" and zero requests. |
+| FND-002 | fixed | The `refused` arm now appends `executable '<canonical path>', capability root '<root>'`. The new test `a_refused_request_names_the_canonical_executable_and_the_capability_root` covers it. |
+| FND-003 | fixed | Output-target refusals go through `output_error`, which is explicitly `Outcome::Internal` (exit 4). |
+| FND-004 | still-open | Only the executable half is fixed: `tool::resolve` now refuses a non-UTF-8 tool path with exit 3, and a test covers it. `request()` still writes `root.to_str().unwrap_or_default()`, so a non-UTF-8 temporary directory becomes an empty `capabilityRoot`, with `HOME=/out/home` and `TMPDIR=/out/tmp`. The executor's rejection then reads as an engineering-assurance mismatch. The fix is to refuse a non-UTF-8 capability root in `convert` before building any request. The `unwrap_or_default()` on `executable` is now unreachable and can become an `expect` or a typed `String` on `Tool`. |
+| FND-005 | fixed | `is_executable` is now one function, with the cfg split inside `has_execute_permission`. `quire matrix` no longer reports a `symbol-id-collision` for src/commands/export/tool.rs. |
