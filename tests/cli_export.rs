@@ -4426,7 +4426,10 @@ fn real_converters_show_the_approval_block_after_the_document() {
     let second = verdict_file(
         &rig,
         "b.json",
-        &claimed("untrusted_signer", &["reviewed and approved"]),
+        &claimed(
+            "untrusted_signer",
+            &["https://reviews.example.org/approvals/2026/11/signoff/index.html?id=12345"],
+        ),
     );
     let third = verdict_file(
         &rig,
@@ -4462,7 +4465,7 @@ fn real_converters_show_the_approval_block_after_the_document() {
         for expected in [
             "Ada Example",
             "2026-01-02 03:04:05 UTC",
-            "claimed: \"reviewed and approved\"",
+            "claimed: \"https://reviews.example.org/approvals/2026/11/signoff/index.html?id=12345\"",
             "untrusted_signer",
             "not available",
             "Pipe | Person",
