@@ -87,3 +87,9 @@ Round 1, fix head 5c0ca30.
 | FND-004 | fixed | README.md:45 now shows `[--scope <DIR> \| --repo <ORG/REPO>=<DIR>...]` and `--format human\|markdown\|json\|tsv`. |
 | FND-005 | fixed | FR-043-AC-2 now reads "the `repo:` and `Design gap:` lines, then the `design:` line (elements, or `n/a`)". |
 | FND-006 | fixed | The FR-043 Design cell now says "with its repo when present as `<repo>/<id> (kind)`". |
+
+Round 2, fix head d50ddda.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-003 | fixed | `corpus_input::Member` now keeps its `RepoLoad`. `Corpus::member_spec` builds the one-member spec with `Spec::from_repo(member.load.clone())`, and `coverage::compute_report_over` takes that `&Spec`; matrix.rs and relations.rs both use it. The inaccurate comment is replaced. Measured: strace shows the FR-043 document opened once instead of twice for `matrix --scope`, `relations --scope` and two-member `matrix --repo`. Ten matrix and relations invocations give byte-identical stdout, stderr and exit codes against the same head with the two-walk calls restored. |
