@@ -1,0 +1,162 @@
+{
+  "relations": [
+    {
+      "name": "sigil-has-beacon",
+      "check": "sigil-dark",
+      "direction": "incoming",
+      "summary": {
+        "rows": 2,
+        "state": {
+          "uncovered": 1,
+          "covered": 1
+        },
+        "verification": {
+          "verified": 0,
+          "partial": 0,
+          "unverified": 2,
+          "not-tracked": 0
+        }
+      },
+      "rows": [
+        {
+          "relation": "sigil-has-beacon",
+          "check": "sigil-dark",
+          "direction": "incoming",
+          "document": {
+            "id": "SIG-001",
+            "path": "spec/SIG-001.md",
+            "archetype": "Sigil",
+            "verification": "unverified",
+            "criteria": {
+              "backed": 0,
+              "unbacked": 1,
+              "not_measured": 0
+            }
+          },
+          "state": "covered",
+          "verification": "unverified",
+          "linked": [
+            {
+              "id": "BEA-001",
+              "path": "spec/BEA-001.md",
+              "archetype": "Beacon",
+              "verification": "not-tracked",
+              "criteria": {
+                "backed": 0,
+                "unbacked": 0,
+                "not_measured": 0
+              },
+              "verb": "kindles",
+              "resolution": "resolved",
+              "realized_criteria": [
+                "SIG-001-AC-1"
+              ]
+            }
+          ],
+          "dangling": [],
+          "kind_mismatch": []
+        },
+        {
+          "relation": "sigil-has-beacon",
+          "check": "sigil-dark",
+          "direction": "incoming",
+          "document": {
+            "id": "SIG-002",
+            "path": "spec/SIG-002.md",
+            "archetype": "Sigil",
+            "verification": "unverified",
+            "criteria": {
+              "backed": 0,
+              "unbacked": 1,
+              "not_measured": 0
+            }
+          },
+          "state": "uncovered",
+          "verification": "unverified",
+          "linked": [],
+          "dangling": [],
+          "kind_mismatch": []
+        }
+      ]
+    },
+    {
+      "name": "sigil-lit-by",
+      "check": "sigil-unlit",
+      "direction": "outgoing",
+      "summary": {
+        "rows": 2,
+        "state": {
+          "uncovered": 1,
+          "covered": 1
+        },
+        "verification": {
+          "verified": 0,
+          "partial": 0,
+          "unverified": 2,
+          "not-tracked": 0
+        }
+      },
+      "rows": [
+        {
+          "relation": "sigil-lit-by",
+          "check": "sigil-unlit",
+          "direction": "outgoing",
+          "document": {
+            "id": "SIG-001",
+            "path": "spec/SIG-001.md",
+            "archetype": "Sigil",
+            "verification": "unverified",
+            "criteria": {
+              "backed": 0,
+              "unbacked": 1,
+              "not_measured": 0
+            }
+          },
+          "state": "covered",
+          "verification": "unverified",
+          "linked": [
+            {
+              "id": "BEA-001",
+              "path": "spec/BEA-001.md",
+              "archetype": "Beacon",
+              "verification": "not-tracked",
+              "criteria": {
+                "backed": 0,
+                "unbacked": 0,
+                "not_measured": 0
+              },
+              "verb": "kindled_by",
+              "resolution": "resolved",
+              "realized_criteria": [
+                "SIG-001-AC-1"
+              ]
+            }
+          ],
+          "dangling": [],
+          "kind_mismatch": []
+        },
+        {
+          "relation": "sigil-lit-by",
+          "check": "sigil-unlit",
+          "direction": "outgoing",
+          "document": {
+            "id": "SIG-002",
+            "path": "spec/SIG-002.md",
+            "archetype": "Sigil",
+            "verification": "unverified",
+            "criteria": {
+              "backed": 0,
+              "unbacked": 1,
+              "not_measured": 0
+            }
+          },
+          "state": "uncovered",
+          "verification": "unverified",
+          "linked": [],
+          "dangling": [],
+          "kind_mismatch": []
+        }
+      ]
+    }
+  ]
+}
