@@ -366,6 +366,33 @@ fn a_wrong_kind_target_prints_beneath_its_row_as_a_kind_mismatch() {
     );
 }
 
+#[trace("FR-030-AC-7")]
+#[test]
+fn an_untyped_kind_mismatch_target_prints_the_engines_untyped_wording() {
+    let world = World::new();
+    let untyped = "---\nid: UNTYPED-1\ntitle: no type\n---\n\n# UNTYPED-1\n";
+    let scope = world.repo(
+        "repo",
+        &[
+            (
+                "RULE-001",
+                rule("RULE-001", Some("gold"), &[("addresses", "UNTYPED-1")], &[]),
+            ),
+            ("UNTYPED-1", untyped.to_string()),
+        ],
+        &[],
+    );
+    let json = json_of(&relations(&world, &scope, &["--json"]));
+    let mismatch = &row(&json, "gold-rule-addresses", "RULE-001")["kind_mismatch"][0];
+    assert_eq!(mismatch["id"], "UNTYPED-1");
+    assert!(mismatch.get("archetype").is_none(), "{mismatch}");
+    let text = stdout(&relations(&world, &scope, &[]));
+    assert!(
+        text.contains("kind mismatch: UNTYPED-1 is (untyped) (via addresses)"),
+        "human output: {text}"
+    );
+}
+
 #[trace("FR-030-AC-8")]
 #[trace("FR-030-AC-9")]
 #[test]
@@ -388,6 +415,60 @@ fn relation_restricts_the_report_and_an_unknown_name_is_refused() {
     assert_eq!(unknown.status.code(), Some(3));
     assert!(stderr(&unknown).contains("no-such-relation"));
     assert!(unknown.stdout.is_empty(), "no report on stdout");
+}
+
+#[trace("FR-030-AC-9")]
+#[test]
+fn an_unknown_relation_name_is_refused_before_any_coverage_is_computed() {
+    let world = World::new();
+    // A tagged symbol in an unparseable source file makes the coverage walk
+    // emit a stderr diagnostic; a refusal before the walk emits none.
+    let scope = worked_example(&world);
+    fs::write(
+        scope.join("src/lib.rs"),
+        "#[trace(\"FR-1\")]\n#[test]\nfn broken( {\n",
+    )
+    .unwrap();
+    let known = relations(&world, &scope, &["--relation", "gold-rule-addresses"]);
+    let unknown = relations(&world, &scope, &["--relation", "no-such-relation"]);
+    assert_eq!(unknown.status.code(), Some(3));
+    assert_eq!(
+        stderr(&unknown).lines().count(),
+        1,
+        "only the refusal, no coverage diagnostics (a computed run prints: {}): {}",
+        stderr(&known),
+        stderr(&unknown)
+    );
+    assert!(stderr(&unknown).contains("unknown --relation 'no-such-relation'"));
+}
+
+#[trace("FR-030-AC-25")]
+#[test]
+fn module_discovery_without_module_is_bounded_by_the_first_repo_member() {
+    let world = World::new();
+    let a = world.repo("a", &[("CON-001", concern("CON-001"))], &[]);
+    let b = world.repo("b", &[("CON-002", concern("CON-002"))], &[]);
+    // Each member carries its own module at its root, with a different relation
+    // name, so the run never falls through to host-installed modules.
+    let manifest_a = fs::read_to_string(world.module_dir().join("manifest.yaml")).unwrap();
+    fs::write(a.join("manifest.yaml"), &manifest_a).unwrap();
+    fs::write(
+        b.join("manifest.yaml"),
+        manifest_a.replace("concern-is-addressed", "concern-is-handled"),
+    )
+    .unwrap();
+    let (arg_a, arg_b) = (
+        format!("o/a={}", a.display()),
+        format!("o/b={}", b.display()),
+    );
+    let a_first = quire(&[&"relations", &"--repo", &arg_a, &"--repo", &arg_b]);
+    assert!(a_first.status.success(), "{}", stderr(&a_first));
+    let text = stdout(&a_first);
+    assert!(text.contains("concern-is-addressed") && !text.contains("concern-is-handled"));
+    let b_first = quire(&[&"relations", &"--repo", &arg_b, &"--repo", &arg_a]);
+    assert!(b_first.status.success(), "{}", stderr(&b_first));
+    let text = stdout(&b_first);
+    assert!(text.contains("concern-is-handled") && !text.contains("concern-is-addressed"));
 }
 
 /// One concern per rule, each addressed by its rule; `criteria`/`tagged`
@@ -544,7 +625,29 @@ fn missing_inputs_are_named_and_exit_3() {
         &world.module_dir(),
     ]);
     assert_eq!(out.status.code(), Some(3));
-    assert!(stderr(&out).contains("o/a") && stderr(&out).contains("no document root"));
+    let err = stderr(&out);
+    assert!(err.contains("member 'o/a'"), "{err}");
+    assert!(err.contains("no document root"), "{err}");
+    assert!(
+        err.contains(&bare.join("spec").display().to_string()),
+        "{err}"
+    );
+    assert!(!err.contains("point --scope"), "{err}");
+    let json = quire(&[
+        &"--diagnostics-format",
+        &"json",
+        &"relations",
+        &"--repo",
+        &format!("o/a={}", bare.display()),
+        &"--module",
+        &world.module_dir(),
+    ]);
+    assert_eq!(json.status.code(), Some(3));
+    assert!(
+        stderr(&json).contains("MissingDocumentRoot"),
+        "{}",
+        stderr(&json)
+    );
 
     // A module set that declares no `required_relations`.
     let plain = world.tmp.path().join("plain");
@@ -650,6 +753,7 @@ fn validate_resolves_an_edge_into_a_sibling_member_and_names_the_member() {
     let b = world.repo("b", &[("CON-001", concern("CON-001"))], &[]);
 
     let both = validate_okf(&world, &[("o/a", &a), ("o/b", &b)], &[]);
+    assert!(both.status.success(), "{}", stderr(&both));
     assert!(
         !stderr(&both).contains("gold-rule-idle"),
         "the edge resolves: {}",
@@ -662,7 +766,7 @@ fn validate_resolves_an_edge_into_a_sibling_member_and_names_the_member() {
         .lines()
         .find(|l| l.contains("gold-rule-idle"))
         .unwrap_or_else(|| panic!("no finding: {err}"));
-    assert!(finding.contains("o/a"), "{finding}");
+    assert!(finding.contains("[o/a] "), "{finding}");
 }
 
 #[trace("FR-030-AC-21")]
@@ -725,13 +829,14 @@ fn each_members_declarations_resolve_against_its_own_repository_root() {
 
     write_module(true);
     let excluded = validate_okf(&world, &[("o/a", &a), ("o/b", &b)], &[]);
+    assert!(excluded.status.success(), "{}", stderr(&excluded));
     assert!(dangling(&excluded).is_empty(), "{}", stderr(&excluded));
 
     write_module(false);
     let included = validate_okf(&world, &[("o/a", &a), ("o/b", &b)], &[]);
     let lines = dangling(&included);
     assert!(
-        lines.iter().any(|l| l.contains("o/a")) && lines.iter().any(|l| l.contains("o/b")),
+        lines.iter().any(|l| l.contains("[o/a] ")) && lines.iter().any(|l| l.contains("[o/b] ")),
         "each member reports its own: {}",
         stderr(&included)
     );

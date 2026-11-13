@@ -47,7 +47,19 @@ fn tc091_no_http_client_crate_is_banned_or_linked() {
     let deny = std::fs::read_to_string(root.join("deny.toml")).expect("deny.toml");
     let lock = std::fs::read_to_string(root.join("Cargo.lock")).expect("Cargo.lock");
 
-    const CLIENTS: &[&str] = &["reqwest", "hyper", "tonic", "surf", "ureq"];
+    // `gix` and its network crates stay banned: the export reads git with the
+    // gitoxide component crates, never the facade that links the transport.
+    const CLIENTS: &[&str] = &[
+        "reqwest",
+        "hyper",
+        "tonic",
+        "surf",
+        "ureq",
+        "gix",
+        "gix-protocol",
+        "gix-transport",
+        "gix-command",
+    ];
     for client in CLIENTS {
         assert!(
             deny.contains(&format!("name = \"{client}\"")),

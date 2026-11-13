@@ -11,6 +11,7 @@ help:
 	@echo "  make fmt-check        - Verify formatting (CI gate)"
 	@echo "  make lint             - Clippy with -D warnings"
 	@echo "  make test             - cargo test"
+	@echo "  make test-export-real - Export tests that need real pandoc, typst, unzip, pdftotext"
 	@echo "  make docs             - strict workspace rustdoc"
 	@echo "  make spec             - Validate changed assurance specs and traceability"
 	@echo "  make build            - Release build"
@@ -40,6 +41,12 @@ lint:
 .PHONY: test
 test:
 	$(CARGO) test --workspace --locked --all-targets --all-features
+
+# Real-converter export tests (FR-031-AC-1, FR-032-AC-7, FR-034-AC-10, FR-035, FR-036). Needs pandoc, typst,
+# unzip, pdftotext and python3 on PATH; the test fails naming the first missing tool.
+.PHONY: test-export-real
+test-export-real:
+	$(CARGO) test --locked --test cli_export -- --ignored
 
 .PHONY: docs
 docs:

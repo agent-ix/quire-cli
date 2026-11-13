@@ -12,13 +12,15 @@ relationships:
     type: "constrains"
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-036"
     type: "constrains"
+  - target: "ix://agent-ix/quire-cli/spec/functional/FR-042"
+    type: "constrains"
 ---
 # NFR-011: Same input and template give the same exported document
 
 ## Statement
 
 For one committed input, one source commit, one template (or the default), the
-same approval verdict files and the same converter versions, `quire export` SHALL
+same approval verdict files and the same converter and `mmdr` versions, `quire export` SHALL
 produce documents whose extracted text and extracted structure are equal,
 whatever the wall-clock time, time zone, host name string, user, working
 directory or capability-root path of the run. Byte equality of the file is not
@@ -30,15 +32,21 @@ extracted text or structure.
 - **Extracted text**: for PDF, the output of `pdftotext -layout` page by page;
   for DOCX, the concatenated text of `word/document.xml`, `word/header*.xml`,
   `word/footer*.xml` in part-name order.
-- **Extracted structure**: the sequence of heading levels and heading texts, the
-  grid of cell texts of every table (rows, columns, text), the page count for PDF,
-  the table-of-contents entries, and the set of word-processor fields in DOCX.
+- **Extracted structure**: for DOCX, the sequence of heading levels and heading
+  texts, the grid of cell texts of every table (rows, columns, text), the
+  table-of-contents entries, and the set of word-processor fields. For PDF, the
+  page count; heading levels and table grids are not compared, and the heading
+  texts, table cell texts and table-of-contents entries of a PDF are compared
+  only through its extracted text. For a Mermaid diagram, its position in the
+  sequence of blocks, its pixel width and height, and its image bytes (the bytes
+  of the `word/media` part for DOCX; for PDF the image data extracted by
+  `pdfimages -png`, because Typst re-encodes the PNG into the PDF).
 
 ## Scope
 
 Applies to Markdown input with the default template and with an organisation
 template, and to bundles, on one host with one pair of converter versions and one
-set of installed fonts. Different converter versions or font sets, including the
+set of installed fonts; for a Mermaid diagram, one `mmdr` version. Different converter versions or font sets, including the
 system-font fallback of Typst when a template's fonts lack a glyph, may differ and
 are outside the property.
 
@@ -58,6 +66,7 @@ are outside the property.
 | NFR-011-AC-2 | The property of NFR-011-AC-1 holds for the default template, a fixture organisation template, a fixture with two approval verdicts, and a bundle of three fixtures. | Test |
 | NFR-011-AC-3 | Exporting the same fixture from two different working directories and two different output directories yields equal extracted text and structure. | Test |
 | NFR-011-AC-4 | A fixture changed by one word yields a different extracted text, so the comparison can fail. | Test |
+| NFR-011-AC-5 | Exporting a fixture with two Mermaid diagrams twice, with the clock and `TZ` changed, yields equal extracted text and structure, with equal image count, pixel dimensions and image bytes as the definition above gives them; this checks the assumption of FR-042 that `mmdr` output depends on the diagram text, its version and the fonts only. | Test |
 
 ## Verification
 

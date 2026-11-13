@@ -45,3 +45,6 @@ description: "Index of artifacts in this directory."
 * [FR-038: Approval block from signed-approval verdicts](./FR-038-approval-block.md)
 * [FR-039: Export several documents as one bundle](./FR-039-export-bundle.md)
 * [FR-040: Export errors: template, identity, approval and bundle input](./FR-040-export-template-and-identity-errors.md)
+* [FR-041: quire relations design mode](./FR-041-relations-design-mode.md)
+* [FR-042: Render Mermaid diagrams as images in exported documents](./FR-042-export-mermaid-diagrams.md)
+* [FR-043: quire matrix design column and design gate](./FR-043-matrix-design-column.md)

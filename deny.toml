@@ -36,14 +36,13 @@ deny = [
     { name = "libssh2-sys" },
     { name = "curl" },
     { name = "curl-sys" },
+    # The gix facade depends on gix-protocol and gix-transport; the export
+    # reads git with the gitoxide component crates instead (FR-034).
+    { name = "gix" },
+    { name = "gix-protocol" },
     { name = "gix-transport" },
+    { name = "gix-command" },
 ]
-
-# gix-protocol is a non-optional dependency of gix; only its client features
-# carry network code (FR-034).
-[[bans.features]]
-name = "gix-protocol"
-deny = ["blocking-client", "async-client"]
 
 [advisories]
 version = 2

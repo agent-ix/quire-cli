@@ -71,7 +71,9 @@ pub struct Args {
     /// load as one corpus (quire-rs FR-085), so an edge into a sibling
     /// repository resolves, and each member's documents are validated against
     /// it with the roots `(<DIR>/spec, <DIR>)`. Each finding names its member.
-    /// Not accepted with --scope or a positional bundle directory.
+    /// Not accepted with --scope or a positional bundle directory. Without
+    /// --module, ambient module discovery is bounded by the first --repo
+    /// member only, so --repo order decides which modules load.
     #[arg(
         long,
         value_name = "ORG/REPO=DIR",
@@ -151,6 +153,20 @@ pub(crate) fn apply_severity_overrides(
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
+    run_with(ctx, args, Source::Files)
+}
+
+/// Where the validated text comes from.
+pub(crate) enum Source<'a> {
+    /// Read the documents named by the arguments.
+    Files,
+    /// Validate `text` as the one named document without reading it, and do not
+    /// look up the repository identity (no `git` process): `quire export`
+    /// validates the committed text under the input's own path.
+    Committed(&'a str),
+}
+
+pub(crate) fn run_with(ctx: &Ctx, args: Args, source: Source<'_>) -> anyhow::Result<()> {
     // With `--repo` the first member's root bounds module discovery, as
     // `--scope` does for a single repository.
     let (scope_flag, scope_raw) = match args.repo.first() {
@@ -170,7 +186,21 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     // clap guarantees a non-empty `documents` here (required_unless_present).
-    let inputs = expand_documents(&args.documents, &scope)?;
+    let mut inputs = expand_documents(&args.documents, &scope)?;
+    let committed = match source {
+        Source::Committed(text) => Some(text),
+        Source::Files => None,
+    };
+    if let Some(text) = committed {
+        for input in &mut inputs {
+            if let DocumentInput::Path(path) = input {
+                *input = DocumentInput::Text {
+                    path: std::mem::take(path),
+                    text: text.to_string(),
+                };
+            }
+        }
+    }
 
     // FR-044: harvest the scope repo's project Ubiquitous-Language terms (a
     // `Glossary` `## Terms` table or `## Ubiquitous Language` sections) once,
@@ -179,7 +209,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // Scans only glossary-bearing docs — never a full-corpus parse.
     let project_terms = quire_rs::glossary_terms_from_path(&scope);
     let lexicon = registry.lexicon_with(&project_terms);
-    let bundle_package = repo_bundle_package(&scope);
+    let bundle_package = match committed {
+        Some(_) => None,
+        None => repo_bundle_package(&scope),
+    };
 
     let mut failures = 0usize;
     let mut warned = 0usize;
@@ -418,7 +451,7 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
         if let Some(package) = repo_bundle_package(&document_root) {
             spec = spec
                 .with_bundle_package(&package)
-                .map_err(|e| invalid_error!("{e}"))?;
+                .with_context(|| format!("declaring the identity of bundle '{package}'"))?;
         }
         let report =
             quire_rs::validate_bundle(&spec, registry, posture, &document_root, &reference_root);
@@ -659,13 +692,18 @@ fn scoped_registry_roots(scope: &Path) -> Vec<PathBuf> {
 pub(crate) enum DocumentInput {
     Stdin,
     Path(PathBuf),
+    /// A named document whose text is already in hand.
+    Text {
+        path: PathBuf,
+        text: String,
+    },
 }
 
 impl DocumentInput {
     pub(crate) fn label(&self) -> String {
         match self {
             Self::Stdin => "-".to_string(),
-            Self::Path(path) => path.display().to_string(),
+            Self::Path(path) | Self::Text { path, .. } => path.display().to_string(),
         }
     }
 
@@ -673,6 +711,7 @@ impl DocumentInput {
         match self {
             Self::Stdin => io::read_text("-"),
             Self::Path(path) => std::fs::read_to_string(path).map_err(Into::into),
+            Self::Text { text, .. } => Ok(text.clone()),
         }
     }
 
@@ -686,7 +725,7 @@ impl DocumentInput {
     pub(crate) fn scope_relative(&self, scope: &Path) -> Option<PathBuf> {
         match self {
             Self::Stdin => None,
-            Self::Path(path) => Some(
+            Self::Path(path) | Self::Text { path, .. } => Some(
                 path.strip_prefix(scope)
                     .unwrap_or(path)
                     .components()
