@@ -9,8 +9,14 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
-- PLAT-1554: `quire relations (--scope <DIR> | --repo <ORG/REPO>=<DIR>...) [--relation <NAME>]... [--json] [--strict]` renders the quire-rs two-way relation coverage report (FR-030). `quire validate --okf --repo <ORG/REPO>=<DIR>...` validates the members as one corpus and names the member on each finding. `validate --okf` adapts to `Spec::with_bundle_package` returning a `Result`.
 - PLAT-1418: `quire relations --design` renders the quire-rs design-element join (FR-041): per requirement the design elements that realize it, with their `realized_criteria`, and an explicit gap when there are none. It conflicts with `--relation` and `--strict`, and exits 3 when no loaded module declares `traceability.design_relations` or an entry names no declared relation.
+
+## [0.45.0] — 2026-11-13
+
+Adopts quire-rs 0.60.0: the FR-058 `when_any` selector on `required_relations` (PLAT-1674), `criticality_field` on obligation sources (PLAT-1597), `design_matrix` (PLAT-1587) and `carried_fields`/`field_consistency` (PLAT-1578).
+
+- PLAT-1554: `quire relations (--scope <DIR> | --repo <ORG/REPO>=<DIR>...) [--relation <NAME>]... [--json] [--strict]` renders the quire-rs two-way relation coverage report (FR-030). `quire validate --okf --repo <ORG/REPO>=<DIR>...` validates the members as one corpus and names the member on each finding. `validate --okf` adapts to `Spec::with_bundle_package` returning a `Result`.
+- **`validate --okf` loads `when_any` (PLAT-1573).** Adopts quire-rs 0.60.0 with the FR-058 `when_any` selector on `required_relations` (PLAT-1674): a module declaring it loads instead of failing with `unknown field when_any`, and only documents in scope of a condition are reported (FR-014-AC-17).
 - **`quire export` (PLAT-1435).** Exports a Markdown artifact to PDF or DOCX. Pandoc (and Typst for PDF) run only through `engineering-assurance producer-execute`; exit 3 for a missing converter or invalid input, exit 4 for a converter failure.
 - **`quire export` default template (PLAT-1606).** A Markdown export now reads the committed blob of its input from the source git repository in process (`--source-repo`, `--source-rev`, `--release`), refuses uncommitted or filtered input, and generates a title page (title, document id, version, release, source commit, committer date), a table of contents, and a header and footer with `Page N of M`, identically for PDF and DOCX.
 - **`quire export` Mermaid diagrams (PLAT-1604).** Each `mermaid` block of a Markdown input is rendered to a PNG by `mmdr` (`--mmdr`, or PATH), one `engineering-assurance producer-execute` request per block before pandoc, and swapped for the image by a generated pandoc Lua filter. A block that fails to render is exit 4 naming the document, ordinal, line and section; a missing `mmdr` is exit 3. Block lines come from quire-rs `extract_diagrams` (PLAT-1682).

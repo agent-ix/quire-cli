@@ -2,9 +2,11 @@
 //!
 //! The engine owns the rows, the states and the verification statuses; this
 //! command resolves roots, applies path safety, calls
-//! `quire_rs::relation_report` and renders. It holds no archetype, verb or
+//! `quire_rs::relation_report` and renders. With `--design` it calls
+//! `quire_rs::design_join` instead (FR-041). It holds no archetype, verb or
 //! chain name: which rows exist comes from the loaded modules'
-//! `traceability.required_relations`.
+//! `traceability.required_relations`, and with `--design` from the relations
+//! they name in `traceability.design_relations`.
 
 use std::path::PathBuf;
 
@@ -32,7 +34,8 @@ pub struct Args {
     #[arg(long, value_name = "ORG/REPO=DIR", value_parser = parse_repo)]
     pub repo: Vec<RepoArg>,
 
-    /// Module directory supplying `traceability.required_relations`.
+    /// Module directory supplying `traceability.required_relations` (and, with
+    /// `--design`, `traceability.design_relations`).
     /// Repeatable; the roots REPLACE ambient discovery (see `quire coverage`).
     /// Without it, ambient discovery is bounded by the first `--repo` member
     /// only, so `--repo` order decides which modules load.

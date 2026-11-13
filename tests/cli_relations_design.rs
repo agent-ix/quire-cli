@@ -213,6 +213,7 @@ fn a_relation_outside_design_relations_produces_no_block() {
 
 #[trace("FR-041-AC-4")]
 #[trace("FR-041-AC-5")]
+#[trace("FR-041-AC-10")]
 #[test]
 fn human_output_prints_elements_gaps_and_a_summary_equal_to_the_json() {
     let world = World::new(DESIGN);
@@ -249,6 +250,7 @@ fn human_output_prints_elements_gaps_and_a_summary_equal_to_the_json() {
 
 #[trace("FR-041-AC-1")]
 #[trace("FR-041-AC-4")]
+#[trace("FR-041-AC-10")]
 #[test]
 fn worked_example_matches_its_snapshots() {
     let world = World::new(DESIGN);
@@ -297,6 +299,72 @@ fn an_element_in_a_sibling_repo_resolves_and_a_missing_member_dangles() {
     assert_eq!(gap["dangling"][0]["reference"], "ix://o/b/spec/BEA-001");
     let human = stdout(&world.design_repos(&[("o/a", &a)], &[]));
     assert!(human.contains("dangling: ix://o/b/spec/BEA-001"), "{human}");
+}
+
+#[trace("FR-041-AC-4")]
+#[test]
+fn an_element_linked_as_a_whole_prints_without_a_realizes_list() {
+    let world = World::new(DESIGN);
+    let scope = world.repo(
+        "repo",
+        &[
+            ("SIG-003", doc("SIG-003", "Sigil", &[], &["SIG-003-AC-1"])),
+            (
+                "BEA-002",
+                doc("BEA-002", "Beacon", &[("kindles", "SIG-003")], &[]),
+            ),
+        ],
+    );
+    let human = stdout(&world.design(&scope, &[]));
+    let line = human
+        .lines()
+        .find(|l| l.contains("BEA-002"))
+        .unwrap_or_else(|| panic!("no element line in {human}"));
+    assert!(line.ends_with("linked: BEA-002 (Beacon)"), "{line}");
+    assert!(!human.contains("realizes"), "{human}");
+}
+
+#[trace("FR-030-AC-25")]
+#[trace("FR-041-AC-6")]
+#[test]
+fn design_module_discovery_without_module_is_bounded_by_the_first_repo_member() {
+    let world = World::new(DESIGN);
+    let a = world.repo("a", &[("SIG-001", doc("SIG-001", "Sigil", &[], &[]))]);
+    let b = world.repo("b", &[("SIG-002", doc("SIG-002", "Sigil", &[], &[]))]);
+    // Each member carries its own module at its root, with different relation
+    // names, so the run never falls through to host-installed modules.
+    let manifest_a = fs::read_to_string(world.module_dir().join("manifest.yaml")).unwrap();
+    fs::write(a.join("manifest.yaml"), &manifest_a).unwrap();
+    fs::write(
+        b.join("manifest.yaml"),
+        manifest_a
+            .replace("sigil-has-beacon", "sigil-has-lamp")
+            .replace("sigil-lit-by", "sigil-lamped-by"),
+    )
+    .unwrap();
+    let (arg_a, arg_b) = (
+        format!("o/a={}", a.display()),
+        format!("o/b={}", b.display()),
+    );
+    let run = |first: &str, second: &str| {
+        let mut command = common::quire();
+        command.args(["relations", "--design", "--repo", first, "--repo", second]);
+        command.output().unwrap()
+    };
+    let a_first = run(&arg_a, &arg_b);
+    assert!(a_first.status.success(), "{}", stderr(&a_first));
+    let text = stdout(&a_first);
+    assert!(
+        text.contains("sigil-has-beacon") && !text.contains("sigil-has-lamp"),
+        "{text}"
+    );
+    let b_first = run(&arg_b, &arg_a);
+    assert!(b_first.status.success(), "{}", stderr(&b_first));
+    let text = stdout(&b_first);
+    assert!(
+        text.contains("sigil-has-lamp") && !text.contains("sigil-has-beacon"),
+        "{text}"
+    );
 }
 
 fn assert_invalid(output: &Output, needles: &[&str]) {
