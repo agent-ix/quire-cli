@@ -125,3 +125,5 @@ scope:
 | FND-002 | fixed | verified in commit 3746178 |
 | FND-003 | fixed | verified in commit 3746178 |
 | FND-004 | fixed | verified in commit 3746178 |
+| FND-005 | fixed | verified in commit e495fd9 |
+| FND-006 | fixed | verified in commit e495fd9 |

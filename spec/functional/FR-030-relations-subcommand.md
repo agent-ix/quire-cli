@@ -40,7 +40,7 @@ chain name: which rows exist comes from the loaded modules' `traceability.requir
 ### One corpus input for `relations` and `validate --okf`
 
 `--repo <ORG/REPO>=<DIR>` is repeatable. Each occurrence names a member identity and its repository
-root, and the members are loaded as one corpus by quire-rs [FR-085](ix://agent-ix/quire-rs/FR-085). For `validate --okf` the CLI calls the quire-rs FR-085 extension of [FR-038](ix://agent-ix/quire-rs/FR-038), `validate_corpus` (FR-085-AC-16 to AC-20), passing one root per member in flag order and the posture of FR-014; the member identity in each finding is the engine's source-member `repo` field (FR-085-AC-19). The same flag, with the same meaning, is accepted by
+root, and the members are loaded as one corpus by quire-rs [FR-085](ix://agent-ix/quire-rs/FR-085). For `validate --okf` the CLI calls the quire-rs FR-085 extension of [FR-038](ix://agent-ix/quire-rs/FR-038), `validate_corpus` (FR-085-AC-16 to AC-20), passing one `(document_root, reference_root)` pair per member in flag order and the posture of FR-014. For `--repo o/a=<DIR>` the pair is `(<DIR>/spec, <DIR>)`, the same pair the single-repository path of FR-014 derives from `--scope` (quire-rs FR-049-AC-9), so path-based declarations resolve against the member's repository root; the member identity in each finding is the engine's source-member `repo` field (FR-085-AC-19). The same flag, with the same meaning, is accepted by
 `quire validate --okf` ([FR-004](./FR-004-validate-subcommand.md), [FR-014](./FR-014-validate-okf-bundle.md)),
 so a finding that depends on an edge into a sibling repository, such as a classified NFR whose
 mitigated hazard lives elsewhere, is reachable from `validate` and not only from `relations`. With
@@ -99,6 +99,7 @@ cause; a run that emits a complete report and then fails `--strict` exits 1.
 | FR-030-AC-20 | `quire validate --okf --repo o/a=<A> --repo o/b=<B> --module $M` over a fixture where a classified requirement in `o/a` mitigates a hazard in `o/b` carries no finding bearing the fixture relation's own `check` token for it, and with the `o/b` flag removed carries that finding, naming the member identity `o/a`. | Test |
 | FR-030-AC-21 | `quire validate --repo ...` without `--okf` exits 3 naming the missing flag. | Test |
 | FR-030-AC-23 | `quire validate --okf --repo o/a=<A> --scope <DIR>` exits 3 naming both flags, and `quire validate <DIR> --okf --repo o/a=<A>` (a positional bundle directory) exits 3 naming the positional argument and `--repo`. | Test |
+| FR-030-AC-24 | `quire validate --okf --repo o/a=<A> --repo o/b=<B> --module $M` over a fixture where member `o/a` holds `<A>/spec/tests.md` and the module declares a `document: spec/tests.md` target: the target is minted for `o/a` and not for `o/b`, which lacks the file, so each member's declarations resolve against its own `<DIR>`, not `<DIR>/spec`. | Test |
 | FR-030-AC-22 | The CLI source holds no hazard, threat or safety-classification name, and delegates the report to quire-rs. | Inspection |
 
 ## Dependencies
