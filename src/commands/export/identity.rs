@@ -43,6 +43,8 @@ pub(super) struct Source {
     pub(super) body: String,
     /// The whole committed blob, the text that is validated.
     pub(super) committed: String,
+    /// The shared git directory of the source repository.
+    pub(super) repository: PathBuf,
 }
 
 /// Reads the committed revision of `input` and assembles its identity.
@@ -114,6 +116,7 @@ pub(super) fn resolve(
         },
         body: parsed.body.to_string(),
         committed,
+        repository: repo.common.clone(),
     })
 }
 

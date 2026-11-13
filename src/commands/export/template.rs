@@ -103,13 +103,13 @@ pub(super) fn front_matter(identity: &Identity, to: Format) -> String {
     front
 }
 
-const PAGE_BREAK_TYPST: &str = "#pagebreak()";
-const PAGE_BREAK_OPENXML: &str = r#"<w:p><w:r><w:br w:type="page"/></w:r></w:p>"#;
-const TOC_TYPST: &str = "#outline(depth: 3)";
-const TOC_OPENXML: &str = r#"<w:p><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \o "1-3" \h \z \u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>"#;
+pub(super) const PAGE_BREAK_TYPST: &str = "#pagebreak()";
+pub(super) const PAGE_BREAK_OPENXML: &str = r#"<w:p><w:r><w:br w:type="page"/></w:r></w:p>"#;
+pub(super) const TOC_TYPST: &str = "#outline(depth: 3)";
+pub(super) const TOC_OPENXML: &str = r#"<w:p><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \o "1-3" \h \z \u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>"#;
 
 /// A raw block of the output format.
-fn raw_block(to: Format, typst: &str, openxml: &str) -> String {
+pub(super) fn raw_block(to: Format, typst: &str, openxml: &str) -> String {
     let (kind, content) = match to {
         Format::Pdf => ("typst", typst),
         Format::Docx => ("openxml", openxml),
