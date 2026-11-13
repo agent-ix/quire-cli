@@ -33,14 +33,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-      # Tolerate the reserved Windows name tests/fixtures/contexts/CON.json when
-      # git validates tree paths during checkout. Combined with the sparse
-      # checkout below (which never materializes tests/ on disk), this lets the
-      # win32 job clone. Honored by every git invocation, incl. actions/checkout.
-      # No-op on Linux/macOS.
-      GIT_CONFIG_COUNT: "1"
-      GIT_CONFIG_KEY_0: core.protectNTFS
-      GIT_CONFIG_VALUE_0: "false"
     # A hung step otherwise blocks for GitHub's 6-hour default. `Install musl
     # toolchain` hung twice in a row on the x86_64 runner,
     # both times leaving the release in_progress with three of four builds
@@ -62,10 +54,6 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-2025
     steps:
-      # Sparse checkout: building the binary only needs the crate sources and the
-      # root manifests. This also skips tests/fixtures, which contains an upstream
-      # fixture named CON.json — a reserved device name that git cannot check out
-      # on Windows (would fail the win32 job at checkout).
       - uses: actions/checkout@v4
         with:
           sparse-checkout: |
