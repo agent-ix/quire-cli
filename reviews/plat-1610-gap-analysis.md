@@ -60,3 +60,23 @@ There are no medium or high gaps. Every FR-038 AC has a tagged test, and FR-038-
 4. A malformed `signed_at` is refused with exit 3 (FND-004 is a spec gap). The refusal is the right behaviour.
 
 FND-001 through FND-006 are spec and trace refinements that can be addressed in the spec or accepted. The medium code-review finding (SR-14573 FND-001) is the one blocker.
+
+## Dispositions
+
+Round 1, checked against fix commit 723ed9d.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-038-AC-8 is reworded to say that two source repositories give a byte-identical `in/approval.md`. The new test `the_block_is_the_same_whatever_the_source_repository` builds two rigs with different commits and compares the blocks. |
+| FND-002 | fixed | The FR-038 bullet now prefixes only a recorded Meaning with `claimed:`, and `not recorded` is not prefixed. This matches the code. |
+| FND-003 | fixed | Each value is written as a JSON string and the values are joined by `, `. The spec states this, and `one_meaning_with_a_separator_differs_from_two_meanings` tests it. |
+| FND-004 | fixed | The FR-040 Approval invalid row now lists a member of the wrong type, a file above 16 MiB, a non-regular file, non-UTF-8 content and an invalid signed_at. |
+| FND-005 | fixed | AC-4 now names the only time input the export has (the source commit date) instead of a process clock. The test varies TZ and the commit date and asserts the blocks are byte-identical. |
+| FND-006 | fixed | `two_approvals_show_person_time_and_meaning_after_the_document` is now tagged FR-038-AC-3, and its proxy FR-038-AC-8 tag is removed. |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-007 | low | The new FR-038 bullet says each line break and control character in a verdict value is replaced by a space. Meaning values are JSON-quoted before `cell()` runs, so a line break, tab or C0 control in a meaning shows as the literal text `\n`, `\t` or `\u0007`, not as a space. The output is safe (one line, no markup), but the code does not match the spec sentence for the Meaning cell. Either word the bullet to except JSON-quoted meaning values, or flatten before quoting. | spec/functional/FR-038-approval-block.md:69-71, src/commands/export/approval.rs:143-149 |
+| FND-008 | low | `read_bounded` makes a permission refusal on an `--approval` file exit 2, but FR-040 has no "Approval unreadable" row, as it does for the template ("Template unreadable ... 2"). The Approval invalid row implies exit 3 for every file failure. | spec/functional/FR-040-export-template-and-identity-errors.md:39, src/commands/export/custom.rs:71-81 |

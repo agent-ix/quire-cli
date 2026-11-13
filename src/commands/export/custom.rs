@@ -8,8 +8,8 @@ use std::path::Path;
 use super::Format;
 use crate::commands::failure;
 
-/// The largest template accepted.
-const MAX_TEMPLATE_BYTES: u64 = 16 * 1024 * 1024;
+/// The largest template or approval file accepted.
+const MAX_INPUT_FILE_BYTES: u64 = 16 * 1024 * 1024;
 
 /// The extension a template for `to` must have.
 fn extension(to: Format) -> &'static str {
@@ -53,10 +53,10 @@ pub(super) fn read_bounded(flag: &str, path: &Path) -> anyhow::Result<Vec<u8>> {
     }
     // One byte past the limit tells an oversized file from one at the limit.
     let mut bytes = Vec::new();
-    file.take(MAX_TEMPLATE_BYTES + 1)
+    file.take(MAX_INPUT_FILE_BYTES + 1)
         .read_to_end(&mut bytes)
         .map_err(|error| io_error(flag, path, error))?;
-    if bytes.len() as u64 > MAX_TEMPLATE_BYTES {
+    if bytes.len() as u64 > MAX_INPUT_FILE_BYTES {
         return Err(invalid(flag, path, "larger than 16 MiB"));
     }
     Ok(bytes)
@@ -104,11 +104,26 @@ mod tests {
         assert!(load(&folder, Format::Pdf).is_err());
         assert!(load(&dir.path().join("absent.typ"), Format::Pdf).is_err());
         let big = dir.path().join("big.typ");
-        fs::write(&big, vec![0u8; MAX_TEMPLATE_BYTES as usize + 1]).expect("write");
+        fs::write(&big, vec![0u8; MAX_INPUT_FILE_BYTES as usize + 1]).expect("write");
         assert!(load(&big, Format::Pdf).is_err());
         let exact = dir.path().join("exact.typ");
-        fs::write(&exact, vec![0u8; MAX_TEMPLATE_BYTES as usize]).expect("write");
+        fs::write(&exact, vec![0u8; MAX_INPUT_FILE_BYTES as usize]).expect("write");
         assert!(load(&exact, Format::Pdf).is_ok());
+    }
+
+    #[test]
+    #[trace("FR-040-AC-5")]
+    fn an_unreadable_approval_file_is_exit_2() {
+        let denied = io_error(
+            "--approval",
+            Path::new("v.json"),
+            std::io::ErrorKind::PermissionDenied.into(),
+        );
+        assert_eq!(
+            failure::outcome(&denied),
+            ix_cli_kit::exit::Outcome::Refused
+        );
+        assert!(format!("{denied:#}").contains("--approval 'v.json'"));
     }
 
     #[test]

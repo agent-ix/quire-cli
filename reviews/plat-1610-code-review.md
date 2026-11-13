@@ -53,3 +53,14 @@ Checked and correct:
 - Not adding `deny_unknown_fields` to `Verdict` is justified: the struct reads a subset of a producer's payload that carries `trust`, `binding` and other members.
 
 Rebase risk: PR #192 (PLAT-1609) edits the same `Generated`/`Plan` structs in producer.rs, the same `Generated` literals in export.rs, bundle.rs and json.rs, and appends tests at the same point of tests/cli_export.rs (after line 3175). A textual conflict is certain, and resolving it is mechanical.
+
+## Dispositions
+
+Round 1, checked against fix commit 723ed9d. The fixed head was also run end to end over real `approval-verify` verdicts.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | The new `mapped()` fixture (signed_valid, mapped `signature.signer.principal`, `presence: missing` with no values for meaning_missing) matches the real wrong_record and meaning_missing verdicts. The test asserts Person `Wren Mapped` and `Maya Mapped`, so deleting the `.or_else` now fails it. |
+| FND-002 | fixed | `--approval` is read through `read_bounded`, shared with `--template`: regular file only (checked before open), at most 16 MiB, otherwise exit 3. A FIFO and an oversized file are tested. |
+| FND-003 | fixed | `format_instant` now validates month, day of month (leap years by the Gregorian rule), hour, minute and second. A unit test covers 2026-13-45, 02-30, a non-leap 02-29, month 00, hour 24, minute 60 and second 60, and accepts 2024-02-29. |
+| FND-004 | fixed | `is_format_control` maps U+061C, U+200E, U+200F, U+202A-U+202E and U+2066-U+2069, plus U+2028 and U+2029, to a space. A unit test covers this, and a real verdict carrying U+202E was flattened. |

@@ -143,7 +143,7 @@ fn row(verdict: &Verdict, path: &Path) -> anyhow::Result<[String; 5]> {
 fn quoted(values: &[String]) -> String {
     values
         .iter()
-        .map(|value| Value::String(value.clone()).to_string())
+        .map(|value| Value::String(flatten(value)).to_string())
         .collect::<Vec<_>>()
         .join(", ")
 }
@@ -188,10 +188,10 @@ fn is_format_control(ch: char) -> bool {
     )
 }
 
-/// A cell the converter shows as literal text on one line.
-fn cell(text: &str) -> String {
-    let flat: String = text
-        .chars()
+/// The text with each control character, line break and bidirectional control
+/// replaced by a space.
+fn flatten(text: &str) -> String {
+    text.chars()
         .map(|ch| {
             if ch.is_control() || is_format_control(ch) {
                 ' '
@@ -199,8 +199,12 @@ fn cell(text: &str) -> String {
                 ch
             }
         })
-        .collect();
-    escape_markdown(&flat)
+        .collect()
+}
+
+/// A cell the converter shows as literal text on one line.
+fn cell(text: &str) -> String {
+    escape_markdown(&flatten(text))
 }
 
 /// The level-1 heading `Approval` and the pipe table, one row per entry.
@@ -262,6 +266,8 @@ mod tests {
     #[test]
     #[trace("FR-038-AC-5")]
     fn a_cell_has_no_markup_and_no_line_break() {
+        let quoted_flat = quoted(&["a\nb\tc".to_string(), "d".to_string()]);
+        assert_eq!(quoted_flat, "\"a b c\", \"d\"");
         let bidi = cell("a\u{202E}b\u{2066}c\u{200F}d\u{061C}e");
         assert!(bidi.chars().all(|ch| !is_format_control(ch)), "{bidi}");
         let text = cell("*x* `#pagebreak()`{=typst} | a\nb\u{2028}c");

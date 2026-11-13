@@ -68,7 +68,8 @@ in the column title.
   text itself is shown verbatim.
 - The command SHALL replace each line break, control character and Unicode
   bidirectional control (U+061C, U+200E, U+200F, U+202A to U+202E, U+2066 to
-  U+2069) in a verdict value by a space.
+  U+2069) in a verdict value by a space, a Meaning value before it is written as a
+  JSON string.
 - The command SHALL escape every verdict value it writes into `in/approval.md`
   as [FR-034](./FR-034-document-identity.md) section C states, so a principal or
   a meaning typed by a signer shows as literal text and cannot add a raw block,
