@@ -3463,6 +3463,9 @@ fn real_command(input: &[&Path], to: &str) -> Command {
     command
 }
 
+/// A named way to build the export command of one scenario.
+type Scenario<'a> = Box<dyn Fn() -> Command + 'a>;
+
 #[trace("NFR-011-AC-1", "NFR-011-AC-2", "NFR-011-AC-3", "NFR-011-AC-4")]
 #[test]
 #[ignore = "needs real pandoc, typst, unzip and pdftotext on PATH"]
@@ -3471,7 +3474,7 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
     let [one, two, three] = bundle_documents(&rig);
     let pdf_template = org_template(&rig, "org.typ", TYPST_ORG_TEMPLATE.as_bytes());
     for to in ["docx", "pdf"] {
-        let scenarios: Vec<(&str, Box<dyn Fn() -> Command>)> = vec![
+        let scenarios: Vec<(&str, Scenario)> = vec![
             ("default", Box::new(|| real_command(&[&rig.fixture()], to))),
             (
                 "bundle",
