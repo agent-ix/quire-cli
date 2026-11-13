@@ -140,3 +140,10 @@ scope:
 ## Verdict
 
 Pass with findings. FND-001 needs resolving with the quire-rs#668 author because the collision sits in FR-086 against FR-084; FR-041-AC-3 cannot be implemented unambiguously until it is. The `exit 3` for a module set with no `design_relations` overrides the engine's valid `{"relations": []}`, but this matches FR-030-AC-15's existing policy for `required_relations` and is consistent with FR-007; not raised. The `--design` flag and the `no design element` marker are UI wording, not archetype names, so they do not breach the StR-004 boundary.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (head 3bcab5d): AC-4 and the Description now render `realized_criteria`, the key quire-rs FR-086 uses at #668 head ad0986d (FR-086-AC-8, CON-2), distinct from FR-084's `criteria` counts. |
+| FND-002 | fixed | Round 1 (head 3bcab5d): Boundary is now falsifiable by the neutral-name fixture Test (AC-10); AC-11 inspection is limited to delegation. |

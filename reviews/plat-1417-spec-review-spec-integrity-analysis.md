@@ -142,3 +142,12 @@ scope:
 ## Verdict
 
 Pass with findings. FND-001 to FND-003 are real gaps an implementer would trip on; none contradicts FR-007 or StR-004. No compatibility layer, fallback or pin is introduced.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (head 3bcab5d): `--design --strict` is an invalid request (exit 3 naming both flags), stated in prose and AC-9; consistent with FR-007 class 3. |
+| FND-002 | fixed | Round 1 (head 3bcab5d): Human layout keeps FR-030's state and verification, ends each block with the summary, and AC-4/AC-5 test both. |
+| FND-003 | fixed | Round 1 (head 3bcab5d): Undeclared design_relations entry exits 3 naming the entry with no stdout (Behavior + AC-8), matching FR-086-AC-10 at ad0986d (join fails, no report). |
+| FND-004 | fixed | Round 1 (head 3bcab5d): Split into AC-2 (stdout-only, determinism) and AC-3 (relation selection). |

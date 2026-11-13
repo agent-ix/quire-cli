@@ -140,3 +140,10 @@ scope:
 ## Verdict
 
 Pass with findings. Enablement (quire-rs FR-086 / #668) is correctly separated from this CLI feature; land quire-rs#668 first.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (head 3bcab5d): Relationships now reference quire-rs FR-084 and FR-085; Dependencies list FR-007 and FR-008. |
+| FND-002 | deferred | Round 1 (head 3bcab5d): Not fixable inside this PR: FR-086 lands with agent-ix/quire-rs#668 (open, head ad0986d, consistent with FR-041). Resolved by merge order: merge quire-rs#668 first, then this PR. |
