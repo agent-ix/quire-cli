@@ -66,6 +66,7 @@ pub(super) fn export(args: &Args, kind: Kind, text: &str) -> anyhow::Result<()> 
     let generated = producer::Generated {
         body: &markdown,
         bundle: Vec::new(),
+        approval: None,
         metadata: "{}\n",
         identity_parts: None,
         epoch: REPORT_EPOCH,

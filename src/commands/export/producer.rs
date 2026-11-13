@@ -71,7 +71,7 @@ impl Step {
         }
     }
 
-    fn arguments(self, with_identity: bool, documents: usize) -> Vec<String> {
+    fn arguments(self, with_identity: bool, documents: usize, approval: bool) -> Vec<String> {
         let pandoc = |to: &'static str, output: &'static str, template: [&'static str; 2]| {
             let mut arguments: Vec<String> = [
                 "--sandbox",
@@ -96,6 +96,9 @@ impl Step {
             for number in 1..=documents {
                 arguments.push(format!("in/separator-{number}.md"));
                 arguments.push(format!("in/document-{number}.md"));
+            }
+            if approval {
+                arguments.push("in/approval.md".to_string());
             }
             arguments
         };
@@ -140,6 +143,8 @@ pub(super) struct Generated<'a> {
     /// `in/separator-<n>.md` and `in/document-<n>.md`. Empty for a single export,
     /// where `body` is used.
     pub(super) bundle: Vec<BundleDocument<'a>>,
+    /// The approval block, written to `in/approval.md` and passed last.
+    pub(super) approval: Option<&'a str>,
     pub(super) metadata: &'a str,
     /// Front matter and the template, present for a Markdown input;
     /// a JSON report carries no identity and gets neither.
@@ -204,6 +209,9 @@ pub(super) fn convert(
         files.push(("in/front.md".to_string(), parts.front.as_bytes()));
         files.push((template_name.to_string(), parts.template.as_slice()));
     }
+    if let Some(approval) = generated.approval {
+        files.push(("in/approval.md".to_string(), approval.as_bytes()));
+    }
     for (name, content) in files {
         fs::write(root_path.join(&name), content).with_context(|| format!("writing {name}"))?;
     }
@@ -221,6 +229,7 @@ pub(super) fn convert(
                 step,
                 with_identity: generated.identity_parts.is_some(),
                 documents: generated.bundle.len(),
+                approval: generated.approval.is_some(),
                 epoch: generated.epoch,
             },
         )?;
@@ -249,6 +258,7 @@ struct Plan {
     with_identity: bool,
     /// The number of bundle documents; 0 for a single export.
     documents: usize,
+    approval: bool,
     epoch: i64,
 }
 
@@ -298,7 +308,7 @@ fn request(root: &str, tool: &Tool, plan: Plan) -> Value {
         "procedure": "direct",
         "capabilityRoot": root,
         "arguments": step
-            .arguments(plan.with_identity, plan.documents)
+            .arguments(plan.with_identity, plan.documents, plan.approval)
             .into_iter()
             .map(|value| json!({"kind": "literal", "value": value}))
             .collect::<Vec<_>>(),
