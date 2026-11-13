@@ -10,6 +10,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use quire_cli::safety;
+use quire_rs::traceability::RelationDirection;
 use quire_rs::{
     relation_report, LinkedEntry, RelationReport, RelationReportMember, RelationRow, RowDocument,
     RowState, Verification,
@@ -33,6 +34,8 @@ pub struct Args {
 
     /// Module directory supplying `traceability.required_relations`.
     /// Repeatable; the roots REPLACE ambient discovery (see `quire coverage`).
+    /// Without it, ambient discovery is bounded by the first `--repo` member
+    /// only, so `--repo` order decides which modules load.
     #[arg(long, value_name = "PATH")]
     pub module: Vec<String>,
 
@@ -72,6 +75,14 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             "no loaded module declares `traceability.required_relations`, so there is \
              nothing to report; install a module that declares one or pass --module"
         );
+    }
+
+    if let Some(unknown) = args.relation.iter().find(|name| {
+        !registry
+            .traceability()
+            .is_some_and(|model| model.required_relations.iter().any(|r| &r.name == *name))
+    }) {
+        invalid_request!("unknown --relation '{unknown}': no loaded module declares it");
     }
 
     let mut coverages = Vec::with_capacity(corpus.members.len());
@@ -149,6 +160,18 @@ fn strict_problems(report: &RelationReport) -> Vec<String> {
     problems
 }
 
+fn direction_word(direction: RelationDirection) -> &'static str {
+    match direction {
+        RelationDirection::Incoming => "incoming",
+        RelationDirection::Outgoing => "outgoing",
+        RelationDirection::Either => "either",
+    }
+}
+
+/// How the human report names a kind-mismatch target that has no `type:`; the
+/// engine's own `validate --okf` finding spells it the same way.
+pub(crate) const UNTYPED: &str = "(untyped)";
+
 fn state_word(state: RowState) -> &'static str {
     match state {
         RowState::Uncovered => "uncovered",
@@ -182,7 +205,7 @@ fn render_human(report: &RelationReport) -> String {
         out.push_str(&format!(
             "relation {} ({}, check {})\n",
             section.name,
-            format!("{:?}", section.direction).to_lowercase(),
+            direction_word(section.direction),
             section.check
         ));
         for row in &section.rows {
@@ -225,7 +248,7 @@ fn render_human(report: &RelationReport) -> String {
                     Some(repo) => format!("{repo}:{}", entry.id),
                     None => entry.id.clone(),
                 };
-                let actual = entry.archetype.as_deref().unwrap_or("an untyped document");
+                let actual = entry.archetype.as_deref().unwrap_or(UNTYPED);
                 out.push_str(&format!(
                     "    kind mismatch: {target} is {actual} (via {}), accepted: {}\n",
                     entry.verb,

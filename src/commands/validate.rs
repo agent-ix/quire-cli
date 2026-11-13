@@ -71,7 +71,9 @@ pub struct Args {
     /// load as one corpus (quire-rs FR-085), so an edge into a sibling
     /// repository resolves, and each member's documents are validated against
     /// it with the roots `(<DIR>/spec, <DIR>)`. Each finding names its member.
-    /// Not accepted with --scope or a positional bundle directory.
+    /// Not accepted with --scope or a positional bundle directory. Without
+    /// --module, ambient module discovery is bounded by the first --repo
+    /// member only, so --repo order decides which modules load.
     #[arg(
         long,
         value_name = "ORG/REPO=DIR",

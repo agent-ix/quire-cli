@@ -48,7 +48,9 @@ mitigated hazard lives elsewhere, is reachable from `validate` and not only from
 finding names the member identity. `--repo` together with `--scope`, or with the positional bundle `<DIR>` of FR-014's `--okf` form, is an error, and `--repo` without `--okf` is an error on `validate`.
 
 `--scope` names one repository, loaded as a corpus of one member with no identity. `--module` and
-its closed, ordered semantics are those of FR-017. `--relation` is repeatable and restricts the
+its closed, ordered semantics are those of FR-017. Without `--module`, ambient module discovery is
+bounded by the first `--repo` member only (the member's own `manifest.yaml` or repo-local modules are
+used when it is listed first and ignored otherwise), so `--repo` order decides which modules load. `--relation` is repeatable and restricts the
 report to the named declarations.
 
 An error in this section exits 3 ([FR-007](./FR-007-exit-codes.md)) with a diagnostic naming the
@@ -99,7 +101,7 @@ cause; a run that emits a complete report and then fails `--strict` exits 1.
 | FR-030-AC-20 | `quire validate --okf --repo o/a=<A> --repo o/b=<B> --module $M` over a fixture where a classified requirement in `o/a` mitigates a hazard in `o/b` carries no finding bearing the fixture relation's own `check` token for it, and with the `o/b` flag removed carries that finding, naming the member identity `o/a`. | Test |
 | FR-030-AC-21 | `quire validate --repo ...` without `--okf` exits 3 naming the missing flag. | Test |
 | FR-030-AC-23 | `quire validate --okf --repo o/a=<A> --scope <DIR>` exits 3 naming both flags, and `quire validate <DIR> --okf --repo o/a=<A>` (a positional bundle directory) exits 3 naming the positional argument and `--repo`. | Test |
-| FR-030-AC-24 | `quire validate --okf --repo o/a=<A> --repo o/b=<B> --module $M` over a fixture where member `o/a` holds `<A>/spec/tests.md` and the module declares a `document: spec/tests.md` target: the target is minted for `o/a` and not for `o/b`, which lacks the file, so each member's declarations resolve against its own `<DIR>`, not `<DIR>/spec`. | Test |
+| FR-030-AC-24 | `quire validate --okf --repo o/a=<A> --repo o/b=<B> --module $M` over a fixture where member `o/a` holds `<A>/spec/tests.md` and the module declares an `exclude: ['spec/fixtures/**']` glob on a trace target, with a broken fixture under `spec/fixtures/` in both members: the glob excludes the fixture in `o/a` and in `o/b` when it resolves against each member's own `<DIR>`, and without the glob each member reports its own finding, so each member's declarations resolve against its own `<DIR>`, not `<DIR>/spec`. | Test |
 | FR-030-AC-22 | The CLI source holds no hazard, threat or safety-classification name, and delegates the report to quire-rs. | Inspection |
 
 ## Dependencies
