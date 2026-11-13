@@ -8,6 +8,7 @@ Commands:
   clauses        Evaluate or compare rights-aware module clause sets
   publish-check  Refuse a module that carries restricted clause text
   parse          Parse a markdown document to JSON
+  export         Export a Markdown artifact as PDF or DOCX through producer-execute
   extract        Extract structured records + edges from a document
   lookup         Look up one parsed section by heading, id, or block id
   edit           Edit one section/block of a document in place via byte-exact writeback
