@@ -37,7 +37,7 @@ FR-033 requires.
 | Source not committed | The input is untracked at the source commit or differs from the committed blob (compared with CRLF read as LF). | 3 | Names the file and says to commit it or pass an older `--source-rev`. |
 | Source filtered | The input path carries a git `filter` attribute, including Git LFS. | 3 | Names the file and the filter. |
 | Approval invalid | An `--approval` file is missing, not JSON, not an `engineering-assurance.approval-verify-result/v1` document, or lacks `status`. | 3 | Names the file and the first cause. |
-| Bundle invalid | Inputs from different repositories, more than 256 inputs, or a bundle option with one input. | 3 | Names the cause. |
+| Bundle invalid | Inputs from different repositories or at different source commits, more than 256 inputs, or a bundle option with one input. | 3 | Names the cause. |
 | Option on JSON input | Any option of FR-034 through FR-039 with a JSON input. | 3 | Names the flag. |
 
 - The command SHALL name the first failing cause.

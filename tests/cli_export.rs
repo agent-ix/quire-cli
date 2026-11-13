@@ -2950,7 +2950,7 @@ fn real_docx_bundle_holds_the_separators_in_order_each_after_a_page_break() {
     assert!(!xml.contains("w:val=\"Heading3\""));
 }
 
-#[trace("FR-039-AC-7", "FR-034-AC-1")]
+#[trace("FR-039-AC-7")]
 #[test]
 fn inputs_at_different_commits_of_one_repository_exit_3_naming_both() {
     let rig = Rig::new();
