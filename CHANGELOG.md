@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.45.0] — 2026-11-13
+
+Adopts quire-rs 0.60.0: the FR-058 `when_any` selector on `required_relations` (PLAT-1674), `criticality_field` on obligation sources (PLAT-1597), `design_matrix` (PLAT-1587) and `carried_fields`/`field_consistency` (PLAT-1578).
+
 - PLAT-1554: `quire relations (--scope <DIR> | --repo <ORG/REPO>=<DIR>...) [--relation <NAME>]... [--json] [--strict]` renders the quire-rs two-way relation coverage report (FR-030). `quire validate --okf --repo <ORG/REPO>=<DIR>...` validates the members as one corpus and names the member on each finding. `validate --okf` adapts to `Spec::with_bundle_package` returning a `Result`.
 - **`validate --okf` loads `when_any` (PLAT-1573).** Adopts quire-rs 0.60.0 with the FR-058 `when_any` selector on `required_relations` (PLAT-1674): a module declaring it loads instead of failing with `unknown field when_any`, and only documents in scope of a condition are reported (FR-014-AC-17).
 - **`quire export` (PLAT-1435).** Exports a Markdown artifact to PDF or DOCX. Pandoc (and Typst for PDF) run only through `engineering-assurance producer-execute`; exit 3 for a missing converter or invalid input, exit 4 for a converter failure.
