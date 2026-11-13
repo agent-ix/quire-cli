@@ -3834,6 +3834,32 @@ fn claimed(status: &str, meaning: &[&str]) -> Value {
     )
 }
 
+/// A validly signed tag by a mapped signer, as the verifier reports it for
+/// `wrong_record` and `meaning_missing`: the principal is in the signature
+/// verdict, and an absent meaning has `presence: missing` and no values.
+fn mapped(status: &str, principal: &str, meaning: Option<&[&str]>) -> Value {
+    let signed_off_meaning = match meaning {
+        Some(values) => serde_json::json!({"presence": "present", "values": values}),
+        None => serde_json::json!({"presence": "missing"}),
+    };
+    verdict(
+        status,
+        serde_json::json!({
+            "signature": {
+                "status": "signed_valid",
+                "kind": "tag",
+                "signature_kind": "ssh",
+                "signer": {
+                    "source": "allowed_signers",
+                    "mapping": "mapped",
+                    "principal": principal,
+                },
+                "signed_off_meaning": signed_off_meaning,
+            },
+        }),
+    )
+}
+
 fn verdict_file(rig: &Rig, name: &str, content: &Value) -> PathBuf {
     let path = rig.work(name);
     fs::write(&path, content.to_string()).expect("verdict file");
@@ -3861,7 +3887,7 @@ fn rows(markdown: &str) -> Vec<Vec<String>> {
         .collect()
 }
 
-#[trace("FR-038-AC-1", "FR-038-AC-8", "FR-032-AC-3")]
+#[trace("FR-038-AC-1", "FR-038-AC-3", "FR-032-AC-3")]
 #[test]
 fn two_approvals_show_person_time_and_meaning_after_the_document() {
     let rig = Rig::new();
@@ -3901,10 +3927,10 @@ fn two_approvals_show_person_time_and_meaning_after_the_document() {
     assert_eq!(table.len(), 2, "{block}");
     assert_eq!(table[0][0], "Ada Example");
     assert_eq!(table[0][1], "2026\\-01\\-02 03\\:04\\:05 UTC");
-    assert_eq!(table[0][2], "reviewed and approved");
+    assert_eq!(table[0][2], "\\\"reviewed and approved\\\"");
     assert_eq!(table[0][3], "approved");
     assert_eq!(table[1][0], "Bo Example");
-    assert_eq!(table[1][2], "released\\; second line");
+    assert_eq!(table[1][2], "\\\"released\\\"\\, \\\"second line\\\"");
     // The block is built from the verdict files alone: they sit outside the
     // source repository and nothing else names a person.
     assert!(!block.contains("Fixture"));
@@ -3932,9 +3958,17 @@ fn a_verdict_that_is_not_approved_is_never_shown_as_signed() {
         verdict_file(
             &rig,
             "3.json",
-            &claimed("wrong_record", &["reviewed and approved"]),
+            &mapped(
+                "wrong_record",
+                "Wren Mapped",
+                Some(&["reviewed and approved"]),
+            ),
         ),
-        verdict_file(&rig, "4.json", &claimed("meaning_missing", &[])),
+        verdict_file(
+            &rig,
+            "4.json",
+            &mapped("meaning_missing", "Maya Mapped", None),
+        ),
         verdict_file(
             &rig,
             "5.json",
@@ -3969,12 +4003,16 @@ fn a_verdict_that_is_not_approved_is_never_shown_as_signed() {
     let table = rows(&rig.converter_input("approval.md"));
     assert_eq!(table.len(), 7);
     assert_eq!(table[0][3], "approved");
-    for (index, status) in [(1, "untrusted_signer"), (2, "wrong_record")] {
-        assert_eq!(table[index][0], "unmapped");
+    for (index, status, person) in [
+        (1, "untrusted_signer", "unmapped"),
+        (2, "wrong_record", "Wren Mapped"),
+    ] {
+        assert_eq!(table[index][0], person);
         assert_eq!(table[index][1], "not available");
-        assert_eq!(table[index][2], "claimed\\: reviewed and approved");
+        assert_eq!(table[index][2], "claimed\\: \\\"reviewed and approved\\\"");
         assert_eq!(table[index][3], status.replace('_', "\\_"));
     }
+    assert_eq!(table[3][0], "Maya Mapped");
     assert_eq!(table[3][2], "not recorded");
     assert_eq!(table[4][1], "not available");
     assert_eq!(table[4][2], "not recorded");
@@ -3990,21 +4028,84 @@ fn a_verdict_that_is_not_approved_is_never_shown_as_signed() {
 
 #[trace("FR-038-AC-4")]
 #[test]
-fn the_time_is_the_verdicts_whatever_the_zone() {
+fn the_time_is_the_verdicts_whatever_the_zone_and_the_clock() {
     let rig = Rig::new();
     let file = verdict_file(
         &rig,
         "a.json",
         &approved("Ada Example", "2026-01-02T03:04:05Z", &["ok"]),
     );
-    let output = rig.work("out.docx");
-    let mut command = with_approvals(rig.export(&rig.fixture(), "docx", &output), &[&file]);
-    command.env("TZ", "Pacific/Kiritimati");
-    let result = run(command);
+    let later = rig.commit(
+        "later.md",
+        &fs::read_to_string(export_fixture()).expect("fixture"),
+        "2031-07-08T09:10:11+09:00",
+    );
+    let mut blocks = Vec::new();
+    for (input, zone) in [(rig.fixture(), "UTC"), (later, "Pacific/Kiritimati")] {
+        let mut command =
+            with_approvals(rig.export(&input, "docx", &rig.work("out.docx")), &[&file]);
+        command.env("TZ", zone);
+        let result = run(command);
+        assert!(result.status.success(), "{}", stderr(&result));
+        blocks.push(rig.converter_input("approval.md"));
+    }
+    assert!(blocks[0].contains("2026\\-01\\-02 03\\:04\\:05 UTC"));
+    // Another zone and another source commit time leave the block unchanged.
+    assert_eq!(blocks[0], blocks[1]);
+}
+
+#[trace("FR-038-AC-8")]
+#[test]
+fn the_block_is_the_same_whatever_the_source_repository() {
+    let verdicts = [
+        approved("Ada Example", "2026-01-02T03:04:05Z", &["ok"]),
+        claimed("untrusted_signer", &["ok"]),
+    ];
+    let mut blocks = Vec::new();
+    for date in [COMMIT_DATE, "2031-07-08T09:10:11+09:00"] {
+        let rig = Rig::new();
+        let input = rig.commit(
+            "other.md",
+            &fs::read_to_string(export_fixture()).expect("fixture"),
+            date,
+        );
+        let files: Vec<PathBuf> = verdicts
+            .iter()
+            .enumerate()
+            .map(|(index, verdict)| verdict_file(&rig, &format!("{index}.json"), verdict))
+            .collect();
+        let refs: Vec<&Path> = files.iter().map(PathBuf::as_path).collect();
+        let result = run(with_approvals(
+            rig.export(&input, "docx", &rig.work("out.docx")),
+            &refs,
+        ));
+        assert!(result.status.success(), "{}", stderr(&result));
+        blocks.push(rig.converter_input("approval.md"));
+    }
+    assert_eq!(blocks[0], blocks[1]);
+}
+
+#[trace("FR-038-AC-3")]
+#[test]
+fn one_meaning_with_a_separator_differs_from_two_meanings() {
+    let rig = Rig::new();
+    let one = verdict_file(
+        &rig,
+        "1.json",
+        &approved("A", "2026-01-02T03:04:05Z", &["a, b"]),
+    );
+    let two = verdict_file(
+        &rig,
+        "2.json",
+        &approved("A", "2026-01-02T03:04:05Z", &["a", "b"]),
+    );
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &rig.work("out.docx")),
+        &[&one, &two],
+    ));
     assert!(result.status.success(), "{}", stderr(&result));
-    assert!(rig
-        .converter_input("approval.md")
-        .contains("2026\\-01\\-02 03\\:04\\:05 UTC"));
+    let table = rows(&rig.converter_input("approval.md"));
+    assert_ne!(table[0][2], table[1][2]);
 }
 
 #[trace("FR-038-AC-5")]
@@ -4108,6 +4209,39 @@ fn an_unusable_approval_file_exits_3_naming_it_before_any_converter() {
     );
 }
 
+#[trace("FR-040-AC-5", "FR-040-AC-6")]
+#[test]
+fn a_fifo_an_oversized_file_and_an_impossible_time_are_refused_naming_the_file() {
+    let rig = Rig::new();
+    let fifo = rig.work("fifo.json");
+    let made = Command::new("mkfifo")
+        .arg(&fifo)
+        .status()
+        .expect("mkfifo runs");
+    assert!(made.success());
+    let big = rig.work("big.json");
+    let file = fs::File::create(&big).expect("big");
+    file.set_len(16 * 1024 * 1024 + 1).expect("sparse size");
+    let impossible = verdict_file(
+        &rig,
+        "time.json",
+        &approved("A", "2026-13-45T99:99:99Z", &["m"]),
+    );
+    for bad in [&fifo, &big, &impossible] {
+        let result = run(with_approvals(
+            rig.export(&rig.fixture(), "docx", &rig.work("out.docx")),
+            &[bad],
+        ));
+        assert_eq!(result.status.code(), Some(3), "{bad:?}");
+        assert!(
+            stderr(&result).contains(&bad.display().to_string()),
+            "{}",
+            stderr(&result)
+        );
+    }
+    assert!(rig.requests().is_empty());
+}
+
 #[trace("FR-038-AC-7")]
 #[test]
 fn an_export_without_approval_has_no_approval_input() {
@@ -4197,7 +4331,7 @@ fn real_converters_show_the_approval_block_after_the_document() {
         for expected in [
             "Ada Example",
             "2026-01-02 03:04:05 UTC",
-            "claimed: reviewed and approved",
+            "claimed: \"reviewed and approved\"",
             "untrusted_signer",
             "not available",
             "Pipe | Person",

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::read_utf8;
+use super::custom::{invalid, read_bounded};
 use super::template::escape_markdown;
 
 const RESULT_PROTOCOL: &str = "engineering-assurance.approval-verify-result/v1";
@@ -66,7 +66,9 @@ pub(super) fn load(paths: &[PathBuf]) -> anyhow::Result<Option<String>> {
     }
     let mut rows = Vec::with_capacity(paths.len());
     for path in paths {
-        let text = read_utf8(path)?;
+        let bytes = read_bounded("--approval", path)?;
+        let text =
+            String::from_utf8(bytes).map_err(|_| invalid("--approval", path, "not valid UTF-8"))?;
         rows.push(row(&parse(path, &text)?, path)?);
     }
     Ok(Some(markdown(&rows)))
@@ -118,8 +120,8 @@ fn row(verdict: &Verdict, path: &Path) -> anyhow::Result<[String; 5]> {
         })
         .filter(|values| !values.is_empty());
     let meaning = match recorded {
-        Some(values) if approved => values.join("; "),
-        Some(values) => format!("claimed: {}", values.join("; ")),
+        Some(values) if approved => quoted(values),
+        Some(values) => format!("claimed: {}", quoted(values)),
         None => NOT_RECORDED.to_string(),
     };
     let verdict_text = match &verdict.reason {
@@ -136,6 +138,16 @@ fn row(verdict: &Verdict, path: &Path) -> anyhow::Result<[String; 5]> {
     Ok([person.to_string(), signed_at, meaning, verdict_text, record])
 }
 
+/// Each value as a JSON string, joined by `, `, so the boundary between two
+/// values stays visible whatever a value holds.
+fn quoted(values: &[String]) -> String {
+    values
+        .iter()
+        .map(|value| Value::String(value.clone()).to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// `YYYY-MM-DDTHH:MM:SSZ` as `YYYY-MM-DD HH:MM:SS UTC`; `None` for any other
 /// shape.
 fn format_instant(instant: &str) -> Option<String> {
@@ -148,7 +160,32 @@ fn format_instant(instant: &str) -> Option<String> {
             19 => *byte == b'Z',
             _ => byte.is_ascii_digit(),
         });
-    shaped.then(|| format!("{} {} UTC", &instant[..10], &instant[11..19]))
+    if !shaped {
+        return None;
+    }
+    let number = |range: std::ops::Range<usize>| instant[range].parse::<u32>().ok();
+    let (year, month, day) = (number(0..4)?, number(5..7)?, number(8..10)?);
+    let (hour, minute, second) = (number(11..13)?, number(14..16)?, number(17..19)?);
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return None,
+    };
+    let valid = (1..=days).contains(&day) && hour < 24 && minute < 60 && second < 60;
+    valid.then(|| format!("{} {} UTC", &instant[..10], &instant[11..19]))
+}
+
+/// Line and paragraph separators and the bidirectional controls, which can
+/// split a row or visually reorder a cell.
+fn is_format_control(ch: char) -> bool {
+    matches!(
+        ch,
+        '\u{2028}' | '\u{2029}' | '\u{061C}' | '\u{200E}' | '\u{200F}'
+            | '\u{202A}'..='\u{202E}' | '\u{2066}'..='\u{2069}'
+    )
 }
 
 /// A cell the converter shows as literal text on one line.
@@ -156,7 +193,7 @@ fn cell(text: &str) -> String {
     let flat: String = text
         .chars()
         .map(|ch| {
-            if ch.is_control() || matches!(ch, '\u{2028}' | '\u{2029}') {
+            if ch.is_control() || is_format_control(ch) {
                 ' '
             } else {
                 ch
@@ -208,11 +245,25 @@ mod tests {
         assert_eq!(format_instant("2026-01-02T03:04:05+01:00"), None);
         assert_eq!(format_instant("2026-01-02 03:04:05Z"), None);
         assert_eq!(format_instant("é026-01-02T03:04:05Z"), None);
+        for bad in [
+            "2026-13-45T99:99:99Z",
+            "2026-02-30T00:00:00Z",
+            "2025-02-29T00:00:00Z",
+            "2026-00-10T00:00:00Z",
+            "2026-01-02T24:00:00Z",
+            "2026-01-02T03:60:00Z",
+            "2026-01-02T03:04:60Z",
+        ] {
+            assert_eq!(format_instant(bad), None, "{bad}");
+        }
+        assert!(format_instant("2024-02-29T23:59:59Z").is_some());
     }
 
     #[test]
     #[trace("FR-038-AC-5")]
     fn a_cell_has_no_markup_and_no_line_break() {
+        let bidi = cell("a\u{202E}b\u{2066}c\u{200F}d\u{061C}e");
+        assert!(bidi.chars().all(|ch| !is_format_control(ch)), "{bidi}");
         let text = cell("*x* `#pagebreak()`{=typst} | a\nb\u{2028}c");
         assert!(!text.contains('\n'));
         assert!(!text.contains('\u{2028}'));
