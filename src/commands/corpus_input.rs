@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use quire_cli::safety;
-use quire_rs::corpus::walk::load_repo;
+use quire_rs::corpus::walk::{load_repo, RepoLoad};
 use quire_rs::{CorpusMember, Spec};
 
 /// One parsed `--repo` value.
@@ -46,6 +46,9 @@ pub struct Member {
     pub root: PathBuf,
     /// The document root, `<root>/spec`.
     pub document_root: PathBuf,
+    /// The documents loaded from `document_root`, kept so a command that
+    /// needs a per-member view walks them once.
+    pub load: RepoLoad,
 }
 
 /// The members of a corpus and the corpus built from them.
@@ -82,17 +85,24 @@ impl Corpus {
             let document_root =
                 safety::validate_dir_path("document root", &document_root.display().to_string())
                     .with_context(|| format!("validating document root of member '{named}'"))?;
+            let load = load_repo(&document_root);
             loaded.push(CorpusMember {
                 identity: identity.clone(),
-                load: load_repo(&document_root),
+                load: load.clone(),
             });
             members.push(Member {
                 root,
                 document_root,
+                load,
             });
         }
         let spec = Spec::from_members(loaded).map_err(|e| invalid_error!("{e}"))?;
         Ok(Self { members, spec })
+    }
+
+    /// One member's documents as a one-member spec, from the load already made.
+    pub fn member_spec(member: &Member) -> Spec {
+        Spec::from_repo(member.load.clone())
     }
 
     /// The `(document_root, reference_root)` pair of each member, in order.

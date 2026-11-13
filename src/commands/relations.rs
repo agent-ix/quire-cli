@@ -87,10 +87,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     let mut coverages = Vec::with_capacity(corpus.members.len());
     for member in &corpus.members {
-        coverages.push(super::coverage::compute_report(
+        coverages.push(super::coverage::compute_report_over(
             ctx,
             &member.root,
             &registry,
+            &Corpus::member_spec(member),
         )?);
     }
     let inputs: Vec<RelationReportMember<'_>> = corpus

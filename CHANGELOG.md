@@ -9,6 +9,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **`quire matrix` design column (PLAT-1587, PLAT-1589; FR-043).** `matrix` calls quire-rs `design_matrix`: a `Design` column between `Statement` and `Binders` (and `design`, `design_state` in TSV), `Design gap:` lines, `--format human`, and `--repo <ORG/REPO>=<DIR>` for sibling-repository elements (`repo:` lines, a TSV `repo` column; conflicts with `--scope`). `--strict` also exits 1 for each live requirement with an uncovered design block, naming `design gap: [<repo>:]<document> <check>` on stderr. Output is unchanged when no module declares `design_relations`.
+
 ## [0.45.0] — 2026-11-13
 
 Adopts quire-rs 0.60.0: the FR-058 `when_any` selector on `required_relations` (PLAT-1674), `criticality_field` on obligation sources (PLAT-1597), `design_matrix` (PLAT-1587) and `carried_fields`/`field_consistency` (PLAT-1578).

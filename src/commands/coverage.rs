@@ -228,7 +228,7 @@ pub(super) fn compute_report(
     // refusal (`super::require_traceability_model`) — checked and returned in
     // one call rather than checked here and re-derived with a second
     // `.expect()` below.
-    let model = super::require_traceability_model(registry)?;
+    super::require_traceability_model(registry)?;
 
     // Two roots, one scope (CR-045): the document walk is bounded to
     // `<scope>/spec`; the code walk covers `<scope>` minus the document
@@ -243,6 +243,18 @@ pub(super) fn compute_report(
     let spec_root = safety::validate_dir_path("document root", &spec_root.display().to_string())
         .with_context(|| format!("validating document root '{}'", spec_root.display()))?;
     let spec = Spec::from_path(&spec_root);
+    compute_report_over(ctx, scope, registry, &spec)
+}
+
+/// [`compute_report`] over documents the caller already loaded, so a command
+/// that also needs them for a corpus walks each member once.
+pub(super) fn compute_report_over(
+    ctx: &Ctx,
+    scope: &Path,
+    registry: &Registry,
+    spec: &Spec,
+) -> anyhow::Result<quire_rs::CoverageReport> {
+    let model = super::require_traceability_model(registry)?;
     // The exclusion is derived from the same constant the root is, rather
     // than a second literal `"spec"` that can drift from it
     // (agent-ix/quire-rs#113). The engine compares by canonicalized
@@ -276,7 +288,7 @@ pub(super) fn compute_report(
     }
     let graph = quire_rs::symbols::trace::bind(&extraction, model);
 
-    compute_coverage(&spec, registry, &graph, scope).map_err(|e| invalid_error!("{e}"))
+    compute_coverage(spec, registry, &graph, scope).map_err(|e| invalid_error!("{e}"))
 }
 
 /// The four checks the `coverage` severity pack owns (FR-017-AC-13). The
