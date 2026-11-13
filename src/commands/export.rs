@@ -6,6 +6,7 @@
 //! under a temporary capability root, and copies the result to `--output`.
 //! Markdown parsing and validation stay in `quire-rs` (StR-004).
 
+mod bundle;
 mod custom;
 mod identity;
 mod json;
@@ -46,9 +47,10 @@ pub enum Kind {
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// A Markdown (`.md`) or JSON (`.json`) file to export.
-    #[arg(value_name = "INPUT")]
-    pub input: PathBuf,
+    /// A Markdown (`.md`) or JSON (`.json`) file to export. Several Markdown
+    /// files are exported as one bundle, in the order given.
+    #[arg(value_name = "INPUT", required = true)]
+    pub input: Vec<PathBuf>,
 
     /// Output format.
     #[arg(long, value_enum)]
@@ -88,6 +90,16 @@ pub struct Args {
     #[arg(long, value_name = "PATH")]
     pub template: Option<PathBuf>,
 
+    /// Title of a bundle of several inputs; required for a bundle, refused for
+    /// one input.
+    #[arg(long, value_name = "TEXT")]
+    pub bundle_title: Option<String>,
+
+    /// Id of a bundle of several inputs; required for a bundle, refused for one
+    /// input.
+    #[arg(long, value_name = "ID")]
+    pub bundle_id: Option<String>,
+
     /// Path to `pandoc`, overriding the PATH lookup.
     #[arg(long, value_name = "PATH")]
     pub pandoc: Option<PathBuf>,
@@ -101,6 +113,12 @@ pub struct Args {
     pub engineering_assurance: Option<PathBuf>,
 }
 
+impl Args {
+    fn has_bundle_option(&self) -> bool {
+        self.bundle_title.is_some() || self.bundle_id.is_some()
+    }
+}
+
 /// The input class an extension selects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InputClass {
@@ -109,10 +127,14 @@ enum InputClass {
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let class = input_class(&args.input)?;
+    let input = &args.input[0];
+    let class = input_class(input)?;
+    if args.input.len() > 1 || (class == InputClass::Markdown && args.has_bundle_option()) {
+        return bundle::run(ctx, &args);
+    }
     check_flags(&args, class)?;
-    check_output_is_not_input(&args.input, &args.output)?;
-    let text = read_utf8(&args.input)?;
+    check_output_is_not_input(input, &args.output)?;
+    let text = read_utf8(input)?;
     check_output_target(&args.output)?;
     match class {
         InputClass::Markdown => export_markdown(ctx, &args, &text),
@@ -151,6 +173,12 @@ fn check_flags(args: &Args, class: InputClass) -> anyhow::Result<()> {
         }
         InputClass::Json if args.source_rev.is_some() => {
             invalid_request!("--source-rev is refused for a JSON input");
+        }
+        InputClass::Json if args.bundle_title.is_some() => {
+            invalid_request!("--bundle-title is refused for a JSON input");
+        }
+        InputClass::Json if args.bundle_id.is_some() => {
+            invalid_request!("--bundle-id is refused for a JSON input");
         }
         InputClass::Json if args.release.is_some() => {
             invalid_request!("--release is refused for a JSON input");
@@ -238,7 +266,7 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
         .map(|path| custom::load(path, args.to))
         .transpose()?;
     let source = identity::resolve(
-        &args.input,
+        &args.input[0],
         text,
         &identity::SourceOptions {
             repo: args.source_repo.as_deref(),
@@ -250,7 +278,7 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
     validate::run_with(
         ctx,
         validate::Args {
-            documents: vec![args.input.display().to_string()],
+            documents: vec![args.input[0].display().to_string()],
             module: args.module.clone(),
             scope: ".".to_string(),
             archetype: None,
@@ -266,6 +294,7 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
     let identity = &source.identity;
     let generated = producer::Generated {
         body: &source.body,
+        bundle: Vec::new(),
         metadata: &template::metadata_yaml(identity)?,
         identity_parts: Some(producer::IdentityParts {
             front: &template::front_matter(identity, args.to),

@@ -2543,3 +2543,635 @@ fn real_docx_uses_the_organisation_reference_footer_and_keeps_the_title_page() {
     assert!(docx_parts(&docx, "word/footer").contains("ORG-FOOTER-MARKER"));
     assert!(docx_text(&docx).contains("Fictional export fixture"));
 }
+
+/// Commits a fixture document `name` with its own id and title and a heading
+/// at each of two levels, and returns its path.
+fn bundle_document(rig: &Rig, name: &str, id: &str, title: &str) -> PathBuf {
+    let text = format!(
+        "---\nid: {id}\ntitle: {title}\nversion: \"2.0\"\ntype: FR\n---\n# [{id}] {title} Overview\n\n\
+         ## Description\n\nThe {id} system SHALL do a real, concrete, normative thing.\n\n\
+         ## Specification\n\nThe implementation SHALL satisfy the described behavior.\n\n\
+         ## Acceptance Criteria\n\n| ID | Criteria |\n|----|----------|\n\
+         | {id}-AC-1 | It does the thing |\n"
+    );
+    rig.commit(name, &text, COMMIT_DATE)
+}
+
+/// Three committed documents `FR-011`, `FR-012` and `FR-013`.
+fn bundle_documents(rig: &Rig) -> [PathBuf; 3] {
+    [
+        bundle_document(rig, "one.md", "FR-011", "Alpha"),
+        bundle_document(rig, "two.md", "FR-012", "Beta"),
+        bundle_document(rig, "three.md", "FR-013", "Gamma"),
+    ]
+}
+
+fn bundle_command(rig: &Rig, inputs: &[&Path], to: &str, output: &Path) -> Command {
+    let mut command = rig.export(inputs[0], to, output);
+    command
+        .args(&inputs[1..])
+        .args(["--bundle-title", "Release Dossier", "--bundle-id", "BND-7"]);
+    command
+}
+
+fn pandoc_inputs(request: &Value) -> Vec<&str> {
+    let arguments = literals(request);
+    let start = arguments
+        .iter()
+        .position(|argument| *argument == "in/front.md")
+        .expect("front matter input");
+    arguments[start..].to_vec()
+}
+
+#[trace("FR-039-AC-4", "FR-039-AC-5", "FR-039-AC-6", "FR-039-AC-3")]
+#[test]
+fn a_bundle_passes_front_then_each_separator_and_document_in_order() {
+    let rig = Rig::new();
+    let [one, two, three] = bundle_documents(&rig);
+    let output = rig.work("bundle.docx");
+    let result = run(bundle_command(
+        &rig,
+        &[&three, &one, &three, &two],
+        "docx",
+        &output,
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let requests = rig.requests();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(
+        pandoc_inputs(&requests[0]),
+        [
+            "in/front.md",
+            "in/separator-1.md",
+            "in/document-1.md",
+            "in/separator-2.md",
+            "in/document-2.md",
+            "in/separator-3.md",
+            "in/document-3.md",
+            "in/separator-4.md",
+            "in/document-4.md",
+        ]
+    );
+    let arguments = literals(&requests[0]);
+    assert!(!arguments
+        .iter()
+        .any(|argument| argument.starts_with("--shift-heading")));
+    assert!(!arguments.contains(&"--table-of-contents"));
+
+    // Each document input is its committed body: repeated documents appear twice.
+    for (number, (path, id)) in [
+        (&three, "FR-013"),
+        (&one, "FR-011"),
+        (&three, "FR-013"),
+        (&two, "FR-012"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let number = number + 1;
+        let committed = fs::read_to_string(path).expect("committed");
+        assert_eq!(
+            rig.converter_input(&format!("document-{number}.md")),
+            body_of(&committed)
+        );
+        let separator = rig.converter_input(&format!("separator-{number}.md"));
+        assert!(separator.contains("# FR\\-0"), "{separator}");
+        assert!(separator.contains(&id.replace('-', "\\-")), "{separator}");
+        assert!(separator.contains("w:br w:type=\"page\""), "{separator}");
+    }
+    let separator = rig.converter_input("separator-2.md");
+    assert!(separator.contains("# FR\\-011: Alpha"), "{separator}");
+
+    // The title page and document list hold the bundle's and the documents' own identities.
+    let front = rig.converter_input("front.md");
+    assert!(
+        front.starts_with("::: {custom-style=\"Title\"}\nRelease Dossier\n:::"),
+        "{front}"
+    );
+    assert!(front.contains("Bundle id: BND\\-7"), "{front}");
+    assert!(
+        front.contains(&format!("Source commit: {}", rig.head())),
+        "{front}"
+    );
+    assert!(front.contains("Date: 2001\\-02\\-04"), "{front}");
+    assert_in_order(&front, &["FR\\-013", "FR\\-011", "FR\\-013", "FR\\-012"]);
+    assert_eq!(front.matches("TOC \\o").count(), 1);
+    assert!(front.contains("2\\.0"), "{front}");
+    assert!(!rig.converter_input("metadata.yaml").contains("Alpha"));
+}
+
+#[trace("FR-039-AC-3")]
+#[test]
+fn swapping_the_command_line_order_swaps_the_documents() {
+    let rig = Rig::new();
+    let [one, two, _] = bundle_documents(&rig);
+    let output = rig.work("bundle.docx");
+    for (first, second, id) in [(&one, &two, "FR\\-011"), (&two, &one, "FR\\-012")] {
+        let result = run(bundle_command(&rig, &[first, second], "docx", &output));
+        assert!(result.status.success(), "{}", stderr(&result));
+        assert!(rig.converter_input("separator-1.md").contains(id));
+    }
+}
+
+#[trace("FR-039-AC-4", "FR-035-AC-8")]
+#[test]
+fn a_pdf_bundle_writes_typst_page_breaks_and_one_contents_block() {
+    let rig = Rig::new();
+    let [one, two, _] = bundle_documents(&rig);
+    let output = rig.work("bundle.pdf");
+    let result = run(bundle_command(&rig, &[&one, &two], "pdf", &output));
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(rig.requests().len(), 2);
+    assert!(rig
+        .converter_input("separator-1.md")
+        .starts_with("```{=typst}\n#pagebreak()\n```"));
+    let front = rig.converter_input("front.md");
+    assert_eq!(front.matches("#outline(depth: 3)").count(), 1);
+    assert_eq!(front.matches("#pagebreak()").count(), 3);
+}
+
+#[trace("FR-039-AC-7", "FR-040-AC-6")]
+#[test]
+fn a_bad_bundle_request_exits_3_naming_the_cause_before_any_converter() {
+    let rig = Rig::new();
+    let [one, two, _] = bundle_documents(&rig);
+    let output = rig.work("bundle.docx");
+    fs::write(&output, "previous").expect("previous output");
+
+    let mut no_options = rig.export(&one, "docx", &output);
+    no_options.arg(&two);
+    let mut no_title = rig.export(&one, "docx", &output);
+    no_title.arg(&two).args(["--bundle-id", "BND-7"]);
+    let mut no_id = rig.export(&one, "docx", &output);
+    no_id.arg(&two).args(["--bundle-title", "T"]);
+    let mut blank = rig.export(&one, "docx", &output);
+    blank
+        .arg(&two)
+        .args(["--bundle-title", "  ", "--bundle-id", "BND-7"]);
+    let mut one_input = rig.export(&one, "docx", &output);
+    one_input.args(["--bundle-title", "T", "--bundle-id", "BND-7"]);
+    let many: Vec<&Path> = std::iter::repeat_n(one.as_path(), 257).collect();
+    for (mut command, needle) in [
+        (no_options, "--bundle-title and --bundle-id"),
+        (no_title, "--bundle-title"),
+        (no_id, "--bundle-id"),
+        (blank, "non-blank --bundle-title"),
+        (one_input, "more than one input"),
+        (bundle_command(&rig, &many, "docx", &output), "at most 256"),
+    ] {
+        let result = run({
+            command.current_dir(rig.work(""));
+            command
+        });
+        assert_eq!(
+            result.status.code(),
+            Some(3),
+            "{needle}: {}",
+            stderr(&result)
+        );
+        assert!(
+            stderr(&result).contains(needle),
+            "{needle}: {}",
+            stderr(&result)
+        );
+    }
+
+    assert!(rig.requests().is_empty(), "a converter was started");
+    assert!(!rig.work("many.docx").exists());
+
+    // Exactly 256 inputs is accepted.
+    let allowed: Vec<&Path> = std::iter::repeat_n(one.as_path(), 256).collect();
+    let result = run(bundle_command(
+        &rig,
+        &allowed,
+        "docx",
+        &rig.work("many.docx"),
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    assert_eq!(fs::read(&output).expect("output"), b"previous");
+}
+
+#[trace("FR-039-AC-7", "FR-040-AC-6")]
+#[test]
+fn inputs_from_two_repositories_exit_3_without_a_converter() {
+    let rig = Rig::new();
+    let [one, _, _] = bundle_documents(&rig);
+    let other = rig.root().join("other");
+    fs::create_dir_all(&other).expect("other repo");
+    git(&other, &["init", "-q", "-b", "main"], None);
+    git(&other, &["config", "user.name", "Fixture"], None);
+    git(
+        &other,
+        &["config", "user.email", "fixture@example.invalid"],
+        None,
+    );
+    let text = fs::read_to_string(&one).expect("document");
+    let foreign = other.join("foreign.md");
+    fs::write(&foreign, text.replace("FR-011", "FR-021")).expect("foreign");
+    git(&other, &["add", "foreign.md"], None);
+    git(
+        &other,
+        &["commit", "-q", "-m", "foreign"],
+        Some(COMMIT_DATE),
+    );
+
+    let output = rig.work("bundle.docx");
+    let result = run(bundle_command(&rig, &[&one, &foreign], "docx", &output));
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("one repository"),
+        "{}",
+        stderr(&result)
+    );
+    assert!(stderr(&result).contains("foreign.md"));
+    assert!(rig.requests().is_empty());
+    assert!(!output.exists());
+}
+
+#[trace("FR-039-AC-8", "FR-040-AC-6")]
+#[test]
+fn one_failing_document_fails_the_whole_bundle_and_names_it() {
+    let rig = Rig::new();
+    let [one, two, three] = bundle_documents(&rig);
+    let output = rig.work("bundle.docx");
+
+    // An uncommitted edit of the second document.
+    let text = fs::read_to_string(&two).expect("document");
+    fs::write(&two, format!("{text}edit\n")).expect("edit");
+    let result = run(bundle_command(&rig, &[&one, &two, &three], "docx", &output));
+    assert_eq!(result.status.code(), Some(3));
+    assert!(stderr(&result).contains("two.md"), "{}", stderr(&result));
+    fs::write(&two, &text).expect("restore");
+
+    // A committed document that fails validation.
+    let invalid = rig.commit(
+        "invalid.md",
+        "---\nid: nope\ntitle: T\nversion: \"1\"\ntype: FR\n---\nbody\n",
+        COMMIT_DATE,
+    );
+    let result = run(bundle_command(
+        &rig,
+        &[&one, &two, &invalid],
+        "docx",
+        &output,
+    ));
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("invalid.md"),
+        "{}",
+        stderr(&result)
+    );
+
+    // A document that lacks an identity field.
+    let untitled = rig.commit(
+        "untitled.md",
+        "---\nid: FR-014\nversion: \"1\"\ntype: FR\n---\nbody\n",
+        COMMIT_DATE,
+    );
+    let result = run(bundle_command(
+        &rig,
+        &[&one, &untitled, &two],
+        "docx",
+        &output,
+    ));
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("untitled.md") && stderr(&result).contains("title"),
+        "{}",
+        stderr(&result)
+    );
+
+    assert!(rig.requests().is_empty());
+    assert!(!output.exists());
+}
+
+#[trace("FR-034-AC-8")]
+#[test]
+fn bundle_options_are_refused_for_a_json_input() {
+    let rig = Rig::new();
+    let output = rig.work("out.docx");
+    for flag in ["--bundle-title", "--bundle-id"] {
+        let mut command = quire();
+        command
+            .arg("export")
+            .arg(json_fixture("matrix.json"))
+            .args(["--to", "docx", "--kind", "matrix", flag, "x", "--output"])
+            .arg(&output);
+        let result = run(command);
+        assert_eq!(result.status.code(), Some(3));
+        assert!(stderr(&result).contains(flag), "{}", stderr(&result));
+    }
+    assert!(rig.requests().is_empty());
+}
+
+#[trace("FR-039-AC-1", "FR-039-AC-2", "FR-039-AC-5")]
+#[test]
+#[ignore = "needs real pandoc, typst and pdftotext on PATH"]
+fn real_pdf_bundle_holds_the_title_page_list_contents_and_documents_in_order() {
+    let rig = Rig::new();
+    let [one, two, three] = bundle_documents(&rig);
+    let pdf = rig.work("bundle.pdf");
+    let command = bundle_command(&rig, &[&three, &one, &two], "pdf", &pdf);
+    let result = run(real_bundle(command));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let first = pdf_page(&pdf, 1);
+    for needle in ["Release Dossier", "BND-7", &rig.head()] {
+        assert!(
+            first.contains(needle),
+            "{needle:?} missing from page 1: {first}"
+        );
+    }
+    let list = pdf_page(&pdf, 2);
+    assert_in_order(&list, &["FR-013", "FR-011", "FR-012"]);
+    // The contents hold the separator and every heading of each document, in order.
+    let contents = pdf_page(&pdf, 3);
+    let mut expected = Vec::new();
+    for (id, title) in [("FR-013", "Gamma"), ("FR-011", "Alpha"), ("FR-012", "Beta")] {
+        expected.push(format!("{id}: {title}"));
+        expected.push(format!("[{id}] {title} Overview"));
+        expected.extend(["Description", "Specification", "Acceptance Criteria"].map(String::from));
+    }
+    let expected: Vec<&str> = expected.iter().map(String::as_str).collect();
+    assert_in_order(&contents, &expected);
+    // The documents follow in order, and the footer runs across every page after the first.
+    let total = pdf_page_count(&pdf);
+    let all = pdf_text(&pdf);
+    assert_in_order(&all, &["FR-013: Gamma", "FR-011: Alpha", "FR-012: Beta"]);
+    assert!(!first.contains("Page 1 of"), "{first}");
+    for page in 2..=total {
+        let text = pdf_page(&pdf, page);
+        assert!(text.contains(&format!("Page {page} of {total}")), "{text}");
+        assert!(text.contains("BND-7"), "header: {text}");
+        assert!(text.contains(&rig.head()[..12]), "footer: {text}");
+    }
+}
+
+#[trace("FR-039-AC-1")]
+#[test]
+#[ignore = "needs real pandoc, typst and unzip on PATH"]
+fn real_docx_bundle_holds_the_separators_in_order_each_after_a_page_break() {
+    let rig = Rig::new();
+    let [one, two, three] = bundle_documents(&rig);
+    let docx = rig.work("bundle.docx");
+    let result = run(real_bundle(bundle_command(
+        &rig,
+        &[&two, &three, &one],
+        "docx",
+        &docx,
+    )));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let xml = docx_part(&docx, "word/document.xml");
+    let headings = ["FR-012: Beta", "FR-013: Gamma", "FR-011: Alpha"];
+    assert_in_order(&xml, &headings);
+    // Each separator heading sits directly after its own page break, which
+    // follows the content of the previous document.
+    let mut previous = xml.find("TOC \\o").expect("contents field");
+    for heading in headings {
+        let at = xml.rfind(heading).expect("heading");
+        let before = &xml[..at];
+        let page_break = before.rfind("w:type=\"page\"").expect("page break");
+        assert!(
+            page_break > previous,
+            "{heading}: no page break after the previous content"
+        );
+        assert!(
+            strip_tags(&before[page_break..]).trim().is_empty(),
+            "{heading}: text between break and heading"
+        );
+        previous = at;
+    }
+    // Heading levels equal the sources': a separator and an overview at level 1,
+    // three sections at level 2, for each of the three documents.
+    assert_eq!(xml.matches("w:val=\"Heading1\"").count(), 6);
+    assert_eq!(xml.matches("w:val=\"Heading2\"").count(), 9);
+    assert!(!xml.contains("w:val=\"Heading3\""));
+}
+
+#[trace("FR-039-AC-7")]
+#[test]
+fn inputs_at_different_commits_of_one_repository_exit_3_naming_both() {
+    let rig = Rig::new();
+    let [one, _, _] = bundle_documents(&rig);
+    let linked = rig.root().join("linked");
+    git(
+        &rig.repo(),
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "side",
+            linked.to_str().expect("UTF-8"),
+        ],
+        None,
+    );
+    let text = fs::read_to_string(&one).expect("document");
+    fs::write(linked.join("side.md"), text.replace("FR-011", "FR-031")).expect("side");
+    git(&linked, &["add", "side.md"], None);
+    git(
+        &linked,
+        &["commit", "-q", "-m", "side"],
+        Some("2003-04-05T06:07:08+00:00"),
+    );
+
+    let output = rig.work("bundle.docx");
+    let result = run(bundle_command(
+        &rig,
+        &[&one, &linked.join("side.md")],
+        "docx",
+        &output,
+    ));
+    assert_eq!(result.status.code(), Some(3));
+    let message = stderr(&result);
+    assert!(message.contains("one source commit"), "{message}");
+    assert!(
+        message.contains("one.md") && message.contains("side.md"),
+        "{message}"
+    );
+    assert!(message.contains(&rig.head()), "{message}");
+    assert!(
+        message.contains(&git(&linked, &["rev-parse", "HEAD"], None)),
+        "{message}"
+    );
+    assert!(rig.requests().is_empty());
+    assert!(!output.exists());
+}
+
+#[trace("FR-039-AC-6", "FR-034-AC-7")]
+#[test]
+fn hostile_bundle_and_document_values_reach_the_converter_only_as_escaped_data() {
+    let rig = Rig::new();
+    let [one, _, _] = bundle_documents(&rig);
+    let hostile_title = "*x* `#pagebreak()`{=typst} --output=/tmp/x";
+    let text = fs::read_to_string(&one)
+        .expect("document")
+        .replace("title: Alpha", &format!("title: \"{hostile_title}|y\""))
+        .replace("FR-011", "FR-041");
+    let hostile = rig.commit("hostile.md", &text, COMMIT_DATE);
+    let mut command = rig.export(&one, "docx", &rig.work("out.docx"));
+    command
+        .arg(&hostile)
+        .args(["--bundle-title", HOSTILE_TAG, "--bundle-id", "B|[x]-1"]);
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let front = rig.converter_input("front.md");
+    assert!(
+        front.contains(&format!("{}\n:::", escaped(HOSTILE_TAG))),
+        "{front}"
+    );
+    assert!(front.contains("Bundle id: B\\|\\[x\\]\\-1\n"), "{front}");
+    let row = format!("| FR\\-041 | {}\\|y | 2\\.0 |", escaped(hostile_title));
+    assert!(front.contains(&row), "{front}");
+    // The list is a table of the header, the rule and one row per document.
+    assert_eq!(
+        front.lines().filter(|line| line.starts_with('|')).count(),
+        4
+    );
+    let separator = rig.converter_input("separator-2.md");
+    assert!(
+        separator.contains(&format!("# FR\\-041: {}\\|y\n", escaped(hostile_title))),
+        "{separator}"
+    );
+    assert_eq!(
+        separator
+            .lines()
+            .filter(|line| line.starts_with('#'))
+            .count(),
+        1
+    );
+    let metadata = fs::read_to_string(rig.root().join("log/metadata.yaml")).expect("metadata");
+    assert!(
+        metadata.contains(&format!(
+            "\"title\":\"{}\"",
+            escaped(HOSTILE_TAG).replace('\\', "\\\\")
+        )),
+        "{metadata}"
+    );
+    for request in rig.requests() {
+        for argument in literals(&request) {
+            assert!(!argument.contains("--output=/tmp/x"));
+        }
+    }
+}
+
+fn assert_in_order(text: &str, needles: &[&str]) {
+    let mut at = 0;
+    for needle in needles {
+        let found = text[at..]
+            .find(needle)
+            .unwrap_or_else(|| panic!("{needle:?} not in order in {text}"));
+        at += found + needle.len();
+    }
+}
+
+/// The command with the stand-in converters replaced by the real ones on PATH.
+fn real_bundle(command: Command) -> Command {
+    require_tool("pandoc");
+    require_tool("typst");
+    let mut real = quire();
+    real.current_dir(command.get_current_dir().expect("directory"));
+    let mut skip = false;
+    for argument in command.get_args() {
+        if skip {
+            skip = false;
+        } else if ["--pandoc", "--typst", "--engineering-assurance"]
+            .contains(&argument.to_str().unwrap_or_default())
+        {
+            skip = true;
+        } else {
+            real.arg(argument);
+        }
+    }
+    real
+}
+
+#[trace("FR-036-AC-2", "FR-039-AC-4")]
+#[test]
+fn a_bundle_applies_the_organisation_template_unchanged() {
+    for (to, name, bytes, flag, target) in [
+        (
+            "pdf",
+            "org.typ",
+            TYPST_ORG_TEMPLATE.as_bytes(),
+            "--template",
+            "in/template.typ",
+        ),
+        (
+            "docx",
+            "org.docx",
+            b"PK\x03\x04 organisation reference".as_slice(),
+            "--reference-doc",
+            "in/template.docx",
+        ),
+    ] {
+        let rig = Rig::new();
+        let [one, two, _] = bundle_documents(&rig);
+        let template = org_template(&rig, name, bytes);
+        let output = rig.work(&format!("bundle.{to}"));
+        let result = run(with_template(
+            bundle_command(&rig, &[&one, &two], to, &output),
+            &template,
+        ));
+        assert!(result.status.success(), "{}", stderr(&result));
+
+        let requests = rig.requests();
+        let expected_output = if to == "pdf" {
+            "typ/document.typ"
+        } else {
+            "out/document.docx"
+        };
+        let pandoc_to = if to == "pdf" { "typst" } else { "docx" };
+        let mut expected = pandoc_arguments(pandoc_to, expected_output);
+        expected.truncate(expected.len() - 1);
+        expected.extend(
+            [
+                "in/separator-1.md",
+                "in/document-1.md",
+                "in/separator-2.md",
+                "in/document-2.md",
+            ]
+            .map(String::from),
+        );
+        let actual: Vec<String> = literals(&requests[0])
+            .into_iter()
+            .map(String::from)
+            .collect();
+        assert_eq!(actual, expected);
+        assert!(actual.windows(2).any(|pair| pair == [flag, target]));
+        assert!(!actual.iter().any(|argument| argument.contains("org.")));
+        let copied = rig
+            .root()
+            .join("log/in")
+            .join(target.trim_start_matches("in/"));
+        assert_eq!(fs::read(copied).expect("copy"), bytes);
+    }
+}
+
+#[trace("FR-036-AC-5", "FR-040-AC-2", "FR-040-AC-6")]
+#[test]
+fn a_bundle_with_an_invalid_template_exits_3_before_any_converter() {
+    let rig = Rig::new();
+    let [one, two, _] = bundle_documents(&rig);
+    let output = rig.work("bundle.pdf");
+    fs::write(&output, "previous").expect("previous output");
+    let wrong_extension = org_template(&rig, "org.docx", b"PK");
+    let missing = rig.root().join("org/absent.typ");
+    for template in [wrong_extension, missing] {
+        let result = run(with_template(
+            bundle_command(&rig, &[&one, &two], "pdf", &output),
+            &template,
+        ));
+        assert_eq!(result.status.code(), Some(3), "{template:?}");
+        assert!(
+            stderr(&result).contains(&template.display().to_string()),
+            "{}",
+            stderr(&result)
+        );
+    }
+    assert!(rig.requests().is_empty());
+    assert_eq!(fs::read(&output).expect("output"), b"previous");
+}

@@ -78,7 +78,7 @@ document; the command therefore generates the structure:
 | FR-039-AC-4 | The stand-in pandoc request lists `in/front.md`, then `in/separator-1.md`, `in/document-1.md` and so on in that order, each document input equal to its committed body without frontmatter, and a single-input export lists `in/front.md` and `in/document.md`. | Test |
 | FR-039-AC-5 | The request holds no `--shift-heading-level-by`, and the heading levels of each document in the output equal those of its source. | Test |
 | FR-039-AC-6 | Three fixtures whose frontmatter each define `title` and `id` produce a bundle whose title page shows the `--bundle-title` and `--bundle-id` and whose separators show each fixture's own id and title. | Test |
-| FR-039-AC-7 | A bundle without `--bundle-title` or `--bundle-id`, `--bundle-title` with one input, inputs from two repositories, and 257 inputs each exit 3 naming the cause with no converter started. | Test |
+| FR-039-AC-7 | A bundle without `--bundle-title` or `--bundle-id`, `--bundle-title` with one input, inputs from two repositories, inputs at different source commits of one repository, and 257 inputs each exit 3 naming the cause with no converter started. | Test |
 | FR-039-AC-8 | One input in the bundle that fails validation or is uncommitted makes the whole export exit 3 naming that file and writes no output. | Test |
 
 ## Dependencies

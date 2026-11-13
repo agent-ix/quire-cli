@@ -71,9 +71,9 @@ impl Step {
         }
     }
 
-    fn arguments(self, with_identity: bool) -> Vec<&'static str> {
+    fn arguments(self, with_identity: bool, documents: usize) -> Vec<String> {
         let pandoc = |to: &'static str, output: &'static str, template: [&'static str; 2]| {
-            let mut arguments = vec![
+            let mut arguments: Vec<String> = [
                 "--sandbox",
                 "--standalone",
                 "--from",
@@ -84,11 +84,19 @@ impl Step {
                 output,
                 "--metadata-file",
                 "in/metadata.yaml",
-            ];
+            ]
+            .map(str::to_string)
+            .to_vec();
             if with_identity {
-                arguments.extend([template[0], template[1], "in/front.md"]);
+                arguments.extend([template[0], template[1], "in/front.md"].map(str::to_string));
             }
-            arguments.push("in/document.md");
+            if documents == 0 {
+                arguments.push("in/document.md".to_string());
+            }
+            for number in 1..=documents {
+                arguments.push(format!("in/separator-{number}.md"));
+                arguments.push(format!("in/document-{number}.md"));
+            }
             arguments
         };
         match self {
@@ -102,7 +110,9 @@ impl Step {
                 "typ/document.typ",
                 ["--template", "in/template.typ"],
             ),
-            Self::TypstPdf => vec!["compile", "typ/document.typ", "out/document.pdf"],
+            Self::TypstPdf => ["compile", "typ/document.typ", "out/document.pdf"]
+                .map(str::to_string)
+                .to_vec(),
         }
     }
 }
@@ -116,9 +126,20 @@ pub(super) struct IdentityParts<'a> {
     pub(super) template: Vec<u8>,
 }
 
+/// One document of a bundle and the generated separator before it.
+pub(super) struct BundleDocument<'a> {
+    pub(super) separator: String,
+    pub(super) body: &'a str,
+}
+
 /// The generated converter inputs of one export, written under `in/`.
 pub(super) struct Generated<'a> {
+    /// The document of a single export, written to `in/document.md`.
     pub(super) body: &'a str,
+    /// The documents of a bundle in order, each with its separator, written to
+    /// `in/separator-<n>.md` and `in/document-<n>.md`. Empty for a single export,
+    /// where `body` is used.
+    pub(super) bundle: Vec<BundleDocument<'a>>,
     pub(super) metadata: &'a str,
     /// Front matter and the template, present for a Markdown input;
     /// a JSON report carries no identity and gets neither.
@@ -163,16 +184,27 @@ pub(super) fn convert(
         Format::Pdf => "in/template.typ",
         Format::Docx => "in/template.docx",
     };
-    let mut files = vec![
-        ("in/document.md", generated.body.as_bytes()),
-        ("in/metadata.yaml", generated.metadata.as_bytes()),
-    ];
+    let mut files = vec![(
+        "in/metadata.yaml".to_string(),
+        generated.metadata.as_bytes(),
+    )];
+    if generated.bundle.is_empty() {
+        files.push(("in/document.md".to_string(), generated.body.as_bytes()));
+    }
+    for (index, document) in generated.bundle.iter().enumerate() {
+        let number = index + 1;
+        files.push((
+            format!("in/separator-{number}.md"),
+            document.separator.as_bytes(),
+        ));
+        files.push((format!("in/document-{number}.md"), document.body.as_bytes()));
+    }
     if let Some(parts) = &generated.identity_parts {
-        files.push(("in/front.md", parts.front.as_bytes()));
-        files.push((template_name, parts.template.as_slice()));
+        files.push(("in/front.md".to_string(), parts.front.as_bytes()));
+        files.push((template_name.to_string(), parts.template.as_slice()));
     }
     for (name, content) in files {
-        fs::write(root_path.join(name), content).with_context(|| format!("writing {name}"))?;
+        fs::write(root_path.join(&name), content).with_context(|| format!("writing {name}"))?;
     }
 
     let steps: &[Step] = match to {
@@ -187,6 +219,7 @@ pub(super) fn convert(
             Plan {
                 step,
                 with_identity: generated.identity_parts.is_some(),
+                documents: generated.bundle.len(),
                 epoch: generated.epoch,
             },
         )?;
@@ -213,6 +246,8 @@ impl AsRef<Path> for RenderedFile {
 struct Plan {
     step: Step,
     with_identity: bool,
+    /// The number of bundle documents; 0 for a single export.
+    documents: usize,
     epoch: Option<i64>,
 }
 
@@ -264,7 +299,7 @@ fn request(root: &str, tool: &Tool, plan: Plan) -> Value {
         "procedure": "direct",
         "capabilityRoot": root,
         "arguments": step
-            .arguments(plan.with_identity)
+            .arguments(plan.with_identity, plan.documents)
             .into_iter()
             .map(|value| json!({"kind": "literal", "value": value}))
             .collect::<Vec<_>>(),

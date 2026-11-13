@@ -58,11 +58,12 @@ const MAX_COLUMN_WIDTH: usize = 48;
 /// Renders the report to Markdown and converts it. Shape errors are exit 3 and
 /// are raised before any converter is resolved or started.
 pub(super) fn export(args: &Args, kind: Kind, text: &str) -> anyhow::Result<()> {
-    let name = args.input.display().to_string();
+    let name = args.input[0].display().to_string();
     let markdown = to_markdown(kind, &name, text)?;
     let converters = producer::Converters::resolve(args)?;
     let generated = producer::Generated {
         body: &markdown,
+        bundle: Vec::new(),
         metadata: "{}\n",
         identity_parts: None,
         epoch: None,

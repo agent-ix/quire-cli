@@ -72,6 +72,38 @@ pub(super) fn metadata_yaml(identity: &Identity) -> anyhow::Result<String> {
 /// `in/front.md`: the title page, a page break, the table of contents and a
 /// page break.
 pub(super) fn front_matter(identity: &Identity, to: Format) -> String {
+    compose_front(identity, to, "Document id", None)
+}
+
+/// `in/front.md` of a bundle: the title page, a page break, the list of
+/// `documents`, a page break, the table of contents and a page break.
+pub(super) fn bundle_front_matter(
+    bundle: &Identity,
+    documents: &[&Identity],
+    to: Format,
+) -> String {
+    let mut list = String::new();
+    match to {
+        Format::Docx => list.push_str("::: {custom-style=\"TOC Heading\"}\nDocuments\n:::\n\n"),
+        Format::Pdf => list.push_str("Documents\n\n"),
+    }
+    list.push_str("| Id | Title | Version |\n| --- | --- | --- |\n");
+    for document in documents {
+        list.push_str(&format!(
+            "| {} | {} | {} |\n",
+            escape_markdown(&document.document_id),
+            escape_markdown(&document.title),
+            escape_markdown(revision(document))
+        ));
+    }
+    list.push('\n');
+    list.push_str(&raw_block(to, PAGE_BREAK_TYPST, PAGE_BREAK_OPENXML));
+    compose_front(bundle, to, "Bundle id", Some(&list))
+}
+
+/// The front matter of a document or bundle; `list` is the bundle's document
+/// list, placed between the title page and the table of contents.
+fn compose_front(identity: &Identity, to: Format, id_label: &str, list: Option<&str>) -> String {
     let mut front = String::new();
     match to {
         Format::Docx => {
@@ -85,7 +117,7 @@ pub(super) fn front_matter(identity: &Identity, to: Format) -> String {
     let mut line = |label: &str, value: &str| {
         front.push_str(&format!("{label}: {}\n\n", escape_markdown(value)));
     };
-    line("Document id", &identity.document_id);
+    line(id_label, &identity.document_id);
     if let Some(version) = &identity.version {
         line("Version", version);
     }
@@ -95,6 +127,7 @@ pub(super) fn front_matter(identity: &Identity, to: Format) -> String {
     line("Source commit", &identity.commit);
     line("Date", &identity.date);
     front.push_str(&raw_block(to, PAGE_BREAK_TYPST, PAGE_BREAK_OPENXML));
+    front.extend(list);
     if to == Format::Docx {
         front.push_str("::: {custom-style=\"TOC Heading\"}\nContents\n:::\n\n");
     }
@@ -103,13 +136,13 @@ pub(super) fn front_matter(identity: &Identity, to: Format) -> String {
     front
 }
 
-const PAGE_BREAK_TYPST: &str = "#pagebreak()";
-const PAGE_BREAK_OPENXML: &str = r#"<w:p><w:r><w:br w:type="page"/></w:r></w:p>"#;
-const TOC_TYPST: &str = "#outline(depth: 3)";
-const TOC_OPENXML: &str = r#"<w:p><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \o "1-3" \h \z \u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>"#;
+pub(super) const PAGE_BREAK_TYPST: &str = "#pagebreak()";
+pub(super) const PAGE_BREAK_OPENXML: &str = r#"<w:p><w:r><w:br w:type="page"/></w:r></w:p>"#;
+pub(super) const TOC_TYPST: &str = "#outline(depth: 3)";
+pub(super) const TOC_OPENXML: &str = r#"<w:p><w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \o "1-3" \h \z \u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>"#;
 
 /// A raw block of the output format.
-fn raw_block(to: Format, typst: &str, openxml: &str) -> String {
+pub(super) fn raw_block(to: Format, typst: &str, openxml: &str) -> String {
     let (kind, content) = match to {
         Format::Pdf => ("typst", typst),
         Format::Docx => ("openxml", openxml),
