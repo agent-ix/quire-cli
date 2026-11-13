@@ -3725,6 +3725,48 @@ fn real_document_dates_do_not_change_when_the_clock_moves_between_exports() {
     assert_eq!(dates[0], dates[1]);
 }
 
+/// Source text that reads the wall clock, the local time zone or a file time.
+const CLOCK_READS: [&str; 10] = [
+    "SystemTime",
+    "Instant::now",
+    "chrono",
+    "time::",
+    ".modified(",
+    ".created(",
+    ".accessed(",
+    "\"TZ\"",
+    "localtime",
+    "/etc/localtime",
+];
+
+/// The entries of [`CLOCK_READS`] that `source` contains.
+fn clock_reads(source: &str) -> Vec<&'static str> {
+    CLOCK_READS
+        .into_iter()
+        .filter(|read| source.contains(read))
+        .collect()
+}
+
+#[trace("FR-037-AC-4")]
+#[test]
+fn the_clock_read_matcher_catches_each_forbidden_form() {
+    for sample in [
+        "let now = std::time::SystemTime::now();",
+        "let t = Instant::now();",
+        "use chrono::Utc;",
+        "let t = time::OffsetDateTime::now_utc();",
+        "meta.modified()",
+        "meta.created()",
+        "meta.accessed()",
+        "std::env::var(\"TZ\")",
+        "libc::localtime_r(&t, &mut tm)",
+        "fs::read(\"/etc/localtime\")",
+    ] {
+        assert!(!clock_reads(sample).is_empty(), "{sample} not caught");
+    }
+    assert!(clock_reads("let epoch: i64 = commit.seconds;").is_empty());
+}
+
 #[trace("FR-037-AC-4")]
 #[test]
 fn the_export_code_reads_no_clock_time_zone_or_file_time() {
@@ -3735,18 +3777,11 @@ fn the_export_code_reads_no_clock_time_zone_or_file_time() {
     }
     for file in files {
         let source = fs::read_to_string(&file).expect("source");
-        for forbidden in [
-            "SystemTime",
-            "Instant::now",
-            "chrono",
-            "time::",
-            ".modified(",
-        ] {
-            assert!(
-                !source.contains(forbidden),
-                "{} reads {forbidden}",
-                file.display()
-            );
-        }
+        assert_eq!(
+            clock_reads(&source),
+            Vec::<&str>::new(),
+            "{} reads the clock",
+            file.display()
+        );
     }
 }

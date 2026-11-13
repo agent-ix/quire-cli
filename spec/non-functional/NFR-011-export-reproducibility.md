@@ -32,10 +32,15 @@ extracted text or structure.
 - **Extracted text**: for PDF, the output of `pdftotext -layout` page by page;
   for DOCX, the concatenated text of `word/document.xml`, `word/header*.xml`,
   `word/footer*.xml` in part-name order.
-- **Extracted structure**: the sequence of heading levels and heading texts, the
-  grid of cell texts of every table (rows, columns, text), the page count for PDF (the heading texts, table cell texts and
-  table-of-contents entries of a PDF are compared through its extracted text),
-  the table-of-contents entries, and the set of word-processor fields in DOCX, and for a Mermaid diagram its position in the sequence of blocks, its pixel width and height, and its image bytes (the bytes of the `word/media` part for DOCX; for PDF the image data extracted by `pdfimages -png`, because Typst re-encodes the PNG into the PDF).
+- **Extracted structure**: for DOCX, the sequence of heading levels and heading
+  texts, the grid of cell texts of every table (rows, columns, text), the
+  table-of-contents entries, and the set of word-processor fields. For PDF, the
+  page count; heading levels and table grids are not compared, and the heading
+  texts, table cell texts and table-of-contents entries of a PDF are compared
+  only through its extracted text. For a Mermaid diagram, its position in the
+  sequence of blocks, its pixel width and height, and its image bytes (the bytes
+  of the `word/media` part for DOCX; for PDF the image data extracted by
+  `pdfimages -png`, because Typst re-encodes the PNG into the PDF).
 
 ## Scope
 
