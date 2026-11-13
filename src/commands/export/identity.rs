@@ -199,7 +199,15 @@ impl Repo {
         };
         let odb = gix_odb::at(common.join("objects"), gix_hash::Kind::Sha1)
             .map_err(|error| unreadable("objects", error.to_string()))?;
-        let refs = gix_ref::file::Store::at(git_dir.clone(), gix_hash::Kind::Sha1);
+        let refs = if common == git_dir {
+            gix_ref::file::Store::at(git_dir.clone(), gix_hash::Kind::Sha1)
+        } else {
+            gix_ref::file::Store::for_linked_worktree(
+                git_dir.clone(),
+                common.clone(),
+                gix_hash::Kind::Sha1,
+            )
+        };
         Ok(Self {
             dir: git_dir,
             odb,
