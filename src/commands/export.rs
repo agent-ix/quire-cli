@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use clap::{Parser, ValueEnum};
+use ix_cli_kit::exit::Outcome;
 use serde_json::{Map, Value};
 
 use super::{failure, validate, Ctx};
@@ -163,19 +164,35 @@ fn read_utf8(input: &Path) -> anyhow::Result<String> {
     String::from_utf8(bytes).map_err(|_| invalid_error!("'{}' is not valid UTF-8", input.display()))
 }
 
-/// `--output` must be a file in an existing directory; checked before any
-/// conversion and again at the copy.
+/// `--output` must be a writable file in an existing directory; checked before
+/// any conversion and again at the copy. Writability is probed by creating (and
+/// dropping) a sibling temporary file, the same operation the copy performs.
 fn check_output_target(output: &Path) -> anyhow::Result<()> {
     if output.is_dir() {
-        anyhow::bail!("--output '{}' is a directory", output.display());
+        return Err(output_error(format!(
+            "--output '{}' is a directory",
+            output.display()
+        )));
     }
-    if !parent_dir(output).is_dir() {
-        anyhow::bail!(
+    let parent = parent_dir(output);
+    if !parent.is_dir() {
+        return Err(output_error(format!(
             "--output directory '{}' does not exist",
-            parent_dir(output).display()
-        );
+            parent.display()
+        )));
     }
+    tempfile::NamedTempFile::new_in(parent).map_err(|error| {
+        output_error(format!(
+            "--output directory '{}' is not writable: {error}",
+            parent.display()
+        ))
+    })?;
     Ok(())
+}
+
+/// An unusable `--output` is an output failure (exit 4).
+fn output_error(message: String) -> anyhow::Error {
+    failure::classified(Outcome::Internal, anyhow::anyhow!(message))
 }
 
 fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {

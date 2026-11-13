@@ -156,7 +156,7 @@ fn run_step(converters: &Converters, root: &Path, step: Step) -> anyhow::Result<
     };
     let request = request(root, tool, step);
     let result = execute(&converters.executor, &request)?;
-    interpret(tool, &result)?;
+    interpret(tool, root, &result, cfg!(target_os = "linux"))?;
     if !root.join(step.output()).is_file() {
         return Err(converter_failure(format!(
             "{} reported completion but wrote no {}",
@@ -169,13 +169,13 @@ fn run_step(converters: &Converters, root: &Path, step: Step) -> anyhow::Result<
 
 /// The complete FR-032 request for one step. Fields not in the table are not set.
 fn request(root: &Path, tool: &Tool, step: Step) -> Value {
-    let root = root.display().to_string();
+    let root = root.to_str().unwrap_or_default().to_string();
     json!({
         "protocol": "engineering-assurance.producer-execution-request/v1",
         "producer": {
             "name": step.producer(),
             "version": "unreported",
-            "executable": tool.path.display().to_string(),
+            "executable": tool.path.to_str().unwrap_or_default(),
         },
         "caller": {"kind": "quire.export", "version": "1"},
         "procedure": "direct",
@@ -346,8 +346,23 @@ fn converter_failure(message: String) -> anyhow::Error {
     failure::classified(Outcome::Internal, anyhow::anyhow!(message))
 }
 
+/// The FR-033 message for `containment_failure`. The result carries no reason
+/// member, so the message names the state only.
+fn containment_message(linux: bool) -> &'static str {
+    if linux {
+        "containment_failure: producer-execute could not contain the converter"
+    } else {
+        "export is unsupported on this host because producer-execute containment requires Linux"
+    }
+}
+
 /// Maps a result state to the FR-033 failure kinds.
-fn interpret(tool: &Tool, result: &ExecutionResult) -> anyhow::Result<()> {
+fn interpret(
+    tool: &Tool,
+    root: &Path,
+    result: &ExecutionResult,
+    linux: bool,
+) -> anyhow::Result<()> {
     match &result.state {
         State::Completed => Ok(()),
         State::Unavailable => Err(failure::invalid(anyhow::anyhow!(
@@ -356,12 +371,16 @@ fn interpret(tool: &Tool, result: &ExecutionResult) -> anyhow::Result<()> {
             tool.path.display(),
             tool.name
         ))),
-        State::ContainmentFailure if !cfg!(target_os = "linux") => Err(converter_failure(
-            "export is unsupported on this host because producer-execute containment requires Linux"
-                .to_string(),
-        )),
+        State::ContainmentFailure => Err(converter_failure(containment_message(linux).to_string())),
         state => {
             let mut message = format!("{} did not complete: {}", tool.name, state.name());
+            if matches!(state, State::Refused { .. }) {
+                message.push_str(&format!(
+                    "; executable '{}', capability root '{}'",
+                    tool.path.display(),
+                    root.display()
+                ));
+            }
             if let Some(process) = &result.process {
                 if let Some(status) = &process.terminal_status {
                     message.push_str(&format!("; {} {}", status.kind, status.value));
@@ -373,5 +392,35 @@ fn interpret(tool: &Tool, result: &ExecutionResult) -> anyhow::Result<()> {
             }
             Err(converter_failure(message))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ix_trace_rs::trace;
+
+    #[test]
+    #[trace("FR-033-AC-8")]
+    fn containment_failure_message_depends_on_the_host() {
+        assert!(containment_message(false).contains("unsupported on this host"));
+        assert!(containment_message(true).contains("containment_failure"));
+        assert!(!containment_message(true).contains("unsupported"));
+    }
+
+    #[test]
+    #[trace("FR-033-AC-8")]
+    fn a_non_linux_host_reports_the_unsupported_host_message() {
+        let tool = Tool {
+            name: "pandoc",
+            path: PathBuf::from("/x/pandoc"),
+        };
+        let result = ExecutionResult {
+            protocol: RESULT_PROTOCOL.to_string(),
+            process: None,
+            state: State::ContainmentFailure,
+        };
+        let error = interpret(&tool, Path::new("/r"), &result, false).expect_err("failure");
+        assert!(format!("{error:#}").contains("unsupported on this host"));
     }
 }

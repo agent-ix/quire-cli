@@ -77,7 +77,7 @@ impl Rig {
         script(&root.join("bin/pandoc"), &format!("{header}{PANDOC_COPY}"));
         script(&root.join("bin/typst"), &format!("{header}{TYPST_COPY}"));
         let executor = format!(
-            "{header}n=$(ls \"$LOG/reqs\" | wc -l)\ncat > \"$LOG/reqs/$n.json\"\n\
+            "{header}n=$(ls \"$LOG/reqs\" | wc -l)\necho \"$*\" >> \"$LOG/argv\"\ncat > \"$LOG/reqs/$n.json\"\n\
              exec {} producer-execute --request \"$(cat \"$LOG/reqs/$n.json\")\"\n",
             real_executor().display()
         );
@@ -600,6 +600,118 @@ fn an_export_writes_no_file_other_than_the_output() {
         .collect();
     names.sort();
     assert_eq!(names, ["in.md", "out.pdf"]);
+}
+
+/// An `engineering-assurance` stand-in that answers every request with `state`.
+fn fixed_state_executor(rig: &Rig, state: &str) {
+    script(
+        &rig.bin("engineering-assurance"),
+        &format!(
+            "cat >/dev/null\n\
+             echo '{{\"protocol\":\"engineering-assurance.producer-execution-result/v1\",\"process\":null,\"state\":{state}}}'\n"
+        ),
+    );
+}
+
+#[trace("FR-033-AC-4")]
+#[test]
+fn a_timed_out_converter_exits_4_naming_the_state() {
+    let rig = Rig::new();
+    fixed_state_executor(&rig, "{\"kind\":\"timed_out\"}");
+    let output = rig.work("out.docx");
+    let result = run(rig.export(&export_fixture(), "docx", &output));
+    assert_eq!(result.status.code(), Some(4));
+    assert!(stderr(&result).contains("timed_out"), "{}", stderr(&result));
+    assert!(!output.exists());
+}
+
+#[trace("FR-032-AC-2")]
+#[test]
+fn a_refused_request_names_the_canonical_executable_and_the_capability_root() {
+    let rig = Rig::new();
+    fixed_state_executor(&rig, "{\"kind\":\"refused\",\"reason\":\"executable\"}");
+    let result = run(rig.export(&export_fixture(), "docx", &rig.work("out.docx")));
+    assert_eq!(result.status.code(), Some(4));
+    let message = stderr(&result);
+    assert!(message.contains("refused (executable)"), "{message}");
+    assert!(
+        message.contains(&rig.bin("pandoc").display().to_string()),
+        "{message}"
+    );
+    assert!(message.contains("quire-export-"), "{message}");
+}
+
+#[trace("FR-033-AC-9")]
+#[test]
+fn an_unwritable_output_directory_is_refused_before_any_conversion() {
+    let rig = Rig::new();
+    let locked = rig.work("locked");
+    fs::create_dir(&locked).expect("dir");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).expect("chmod");
+    let result = run(rig.export(&export_fixture(), "docx", &locked.join("out.docx")));
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).expect("chmod back");
+    assert_eq!(result.status.code(), Some(4));
+    assert!(
+        stderr(&result).contains("not writable"),
+        "{}",
+        stderr(&result)
+    );
+    assert!(rig.requests().is_empty());
+}
+
+#[trace("FR-032-AC-2")]
+#[test]
+fn a_converter_path_that_is_not_utf8_is_refused_clearly() {
+    use std::os::unix::ffi::OsStrExt;
+    let rig = Rig::new();
+    let odd = rig
+        .root()
+        .join(std::ffi::OsStr::from_bytes(b"bin/pandoc-\xff"));
+    fs::copy(rig.bin("pandoc"), &odd).expect("copy");
+    let mut command = quire();
+    command
+        .current_dir(rig.root().join("work"))
+        .arg("export")
+        .arg(export_fixture())
+        .args(["--to", "docx", "--output"])
+        .arg(rig.work("out.docx"))
+        .arg("--module")
+        .arg(validate_module())
+        .arg("--pandoc")
+        .arg(&odd)
+        .arg("--engineering-assurance")
+        .arg(rig.bin("engineering-assurance"));
+    let result = run(command);
+    assert_eq!(result.status.code(), Some(3));
+    assert!(stderr(&result).contains("UTF-8"), "{}", stderr(&result));
+    assert!(rig.requests().is_empty());
+}
+
+#[trace("NFR-010-AC-3")]
+#[test]
+fn the_export_adds_no_network_client_crate() {
+    let manifest = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml"))
+        .expect("manifest");
+    let dependencies = manifest
+        .split("[dependencies]")
+        .nth(1)
+        .and_then(|rest| rest.split("\n[").next())
+        .expect("dependencies table");
+    for client in [
+        "reqwest",
+        "hyper",
+        "ureq",
+        "isahc",
+        "curl",
+        "attohttpc",
+        "surf",
+        "awc",
+    ] {
+        assert!(
+            !dependencies.contains(&format!("\n{client} ")),
+            "network client crate {client} is a direct dependency"
+        );
+    }
 }
 
 fn require_tool(name: &str) -> PathBuf {

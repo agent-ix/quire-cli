@@ -40,6 +40,11 @@ pub(super) fn resolve(
         .and_then(|path| fs::canonicalize(path).ok())
         .filter(|path| is_executable(path));
     match canonical {
+        Some(path) if path.to_str().is_none() => Err(failure::invalid(anyhow::anyhow!(
+            "'{name}' resolves to a path that is not valid UTF-8 ({}); \
+             the producer request cannot carry it",
+            path.display()
+        ))),
         Some(path) => Ok(Tool { name, path }),
         None => Err(failure::invalid(anyhow::anyhow!(
             "missing converter: '{name}' is not an executable file; looked at {looked}; \
@@ -48,13 +53,19 @@ pub(super) fn resolve(
     }
 }
 
-#[cfg(unix)]
 fn is_executable(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    fs::metadata(path).is_ok_and(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0)
+    fs::metadata(path).is_ok_and(|meta| meta.is_file() && has_execute_permission(&meta))
 }
 
-#[cfg(not(unix))]
-fn is_executable(path: &Path) -> bool {
-    fs::metadata(path).is_ok_and(|meta| meta.is_file())
+fn has_execute_permission(meta: &fs::Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        meta.permissions().mode() & 0o111 != 0
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = meta;
+        true
+    }
 }
