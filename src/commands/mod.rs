@@ -48,6 +48,7 @@ pub mod fix;
 pub mod lint;
 pub mod lookup;
 pub mod matrix;
+mod matrix_design;
 pub mod parse;
 pub mod properties;
 pub mod provenance;

@@ -1,19 +1,25 @@
-//! `quire matrix` — renders the engine's computed coverage matrix
-//! (quire-rs FR-050-AC-47..51, `CoverageReport.coverage_matrix`).
+//! `quire matrix` — renders the engine's computed coverage matrix with its
+//! design column (quire-rs FR-050-AC-47..51 and FR-092, `design_matrix`).
 //!
-//! Requirement → criterion → binder symbols → computed status, derived from the
-//! corpus and its trace tags on every run. The engine owns the computation;
-//! this command resolves the same scope and module set `coverage` does, calls
-//! the same shared computation, and renders one field of the result.
+//! Requirement → design elements → criterion → binder symbols → computed
+//! status, derived from the corpus and its trace tags on every run. The engine
+//! owns the computation; this command resolves the same scope and module set
+//! `coverage` does, computes each member's `coverage_matrix` through the same
+//! shared computation, hands them to `design_matrix` and renders the entries.
 //!
 //! The rendering is a view, never an artifact: it goes to stdout and nowhere
 //! else. There is no output-path flag and no write anywhere under the scope.
 
+use anyhow::Context;
 use clap::Parser;
-use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixRequirement, CoverageMatrixStatus};
+use quire_cli::safety;
+use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixStatus};
+use quire_rs::{design_matrix, CoverageReport, DesignMatrixEntry, RelationReportMember};
 use serde::Serialize;
 
-use crate::commands::coverage::{compute_report, tsv_cell, Target};
+use crate::commands::corpus_input::{parse_repo, Corpus, RepoArg};
+use crate::commands::coverage::{compute_report_over, load_registry_for, tsv_cell, Target};
+use crate::commands::matrix_design as design;
 use crate::commands::Ctx;
 
 #[derive(Debug, Parser)]
@@ -21,14 +27,22 @@ pub struct Args {
     #[command(flatten)]
     pub target: Target,
 
-    /// Output form: a `markdown` table per requirement (default), the engine's
-    /// `coverage_matrix` value as `json`, or one `tsv` record per criterion.
-    /// Every form goes to stdout.
+    /// Load several repositories as one corpus, each as `<ORG/REPO>=<DIR>`
+    /// (repeatable), so design elements held in a sibling repository join.
+    /// Conflicts with `--scope`. Module discovery without `--module` starts at
+    /// the first `<DIR>`.
+    #[arg(long, value_name = "ORG/REPO=DIR", conflicts_with = "scope", value_parser = parse_repo)]
+    pub repo: Vec<RepoArg>,
+
+    /// Output form: a `markdown` table per requirement (default), plain-text
+    /// `human` blocks, the engine's matrix value as `json`, or one `tsv`
+    /// record per criterion. Every form goes to stdout.
     #[arg(long, value_enum, value_name = "FORMAT", default_value = "markdown")]
     pub format: Format,
 
-    /// Exit 1 unless there is at least one criterion and every criterion
-    /// computes `qualified-record`, `tagged`, `retired`, or `method-without-symbol`.
+    /// Exit 1 unless there is at least one criterion, every criterion
+    /// computes `qualified-record`, `tagged`, `retired`, or `method-without-symbol`,
+    /// and no live requirement has a design relation left uncovered.
     #[arg(long)]
     pub strict: bool,
 }
@@ -38,13 +52,15 @@ pub struct Args {
 pub enum Format {
     /// One `## <document>` table per requirement.
     Markdown,
+    /// One plain-text block per requirement.
+    Human,
     /// `{"coverage_matrix": …, "engine": {…}}`, the engine's value verbatim.
     Json,
     /// One tab-separated record per criterion.
     Tsv,
 }
 
-/// The single line markdown renders when there are zero criteria.
+/// The single line markdown and human render when there are zero criteria.
 const EMPTY_MARKDOWN: &str = "No obligations matched this scope.";
 
 /// The markdown statement budget, in Unicode scalar values.
@@ -56,21 +72,39 @@ const TRUNCATION_MARKER: &str = "...";
 /// `criticality` key (FR-028). Rendered formats only; JSON passes through.
 const UNASSIGNED: &str = "unassigned";
 
+/// What the renderers show beyond FR-026's columns.
+#[derive(Debug, Clone, Copy)]
+struct View {
+    /// A loaded module declares `design_relations`: the design column exists.
+    design: bool,
+    /// `--repo` was given: the repo label and the TSV `repo` column exist.
+    repo: bool,
+}
+
 /// The JSON payload before provenance is attached. The key follows the
-/// engine's own rule for `CoverageReport.coverage_matrix` — absent when there
-/// is no population — so the field reads here exactly as it does in
-/// `coverage --json`.
+/// engine's own rule — absent when there is no population — so the field
+/// reads here exactly as it does in `coverage --json`.
 #[derive(Serialize)]
 struct Payload {
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    coverage_matrix: Vec<CoverageMatrixRequirement>,
+    coverage_matrix: Vec<DesignMatrixEntry>,
 }
 
-pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let (scope, registry) = args.target.load(ctx)?;
-    let report = compute_report(ctx, &scope, &registry)?;
-    // FR-026-AC-16 / PLAT-1150: selecting one view must not discard the
-    // engine's explanation of tags it refused or could only partly read.
+/// The corpus the flags name: the `--repo` members in flag order, or the one
+/// `--scope` repository with no identity.
+fn resolve_corpus(args: &Args) -> anyhow::Result<Corpus> {
+    if args.repo.is_empty() {
+        let root = safety::validate_dir_path("--scope", &args.target.scope)
+            .with_context(|| format!("validating --scope '{}'", args.target.scope))?;
+        Corpus::from_scope(&root)
+    } else {
+        Corpus::from_repos(&args.repo)
+    }
+}
+
+/// Emit the engine's own explanation of tags it refused or could only partly
+/// read (FR-026-AC-16 / PLAT-1150), so selecting one view never discards it.
+fn emit_report_diagnostics(ctx: &Ctx, report: &CoverageReport) {
     for diagnostic in &report.diagnostics {
         let locus = match (diagnostic.path.as_deref(), diagnostic.line) {
             (Some(path), Some(line)) => format!("{path}:{line}"),
@@ -104,12 +138,53 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             })
             .emit(ctx.diagnostics);
     }
-    let matrix = report.coverage_matrix;
+}
+
+/// Compute the design matrix over every member (FR-092): each member's
+/// `coverage_matrix` through the shared computation, then the one join.
+/// Each member's documents are loaded once, by the corpus, and reused for its
+/// coverage computation.
+fn compute_matrix(
+    ctx: &Ctx,
+    corpus: &Corpus,
+    registry: &quire_rs::Registry,
+) -> anyhow::Result<Vec<DesignMatrixEntry>> {
+    let mut reports = Vec::with_capacity(corpus.members.len());
+    for member in &corpus.members {
+        let report = compute_report_over(ctx, &member.root, registry, &Corpus::member_spec(member))
+            .with_context(|| format!("member at {}", member.root.display()))?;
+        emit_report_diagnostics(ctx, &report);
+        reports.push(report);
+    }
+    let inputs: Vec<RelationReportMember<'_>> = corpus
+        .members
+        .iter()
+        .zip(&reports)
+        .map(|(member, report)| RelationReportMember {
+            root: &member.root,
+            matrix: &report.coverage_matrix,
+        })
+        .collect();
+    design_matrix(&corpus.spec, registry, &inputs).map_err(|e| invalid_error!("{e}"))
+}
+
+pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
+    let corpus = resolve_corpus(&args)?;
+    let registry = load_registry_for(ctx, &args.target.module, &corpus.members[0].root)?;
+    let matrix = compute_matrix(ctx, &corpus, &registry)?;
+    let view = View {
+        design: registry
+            .traceability()
+            .is_some_and(|model| !model.design_relations.is_empty()),
+        repo: !args.repo.is_empty(),
+    };
     let verdict = strict_verdict(&matrix);
+    let gaps = design::gate_failures(&matrix);
 
     match args.format {
-        Format::Markdown => primary!("{}", render_markdown(&matrix)),
-        Format::Tsv => primary!("{}", render_tsv(&matrix)),
+        Format::Markdown => primary!("{}", render_markdown(&matrix, view)),
+        Format::Human => primary!("{}", render_human(&matrix, view)),
+        Format::Tsv => primary!("{}", render_tsv(&matrix, view)),
         Format::Json => primary_line!(
             "{}",
             ix_cli_kit::json::encode(
@@ -122,21 +197,34 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     if args.strict {
+        for gap in &gaps {
+            ix_cli_kit::streams::Record::error("DesignGap", gap).emit(ctx.diagnostics);
+        }
+        let mut reasons = Vec::new();
         match verdict {
             Verdict::Pass => {}
-            Verdict::Empty => partial_report!("no obligations matched this scope, so nothing was measured (--strict)"),
+            Verdict::Empty => reasons.push(
+                "no obligations matched this scope, so nothing was measured".to_string(),
+            ),
             Verdict::Gaps {
                 untagged,
                 ignored_only,
-            } => partial_report!(
-                "{untagged} untagged criterion(s) and {ignored_only} criterion(s) tagged only by ignored tests (--strict)"
-            ),
+            } => reasons.push(format!(
+                "{untagged} untagged criterion(s) and {ignored_only} criterion(s) tagged only by ignored tests"
+            )),
+        }
+        if !gaps.is_empty() {
+            reasons.push(format!("{} design gap(s)", gaps.len()));
+        }
+        if !reasons.is_empty() {
+            partial_report!("{} (--strict)", reasons.join("; "));
         }
     }
     Ok(())
 }
 
-/// What `--strict` concludes from the matrix alone.
+/// What `--strict` concludes from the criteria alone; the design gate is
+/// counted beside it.
 #[derive(Debug, PartialEq, Eq)]
 enum Verdict {
     /// At least one criterion, every one `qualified-record`, `tagged`, `retired`, or `method-without-symbol`.
@@ -150,12 +238,12 @@ enum Verdict {
     },
 }
 
-fn strict_verdict(matrix: &[CoverageMatrixRequirement]) -> Verdict {
+fn strict_verdict(matrix: &[DesignMatrixEntry]) -> Verdict {
     let mut total = 0usize;
     let (mut untagged, mut ignored_only) = (0usize, 0usize);
     for criterion in matrix.iter().flat_map(|r| &r.criteria) {
         total += 1;
-        match criterion.status {
+        match criterion.criterion.status {
             CoverageMatrixStatus::QualifiedRecord
             | CoverageMatrixStatus::Tagged
             | CoverageMatrixStatus::Retired
@@ -228,38 +316,75 @@ fn statement_cell(statement: &str) -> String {
 
 /// The requirement's criticality cell text: `unassigned` when the key is
 /// absent, a string verbatim, any other JSON value as its compact text.
-fn criticality_text(requirement: &CoverageMatrixRequirement) -> String {
-    match &requirement.criticality {
+fn criticality_text(entry: &DesignMatrixEntry) -> String {
+    match &entry.criticality {
         None => UNASSIGNED.to_string(),
         Some(serde_json::Value::String(text)) => text.clone(),
         Some(other) => other.to_string(),
     }
 }
 
-fn render_markdown(matrix: &[CoverageMatrixRequirement]) -> String {
-    if matrix.iter().all(|r| r.criteria.is_empty()) {
+/// The entries a rendered form shows: those with criteria, and those a design
+/// relation obliges even when no criterion exists (FR-043 zero population).
+fn shown(entries: &[DesignMatrixEntry]) -> Vec<&DesignMatrixEntry> {
+    entries
+        .iter()
+        .filter(|e| !e.criteria.is_empty() || e.design.is_some())
+        .collect()
+}
+
+fn binders_or_none(binders: &[CoverageMatrixBinder]) -> String {
+    if binders.is_empty() {
+        "(none)".to_string()
+    } else {
+        binder_list(binders, ", ")
+    }
+}
+
+fn render_markdown(matrix: &[DesignMatrixEntry], view: View) -> String {
+    let entries = shown(matrix);
+    if entries.is_empty() {
         return format!("{EMPTY_MARKDOWN}\n");
     }
-    let tables: Vec<String> = matrix
-        .iter()
-        .map(|requirement| {
-            let mut table = format!(
-                "## {}\n\n| Criterion | Statement | Binders | Status | Requirement Criticality |\n|---|---|---|---|---|\n",
-                requirement.document
-            );
-            let criticality = markdown_cell(&criticality_text(requirement));
-            for c in &requirement.criteria {
-                let binders = if c.binders.is_empty() {
-                    "(none)".to_string()
+    let tables: Vec<String> = entries
+        .into_iter()
+        .map(|entry| {
+            let mut table = format!("## {}\n\n", entry.document);
+            let lines = design::header_lines(entry);
+            if !lines.is_empty() {
+                table.push_str(&lines.join("\n"));
+                table.push_str("\n\n");
+            }
+            if entry.criteria.is_empty() {
+                // Nothing to tabulate: the heading and its gap lines stand.
+                table.truncate(table.trim_end().len());
+                table.push('\n');
+                return table;
+            }
+            if view.design {
+                table.push_str(
+                    "| Criterion | Statement | Design | Binders | Status | Requirement Criticality |\n|---|---|---|---|---|---|\n",
+                );
+            } else {
+                table.push_str(
+                    "| Criterion | Statement | Binders | Status | Requirement Criticality |\n|---|---|---|---|---|\n",
+                );
+            }
+            let criticality = markdown_cell(&criticality_text(entry));
+            for c in &entry.criteria {
+                let binders = markdown_cell(&binders_or_none(&c.criterion.binders));
+                let design_cell = if view.design {
+                    format!("{} | ", markdown_cell(&design::criterion_cell(entry, c)))
                 } else {
-                    binder_list(&c.binders, ", ")
+                    String::new()
                 };
                 table.push_str(&format!(
-                    "| {} | {} | {} | {} | {} |\n",
-                    markdown_cell(&c.id),
-                    statement_cell(&c.statement),
-                    markdown_cell(&binders),
-                    status_token(c.status),
+                    "| {} | {} | {}{} | {} | {} |\n",
+                    markdown_cell(&c.criterion.id),
+                    statement_cell(&c.criterion.statement),
+                    design_cell,
+                    binders,
+                    status_token(c.criterion.status),
                     criticality
                 ));
             }
@@ -269,19 +394,88 @@ fn render_markdown(matrix: &[CoverageMatrixRequirement]) -> String {
     tables.join("\n")
 }
 
-fn render_tsv(matrix: &[CoverageMatrixRequirement]) -> String {
-    let mut out =
-        String::from("document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n");
-    for requirement in matrix {
-        for c in &requirement.criteria {
-            let cells = [
-                tsv_cell(&requirement.document),
-                tsv_cell(&c.id),
-                status_token(c.status).to_string(),
-                tsv_cell(&binder_list(&c.binders, ",")),
-                tsv_cell(&c.statement),
-                tsv_cell(&criticality_text(requirement)),
-            ];
+fn render_human(matrix: &[DesignMatrixEntry], view: View) -> String {
+    let entries = shown(matrix);
+    if entries.is_empty() {
+        return format!("{EMPTY_MARKDOWN}\n");
+    }
+    let blocks: Vec<String> = entries
+        .into_iter()
+        .map(|entry| {
+            let mut block = format!("{}\n", entry.document);
+            for line in design::header_lines(entry) {
+                block.push_str(&format!("{line}\n"));
+            }
+            if view.design {
+                block.push_str(&format!("  design: {}\n", design::entry_cell(entry)));
+            }
+            for c in &entry.criteria {
+                let design_cell = if view.design {
+                    format!("design: {}  ", design::criterion_cell(entry, c))
+                } else {
+                    String::new()
+                };
+                block.push_str(&format!(
+                    "  {}  {}  {}tests: {}\n",
+                    tsv_cell(&c.criterion.id),
+                    status_token(c.criterion.status),
+                    design_cell,
+                    tsv_cell(&binders_or_none(&c.criterion.binders)),
+                ));
+            }
+            block
+        })
+        .collect();
+    blocks.join("\n")
+}
+
+fn render_tsv(matrix: &[DesignMatrixEntry], view: View) -> String {
+    let mut header: Vec<&str> = Vec::new();
+    if view.repo {
+        header.push("repo");
+    }
+    header.extend(["document", "criterion"]);
+    if view.design {
+        header.extend(["design", "design_state"]);
+    }
+    header.extend(["status", "binders", "statement", "requirement_criticality"]);
+    let mut out = header.join("\t");
+    out.push('\n');
+    for entry in matrix {
+        let mut records: Vec<Vec<String>> = entry
+            .criteria
+            .iter()
+            .map(|c| {
+                let mut cells = vec![tsv_cell(&entry.document), tsv_cell(&c.criterion.id)];
+                if view.design {
+                    cells.push(tsv_cell(&design::criterion_field(entry, c)));
+                    cells.push(design::state(entry).to_string());
+                }
+                cells.extend([
+                    status_token(c.criterion.status).to_string(),
+                    tsv_cell(&binder_list(&c.criterion.binders, ",")),
+                    tsv_cell(&c.criterion.statement),
+                    tsv_cell(&criticality_text(entry)),
+                ]);
+                cells
+            })
+            .collect();
+        if entry.criteria.is_empty() && entry.design.is_some() {
+            records.push(vec![
+                tsv_cell(&entry.document),
+                String::new(),
+                tsv_cell(&design::entry_field(entry)),
+                design::state(entry).to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ]);
+        }
+        for mut cells in records {
+            if view.repo {
+                cells.insert(0, entry.repo.as_deref().map(tsv_cell).unwrap_or_default());
+            }
             out.push_str(&cells.join("\t"));
             out.push('\n');
         }
@@ -294,25 +488,37 @@ mod tests {
     use super::*;
     use ix_trace_rs::trace;
     use quire_rs::coverage::CoverageMatrixCriterion;
+    use quire_rs::DesignMatrixCriterion;
 
-    fn criterion(id: &str, status: CoverageMatrixStatus) -> CoverageMatrixCriterion {
-        CoverageMatrixCriterion {
-            id: id.to_string(),
-            statement: "s".to_string(),
-            method: None,
-            binders: Vec::new(),
-            record_binders: None,
-            identity: None,
-            status,
+    const PLAIN: View = View {
+        design: false,
+        repo: false,
+    };
+
+    fn criterion(id: &str, status: CoverageMatrixStatus) -> DesignMatrixCriterion {
+        DesignMatrixCriterion {
+            criterion: CoverageMatrixCriterion {
+                id: id.to_string(),
+                statement: "s".to_string(),
+                method: None,
+                binders: Vec::new(),
+                record_binders: None,
+                identity: None,
+                status,
+            },
+            design_elements: None,
         }
     }
 
-    fn requirement(criteria: Vec<CoverageMatrixCriterion>) -> CoverageMatrixRequirement {
-        CoverageMatrixRequirement {
+    fn requirement(criteria: Vec<DesignMatrixCriterion>) -> DesignMatrixEntry {
+        DesignMatrixEntry {
             document: "spec/FR-001.md".to_string(),
+            repo: None,
+            id: None,
             criticality: None,
             carried: None,
             criteria,
+            design: None,
         }
     }
 
@@ -343,12 +549,12 @@ mod tests {
             CoverageMatrixStatus::QualifiedRecord,
         )])];
         assert!(
-            render_markdown(&matrix)
+            render_markdown(&matrix, PLAIN)
                 .contains("| FR-001-AC-1 | s | (none) | qualified-record | unassigned |"),
             "qualified backing must not manufacture a source binder"
         );
         assert_eq!(
-            render_tsv(&matrix),
+            render_tsv(&matrix, PLAIN),
             "document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n\
              spec/FR-001.md\tFR-001-AC-1\tqualified-record\t\ts\tunassigned\n"
         );
