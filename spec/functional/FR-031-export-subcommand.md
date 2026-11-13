@@ -35,8 +35,8 @@ quire-cli already owns the Markdown artifact boundary and `quire matrix`; the
 JSON reports reach it as files, so it needs no dependency on Quoin.
 
 Boundary: Markdown parsing and validation stay in `quire-rs` (consumed through
-[FR-004](./FR-004-validate-subcommand.md)). The converter reads the Markdown and
-its frontmatter itself, so `export` parses no Markdown and edits none. The only logic quire-cli
+[FR-004](./FR-004-validate-subcommand.md)). The converter reads the Markdown body
+itself, so `export` parses no Markdown and edits none. The only logic quire-cli
 owns is the JSON-to-table text below, which is output formatting for the
 converter; [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)
 records this as a bounded exception, as it does for FR-027. It is not an engine
@@ -89,11 +89,16 @@ and [FR-033](./FR-033-export-errors.md) owns the failures.
 
 - The command SHALL validate the file as `quire validate` does, against the
   `--module` set, before conversion, so an invalid artifact is never exported.
-- The command SHALL pass the file's bytes unchanged to the converter as the
-  Markdown source. The converter takes headings, ordered and unordered lists,
-  tables, fenced code blocks, emphasis, links, block quotes and the YAML
-  frontmatter `title` from it; those SHALL appear in the output, with the
-  frontmatter not shown as body text.
+  The content validated and converted is the one committed at the source commit
+  ([FR-034](./FR-034-document-identity.md) section A).
+- The command SHALL pass the body of the artifact, the bytes after its YAML
+  frontmatter block unchanged, to the converter as the Markdown source
+  (`in/document.md`); the frontmatter is not converter input, and its `title` is
+  shown through the identity of FR-034. The body block boundary is the one the
+  `quire-rs` parse of [FR-002](./FR-002-parse-subcommand.md) reports, so `export`
+  finds it with no Markdown parsing of its own. The converter takes headings,
+  ordered and unordered lists, tables, fenced code blocks, emphasis, links and
+  block quotes from the body; those SHALL appear in the output.
 
 ### B. JSON input
 
@@ -145,12 +150,12 @@ and an identity; JSON inputs carry none.
 | ID | Criteria | Verification |
 | --- | --- | --- |
 | FR-031-AC-1 | Exporting a committed fixture FR artifact containing headings, a list, a table and a code block to `pdf` and to `docx` writes both files, and the text extracted from each contains every fixture heading and the code block text. The extractors are `pdftotext` for PDF and an unzip of `word/document.xml` for DOCX, and the test fails, naming the missing tool, if real pandoc, typst or the extractor is unavailable. | Test |
-| FR-031-AC-2 | Exporting a Markdown file that fails validation against the `--module` set exits 3, writes no output file and starts no converter; the same file passes against a module set that admits it. | Test |
+| FR-031-AC-2 | Exporting a committed Markdown file that carries an `id`, a `title` and a `version` and fails validation against the `--module` set exits 3, writes no output file and starts no converter; the same file passes against a module set that admits it. | Test |
 | FR-031-AC-3 | A JSON input without `--kind`, a Markdown input with `--kind`, and a JSON input with `--module` each exit 3 with a diagnostic naming the flag. | Test |
 | FR-031-AC-4 | Exporting a `quire matrix --format json` fixture with `--kind matrix` to `docx` yields tables whose rows hold every criterion id of the fixture, extracted as in FR-031-AC-1; a fixture without `coverage_matrix` yields the zero-population line. | Test |
 | FR-031-AC-5 | A `--kind table` fixture whose rows carry a nested object yields a cell holding that object as compact JSON, and the assembled Markdown text holds every member of every row. | Test |
-| FR-031-AC-6 | A fixture with a `mermaid` block exports with the block's source text present and no image in the output; the converter input equals the source file bytes. | Test |
-| FR-031-AC-7 | A fixture with frontmatter exports with the `title` as the document title and no `type:` frontmatter line in the extracted text. | Test |
+| FR-031-AC-6 | A fixture with a `mermaid` block exports with the block's source text present and no image in the output; the converter input `in/document.md` equals the bytes of the committed body after the frontmatter. | Test |
+| FR-031-AC-7 | A fixture with frontmatter exports with the `title` on the title page and no `type:` frontmatter line in the extracted text. | Test |
 | FR-031-AC-8 | After an export, the working directory, the input directory and the output directory hold no file other than the input and `--output`. | Test |
 | FR-031-AC-9 | A `--kind rmm` fixture in the single form and one in the pack form, and a `--kind soup` fixture, each export with one table row per element of `rows`; the pack form also yields its index table and one table per matrix. | Test |
 | FR-031-AC-10 | A `--kind soup` document lacking `rows`, a `--kind rmm` document that is neither a `requirements-mapping-v1` nor a `requirements-mapping-pack-v1` document, and a pack document lacking `matrices` are each refused as invalid input, exit 3, with no converter started. | Test |

@@ -37,9 +37,9 @@ and nothing else.
   time, or be absent. They SHALL NOT hold the export time.
 - The command SHALL pass the converter no host name, user name, absolute path of
   the repository or of the capability root as document text or property.
-- Where a converter would record a path or a random identifier in the file, the
-  command SHALL set the option or metadata that suppresses it; a property it
-  cannot suppress is excluded from the stability property by NFR-011 and named there.
+- Where a converter would record a path or a random identifier in the extracted
+  text or structure of the file, the command SHALL set the option or metadata
+  that suppresses it.
 - The command SHALL NOT add a generation timestamp, a page of "exported on", or
   a random document identifier to any output.
 - Dates inside the body are the author's text and are not rewritten.

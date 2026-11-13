@@ -20,8 +20,10 @@ relationships:
 For one committed input, one source commit, one template (or the default), the
 same approval verdict files and the same converter versions, `quire export` SHALL
 produce documents whose extracted text and extracted structure are equal,
-whatever the wall-clock time, time zone, host name, user, working directory or
-capability-root path of the run. Byte equality of the file is not required.
+whatever the wall-clock time, time zone, host name string, user, working
+directory or capability-root path of the run. Byte equality of the file is not
+required, and container details such as compression order are not part of the
+extracted text or structure.
 
 ## Definitions
 
@@ -31,15 +33,14 @@ capability-root path of the run. Byte equality of the file is not required.
 - **Extracted structure**: the sequence of heading levels and heading texts, the
   grid of cell texts of every table (rows, columns, text), the page count for PDF,
   the table-of-contents entries, and the set of word-processor fields in DOCX.
-- **Excluded**: embedded random identifiers and compression order, which
-  [FR-037](../functional/FR-037-export-clock-free-output.md) names where a
-  converter cannot suppress them.
 
 ## Scope
 
 Applies to Markdown input with the default template and with an organisation
-template, and to bundles, on one host with one pair of converter versions.
-Different converter versions may differ and are outside the property.
+template, and to bundles, on one host with one pair of converter versions and one
+set of installed fonts. Different converter versions or font sets, including the
+system-font fallback of Typst when a template's fonts lack a glyph, may differ and
+are outside the property.
 
 ## Measurement and Evaluation
 

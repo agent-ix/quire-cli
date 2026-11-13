@@ -34,8 +34,9 @@ FR-033 requires.
 | Template unreadable | `--template` exists but a permission refusal prevents reading it. | 2 | Names the path. |
 | Identity data missing | The input lacks `title`, `id`, or both `version` and `--release`; a bundle lacks `--bundle-title` or `--bundle-id`. | 3 | Names the file and every missing field. |
 | Source commit unavailable | No repository contains the input, `--source-repo` is not a repository, `--source-rev` or `--release` does not resolve, `--release` does not resolve to the source commit, or the repository's object store is unreadable. | 3 | Names the repository, the revision or tag, and the first cause. |
-| Source not committed | The input is untracked at the source commit or differs from the committed blob. | 3 | Names the file and says to commit it or pass an older `--source-rev`. |
-| Approval invalid | An `--approval` file is missing, not JSON, not an `engineering-assurance.approval-verify-result/v1` document, lacks `status` or `tag`, or names a tag not in the source repository. | 3 | Names the file and the first cause. |
+| Source not committed | The input is untracked at the source commit or differs from the committed blob (compared with CRLF read as LF). | 3 | Names the file and says to commit it or pass an older `--source-rev`. |
+| Source filtered | The input path carries a git `filter` attribute, including Git LFS. | 3 | Names the file and the filter. |
+| Approval invalid | An `--approval` file is missing, not JSON, not an `engineering-assurance.approval-verify-result/v1` document, or lacks `status`. | 3 | Names the file and the first cause. |
 | Bundle invalid | Inputs from different repositories, more than 256 inputs, or a bundle option with one input. | 3 | Names the cause. |
 | Option on JSON input | Any option of FR-034 through FR-039 with a JSON input. | 3 | Names the flag. |
 
@@ -53,8 +54,8 @@ FR-033 requires.
 | FR-040-AC-1 | A fixture without `id`, a fixture without `title`, and a fixture with neither `version` nor `--release` each exit 3 naming the missing field, and one fixture missing two fields names both. | Test |
 | FR-040-AC-2 | A missing template path, a directory, an extension that does not match `--to`, and a template above 16 MiB each exit 3 naming the path; an unreadable template exits 2. | Test |
 | FR-040-AC-3 | A `--source-repo` that is not a repository, an unresolvable `--source-rev`, an unresolvable `--release`, and a `--release` tag on a different commit each exit 3 naming the cause. | Test |
-| FR-040-AC-4 | An untracked input and an input differing from its committed blob each exit 3 naming the file. | Test |
-| FR-040-AC-5 | Each approval failure of the table exits 3 naming the file; the export names the first failing file when two fail. | Test |
+| FR-040-AC-4 | An untracked input, an input differing from its committed blob and an input with a `filter` attribute each exit 3 naming the file, the last also the filter. | Test |
+| FR-040-AC-5 | Each approval failure of the table exits 3 naming the file, and an `unverifiable` verdict for an unresolved tag is not a failure; the export names the first failing file when two fail. | Test |
 | FR-040-AC-6 | In every case above no converter or `engineering-assurance` process is started, `--output` is absent, and a pre-existing `--output` is unchanged. | Test |
 | FR-040-AC-7 | No failure above falls back to the default template, the current date or `HEAD`: the diagnostic is the only result. | Test |
 
