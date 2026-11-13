@@ -129,12 +129,12 @@ fn row(verdict: &Verdict, path: &Path) -> anyhow::Result<[String; 5]> {
         None => verdict.status.clone(),
     };
     let member = |value: &Option<String>| value.as_deref().unwrap_or(NOT_AVAILABLE).to_string();
-    let record = format!(
+    let record = breakable(&format!(
         "id: {}; digest: {}; tag: {}",
         member(&verdict.record_id),
         member(&verdict.record_digest),
         member(&verdict.tag)
-    );
+    ));
     Ok([person.to_string(), signed_at, meaning, verdict_text, record])
 }
 
@@ -207,10 +207,38 @@ fn cell(text: &str) -> String {
     escape_markdown(&flatten(text))
 }
 
+/// A cell can break at a zero width space, so a long run such as a record digest
+/// wraps instead of running into the next column.
+const BREAK_OPPORTUNITY: char = '\u{200B}';
+/// The longest unbroken run in the Record cell, in characters.
+const MAX_RUN: usize = 16;
+
+/// `text` with a break opportunity after every `MAX_RUN` characters of any run
+/// without a space.
+fn breakable(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut run = 0;
+    for ch in text.chars() {
+        if ch.is_whitespace() {
+            run = 0;
+        } else {
+            if run == MAX_RUN {
+                out.push(BREAK_OPPORTUNITY);
+                run = 0;
+            }
+            run += 1;
+        }
+        out.push(ch);
+    }
+    out
+}
+
 /// The dash count of each column: as wide as its longest cell up to
-/// `MAX_COLUMN_WIDTH`, but never narrower than its longest unbreakable token
-/// plus a margin, since the converter cannot wrap inside a token and it would
-/// run into the next column.
+/// `MAX_COLUMN_WIDTH`, and at least 1.5 times its longest unbreakable run (a
+/// run between spaces and break opportunities), whose width a proportional font
+/// can exceed its character count. The counts are relative, so this keeps a
+/// run from overflowing only because every run is short, which `breakable`
+/// ensures for the Record cell.
 fn column_widths(rows: &[[String; 5]]) -> Vec<usize> {
     (0..COLUMNS.len())
         .map(|index| {
@@ -223,14 +251,16 @@ fn column_widths(rows: &[[String; 5]]) -> Vec<usize> {
                 .map(|text| text.chars().count())
                 .max()
                 .unwrap_or(MIN_COLUMN_WIDTH);
-            let token = cells()
-                .flat_map(str::split_whitespace)
-                .map(|token| token.chars().count())
+            let run = cells()
+                .flat_map(|text| {
+                    text.split(|ch: char| ch.is_whitespace() || ch == BREAK_OPPORTUNITY)
+                })
+                .map(|run| run.chars().count())
                 .max()
                 .unwrap_or(MIN_COLUMN_WIDTH);
             longest
                 .clamp(MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH)
-                .max(token + token / 2)
+                .max(run + run / 2)
         })
         .collect()
 }
@@ -281,20 +311,29 @@ mod tests {
     }
 
     #[test]
-    #[trace("FR-038-AC-4")]
-    fn a_column_is_wider_than_its_longest_unbreakable_token() {
+    #[trace("FR-038-AC-9")]
+    fn a_long_digest_wraps_and_every_column_keeps_its_longest_run() {
+        let digest = format!("sha256:{}", "ab".repeat(32));
+        assert_eq!(digest.len(), 71);
+        let record = breakable(&format!("id: REC-1; digest: {digest}; tag: approvals/v1"));
+        assert!(record.contains(BREAK_OPPORTUNITY));
+        assert_eq!(
+            record.replace(BREAK_OPPORTUNITY, ""),
+            format!("id: REC-1; digest: {digest}; tag: approvals/v1")
+        );
         let row = |verdict: &str| {
             [
                 "Ada".to_string(),
                 "n/a".to_string(),
                 "claimed: \"reviewed and approved\"".to_string(),
                 verdict.to_string(),
-                "id: REC-1".to_string(),
+                record.clone(),
             ]
         };
         let widths = column_widths(&[row("untrusted_signer"), row("approved")]);
         assert!(widths[3] >= "untrusted_signer".len() * 3 / 2, "{widths:?}");
-        assert!(widths[2] <= MAX_COLUMN_WIDTH, "{widths:?}");
+        assert!(widths[4] <= MAX_COLUMN_WIDTH, "{widths:?}");
+        assert!(widths[4] < widths.iter().sum::<usize>() / 2, "{widths:?}");
     }
 
     #[test]

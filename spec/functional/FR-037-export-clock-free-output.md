@@ -23,7 +23,8 @@ relationships:
 the process environment, so that the stability property of
 [NFR-011](../non-functional/NFR-011-export-reproducibility.md) holds. The date of
 a document is the source commit date of [FR-034](./FR-034-document-identity.md)
-and nothing else; a JSON report has no source commit, and its date is the Unix
+and nothing else (a DOCX property that the pandoc sandbox stamps with the Unix
+epoch is allowed below); a JSON report has no source commit, and its date is the Unix
 epoch, 1970-01-01.
 
 ## Behavior

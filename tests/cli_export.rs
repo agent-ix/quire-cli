@@ -2113,6 +2113,60 @@ fn real_converters_keep_every_report_row_id() {
     }
 }
 
+/// Asserts that no two words of the PDF share page area, which is what a cell
+/// running into its neighbour looks like.
+fn assert_no_overlapping_words(path: &Path) {
+    let output = Command::new(require_tool("pdftotext"))
+        .arg("-bbox")
+        .arg(path)
+        .arg("-")
+        .output()
+        .expect("pdftotext runs");
+    assert!(output.status.success(), "{}", stderr(&output));
+    let html = String::from_utf8_lossy(&output.stdout);
+    let attribute = |tag: &str, name: &str| -> f64 {
+        tag.split(&format!("{name}=\""))
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .and_then(|value| value.parse().ok())
+            .unwrap_or_else(|| panic!("{name} in {tag}"))
+    };
+    // (page, text, x_min, y_min, x_max, y_max)
+    let mut words: Vec<(usize, String, f64, f64, f64, f64)> = Vec::new();
+    let mut page = 0;
+    for line in html.lines() {
+        if line.trim_start().starts_with("<page") {
+            page += 1;
+        } else if let Some(word) = line.trim_start().strip_prefix("<word ") {
+            let text = word
+                .split_once('>')
+                .and_then(|(_, rest)| rest.split_once('<'));
+            words.push((
+                page,
+                text.map(|(text, _)| text.to_string()).unwrap_or_default(),
+                attribute(word, "xMin"),
+                attribute(word, "yMin"),
+                attribute(word, "xMax"),
+                attribute(word, "yMax"),
+            ));
+        }
+    }
+    assert!(!words.is_empty(), "{html}");
+    for (index, first) in words.iter().enumerate() {
+        for second in &words[index + 1..] {
+            let across = first.4.min(second.4) - first.2.max(second.2);
+            let down = first.5.min(second.5) - first.3.max(second.3);
+            assert!(
+                first.0 != second.0 || across <= 0.5 || down <= 0.5,
+                "'{}' overlaps '{}' on page {}",
+                first.1,
+                second.1,
+                first.0
+            );
+        }
+    }
+}
+
 /// One page of a PDF as text, 1-based.
 fn pdf_page(path: &Path, page: usize) -> String {
     let pdftotext = require_tool("pdftotext");
@@ -3867,7 +3921,7 @@ fn verdict(status: &str, extra: Value) -> Value {
         "status": status,
         "tag": "approvals/v1",
         "record_id": "REC-1",
-        "record_digest": "sha256:abc123",
+        "record_digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
         "trust": {"allowed_signers": "/trust/allowed_signers"},
     });
     if let (Some(base), Some(more)) = (document.as_object_mut(), extra.as_object()) {
@@ -4353,7 +4407,7 @@ fn a_bundle_shows_the_approval_block_once_after_the_last_document() {
     assert_eq!(rows(&rig.converter_input("approval.md")).len(), 1);
 }
 
-#[trace("FR-038-AC-1", "FR-038-AC-2", "FR-038-AC-5")]
+#[trace("FR-038-AC-1", "FR-038-AC-2", "FR-038-AC-5", "FR-038-AC-9")]
 #[test]
 #[ignore = "needs real pandoc, typst, unzip and pdftotext on PATH"]
 fn real_converters_show_the_approval_block_after_the_document() {
@@ -4394,12 +4448,17 @@ fn real_converters_show_the_approval_block_after_the_document() {
         let result = run(with_approvals(command, &[&first, &second, &third]));
         assert!(result.status.success(), "{}", stderr(&result));
     }
+    assert_no_overlapping_words(&pdf);
     let text = pdf_text(&pdf);
     let visible = strip_tags(&docx_text(&docx));
     for text in [text.as_str(), visible.as_str()] {
         let approval = text.rfind("Approval").expect("Approval heading");
         // Cells wrap, so compare with whitespace removed.
-        let block: String = text[approval..].split_whitespace().collect();
+        let block: String = text[approval..]
+            .split_whitespace()
+            .flat_map(str::chars)
+            .filter(|ch| *ch != '\u{200b}')
+            .collect();
         for expected in [
             "Ada Example",
             "2026-01-02 03:04:05 UTC",
@@ -5287,8 +5346,15 @@ fn real_diagrams_are_byte_equal_across_time_zones_and_clock() {
             .map(|entry| entry.expect("entry").path())
             .collect();
         files.sort();
-        // Each RGBA image is written with its soft mask as a second PNG.
-        assert_eq!(files.len(), 4, "{files:?}");
+        // Each image is written with its soft mask, if it has one, as a further PNG.
+        let listing = Command::new(require_tool("pdfimages"))
+            .arg("-list")
+            .arg(&pdf)
+            .output()
+            .expect("pdfimages");
+        let rows = String::from_utf8_lossy(&listing.stdout).into_owned();
+        let rows = rows.lines().skip(2).count();
+        assert_eq!(files.len(), rows, "{files:?}");
         let images = files
             .iter()
             .map(|path| fs::read(path).expect("image"))
