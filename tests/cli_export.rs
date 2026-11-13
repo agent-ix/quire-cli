@@ -4254,10 +4254,12 @@ fn signer_text_reaches_the_converter_only_as_escaped_data() {
     ));
     assert!(result.status.success(), "{}", stderr(&result));
     let block = rig.converter_input("approval.md");
+    let block_without_break_points = block.replace('\u{200b}', "");
     assert!(
-        block.contains("\\*x\\* \\`\\#pagebreak\\(\\)\\`\\{\\=typst\\}"),
+        block_without_break_points.contains("\\*x\\* \\`\\#pagebreak\\(\\)\\`\\{\\=typst\\}"),
         "{block}"
     );
+    assert!(!block.contains("\\\u{200b}"), "{block}");
     assert!(block.contains("Mallory \\| \\<w\\:br\\/\\>"), "{block}");
     assert_eq!(rows(&block).len(), 1, "{block}");
     assert!(!block.contains("<raw>"), "{block}");
