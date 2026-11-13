@@ -144,8 +144,9 @@ pub(super) struct Generated<'a> {
     /// Front matter and the template, present for a Markdown input;
     /// a JSON report carries no identity and gets neither.
     pub(super) identity_parts: Option<IdentityParts<'a>>,
-    /// The source commit time, the `SOURCE_DATE_EPOCH` of every request.
-    pub(super) epoch: Option<i64>,
+    /// The `SOURCE_DATE_EPOCH` of every request: the source commit time, or 0 for
+    /// a JSON report, which has no commit.
+    pub(super) epoch: i64,
 }
 
 /// Runs the export's requests over one capability root and returns the path of
@@ -248,7 +249,7 @@ struct Plan {
     with_identity: bool,
     /// The number of bundle documents; 0 for a single export.
     documents: usize,
-    epoch: Option<i64>,
+    epoch: i64,
 }
 
 fn run_step(
@@ -281,13 +282,11 @@ fn run_step(
 /// The complete FR-032 request for one step. Fields not in the table are not set.
 fn request(root: &str, tool: &Tool, plan: Plan) -> Value {
     let step = plan.step;
-    let mut environment = json!({
+    let environment = json!({
         "HOME": format!("{root}/out/home"),
         "TMPDIR": format!("{root}/out/tmp"),
+        "SOURCE_DATE_EPOCH": plan.epoch.to_string(),
     });
-    if let (Some(epoch), Some(map)) = (plan.epoch, environment.as_object_mut()) {
-        map.insert("SOURCE_DATE_EPOCH".to_string(), json!(epoch.to_string()));
-    }
     json!({
         "protocol": "engineering-assurance.producer-execution-request/v1",
         "producer": {

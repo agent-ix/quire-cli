@@ -8,6 +8,7 @@
 
 mod common;
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::os::unix::fs::{symlink, PermissionsExt};
 use std::path::{Path, PathBuf};
@@ -218,7 +219,11 @@ impl Rig {
             .expect("requests")
             .map(|entry| entry.expect("entry").path())
             .collect();
-        files.sort();
+        files.sort_by_key(|path| {
+            path.file_stem()
+                .and_then(|stem| stem.to_str())
+                .and_then(|stem| stem.parse::<usize>().ok())
+        });
         files
             .iter()
             .map(|path| serde_json::from_slice(&fs::read(path).expect("read")).expect("JSON"))
@@ -2087,6 +2092,7 @@ fn docx_parts(path: &Path, prefix: &str) -> String {
         .arg(path)
         .output()
         .expect("unzip runs");
+    assert!(listing.status.success(), "{}", stderr(&listing));
     String::from_utf8_lossy(&listing.stdout)
         .lines()
         .filter(|name| name.starts_with(prefix) && name.ends_with(".xml"))
@@ -3174,4 +3180,608 @@ fn a_bundle_with_an_invalid_template_exits_3_before_any_converter() {
     }
     assert!(rig.requests().is_empty());
     assert_eq!(fs::read(&output).expect("output"), b"previous");
+}
+
+/// What one export handed to the stand-in converters and wrote.
+struct Capture {
+    /// Each request with its capability root replaced by `<ROOT>`.
+    requests: Vec<String>,
+    roots: Vec<String>,
+    environments: Vec<Value>,
+    /// Every file the stand-in pandoc found under `in/`, by relative name.
+    inputs: BTreeMap<String, Vec<u8>>,
+    output: Vec<u8>,
+}
+
+fn read_tree(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) {
+    for entry in fs::read_dir(dir).expect("directory") {
+        let entry = entry.expect("entry");
+        let name = format!("{prefix}{}", entry.file_name().to_string_lossy());
+        if entry.path().is_dir() {
+            read_tree(&entry.path(), &format!("{name}/"), files);
+        } else {
+            files.insert(name, fs::read(entry.path()).expect("file"));
+        }
+    }
+}
+
+fn contains_bytes(haystack: &[u8], needle: &str) -> bool {
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle.as_bytes())
+}
+
+/// Runs the export described by `build` in its own working directory, output
+/// directory, temporary directory, home and time zone.
+fn export_varied(
+    rig: &Rig,
+    variant: usize,
+    zone: &str,
+    build: &dyn Fn(&Path) -> Command,
+) -> Capture {
+    let [cwd, out, tmp] = ["cwd", "out", "tmp"].map(|kind| {
+        let dir = rig.root().join(format!("{kind}-{variant}"));
+        fs::create_dir_all(&dir).expect("variant directory");
+        dir
+    });
+    let before = rig.requests().len();
+    let output = out.join("result.bin");
+    let mut command = build(&output);
+    command
+        .current_dir(&cwd)
+        .env("TZ", zone)
+        .env("TMPDIR", &tmp)
+        .env("HOME", &out);
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+    let requests = rig.requests().split_off(before);
+    let roots: Vec<String> = requests
+        .iter()
+        .map(|request| {
+            request["capabilityRoot"]
+                .as_str()
+                .expect("root")
+                .to_string()
+        })
+        .collect();
+    assert!(roots
+        .iter()
+        .all(|root| root.starts_with(tmp.to_str().expect("UTF-8"))));
+    let mut inputs = BTreeMap::new();
+    read_tree(&rig.root().join("log/in"), "", &mut inputs);
+    Capture {
+        requests: requests
+            .iter()
+            .zip(&roots)
+            .map(|(request, root)| request.to_string().replace(root.as_str(), "<ROOT>"))
+            .collect(),
+        environments: requests
+            .iter()
+            .map(|request| request["environment"].clone())
+            .collect(),
+        roots,
+        inputs,
+        output: fs::read(&output).expect("output"),
+    }
+}
+
+/// Exports twice, varying the working directory, output directory, capability
+/// root, `TZ` and `HOME`, and asserts that the requests, every generated input
+/// file and the output are identical, and that no host path reaches them.
+fn assert_stable(rig: &Rig, scenario: &str, epoch: &str, build: &dyn Fn(&Path) -> Command) {
+    let first = export_varied(rig, 0, "Pacific/Kiritimati", build);
+    let second = export_varied(rig, 1, "America/Los_Angeles", build);
+    assert_ne!(first.roots, second.roots, "{scenario}: roots must vary");
+    assert_eq!(first.requests, second.requests, "{scenario}");
+    assert_eq!(first.inputs, second.inputs, "{scenario}");
+    assert_eq!(first.output, second.output, "{scenario}");
+    for capture in [&first, &second] {
+        for environment in &capture.environments {
+            let object = environment.as_object().expect("environment");
+            let mut keys: Vec<&str> = object.keys().map(String::as_str).collect();
+            keys.sort_unstable();
+            assert_eq!(keys, ["HOME", "SOURCE_DATE_EPOCH", "TMPDIR"], "{scenario}");
+            assert_eq!(object["SOURCE_DATE_EPOCH"], epoch, "{scenario}");
+        }
+        let rig_root = rig.root().display().to_string();
+        let checkout = env!("CARGO_MANIFEST_DIR");
+        let generated = capture
+            .inputs
+            .iter()
+            .map(|(name, bytes)| (name.as_str(), bytes));
+        for (name, bytes) in generated.chain([("output", &capture.output)]) {
+            assert!(
+                !contains_bytes(bytes, &rig_root),
+                "{scenario}: host path in {name}"
+            );
+            assert!(
+                !contains_bytes(bytes, checkout),
+                "{scenario}: checkout path in {name}"
+            );
+            assert!(
+                !contains_bytes(bytes, "quire-export-"),
+                "{scenario}: root name in {name}"
+            );
+        }
+    }
+}
+
+#[trace("FR-037-AC-1", "FR-037-AC-3")]
+#[test]
+fn a_markdown_export_gives_identical_requests_and_inputs_across_hosts_and_zones() {
+    let rig = Rig::new();
+    for to in ["docx", "pdf"] {
+        assert_stable(&rig, &format!("default {to}"), "981261000", &|output| {
+            rig.export(&rig.fixture(), to, output)
+        });
+    }
+}
+
+#[trace("FR-037-AC-1", "FR-037-AC-3")]
+#[test]
+fn template_and_bundle_exports_are_identical_across_hosts_and_zones() {
+    let rig = Rig::new();
+    let [one, two, three] = bundle_documents(&rig);
+    for (to, name, bytes) in [
+        ("pdf", "org.typ", TYPST_ORG_TEMPLATE.as_bytes()),
+        (
+            "docx",
+            "org.docx",
+            b"PK\x03\x04 organisation reference".as_slice(),
+        ),
+    ] {
+        let template = org_template(&rig, name, bytes);
+        assert_stable(&rig, &format!("template {to}"), "981261000", &|output| {
+            with_template(rig.export(&rig.fixture(), to, output), &template)
+        });
+        assert_stable(&rig, &format!("bundle {to}"), "981261000", &|output| {
+            bundle_command(&rig, &[&one, &two, &three], to, output)
+        });
+        assert_stable(
+            &rig,
+            &format!("bundle template {to}"),
+            "981261000",
+            &|output| with_template(bundle_command(&rig, &[&one, &two], to, output), &template),
+        );
+    }
+}
+
+#[trace("FR-037-AC-1", "FR-037-AC-3")]
+#[test]
+fn a_json_report_export_stamps_the_unix_epoch_and_is_identical_across_hosts() {
+    let rig = Rig::new();
+    for to in ["docx", "pdf"] {
+        assert_stable(&rig, &format!("json {to}"), "0", &|output| {
+            rig.export_json(&json_fixture("matrix.json"), "matrix", to, output)
+        });
+    }
+}
+
+/// The slices of `xml` that follow each opening tag of exactly the element
+/// `name` (`<w:t>` and `<w:t xml:space=..>`, not `<w:tab/>` or `<w:tbl>`),
+/// each up to the next such opening tag.
+fn after_element<'a>(xml: &'a str, name: &str) -> Vec<&'a str> {
+    let open = format!("<{name}");
+    let mut starts = Vec::new();
+    let mut from = 0;
+    while let Some(at) = xml[from..].find(&open) {
+        let end = from + at + open.len();
+        if matches!(xml[end..].chars().next(), Some('>' | ' ' | '/')) {
+            starts.push(end);
+        }
+        from = end;
+    }
+    let bounds: Vec<usize> = starts
+        .iter()
+        .skip(1)
+        .map(|start| start - open.len())
+        .collect();
+    starts
+        .iter()
+        .enumerate()
+        .map(|(index, &start)| &xml[start..bounds.get(index).copied().unwrap_or(xml.len())])
+        .collect()
+}
+
+/// The text of every `<w:t>` in `xml`, concatenated.
+fn xml_text(xml: &str) -> String {
+    after_element(xml, "w:t")
+        .iter()
+        .filter_map(|piece| piece.split_once('>')?.1.split_once("</w:t>").map(|t| t.0))
+        .collect()
+}
+
+/// The extracted text of NFR-011: `pdftotext -layout`, or the text of
+/// `word/document.xml`, `word/header*.xml` and `word/footer*.xml` in part-name
+/// order.
+fn nfr_text(path: &Path, to: &str) -> String {
+    if to == "pdf" {
+        let output = Command::new(require_tool("pdftotext"))
+            .arg("-layout")
+            .arg(path)
+            .arg("-")
+            .output()
+            .expect("pdftotext runs");
+        assert!(output.status.success(), "{}", stderr(&output));
+        return String::from_utf8_lossy(&output.stdout).into_owned();
+    }
+    docx_parts_in_order(path)
+        .iter()
+        .map(|part| xml_text(&docx_part(path, part)))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn docx_parts_in_order(path: &Path) -> Vec<String> {
+    let listing = Command::new(require_tool("unzip"))
+        .arg("-Z1")
+        .arg(path)
+        .output()
+        .expect("unzip runs");
+    assert!(listing.status.success(), "{}", stderr(&listing));
+    let mut parts: Vec<String> = String::from_utf8_lossy(&listing.stdout)
+        .lines()
+        .filter(|name| {
+            name == &"word/document.xml"
+                || ((name.starts_with("word/header") || name.starts_with("word/footer"))
+                    && name.ends_with(".xml"))
+        })
+        .map(str::to_string)
+        .collect();
+    parts.sort();
+    parts
+}
+
+/// The extracted structure of NFR-011: for DOCX the heading levels and texts,
+/// the cell grid of every table and the field instructions; for PDF the page
+/// count (its heading, table and contents texts are compared in the extracted
+/// text).
+fn nfr_structure(path: &Path, to: &str) -> Vec<String> {
+    if to == "pdf" {
+        return vec![format!("pages={}", pdf_page_count(path))];
+    }
+    let xml = docx_part(path, "word/document.xml");
+    let mut structure = Vec::new();
+    for paragraph in xml.split("</w:p>") {
+        if let Some((_, rest)) = paragraph.split_once("<w:pStyle w:val=\"Heading") {
+            let level: String = rest.chars().take_while(char::is_ascii_digit).collect();
+            structure.push(format!("h{level} {}", xml_text(paragraph)));
+        }
+    }
+    for table in xml.split("<w:tbl>").skip(1) {
+        let table = table.split("</w:tbl>").next().unwrap_or_default();
+        for row in after_element(table, "w:tr") {
+            let cells: Vec<String> = row.split("</w:tc>").map(xml_text).collect();
+            structure.push(format!("row {cells:?}"));
+        }
+    }
+    let mut fields: Vec<&str> = after_element(&xml, "w:instrText")
+        .iter()
+        .filter_map(|piece| {
+            piece
+                .split_once('>')?
+                .1
+                .split_once("</w:instrText>")
+                .map(|t| t.0)
+        })
+        .collect();
+    fields.sort_unstable();
+    structure.extend(fields.iter().map(|field| format!("field {field}")));
+    structure
+}
+
+/// Exports with the real tools from a new working directory, output directory
+/// and `TZ`, and returns the output path.
+fn real_varied(rig: &Rig, variant: usize, zone: &str, mut command: Command, to: &str) -> PathBuf {
+    let cwd = rig.root().join(format!("rcwd-{variant}"));
+    let out = rig.root().join(format!("rout-{variant}"));
+    fs::create_dir_all(&cwd).expect("cwd");
+    fs::create_dir_all(&out).expect("out");
+    let path = out.join(format!("result.{to}"));
+    command
+        .current_dir(&cwd)
+        .env("TZ", zone)
+        .arg("--output")
+        .arg(&path);
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+    path
+}
+
+fn real_command(input: &[&Path], to: &str) -> Command {
+    require_tool("pandoc");
+    require_tool("typst");
+    let mut command = quire();
+    command.arg("export").args(input).args(["--to", to]);
+    command.arg("--module").arg(validate_module());
+    command
+}
+
+fn real_json_command(to: &str) -> Command {
+    require_tool("pandoc");
+    require_tool("typst");
+    let mut command = quire();
+    command.arg("export").arg(json_fixture("matrix.json"));
+    command.args(["--kind", "matrix", "--to", to]);
+    command
+}
+
+/// A named way to build the export command of one scenario.
+type Scenario<'a> = Box<dyn Fn() -> Command + 'a>;
+
+/// A DOCX reference document made by the real pandoc, standing in for an
+/// organisation's template.
+fn pandoc_reference_docx(rig: &Rig) -> PathBuf {
+    let output = Command::new(require_tool("pandoc"))
+        .args(["--print-default-data-file", "reference.docx"])
+        .output()
+        .expect("pandoc runs");
+    assert!(output.status.success(), "{}", stderr(&output));
+    org_template(rig, "org.docx", &output.stdout)
+}
+
+/// The approval-verdict scenario of NFR-011-AC-2 is not run here: the approval
+/// block belongs to its own change and is added to this test with it.
+#[trace("NFR-011-AC-1", "NFR-011-AC-2", "NFR-011-AC-3", "NFR-011-AC-4")]
+#[test]
+#[ignore = "needs real pandoc, typst, unzip and pdftotext on PATH"]
+fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
+    let rig = Rig::new();
+    let [one, two, three] = bundle_documents(&rig);
+    let pdf_template = org_template(&rig, "org.typ", TYPST_ORG_TEMPLATE.as_bytes());
+    let docx_template = pandoc_reference_docx(&rig);
+    for to in ["docx", "pdf"] {
+        let template = if to == "pdf" {
+            &pdf_template
+        } else {
+            &docx_template
+        };
+        let scenarios: Vec<(&str, Scenario)> = vec![
+            ("default", Box::new(|| real_command(&[&rig.fixture()], to))),
+            (
+                "bundle",
+                Box::new(|| {
+                    let mut command = real_command(&[&one, &two, &three], to);
+                    command.args(["--bundle-title", "Release Dossier", "--bundle-id", "BND-7"]);
+                    command
+                }),
+            ),
+            (
+                "template",
+                Box::new(|| with_template(real_command(&[&rig.fixture()], to), template)),
+            ),
+        ];
+        for (name, build) in &scenarios {
+            let first = real_varied(&rig, 0, "Pacific/Kiritimati", build(), to);
+            let second = real_varied(&rig, 1, "America/Los_Angeles", build(), to);
+            assert_eq!(
+                nfr_text(&first, to),
+                nfr_text(&second, to),
+                "{name} {to} text"
+            );
+            assert_eq!(
+                nfr_structure(&first, to),
+                nfr_structure(&second, to),
+                "{name} {to} structure"
+            );
+        }
+        // A one-word change must show in the extracted text.
+        let first = real_varied(&rig, 0, "UTC", real_command(&[&rig.fixture()], to), to);
+        let changed = fs::read_to_string(export_fixture())
+            .expect("fixture")
+            .replace("first fixture item", "altered fixture item");
+        let edited = rig.commit("edited.md", &changed, COMMIT_DATE);
+        let second = real_varied(&rig, 1, "UTC", real_command(&[&edited], to), to);
+        assert_ne!(nfr_text(&first, to), nfr_text(&second, to), "{to}");
+    }
+}
+
+/// The `CreationDate` and `ModDate` of a PDF as ISO 8601 text in UTC, where
+/// present.
+fn pdf_dates(path: &Path) -> Vec<String> {
+    let output = Command::new(require_tool("pdfinfo"))
+        .arg("-isodates")
+        .arg(path)
+        .env("TZ", "UTC")
+        .output()
+        .expect("pdfinfo runs");
+    assert!(output.status.success(), "{}", stderr(&output));
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| {
+            let value = line
+                .strip_prefix("CreationDate:")
+                .or_else(|| line.strip_prefix("ModDate:"))?;
+            Some(value.trim().to_string())
+        })
+        .collect()
+}
+
+/// The `dcterms:created` and `dcterms:modified` values of a DOCX, where present.
+fn docx_dates(path: &Path) -> Vec<String> {
+    let core = docx_part(path, "docProps/core.xml");
+    ["dcterms:created", "dcterms:modified"]
+        .iter()
+        .filter_map(|tag| {
+            let (_, rest) = core.split_once(&format!("<{tag}"))?;
+            Some(rest.split_once('>')?.1.split_once('<')?.0.to_string())
+        })
+        .collect()
+}
+
+/// Asserts every date of both documents starts with `expected`.
+fn assert_dates(docx: &Path, pdf: &Path, expected: &str) {
+    for date in docx_dates(docx).iter().chain(&pdf_dates(pdf)) {
+        assert!(date.starts_with(expected), "{date} is not {expected}");
+    }
+}
+
+/// The host name and user name of the machine running the test.
+fn host_and_user() -> Vec<String> {
+    let host = fs::read_to_string("/proc/sys/kernel/hostname").unwrap_or_default();
+    let user = std::env::var("USER").unwrap_or_default();
+    [host.trim().to_string(), user]
+        .into_iter()
+        .filter(|name| name.len() >= 3)
+        .collect()
+}
+
+/// Asserts that neither the text nor the properties of the documents hold a
+/// host path, host name or user name of the run.
+fn assert_no_host_content(rig: &Rig, docx: &Path, pdf: &Path) {
+    let mut surfaces = vec![
+        nfr_text(docx, "docx"),
+        nfr_text(pdf, "pdf"),
+        docx_part(docx, "docProps/core.xml"),
+        docx_part(docx, "docProps/app.xml"),
+    ];
+    let info = Command::new(require_tool("pdfinfo"))
+        .arg(pdf)
+        .output()
+        .expect("pdfinfo runs");
+    surfaces.push(String::from_utf8_lossy(&info.stdout).into_owned());
+    let mut forbidden = host_and_user();
+    forbidden.push(rig.root().display().to_string());
+    forbidden.push(env!("CARGO_MANIFEST_DIR").to_string());
+    forbidden.push("quire-export-".to_string());
+    for text in &surfaces {
+        for name in &forbidden {
+            assert!(!text.contains(name.as_str()), "{name} found in {text}");
+        }
+    }
+}
+
+#[trace("FR-037-AC-2", "FR-037-AC-3")]
+#[test]
+#[ignore = "needs real pandoc, typst, unzip, pdftotext and pdfinfo on PATH"]
+fn real_documents_hold_the_commit_time_or_none_and_no_host_content() {
+    let rig = Rig::new();
+    let docx = real_varied(
+        &rig,
+        0,
+        "UTC",
+        real_command(&[&rig.fixture()], "docx"),
+        "docx",
+    );
+    let pdf = real_varied(
+        &rig,
+        0,
+        "UTC",
+        real_command(&[&rig.fixture()], "pdf"),
+        "pdf",
+    );
+    assert_dates(&docx, &pdf, "2001-02-04T04:30:00");
+    assert_no_host_content(&rig, &docx, &pdf);
+}
+
+#[trace("FR-037-AC-5", "FR-037-AC-3")]
+#[test]
+#[ignore = "needs real pandoc, typst, unzip, pdftotext and pdfinfo on PATH"]
+fn real_json_report_documents_hold_the_unix_epoch_or_none_and_no_host_content() {
+    let rig = Rig::new();
+    let docx = real_varied(&rig, 0, "UTC", real_json_command("docx"), "docx");
+    let pdf = real_varied(&rig, 0, "UTC", real_json_command("pdf"), "pdf");
+    assert_dates(&docx, &pdf, "1970-01-01T00:00:00");
+    assert_no_host_content(&rig, &docx, &pdf);
+}
+
+/// Sleeps until the wall clock is in a later whole second.
+fn wait_for_next_second() {
+    let seconds = |now: std::time::SystemTime| {
+        now.duration_since(std::time::UNIX_EPOCH)
+            .expect("after the epoch")
+            .as_secs()
+    };
+    let start = seconds(std::time::SystemTime::now());
+    while seconds(std::time::SystemTime::now()) == start {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+#[trace("FR-037-AC-2", "NFR-011-AC-1")]
+#[test]
+#[ignore = "needs real pandoc, typst, unzip, pdftotext and pdfinfo on PATH"]
+fn real_document_dates_do_not_change_when_the_clock_moves_between_exports() {
+    let rig = Rig::new();
+    let mut dates = Vec::new();
+    for variant in 0..2 {
+        let docx = real_varied(
+            &rig,
+            variant,
+            "UTC",
+            real_command(&[&rig.fixture()], "docx"),
+            "docx",
+        );
+        let pdf = real_varied(
+            &rig,
+            variant,
+            "UTC",
+            real_command(&[&rig.fixture()], "pdf"),
+            "pdf",
+        );
+        dates.push((docx_dates(&docx), pdf_dates(&pdf)));
+        wait_for_next_second();
+    }
+    assert_eq!(dates[0], dates[1]);
+}
+
+/// Source text that reads the wall clock, the local time zone or a file time.
+const CLOCK_READS: [&str; 10] = [
+    "SystemTime",
+    "Instant::now",
+    "chrono",
+    "time::",
+    ".modified(",
+    ".created(",
+    ".accessed(",
+    "\"TZ\"",
+    "localtime",
+    "/etc/localtime",
+];
+
+/// The entries of [`CLOCK_READS`] that `source` contains.
+fn clock_reads(source: &str) -> Vec<&'static str> {
+    CLOCK_READS
+        .into_iter()
+        .filter(|read| source.contains(read))
+        .collect()
+}
+
+#[trace("FR-037-AC-4")]
+#[test]
+fn the_clock_read_matcher_catches_each_forbidden_form() {
+    for sample in [
+        "let now = std::time::SystemTime::now();",
+        "let t = Instant::now();",
+        "use chrono::Utc;",
+        "let t = time::OffsetDateTime::now_utc();",
+        "meta.modified()",
+        "meta.created()",
+        "meta.accessed()",
+        "std::env::var(\"TZ\")",
+        "libc::localtime_r(&t, &mut tm)",
+        "fs::read(\"/etc/localtime\")",
+    ] {
+        assert!(!clock_reads(sample).is_empty(), "{sample} not caught");
+    }
+    assert!(clock_reads("let epoch: i64 = commit.seconds;").is_empty());
+}
+
+#[trace("FR-037-AC-4")]
+#[test]
+fn the_export_code_reads_no_clock_time_zone_or_file_time() {
+    let mut files = vec![PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/commands/export.rs")];
+    let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/commands/export");
+    for entry in fs::read_dir(directory).expect("export directory") {
+        files.push(entry.expect("entry").path());
+    }
+    for file in files {
+        let source = fs::read_to_string(&file).expect("source");
+        assert_eq!(
+            clock_reads(&source),
+            Vec::<&str>::new(),
+            "{} reads the clock",
+            file.display()
+        );
+    }
 }
