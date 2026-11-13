@@ -169,7 +169,8 @@ impl Rig {
     }
 
     /// A copy of the `validate-mod` module whose `FR` type requires no body
-    /// sections, so a document without headings is valid.
+    /// sections and accepts any id, so a document without headings or with an
+    /// unusual id is valid.
     fn lenient_module(&self) -> PathBuf {
         let source = validate_module();
         let root = self.root().join("lenient-module");
@@ -184,11 +185,12 @@ impl Rig {
             format!("{}{}", &manifest[..start], &manifest[end..]),
         )
         .expect("manifest");
-        fs::copy(
-            source.join("schemas/fr-frontmatter.schema.json"),
-            root.join("schemas/fr-frontmatter.schema.json"),
-        )
-        .expect("schema");
+        // The id pattern is relaxed too, so an id holding a pipe and a bracket is valid.
+        let schema = fs::read_to_string(source.join("schemas/fr-frontmatter.schema.json"))
+            .expect("schema")
+            .replace(",\n      \"pattern\": \"^[A-Z]{2,4}-[0-9]+$\"", "");
+        assert!(!schema.contains("pattern"), "{schema}");
+        fs::write(root.join("schemas/fr-frontmatter.schema.json"), schema).expect("schema");
         root
     }
 
@@ -1167,10 +1169,12 @@ fn hostile_identity_values_reach_the_converter_only_as_escaped_data() {
         .replace(
             "title: Fictional export fixture",
             "title: \"*x* `#pagebreak()`{=typst} --output=/tmp/x\"",
-        );
+        )
+        .replace("id: FR-001", "id: \"FR-001|[x]\"");
     let hostile = rig.commit("hostile-identity.md", &text, COMMIT_DATE);
     git(&rig.repo(), &["tag", HOSTILE_TAG], None);
-    let mut command = rig.export(&hostile, "pdf", &rig.work("out.pdf"));
+    let mut command =
+        rig.export_with_module(&hostile, "pdf", &rig.work("out.pdf"), &rig.lenient_module());
     command.args(["--release", HOSTILE_TAG]);
     let result = run(command);
     assert!(result.status.success(), "{}", stderr(&result));
@@ -1189,6 +1193,11 @@ fn hostile_identity_values_reach_the_converter_only_as_escaped_data() {
         "{front}"
     );
     assert!(front.contains(&format!("Release: {}\n", escaped(HOSTILE_TAG))));
+    assert!(
+        front.contains("Document id: FR\\-001\\|\\[x\\]\n"),
+        "{front}"
+    );
+    assert_eq!(exported_identity(&rig)["document-id"], "FR\\-001\\|\\[x\\]");
     assert_eq!(front.matches("```{=typst}").count(), 3);
     for request in rig.requests() {
         for argument in literals(&request) {
@@ -1479,6 +1488,26 @@ fn an_abbreviated_revision_is_refused_with_the_accepted_forms() {
         "{}",
         stderr(&result)
     );
+}
+
+#[trace("FR-033-AC-6", "FR-040-AC-4")]
+#[test]
+fn validation_of_the_committed_text_names_the_input_file() {
+    let rig = Rig::new();
+    let broken = fs::read_to_string(validate_doc("broken-fr.md"))
+        .expect("broken fixture")
+        .replace(
+            "title: A structurally broken FR",
+            "title: Broken\nversion: \"1\"",
+        );
+    let input = rig.commit("broken-crlf.md", &broken, COMMIT_DATE);
+    // The working file differs from the committed text only in line endings.
+    fs::write(&input, broken.replace('\n', "\r\n")).expect("crlf");
+    let result = run(rig.export(&input, "docx", &rig.work("out.docx")));
+    assert_eq!(result.status.code(), Some(3));
+    let message = stderr(&result);
+    assert!(message.contains(&input.display().to_string()), "{message}");
+    assert!(rig.requests().is_empty());
 }
 
 fn require_tool(name: &str) -> PathBuf {
@@ -2171,7 +2200,8 @@ fn real_converters_show_hostile_identity_values_as_literal_text() {
             "title: Fictional export fixture",
             &format!("title: \"{title}\""),
         )
-        .replace("version: \"1.0\"\n", "");
+        .replace("version: \"1.0\"\n", "")
+        .replace("id: FR-001", "id: \"FR-001|[x]\"");
     let hostile = rig.commit("hostile.md", &text, COMMIT_DATE);
     git(&rig.repo(), &["tag", HOSTILE_TAG], None);
     let baseline = rig.work("baseline.pdf");
@@ -2188,7 +2218,7 @@ fn real_converters_show_hostile_identity_values_as_literal_text() {
             .args(["--to", to, "--release", HOSTILE_TAG, "--output"])
             .arg(path)
             .arg("--module")
-            .arg(validate_module());
+            .arg(rig.lenient_module());
         let result = run(command);
         assert!(result.status.success(), "{}", stderr(&result));
     }
@@ -2199,6 +2229,7 @@ fn real_converters_show_hostile_identity_values_as_literal_text() {
     assert!(first.contains(HOSTILE_TAG), "{first}");
     let third = pdf_page(&pdf, 3);
     assert!(third.contains(HOSTILE_TAG), "header: {third}");
+    assert!(third.contains("FR-001|[x]"), "header id: {third}");
     assert!(third.contains(&rig.head()[..12]), "footer: {third}");
     assert_eq!(pdf_page_count(&pdf), pdf_page_count(&baseline));
     let visible = strip_tags(&docx_part(&docx, "word/document.xml"));

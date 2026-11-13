@@ -137,6 +137,20 @@ pub(crate) fn apply_severity_overrides(
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
+    run_with(ctx, args, Source::Files)
+}
+
+/// Where the validated text comes from.
+pub(crate) enum Source<'a> {
+    /// Read the documents named by the arguments.
+    Files,
+    /// Validate `text` as the one named document without reading it, and do not
+    /// look up the repository identity (no `git` process): `quire export`
+    /// validates the committed text under the input's own path.
+    Committed(&'a str),
+}
+
+pub(crate) fn run_with(ctx: &Ctx, args: Args, source: Source<'_>) -> anyhow::Result<()> {
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;
     let registry = load_registry(ctx, &args, &scope)?;
@@ -150,7 +164,21 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     // clap guarantees a non-empty `documents` here (required_unless_present).
-    let inputs = expand_documents(&args.documents, &scope)?;
+    let mut inputs = expand_documents(&args.documents, &scope)?;
+    let committed = match source {
+        Source::Committed(text) => Some(text),
+        Source::Files => None,
+    };
+    if let Some(text) = committed {
+        for input in &mut inputs {
+            if let DocumentInput::Path(path) = input {
+                *input = DocumentInput::Text {
+                    path: std::mem::take(path),
+                    text: text.to_string(),
+                };
+            }
+        }
+    }
 
     // FR-044: harvest the scope repo's project Ubiquitous-Language terms (a
     // `Glossary` `## Terms` table or `## Ubiquitous Language` sections) once,
@@ -159,7 +187,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // Scans only glossary-bearing docs — never a full-corpus parse.
     let project_terms = quire_rs::glossary_terms_from_path(&scope);
     let lexicon = registry.lexicon_with(&project_terms);
-    let bundle_package = repo_bundle_package(&scope);
+    let bundle_package = match committed {
+        Some(_) => None,
+        None => repo_bundle_package(&scope),
+    };
 
     let mut failures = 0usize;
     let mut warned = 0usize;
@@ -468,46 +499,17 @@ fn bundle_fields<'a>(
 
 /// The repository identity (`<org>/<repo>`) taken from the `origin`
 /// git remote, or `None` when the directory is not a git checkout with a remote.
-/// The remote URL is read from the repository config in process; no `git`
-/// process is started.
 fn repo_bundle_package(dir: &Path) -> Option<String> {
-    let (found, _trust) = gix_discover::upwards(dir).ok()?;
-    let (git_dir, _) = found.into_repository_and_work_tree_directories();
-    let config = std::fs::read_to_string(git_common_dir(&git_dir).join("config")).ok()?;
-    parse_remote_package(origin_url(&config)?)
-}
-
-/// The directory that holds the shared repository state (objects, refs,
-/// config): the `commondir` of a linked work tree's git dir, otherwise the git
-/// dir itself.
-pub(crate) fn git_common_dir(git_dir: &Path) -> std::path::PathBuf {
-    match std::fs::read_to_string(git_dir.join("commondir")) {
-        Ok(text) => {
-            let relative = git_dir.join(text.trim());
-            std::fs::canonicalize(&relative).unwrap_or(relative)
-        }
-        Err(_) => git_dir.to_path_buf(),
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(["remote", "get-url", "origin"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
     }
-}
-
-/// The `url` of `[remote "origin"]` in git config text.
-fn origin_url(config: &str) -> Option<&str> {
-    let mut in_origin = false;
-    for line in config.lines().map(str::trim) {
-        if let Some(header) = line.strip_prefix('[') {
-            let header = header.trim_end_matches(']').trim();
-            in_origin = header
-                .strip_prefix("remote")
-                .is_some_and(|rest| rest.trim() == "\"origin\"");
-        } else if in_origin {
-            if let Some((key, value)) = line.split_once('=') {
-                if key.trim().eq_ignore_ascii_case("url") {
-                    return Some(value.trim().trim_matches('"'));
-                }
-            }
-        }
-    }
-    None
+    parse_remote_package(String::from_utf8_lossy(&output.stdout).trim())
 }
 
 /// Extract `<org>/<repo>` from an https, ssh or scp-style git remote URL.
@@ -637,13 +639,18 @@ fn scoped_registry_roots(scope: &Path) -> Vec<PathBuf> {
 pub(crate) enum DocumentInput {
     Stdin,
     Path(PathBuf),
+    /// A named document whose text is already in hand.
+    Text {
+        path: PathBuf,
+        text: String,
+    },
 }
 
 impl DocumentInput {
     pub(crate) fn label(&self) -> String {
         match self {
             Self::Stdin => "-".to_string(),
-            Self::Path(path) => path.display().to_string(),
+            Self::Path(path) | Self::Text { path, .. } => path.display().to_string(),
         }
     }
 
@@ -651,6 +658,7 @@ impl DocumentInput {
         match self {
             Self::Stdin => io::read_text("-"),
             Self::Path(path) => std::fs::read_to_string(path).map_err(Into::into),
+            Self::Text { text, .. } => Ok(text.clone()),
         }
     }
 
@@ -664,7 +672,7 @@ impl DocumentInput {
     pub(crate) fn scope_relative(&self, scope: &Path) -> Option<PathBuf> {
         match self {
             Self::Stdin => None,
-            Self::Path(path) => Some(
+            Self::Path(path) | Self::Text { path, .. } => Some(
                 path.strip_prefix(scope)
                     .unwrap_or(path)
                     .components()
@@ -934,16 +942,6 @@ mod bundle_package_tests {
     use super::*;
 
     // PLAT-50: the bundle package comes from the origin remote in any URL form.
-    #[test]
-    fn origin_url_is_read_from_config_text() {
-        let config = "[core]\n\turl = nope\n[remote \"upstream\"]\n\turl = a:b/c\n[remote \"origin\"]\n\tfetch = x\n\turl = git@github.com:agent-ix/quire-cli.git\n";
-        assert_eq!(
-            origin_url(config),
-            Some("git@github.com:agent-ix/quire-cli.git")
-        );
-        assert_eq!(origin_url("[core]\n"), None);
-    }
-
     #[test]
     fn remote_urls_yield_org_and_repo() {
         for url in [

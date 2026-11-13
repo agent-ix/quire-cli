@@ -231,26 +231,11 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
             release: args.release.as_deref(),
         },
     )?;
-    // The committed blob is what is validated. It is the working file itself
-    // unless the two differ only in line endings.
-    let mut staged = None;
-    let document = if source.committed == text {
-        args.input.clone()
-    } else {
-        let mut file = tempfile::Builder::new()
-            .suffix(".md")
-            .tempfile()
-            .context("staging the committed text for validation")?;
-        std::io::Write::write_all(&mut file, source.committed.as_bytes())
-            .context("staging the committed text for validation")?;
-        let path = file.path().to_path_buf();
-        staged = Some(file);
-        path
-    };
-    validate::run(
+    // The committed text is what is validated, under the input's own path.
+    validate::run_with(
         ctx,
         validate::Args {
-            documents: vec![document.display().to_string()],
+            documents: vec![args.input.display().to_string()],
             module: args.module.clone(),
             scope: ".".to_string(),
             archetype: None,
@@ -259,9 +244,9 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
             summary: false,
             severity: Vec::new(),
         },
+        validate::Source::Committed(&source.committed),
     )?;
 
-    drop(staged);
     let converters = producer::Converters::resolve(args)?;
     let identity = &source.identity;
     let generated = producer::Generated {

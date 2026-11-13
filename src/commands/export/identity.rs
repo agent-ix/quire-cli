@@ -209,7 +209,7 @@ impl Repo {
                 failure::invalid(anyhow::anyhow!("'{}' is not a UTF-8 path", input.display()))
             })?
             .join("/");
-        let common = crate::commands::validate::git_common_dir(&git_dir);
+        let common = common_dir(&git_dir);
         let unreadable = |what: &str, error: String| {
             failure::invalid(anyhow::anyhow!(
                 "source commit unavailable: the object store of '{}' is unreadable ({what}: {error})",
@@ -507,6 +507,19 @@ impl Attributes {
                 }
             }
         }
+    }
+}
+
+/// The directory that holds the shared repository state (objects, refs,
+/// config, info): the `commondir` of a linked work tree's git dir, otherwise
+/// the git dir itself.
+fn common_dir(git_dir: &Path) -> PathBuf {
+    match fs::read_to_string(git_dir.join("commondir")) {
+        Ok(text) => {
+            let relative = git_dir.join(text.trim());
+            fs::canonicalize(&relative).unwrap_or(relative)
+        }
+        Err(_) => git_dir.to_path_buf(),
     }
 }
 
