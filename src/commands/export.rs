@@ -6,8 +6,10 @@
 //! under a temporary capability root, and copies the result to `--output`.
 //! Markdown parsing and validation stay in `quire-rs` (StR-004).
 
+mod identity;
 mod json;
 mod producer;
+mod template;
 mod tool;
 
 use std::fs;
@@ -16,7 +18,6 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use clap::{Parser, ValueEnum};
 use ix_cli_kit::exit::Outcome;
-use serde_json::{Map, Value};
 
 use super::{failure, validate, Ctx};
 
@@ -64,6 +65,21 @@ pub struct Args {
     /// `quire validate --module` is. Repeatable; refused for a JSON input.
     #[arg(long, value_name = "PATH")]
     pub module: Vec<String>,
+
+    /// Git repository holding the input; default is the repository that
+    /// contains the input file. Refused for a JSON input.
+    #[arg(long, value_name = "DIR")]
+    pub source_repo: Option<PathBuf>,
+
+    /// Revision of the source repository to export; default `HEAD`. Refused
+    /// for a JSON input.
+    #[arg(long, value_name = "REV")]
+    pub source_rev: Option<String>,
+
+    /// Tag of the source repository that names the source commit, shown as
+    /// the release of the document. Refused for a JSON input.
+    #[arg(long, value_name = "TAG")]
+    pub release: Option<String>,
 
     /// Path to `pandoc`, overriding the PATH lookup.
     #[arg(long, value_name = "PATH")]
@@ -122,6 +138,15 @@ fn check_flags(args: &Args, class: InputClass) -> anyhow::Result<()> {
         }
         InputClass::Json if !args.module.is_empty() => {
             invalid_request!("--module is refused for a JSON input");
+        }
+        InputClass::Json if args.source_repo.is_some() => {
+            invalid_request!("--source-repo is refused for a JSON input");
+        }
+        InputClass::Json if args.source_rev.is_some() => {
+            invalid_request!("--source-rev is refused for a JSON input");
+        }
+        InputClass::Json if args.release.is_some() => {
+            invalid_request!("--release is refused for a JSON input");
         }
         _ => Ok(()),
     }
@@ -197,6 +222,15 @@ fn output_error(message: String) -> anyhow::Error {
 }
 
 fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
+    let source = identity::resolve(
+        &args.input,
+        text,
+        &identity::SourceOptions {
+            repo: args.source_repo.as_deref(),
+            rev: args.source_rev.as_deref(),
+            release: args.release.as_deref(),
+        },
+    )?;
     validate::run(
         ctx,
         validate::Args {
@@ -211,27 +245,22 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
         },
     )?;
 
-    let parsed = quire_rs::extract_frontmatter(text);
-    let metadata = metadata_yaml(parsed.frontmatter.as_ref())?;
     let converters = producer::Converters::resolve(args)?;
-    let rendered = producer::convert(&converters, args.to, &parsed.body, &metadata)?;
+    let identity = &source.identity;
+    let generated = producer::Generated {
+        body: &source.body,
+        metadata: &template::metadata_yaml(identity)?,
+        identity_parts: Some(producer::IdentityParts {
+            front: &template::front_matter(identity, args.to),
+            template: match args.to {
+                Format::Pdf => template::typst_template(identity).into_bytes(),
+                Format::Docx => template::docx_reference(identity)?,
+            },
+        }),
+        epoch: Some(identity.epoch),
+    };
+    let rendered = producer::convert(&converters, args.to, &generated)?;
     write_output(&args.output, rendered.as_ref())
-}
-
-/// The pandoc metadata file. The frontmatter `title` is the only member passed
-/// to the converter; the rest of the frontmatter is not converter input. JSON
-/// is a YAML subset, so the file is a single JSON object.
-fn metadata_yaml(frontmatter: Option<&Map<String, Value>>) -> anyhow::Result<String> {
-    let mut metadata = Map::new();
-    if let Some(title) = frontmatter
-        .and_then(|map| map.get("title"))
-        .and_then(Value::as_str)
-    {
-        metadata.insert("title".to_string(), Value::String(title.to_string()));
-    }
-    let mut yaml = serde_json::to_string(&metadata).context("encoding converter metadata")?;
-    yaml.push('\n');
-    Ok(yaml)
 }
 
 /// Copies the converter output to `--output` through a sibling temporary file,
@@ -254,17 +283,6 @@ fn write_output(output: &Path, rendered: &Path) -> anyhow::Result<()> {
 mod tests {
     use super::*;
     use ix_trace_rs::trace;
-
-    #[test]
-    #[trace("FR-031-AC-7")]
-    fn metadata_carries_only_the_title() {
-        let mut map = Map::new();
-        map.insert("title".into(), Value::String("A \"quoted\" title".into()));
-        map.insert("type".into(), Value::String("FR".into()));
-        let yaml = metadata_yaml(Some(&map)).expect("metadata");
-        assert_eq!(yaml, "{\"title\":\"A \\\"quoted\\\" title\"}\n");
-        assert_eq!(metadata_yaml(None).expect("metadata"), "{}\n");
-    }
 
     #[test]
     #[trace("FR-033-AC-6")]

@@ -28,6 +28,19 @@ glob = "0.3"
 toml = "1"
 url = "2"
 tempfile = "3"
+# FR-034: pure-Rust git object-store readers. The `gix` facade is not used
+# because it depends on `gix-protocol`, which depends on `gix-transport`
+# (NFR-004 bans it); these component crates carry no network code.
+gix-discover = "0.57"
+gix-odb = "0.87"
+gix-ref = "0.69"
+gix-object = "0.66"
+gix-hash = { version = "0.28", features = ["sha1"] }
+gix-attributes = "0.37"
+gix-glob = "0.29"
+bstr = { version = "1", default-features = false, features = ["std"] }
+zip = { version = "8", default-features = false }
+gix-features = { version = "0.48", features = ["zlib"] }
 
 [dev-dependencies]
 ix-trace-rs = { version = "=0.1.0", git = "https://github.com/agent-ix/ix-trace-rs", rev = "2ce4ebf47f726b9d76388220545cd0abda8a5cfb" }
