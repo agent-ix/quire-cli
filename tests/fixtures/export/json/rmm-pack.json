@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "requirements-mapping-pack-v1",
+  "pack": "ember-pack",
+  "asOf": "2026-11-12T00:00:00Z",
+  "context": {"class": "b"},
+  "index": [
+    {"clauseSet": {"authority": "fict", "id": "set-a", "version": "1"}, "rowCount": 1},
+    {"clauseSet": {"authority": "fict", "id": "set-b", "version": "2"}, "rowCount": 2}
+  ],
+  "matrices": [
+    {"schemaVersion": "requirements-mapping-v1",
+     "clauseSet": {"authority": "fict", "id": "set-a", "version": "1"},
+     "asOf": "2026-11-12T00:00:00Z",
+     "rows": [{"clauseId": "PA-1", "force": "shall", "applicability": "applicable", "compliance": "compliant", "evidenceRefs": []}],
+     "unusedFacts": []},
+    {"schemaVersion": "requirements-mapping-v1",
+     "clauseSet": {"authority": "fict", "id": "set-b", "version": "2"},
+     "asOf": "2026-11-12T00:00:00Z",
+     "rows": [
+       {"clauseId": "PB-1", "force": "shall", "applicability": "applicable", "compliance": "undischarged", "evidenceRefs": []},
+       {"clauseId": "PB-2", "force": "may", "applicability": "unresolved", "compliance": "undetermined", "evidenceRefs": []}],
+     "unusedFacts": []}
+  ]
+}

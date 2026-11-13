@@ -22,7 +22,7 @@ ix-cli-kit = { git = "https://github.com/agent-ix/ix-cli-kit", branch = "main", 
 quire-rs = { git = "https://github.com/agent-ix/quire-rs", branch = "main" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }
 anyhow = "1"
 glob = "0.3"
 toml = "1"

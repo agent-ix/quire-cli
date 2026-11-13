@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "requirements-mapping-v1",
+  "clauseSet": {"authority": "fict", "id": "ember-std", "version": "1"},
+  "asOf": "2026-11-12T00:00:00Z",
+  "rows": [
+    {"clauseId": "EMB-4.1", "force": "shall", "applicability": "applicable", "compliance": "compliant",
+     "evidenceRefs": ["ev/ember-1"]},
+    {"clauseId": "EMB-4.2", "force": "shall", "applicability": "applicable", "compliance": "undischarged",
+     "reason": "no fact", "evidenceRefs": []},
+    {"clauseId": "EMB-4.3", "force": "should", "applicability": "not_applicable", "compliance": "not_applicable",
+     "evidenceRefs": [], "tailoringDescription": "approved", "tailoringRationale": "n/a here"}
+  ],
+  "unusedFacts": [
+    {"factId": "FACT-UNUSED-1", "reason": "no clause"}
+  ]
+}

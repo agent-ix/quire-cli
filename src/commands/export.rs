@@ -6,6 +6,7 @@
 //! under a temporary capability root, and copies the result to `--output`.
 //! Markdown parsing and validation stay in `quire-rs` (StR-004).
 
+mod json;
 mod producer;
 mod tool;
 
@@ -92,10 +93,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     check_output_target(&args.output)?;
     match class {
         InputClass::Markdown => export_markdown(ctx, &args, &text),
-        InputClass::Json => invalid_request!(
-            "'{}': JSON report export is not available in this build",
-            args.input.display()
-        ),
+        InputClass::Json => match args.kind {
+            Some(kind) => json::export(&args, kind, &text),
+            None => invalid_request!("a JSON input requires --kind"),
+        },
     }
 }
 
