@@ -64,6 +64,8 @@ enum Command {
     Coverage(commands::coverage::Args),
     /// Render the computed coverage matrix: requirement → criterion → binders → status.
     Matrix(commands::matrix::Args),
+    /// Two-way relation coverage over declared required relations (FR-084). Reports; does not judge.
+    Relations(commands::relations::Args),
     /// Report the extracted symbol table, as the engine built it (#309).
     Symbols(commands::symbols::Args),
     /// Structural forward/inverse lookup over the trace-search index (PLAT-879).
@@ -112,6 +114,7 @@ fn main() {
         Command::Edit(a) => commands::edit::run(&ctx, a),
         Command::Coverage(a) => commands::coverage::run(&ctx, a),
         Command::Matrix(a) => commands::matrix::run(&ctx, a),
+        Command::Relations(a) => commands::relations::run(&ctx, a),
         Command::Symbols(a) => commands::symbols::run(&ctx, a),
         Command::Trace(a) => commands::trace::run(&ctx, a),
         Command::Validate(a) => commands::validate::run(&ctx, a),

@@ -50,7 +50,7 @@ pub struct Args {
     /// (~/.ix/filament/modules) and the IX_FILAMENT_MODULES_PATH /
     /// IX_SCHEMA_PATH env vars; when nothing is found it lazy-installs the
     /// default module set via `quoin plugin ensure-defaults`.
-    #[arg(long, value_name = "DIR", default_value = ".")]
+    #[arg(long, value_name = "DIR", default_value = ".", conflicts_with = "repo")]
     pub scope: String,
 
     /// Override the archetype resolved from the document frontmatter
@@ -66,6 +66,20 @@ pub struct Args {
     /// silent repository-wide crawl.
     #[arg(long)]
     pub okf: bool,
+
+    /// With --okf, a corpus member `<ORG/REPO>=<DIR>`, repeatable. The members
+    /// load as one corpus (quire-rs FR-085), so an edge into a sibling
+    /// repository resolves, and each member's documents are validated against
+    /// it with the roots `(<DIR>/spec, <DIR>)`. Each finding names its member.
+    /// Not accepted with --scope or a positional bundle directory.
+    #[arg(
+        long,
+        value_name = "ORG/REPO=DIR",
+        value_parser = super::corpus_input::parse_repo,
+        requires = "okf",
+        conflicts_with = "documents"
+    )]
+    pub repo: Vec<super::corpus_input::RepoArg>,
 
     /// Treat advisory warnings as failures: with --strict, any warning
     /// (for example the unknown-`object:` case from composed type+object
@@ -137,8 +151,14 @@ pub(crate) fn apply_severity_overrides(
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let scope = safety::validate_dir_path("--scope", &args.scope)
-        .with_context(|| format!("validating --scope '{}'", args.scope))?;
+    // With `--repo` the first member's root bounds module discovery, as
+    // `--scope` does for a single repository.
+    let (scope_flag, scope_raw) = match args.repo.first() {
+        Some(first) => ("--repo", first.dir.as_str()),
+        None => ("--scope", args.scope.as_str()),
+    };
+    let scope = safety::validate_dir_path(scope_flag, scope_raw)
+        .with_context(|| format!("validating {scope_flag} '{scope_raw}'"))?;
     let registry = load_registry(ctx, &args, &scope)?;
     // FR-048-AC-5/AC-10: layer `--severity` over the module-declared map. A
     // malformed entry fails here, before any document is read, so the user sees
@@ -357,6 +377,9 @@ fn emit_property_summary(
 /// hard errors (untyped documents) — unknown types / broken links / index
 /// gaps warn.
 fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow::Result<()> {
+    if !args.repo.is_empty() {
+        return run_okf_corpus(ctx, args, registry);
+    }
     // Two roots, one scope (CR-045): with no positional bundle, the document
     // root is `<scope>/spec` — never the scope itself, which is the
     // repository-wide crawl #91 removed — while the module's traceability
@@ -393,7 +416,9 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
         // cross-repo `ix://<other-org>/<other-repo>/ID` target be skipped
         // instead of reported dangling; an in-repo miss stays dangling.
         if let Some(package) = repo_bundle_package(&document_root) {
-            spec = spec.with_bundle_package(&package);
+            spec = spec
+                .with_bundle_package(&package)
+                .map_err(|e| invalid_error!("{e}"))?;
         }
         let report =
             quire_rs::validate_bundle(&spec, registry, posture, &document_root, &reference_root);
@@ -402,6 +427,27 @@ fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow:
         warnings += report.warnings.len();
     }
 
+    okf_verdict(args, errors, warnings)
+}
+
+/// `validate --okf --repo` (quire-rs FR-085): every member's documents are
+/// validated against the one corpus, with the root pair `(<DIR>/spec, <DIR>)`
+/// per member, in flag order.
+fn run_okf_corpus(ctx: &Ctx, args: &Args, registry: &Registry) -> anyhow::Result<()> {
+    let posture = if args.strict {
+        BundlePosture::Strict
+    } else {
+        BundlePosture::Okf
+    };
+    let corpus = super::corpus_input::Corpus::from_repos(&args.repo)?;
+    let report = quire_rs::validate_corpus(&corpus.spec, registry, posture, &corpus.root_pairs())
+        .map_err(|e| invalid_error!("{e}"))?;
+    surface_bundle(ctx, &report);
+    okf_verdict(args, report.errors.len(), report.warnings.len())
+}
+
+/// The OKF exit verdict: any error fails; under `--strict` any warning does.
+fn okf_verdict(args: &Args, errors: usize, warnings: usize) -> anyhow::Result<()> {
     if errors > 0 {
         invalid_request!("{errors} OKF bundle validation error(s)");
     }
@@ -442,8 +488,13 @@ fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
 /// document diagnostics use ([`line_prefix`]); an unlocated finding keeps the
 /// bare `<path>: <message> [<reason>]` form.
 fn bundle_message(f: &quire_rs::BundleFinding) -> String {
+    let member = f
+        .repo
+        .as_deref()
+        .map(|r| format!("[{r}] "))
+        .unwrap_or_default();
     format!(
-        "{}: {}{} [{}]",
+        "{member}{}: {}{} [{}]",
         f.path.display(),
         line_prefix(f.line),
         f.message,

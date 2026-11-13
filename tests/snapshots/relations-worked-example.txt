@@ -1,0 +1,9 @@
+relation concern-is-addressed (incoming, check unaddressed-concern)
+  CON-001  uncovered  not-tracked  GAP unaddressed-concern
+  CON-002  covered  unverified  linked: RULE-002 (unverified)
+  CON-003  covered  verified  linked: RULE-001 (verified)
+  summary: 3 row(s); uncovered 1, covered 2; verified 1, partial 0, unverified 1, not-tracked 1
+relation gold-rule-addresses (outgoing, check gold-rule-idle)
+  RULE-001  covered  verified  linked: CON-003 (not-tracked)
+  RULE-003  uncovered  not-tracked  GAP gold-rule-idle
+  summary: 2 row(s); uncovered 1, covered 1; verified 1, partial 0, unverified 0, not-tracked 1

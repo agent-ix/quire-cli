@@ -9,6 +9,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- PLAT-1554: `quire relations (--scope <DIR> | --repo <ORG/REPO>=<DIR>...) [--relation <NAME>]... [--json] [--strict]` renders the quire-rs two-way relation coverage report (FR-030). `quire validate --okf --repo <ORG/REPO>=<DIR>...` validates the members as one corpus and names the member on each finding. `validate --okf` adapts to `Spec::with_bundle_package` returning a `Result`.
+
 ## [0.44.0] — 2026-11-12
 
 Adopts quire-rs 0.59.1: the loader refuses an explicit null for several manifest keys (PLAT-1484), and the reference check scans every table under a declared section (PLAT-1491).
