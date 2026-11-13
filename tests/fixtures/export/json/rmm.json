@@ -1,0 +1,44 @@
+{
+  "asOf": "2026-11-12T00:00:00Z",
+  "clauseSet": {
+    "authority": "fict",
+    "id": "ember-std",
+    "version": "1"
+  },
+  "rows": [
+    {
+      "applicability": "applicable",
+      "clauseId": "EMB-4.1",
+      "compliance": "compliant",
+      "evidenceRefs": [
+        "ev/ember-1"
+      ],
+      "force": "shall"
+    },
+    {
+      "applicability": "applicable",
+      "clauseId": "EMB-4.2",
+      "compliance": "undischarged",
+      "evidenceRefs": [],
+      "force": "shall",
+      "reason": "no fact"
+    },
+    {
+      "applicability": "not_applicable",
+      "clauseId": "EMB-4.3",
+      "compliance": "not_applicable",
+      "evidenceRefs": [],
+      "force": "should",
+      "tailoringDescription": "approved",
+      "tailoringRationale": "n/a here"
+    }
+  ],
+  "schemaVersion": "requirements-mapping-v1",
+  "unusedFacts": [
+    {
+      "clauseId": "FACT-UNUSED-1",
+      "kind": "direct",
+      "reason": "unknown_clause"
+    }
+  ]
+}

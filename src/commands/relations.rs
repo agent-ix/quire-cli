@@ -225,9 +225,9 @@ fn render_human(report: &RelationReport) -> String {
                     Some(repo) => format!("{repo}:{}", entry.id),
                     None => entry.id.clone(),
                 };
+                let actual = entry.archetype.as_deref().unwrap_or("an untyped document");
                 out.push_str(&format!(
-                    "    kind mismatch: {target} is {} (via {}), accepted: {}\n",
-                    entry.archetype,
+                    "    kind mismatch: {target} is {actual} (via {}), accepted: {}\n",
                     entry.verb,
                     entry.accepted.join("/")
                 ));

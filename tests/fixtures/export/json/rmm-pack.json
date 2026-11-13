@@ -1,0 +1,79 @@
+{
+  "asOf": "2026-11-12T00:00:00Z",
+  "context": {
+    "class": "b"
+  },
+  "index": [
+    {
+      "clauseSet": {
+        "authority": "fict",
+        "id": "set-a",
+        "version": "1"
+      },
+      "rowCount": 1
+    },
+    {
+      "clauseSet": {
+        "authority": "fict",
+        "id": "set-b",
+        "version": "2"
+      },
+      "rowCount": 2
+    }
+  ],
+  "matrices": [
+    {
+      "asOf": "2026-11-12T00:00:00Z",
+      "clauseSet": {
+        "authority": "fict",
+        "id": "set-a",
+        "version": "1"
+      },
+      "rows": [
+        {
+          "applicability": "applicable",
+          "clauseId": "PA-1",
+          "compliance": "compliant",
+          "evidenceRefs": [],
+          "force": "shall"
+        }
+      ],
+      "schemaVersion": "requirements-mapping-v1",
+      "unusedFacts": []
+    },
+    {
+      "asOf": "2026-11-12T00:00:00Z",
+      "clauseSet": {
+        "authority": "fict",
+        "id": "set-b",
+        "version": "2"
+      },
+      "rows": [
+        {
+          "applicability": "applicable",
+          "clauseId": "PB-1",
+          "compliance": "undischarged",
+          "evidenceRefs": [],
+          "force": "shall"
+        },
+        {
+          "applicability": "unresolved",
+          "clauseId": "PB-2",
+          "compliance": "undetermined",
+          "evidenceRefs": [],
+          "force": "may"
+        }
+      ],
+      "schemaVersion": "requirements-mapping-v1",
+      "unusedFacts": [
+        {
+          "clauseId": "PB-UNUSED-1",
+          "kind": "direct",
+          "reason": "unknown_clause"
+        }
+      ]
+    }
+  ],
+  "pack": "ember-pack",
+  "schemaVersion": "requirements-mapping-pack-v1"
+}

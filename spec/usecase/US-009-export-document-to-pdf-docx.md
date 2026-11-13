@@ -11,6 +11,8 @@ relationships:
     type: "traces_to"
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-033"
     type: "traces_to"
+  - target: "ix://agent-ix/quire-cli/spec/functional/FR-042"
+    type: "traces_to"
 ---
 # US-009: Reviewer exports a spec document or report to PDF and DOCX
 
@@ -52,3 +54,19 @@ the source of truth.
 - **Then** the command names the missing tool and writes no output file, as
   specified by
   [FR-033-AC-1](../functional/FR-033-export-errors.md#acceptance-criteria).
+
+### US-009-EX-4: Diagram as an image
+
+- **Given** an artifact with a Mermaid architecture diagram,
+- **When** the reviewer exports it to `pdf` and to `docx`,
+- **Then** each file shows the diagram as an image, not its source text, as
+  specified by
+  [FR-042-AC-1](../functional/FR-042-export-mermaid-diagrams.md#acceptance-criteria).
+
+### US-009-EX-5: Broken diagram explained
+
+- **Given** an artifact whose second Mermaid block has a syntax error,
+- **When** the reviewer runs the export,
+- **Then** the command names the block by document, ordinal and line, and writes
+  no output file, as specified by
+  [FR-042-AC-4](../functional/FR-042-export-mermaid-diagrams.md#acceptance-criteria).

@@ -42,6 +42,7 @@ pub mod clauses;
 pub mod corpus_input;
 pub mod coverage;
 pub mod edit;
+pub mod export;
 pub mod extract;
 pub mod fix;
 pub mod lint;
