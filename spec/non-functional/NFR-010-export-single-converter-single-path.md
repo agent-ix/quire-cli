@@ -1,0 +1,51 @@
+---
+id: NFR-010
+title: "Export uses declared converters through one execution path and vendors none"
+type: NFR
+quality_attribute: maintainability
+relationships:
+  - target: "ix://agent-ix/quire-cli/spec/non-functional/NFR-004"
+    type: "extends"
+  - target: "ix://agent-ix/quire-cli/spec/functional/FR-032"
+    type: "constrains"
+---
+# NFR-010: Export uses declared converters through one execution path and vendors none
+
+## Statement
+
+Export SHALL use pandoc and typst as its only converters, launched only
+through `engineering-assurance producer-execute`, with no converter binary,
+template or reference document placed in this repository or its package.
+
+`quire` links no network client for export and opens no socket in its own
+process ([NFR-004](./NFR-004-no-network.md)); the converters are descendants of
+`engineering-assurance`, not of `quire`.
+
+## Scope
+
+Applies to the code, tests, fixtures and package contents of
+[FR-031](../functional/FR-031-export-subcommand.md) through
+[FR-033](../functional/FR-033-export-errors.md). Tests that need a real
+converter use the user's installed one; fixtures hold only fictional source
+documents and stand-in scripts.
+
+## Measurement and Evaluation
+
+| Metric | Target | Threshold | Method |
+| --- | --- | --- | --- |
+| Converters other than pandoc and typst | 0 | 0 | architecture-conformance |
+| Converter launch sites outside producer-execute | 0 | 0 | architecture-conformance |
+| Converter binaries, templates or reference documents in this repository or its package | 0 | 0 | package inspection |
+
+## Acceptance Criteria
+
+| ID | Criteria | Verification |
+| --- | --- | --- |
+| NFR-010-AC-1 | Review of the export code finds no process launch other than the one of `engineering-assurance producer-execute`, and no converter other than pandoc and typst. | Inspection |
+| NFR-010-AC-2 | The published npm package file list and the repository tree hold no pandoc or typst binary, template (`.typ`, `.docx`, `.dotx`) other than inline test strings, or reference document. | Inspection |
+| NFR-010-AC-3 | Adding the export adds no network client crate to the dependency list. | Test |
+
+## Verification
+
+Inspect the export code for launch sites and converters, and the package list
+for converter files; the dependency check of NFR-004 covers the crate list.

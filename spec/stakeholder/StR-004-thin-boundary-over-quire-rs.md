@@ -17,6 +17,12 @@ CLI is updated to expose the new surface.
 The distributed developer gate [FR-027](../functional/FR-027-check-lock-subcommand.md)
 is a narrow exception: quire-cli owns Cargo.lock TOML intake and agent-ix Git
 repository coherence, which are not Markdown artifact or engine semantics.
+The export subcommand [FR-031](../functional/FR-031-export-subcommand.md) is a
+second narrow exception: quire-cli owns the presentation transform from an
+already-computed JSON report to Markdown tables,
+which are output formatting for an external converter and not Markdown artifact
+or engine semantics. Markdown artifacts are still parsed and validated only by
+`quire-rs`, and the converter reads the Markdown and its frontmatter itself.
 This exception authorizes no document parser, engine model, graph, assurance,
 source-analysis, or general qualification-tool duplication. The existing
 private `quire-qualify` package remains repository-local under
@@ -46,5 +52,5 @@ enforces the thin-boundary stance:
 | ID | Criteria | Validation |
 |----|----------|------------|
 | StR-004-VC-1 | **StR-004-AC-1**: Each FR in `quire-cli/spec/functional/` that wraps a `quire-rs` API declares the upstream `quire-rs` FR ID in its frontmatter `relationships:` array (`type: implements`). | Demonstration |
-| StR-004-VC-2 | **StR-004-AC-2**: `src/` contains no markdown parsing, template rendering, graph construction, assurance projection, or JSON Schema definition/validation logic — only argv/premise parsing, path-safety checks, stdin/stdout wiring, calls into `quire-rs`, and the explicitly owned FR-027 Cargo.lock developer gate. | Inspection |
+| StR-004-VC-2 | **StR-004-AC-2**: `src/` contains no markdown parsing, template rendering, graph construction, assurance projection, or JSON Schema definition/validation logic — only argv/premise parsing, path-safety checks, stdin/stdout wiring, calls into `quire-rs`, and the explicitly owned FR-027 Cargo.lock developer gate and FR-031 export presentation transform. | Inspection |
 | StR-004-VC-3 | **StR-004-AC-3**: Code review checklist for this repo includes: "Does any new logic belong upstream in `quire-rs`?". | Demonstration |

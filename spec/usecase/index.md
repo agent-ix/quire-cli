@@ -15,3 +15,4 @@ description: "Index of artifacts in this directory."
 * [US-006: Evidence producer exports source-grounded assurance facts](./US-006-export-assurance-facts.md)
 * [US-007: Consumer installs the native Quire CLI through npm](./US-007-install-quire-through-npm.md)
 * [US-008: Developer checks Git lock coherence](./US-008-check-git-lock-coherence.md)
+* [US-009: Reviewer exports a spec document or report to PDF and DOCX](./US-009-export-document-to-pdf-docx.md)

@@ -35,3 +35,6 @@ description: "Index of artifacts in this directory."
 * [FR-028: quire matrix renders requirement criticality](./FR-028-matrix-criticality-column.md)
 * [FR-029: quire publish-check subcommand](./FR-029-publish-check-subcommand.md)
 * [FR-030: quire relations subcommand](./FR-030-relations-subcommand.md)
+* [FR-031: quire export subcommand](./FR-031-export-subcommand.md)
+* [FR-032: Run the export converter through producer-execute](./FR-032-export-converter-execution.md)
+* [FR-033: Export errors: missing converter, converter failure, invalid input](./FR-033-export-errors.md)
