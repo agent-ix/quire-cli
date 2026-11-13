@@ -16,6 +16,9 @@ relationships:
   - target: "ix://agent-ix/quire-rs/spec/functional/FR-038"
     type: "consumes"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-058"
+    type: "consumes"
+    cardinality: "1:1"
 ---
 
 > **CR note (OKF bundle posture, 2026-06-16):** new `--okf` flag on the existing
@@ -120,6 +123,7 @@ The positional `documents` argument is now `required_unless_present = "okf"`:
 | FR-014-AC-14 | A bridged document error under `--okf --strict` carries the line of its document-validation result: the line printed by single-document `quire validate` for the same document (FR-004-AC-2) is the line printed by the bundle form | Test |
 | FR-014-AC-15 | A finding with `line` `None` renders byte-identically to the pre-FR-014-AC-12 form `<path>: <message> [<reason>]` in human output and as the same JSON record, with no `line`, `path` or `reason` key | Test |
 | FR-014-AC-16 | Bundle diagnostics are emitted warnings first, then errors, each in the engine's order, in both human and JSON output, whether or not they carry a line | Test |
+| FR-014-AC-17 | With `--module $M` where `$M` declares a `required_relations` entry narrowed by `when_any` (quire-rs FR-058), `quire validate --okf <DIR>` loads the module and exits **0**; stderr carries one warning tagged with the relation's `check` token for each document in scope of a `when_any` condition that lacks the required edge, and none for a document in scope of no condition or one that has the edge. A `when_any` the engine refuses (for example a `direction` other than `outgoing` or `incoming`) exits **3** naming the relation | Test |
 
 > **CR note (two roots from one scope, 2026-08-15):** AC-6 previously read
 > "validates the `--scope` directory as the bundle root". That is no longer what

@@ -1,0 +1,28 @@
+manifest_version: 1.0.0
+name: when-any-mod
+version: 0.1.0
+description: 'Fixture module for validate --okf: a required relation narrowed by the quire-rs FR-058 when_any selector.'
+archetypes:
+- kind: control
+  name: control
+  frontmatter_schema_ref: schemas/control-frontmatter.schema.json
+- kind: hazard
+  name: hazard
+  frontmatter_schema_ref: schemas/hazard-frontmatter.schema.json
+- kind: requirement
+  name: requirement
+  frontmatter_schema_ref: schemas/requirement-frontmatter.schema.json
+edge_types:
+  mitigates: { description: reduces the target's risk, category: realization }
+  satisfies: { description: the source implements the target, category: realization }
+traceability:
+  required_relations:
+  # Only a control that mitigates a hazard needs an implementing requirement.
+  - name: control-has-requirement
+    from: control
+    when_any:
+    - { verb: mitigates, direction: outgoing, other: [hazard] }
+    edges: [satisfies]
+    to: [requirement]
+    direction: incoming
+    check: control-without-requirement

@@ -18,7 +18,7 @@ use quire_rs::{design_matrix, CoverageReport, DesignMatrixEntry, RelationReportM
 use serde::Serialize;
 
 use crate::commands::corpus_input::{parse_repo, Corpus, RepoArg};
-use crate::commands::coverage::{compute_report, load_registry_for, tsv_cell, Target};
+use crate::commands::coverage::{compute_report_over, load_registry_for, tsv_cell, Target};
 use crate::commands::matrix_design as design;
 use crate::commands::Ctx;
 
@@ -142,8 +142,8 @@ fn emit_report_diagnostics(ctx: &Ctx, report: &CoverageReport) {
 
 /// Compute the design matrix over every member (FR-092): each member's
 /// `coverage_matrix` through the shared computation, then the one join.
-/// `compute_report` walks a member's documents itself (the engine's per-member
-/// view is not public), so the corpus walk is the second of two.
+/// Each member's documents are loaded once, by the corpus, and reused for its
+/// coverage computation.
 fn compute_matrix(
     ctx: &Ctx,
     corpus: &Corpus,
@@ -151,7 +151,7 @@ fn compute_matrix(
 ) -> anyhow::Result<Vec<DesignMatrixEntry>> {
     let mut reports = Vec::with_capacity(corpus.members.len());
     for member in &corpus.members {
-        let report = compute_report(ctx, &member.root, registry)
+        let report = compute_report_over(ctx, &member.root, registry, &Corpus::member_spec(member))
             .with_context(|| format!("member at {}", member.root.display()))?;
         emit_report_diagnostics(ctx, &report);
         reports.push(report);

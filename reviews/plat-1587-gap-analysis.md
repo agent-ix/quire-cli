@@ -72,3 +72,15 @@ scope:
 ## Verdict
 
 CONDITIONAL. No criterion is untagged and there is no high finding. Five low gaps remain: one surviving mutant on an untested Behavior clause, and four ACs with one clause unasserted or asserted under another tag.
+
+## Dispositions
+
+Round 1, fix head 5c0ca30. Each fix was re-measured by mutation on a scratch copy.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | `a_dangling_edge_beside_an_element_prints_no_dangling_marker` (AC-18) kills the mutant that drops `b.elements.is_empty()`. |
+| FND-002 | fixed | `a_retired_requirement_keeps_its_gap_without_failing_strict` (AC-9) runs `--strict` end to end on a retired fixture (exit 0 with the gap rendered, then exit 1 with one live criterion). It kills the `is_live`-always-true mutant without the unit test. |
+| FND-003 | fixed | The AC-16 test now compares every file under the scope root, bytes included, and asserts exit 0 for each of the four formats. |
+| FND-004 | fixed | The AC-24 test now asserts `repo: o/a` and `repo: o/c` under the same `## spec/GLY-001.md` heading on stdout. |
+| FND-005 | fixed | `human_design_line_has_three_distinct_forms` (AC-25) asserts `n/a`, `(none)` and `no design element (glyph-dark)` in the human output. |

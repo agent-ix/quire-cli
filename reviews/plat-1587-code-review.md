@@ -76,3 +76,14 @@ The coder's stated deviations:
 What works: every Design cell form, marker order, `repo:` then `Design gap:` order, the TSV leading `repo` column and criteria-less record, one stderr line per uncovered block of a live requirement, exit 1/3, and the `--scope`/`--repo` conflict all match FR-043. The JSON payload is the engine's `DesignMatrixEntry` verbatim, so FR-092 key order is the engine's. No archetype names, verbs, compatibility layers or digests appear.
 
 ## Dispositions
+
+Round 1, fix head 5c0ca30.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | The local parser is deleted. The shared `corpus_input::parse_repo` requires exactly two non-empty segments and a non-empty dir. `a_malformed_repo_value_exits_three` checks that `o//a`, `/o/a`, `o/a/`, `o`, `o/a` and `o/a=` exit 3 with empty stdout. |
+| FND-002 | fixed | `matrix` uses `value_parser = parse_repo` and `Corpus::from_scope` / `Corpus::from_repos` from the shared `corpus_input` that #184 merged. |
+| FND-003 | still-open | This is not upstream-owned. Every API the fix needs is public in the locked quire-rs (b502d6c): `load_repo` returns `RepoLoad`, which derives `Clone`; `Spec::from_repo(load)` builds the one-member spec; and `compute_coverage(&spec, ...)` is what `compute_report` already calls. The fix is CLI-local: keep each member's `RepoLoad` in `Corpus`, and let `compute_report` take a `&Spec`. The new comment at src/commands/matrix.rs:145, "the engine's per-member view is not public", is therefore inaccurate. Severity is still low. Fix it here, or defer it with a quire-cli ticket that also covers relations.rs; do not record it as upstream. |
+| FND-004 | fixed | README.md:45 now shows `[--scope <DIR> \| --repo <ORG/REPO>=<DIR>...]` and `--format human\|markdown\|json\|tsv`. |
+| FND-005 | fixed | FR-043-AC-2 now reads "the `repo:` and `Design gap:` lines, then the `design:` line (elements, or `n/a`)". |
+| FND-006 | fixed | The FR-043 Design cell now says "with its repo when present as `<repo>/<id> (kind)`". |
