@@ -4680,7 +4680,8 @@ fn a_tab_in_a_block_reaches_the_converter_and_pandoc_is_told_to_keep_tabs() {
         .contains("\tStart --> Stop"));
 }
 
-#[trace("FR-042-AC-7")]
+/// A structural check of the generated Lua text only; the real ignored tests
+/// carry FR-042-AC-7 because they run the filter under pandoc.
 #[test]
 fn the_filter_fails_a_count_mismatch_with_a_message_distinct_from_a_block_failure() {
     let source = exported_filter(0);
@@ -5190,7 +5191,7 @@ fn real_docx_scales_a_wide_diagram_to_the_text_area_and_keeps_a_narrow_one() {
 #[trace("NFR-011-AC-5")]
 #[test]
 #[ignore = "needs real pandoc, typst, mmdr, unzip and pdfimages on PATH"]
-fn real_diagrams_are_byte_equal_across_time_zones() {
+fn real_diagrams_are_byte_equal_across_time_zones_and_clock() {
     let rig = Rig::new();
     let input = diagram_document(
         &rig,
@@ -5198,20 +5199,60 @@ fn real_diagrams_are_byte_equal_across_time_zones() {
         "FR-021",
         &[("Flow", FLOWCHART), ("Talk", SEQUENCE)],
     );
-    let mut images: Vec<Vec<Vec<u8>>> = Vec::new();
+    // Per run: the DOCX media parts in name order, then the images that
+    // pdfimages extracts from the PDF.
+    type Images = Vec<Vec<u8>>;
+    let mut runs: Vec<(Images, Images)> = Vec::new();
     for (index, zone) in ["UTC", "Pacific/Auckland"].iter().enumerate() {
+        // The clock moves to a later whole second between the exports.
+        wait_for_next_second();
         let docx = rig.work(&format!("out-{index}.docx"));
         let mut command = real_diagram_command(&rig, &input, "docx", &docx);
         command.env("TZ", zone);
         let result = run(command);
         assert!(result.status.success(), "{}", stderr(&result));
-        let mut parts: Vec<Vec<u8>> = Vec::new();
-        for k in 1..=2 {
-            parts.push(docx_bytes(&docx, &format!("word/media/image{k}.png")));
-        }
-        images.push(parts);
+        let listing = Command::new(require_tool("unzip"))
+            .arg("-Z1")
+            .arg(&docx)
+            .output()
+            .expect("unzip");
+        let mut names: Vec<String> = String::from_utf8_lossy(&listing.stdout)
+            .lines()
+            .filter(|name| name.starts_with("word/media/") && name.ends_with(".png"))
+            .map(str::to_string)
+            .collect();
+        names.sort();
+        assert_eq!(names.len(), 2, "{names:?}");
+        let media: Vec<Vec<u8>> = names.iter().map(|name| docx_bytes(&docx, name)).collect();
+
+        let pdf = rig.work(&format!("out-{index}.pdf"));
+        let mut command = real_diagram_command(&rig, &input, "pdf", &pdf);
+        command.env("TZ", zone);
+        let result = run(command);
+        assert!(result.status.success(), "{}", stderr(&result));
+        let extracted = rig.work(&format!("images-{index}"));
+        fs::create_dir_all(&extracted).expect("directory");
+        let status = Command::new(require_tool("pdfimages"))
+            .arg("-png")
+            .arg(&pdf)
+            .arg(extracted.join("img"))
+            .status()
+            .expect("pdfimages runs");
+        assert!(status.success());
+        let mut files: Vec<PathBuf> = fs::read_dir(&extracted)
+            .expect("images")
+            .map(|entry| entry.expect("entry").path())
+            .collect();
+        files.sort();
+        assert_eq!(files.len(), 2, "{files:?}");
+        let images = files
+            .iter()
+            .map(|path| fs::read(path).expect("image"))
+            .collect();
+        runs.push((media, images));
     }
-    assert_eq!(images[0], images[1]);
+    assert_eq!(runs[0].0, runs[1].0, "DOCX images differ");
+    assert_eq!(runs[0].1, runs[1].1, "PDF images differ");
 }
 
 #[trace("FR-042-AC-3", "FR-042-AC-1")]

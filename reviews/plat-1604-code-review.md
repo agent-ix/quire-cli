@@ -54,3 +54,20 @@ Gates run at cd1ce4b with the target removed afterwards:
 - `make audit-thin-boundary`: "thin-boundary audit ok".
 
 The real-converter tests (FR-042-AC-1, AC-7 and AC-15) did not run, because pandoc, typst and mmdr are not installed.
+
+## Dispositions
+
+Round 1, checked against fix commit e054d6a.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Every Markdown input now writes `in/diagrams.lua` and passes `--lua-filter`. `producer.rs` pushes the filter whenever `identity_parts.is_some()`, and `Step::arguments` adds it under `with_identity`. COUNT is 0 when quire-rs finds no block. In the filter, `if k > COUNT then return nil end` leaves a block quire-rs missed to the `Pandoc()` count check, which fails with `mermaid blocks: pandoc read N and quire found M`. A document with zero Mermaid blocks gives seen = 0 = COUNT, so the filter has no side effects. JSON inputs (identity_parts None) get neither the filter nor `--preserve-tabs` (`a_json_input_gets_no_filter_and_no_preserve_tabs`). FR-042 §A, §C, AC-3 and AC-7 and FR-032 §A, the arguments row, AC-3 and AC-8 are amended. The real test now covers attribute-only, quote-only and mixed fixtures with the exact count messages. |
+| FND-002 | fixed | `--preserve-tabs` is pushed after `--metadata-file in/metadata.yaml` and before the template argument for Markdown inputs. That position matches the FR-032 arguments row and `PANDOC_ARGUMENTS`. `a_tab_in_a_block_reaches_the_converter_and_pandoc_is_told_to_keep_tabs` asserts the flag and the tab bytes in `in/diagrams/1.mmd` and `in/document.md`, so it fails if the flag is dropped. A real tab test (ignored) was added. |
+| FND-003 | fixed | The vacuous `pwned` assertions are removed. The byte-equal filter assertion and the literal alt-text assertion remain. |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | `the_filter_fails_a_count_mismatch_with_a_message_distinct_from_a_block_failure` is tagged FR-042-AC-7, a Test AC on export behaviour, but only greps the generated Lua source for three literal snippets (`if k > COUNT then` and the two `error(` strings). It passes if the logic around those strings is wrong, for example a count check placed inside `CodeBlock`. The behaviour is covered by the ignored real test `real_pandoc_blocks_that_quire_rs_does_not_find_fail_the_export`. This stand-in test checks the source text, not the behaviour, so drop its FR-042-AC-7 tag or label it a structural check. | tests/cli_export.rs:4683-4693 |
+| FND-005 | low | `--preserve-tabs` applies to every code block of every Markdown export, not only Mermaid blocks. A tab in an ordinary code block now reaches the writers as a tab instead of four spaces. Typst renders it at its raw `tab-size` (2 by default) and Word at its tab stops, so tabbed code renders differently than before. The output is still deterministic. This was an accepted trade-off of the FR-032 amendment. The alternative is to expand tabs in the filter's comparison only; otherwise the FR-032 arguments row should mention the visible effect. Low confidence: this depends on writer rendering defaults. | src/commands/export/producer.rs:104 |

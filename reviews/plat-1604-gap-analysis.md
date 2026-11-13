@@ -79,3 +79,25 @@ Met with tagged stand-in tests: AC-2, AC-3, AC-4, AC-5 (stand-in half), AC-6, AC
 AC-1, AC-7 and AC-15 are written as ignored real-converter tests. Leaving them unrun is acceptable, because the tools are not installed.
 
 AC-8, AC-10, AC-14, NFR-011-AC-5 and the real-mmdr part of AC-5 are not written at all. They should be (FND-001, FND-002, FND-005, FND-006). AC-8 can run now with stand-ins.
+
+## Dispositions
+
+Round 1, checked against fix commit e054d6a.
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | `only_the_blocks_quire_rs_finds_are_rendered_whatever_the_fence_style` builds the AC-8 fixture: a four-space-indented fence, a four-backtick `text` fence holding a mermaid fence line, `~~~mermaid` and a four-backtick `mermaid` fence. It asserts exactly two `mmdr` calls, `1.mmd` and `2.mmd` equal to the third and fourth texts, alt ordinals 1 and 2, COUNT 2, and the line of the four-backtick fence in the diagnostic. It fails if quire-rs fence identity changes. The real image-byte comparison part of AC-8 remains for the real lane. |
+| FND-002 | fixed | `real_pandoc_fails_the_generated_filter_on_a_missing_image_or_a_changed_source` (ignored, real pandoc) runs the exported filter over a hand-built capability root. With `img/2.png` absent or `2.mmd` changed, it asserts non-zero exit, `block 2` and the specific message, and no output. The expected strings match the filter source (`no image at img/2.png`, `differs from in/diagrams/2.mmd`). |
+| FND-003 | fixed | The real AC-7/AC-15 test now covers attribute-only and quote-only fixtures (`pandoc read 1 and quire found 0`), a quote after a quire-visible block (`pandoc read 2 and quire found 1`), and the list item (exit 4). This distinguishes the count message from the per-block message. |
+| FND-004 | fixed | The AC-1 real test now asserts two `<w:drawing>` elements, the absence of both `flowchart TD` and `sequenceDiagram` in the DOCX and PDF text, no `Mermaid diagram` run text (the alt text lives in the `descr` attribute that `strip_tags` drops), and `"img/1.png"` and `"img/2.png"` in the Typst source captured by the `tee_pandoc` wrapper. |
+| FND-005 | fixed | AC-10 has `real_docx_scales_a_wide_diagram_to_the_text_area_and_keeps_a_narrow_one`, which compares the `wp:extent` widths with the `w:pgSz` and `w:pgMar` text area and the narrow PNG's width at its pHYs density (72 dpi when there is none, pandoc's PNG default). NFR-011-AC-5 has `real_diagrams_are_byte_equal_across_time_zones`. That test has its own defect, recorded as FND-009. |
+| FND-006 | fixed | `real_mmdr_rejects_a_block_without_a_diagram_header_and_the_export_names_it` (ignored) asserts exit 4, `diagram 1`, the section `Headless`, and no output. |
+| FND-007 | fixed | The test is renamed `a_document_without_a_mermaid_block_makes_no_mmdr_request_and_carries_a_zero_count_filter` and tagged FR-042-AC-6 and FR-032-AC-8. It removes `mmdr` and asserts success, the calls `pandoc` only, and COUNT 0. |
+| FND-008 | fixed | FR-042 §C now states the `: ` separator, with an example. |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-009 | medium | `real_diagrams_are_byte_equal_across_time_zones` (NFR-011-AC-5) reads `word/media/image{k}.png`. Pandoc's DOCX writer names media by relationship id (`word/media/rId<N>.png`), not `image<N>.png`, so the test would fail on `unzip -p` once real tools are present. The AC-1 and AC-10 tests already list media by prefix; reuse that. The test also varies only `TZ`, while the AC requires "the clock and `TZ` changed" and equal extracted text, structure, image count and pixel dimensions, and it covers DOCX only. Confidence is medium: the media naming is from pandoc's writer, not run here. | tests/cli_export.rs:5191-5216 |
+| FND-010 | low | The FR-032 request table's `capabilityRoot` row still lists `in/diagrams.lua` only "for a Markdown input with Mermaid blocks". After the round-1 amendment it is written for every Markdown input, while `in/diagrams/` and the image directory stay conditional. This contradicts the amended arguments row and AC-8. | spec/functional/FR-032-export-converter-execution.md:70 |
