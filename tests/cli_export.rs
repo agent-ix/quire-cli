@@ -847,3 +847,468 @@ fn real_converters_keep_the_fixture_headings_and_code() {
         }
     }
 }
+
+fn json_fixture(name: &str) -> PathBuf {
+    fixture_root().join("export/json").join(name)
+}
+
+/// Markdown-literal text as the exporter escapes it: ASCII punctuation is
+/// backslash-escaped.
+fn escaped(text: &str) -> String {
+    text.chars()
+        .flat_map(|ch| {
+            let prefix = ch.is_ascii_punctuation().then_some('\\');
+            prefix.into_iter().chain([ch])
+        })
+        .collect()
+}
+
+impl Rig {
+    /// `quire export <input> --kind <kind> --to <to> --output <output>` with
+    /// every tool named.
+    fn export_json(&self, input: &Path, kind: &str, to: &str, output: &Path) -> Command {
+        let mut command = quire();
+        command
+            .current_dir(self.root().join("work"))
+            .arg("export")
+            .arg(input)
+            .args(["--kind", kind, "--to", to, "--output"])
+            .arg(output)
+            .arg("--pandoc")
+            .arg(self.bin("pandoc"))
+            .arg("--typst")
+            .arg(self.bin("typst"))
+            .arg("--engineering-assurance")
+            .arg(self.bin("engineering-assurance"));
+        command
+    }
+
+    /// Exports a JSON fixture and returns the Markdown the converter received.
+    fn json_markdown(&self, fixture: &str, kind: &str, to: &str) -> String {
+        let output = self.work("out.bin");
+        let result = run(self.export_json(&json_fixture(fixture), kind, to, &output));
+        assert!(result.status.success(), "{}", stderr(&result));
+        assert!(result.stdout.is_empty());
+        let markdown = fs::read_to_string(self.root().join("log/document.md")).expect("input");
+        assert_eq!(fs::read_to_string(&output).expect("output"), markdown);
+        markdown
+    }
+}
+
+/// The pipe-table body rows (not header or separator) under `heading`.
+fn table_rows<'a>(markdown: &'a str, heading: &str) -> Vec<&'a str> {
+    let start = format!("## {}\n", escaped(heading));
+    let after = markdown.split_once(&start).expect("heading").1;
+    let block = after
+        .trim_start()
+        .split("\n\n")
+        .next()
+        .expect("table block");
+    block.lines().skip(2).collect()
+}
+
+#[trace("FR-031-AC-4")]
+#[test]
+fn a_matrix_report_yields_one_table_per_document_with_every_criterion() {
+    let rig = Rig::new();
+    let markdown = rig.json_markdown("matrix.json", "matrix", "docx");
+    for id in ["FR-901-AC-1", "FR-901-AC-2", "FR-902-AC-1"] {
+        assert!(markdown.contains(&escaped(id)), "missing {id}");
+    }
+    assert_eq!(
+        table_rows(&markdown, "spec/functional/FR-901-ember.md").len(),
+        2
+    );
+    assert_eq!(
+        table_rows(&markdown, "spec/functional/FR-902-cinder.md").len(),
+        1
+    );
+    // The untagged rows and the late `criticality` member are kept.
+    assert!(markdown.contains("untagged"));
+    assert!(markdown.contains("criticality"));
+    assert!(!markdown.contains("No obligations matched"));
+}
+
+#[trace("FR-031-AC-4")]
+#[test]
+fn a_matrix_report_without_coverage_matrix_yields_the_zero_population_line() {
+    let rig = Rig::new();
+    let markdown = rig.json_markdown("matrix-empty.json", "matrix", "pdf");
+    assert_eq!(markdown, "No obligations matched this scope.\n\n");
+}
+
+#[trace("FR-031-AC-5")]
+#[test]
+fn a_table_report_keeps_every_member_and_nested_values_as_compact_json() {
+    let rig = Rig::new();
+    let markdown = rig.json_markdown("table.json", "table", "docx");
+    assert!(markdown.contains(&escaped(r#"{"nested":[1,2],"ok":true}"#)));
+    for member in [
+        "ROW-1",
+        "ROW-2",
+        "ROW-3",
+        "late member",
+        "OTHER-1",
+        "extra",
+        "detail",
+    ] {
+        assert!(markdown.contains(&escaped(member)), "missing {member}");
+    }
+    assert!(!markdown.contains("ignored scalar"));
+    assert_eq!(table_rows(&markdown, "items").len(), 3);
+    assert_eq!(table_rows(&markdown, "others").len(), 1);
+}
+
+#[trace("FR-031-AC-4", "FR-031-AC-5")]
+#[test]
+fn report_text_cannot_inject_markup_or_split_a_row() {
+    let rig = Rig::new();
+    let markdown = rig.json_markdown("matrix.json", "matrix", "docx");
+    // Literal expectations of the generated Markdown, not the escape rule.
+    assert!(
+        markdown.contains(r"| Ember \| glows \`red\` |"),
+        "{markdown}"
+    );
+    assert!(
+        markdown.contains(r"Ember dims \<w\:p\>raw\<\/w\:p\>"),
+        "{markdown}"
+    );
+    assert!(
+        markdown.contains(r"Cinder \#strong\[cools\] \$x\$ \@ref"),
+        "{markdown}"
+    );
+    assert!(!markdown.contains("<w:p>"));
+    assert!(!markdown.replace("\\`", "").contains('`'));
+    let rows = table_rows(&markdown, "spec/functional/FR-901-ember.md");
+    assert_eq!(rows.len(), 2);
+    assert!(rows
+        .iter()
+        .all(|row| row.starts_with("| ") && row.ends_with(" |")));
+}
+
+/// The header cells of the table under `heading`.
+fn table_header(markdown: &str, heading: &str) -> Vec<String> {
+    let start = format!("## {}\n", escaped(heading));
+    let after = markdown.split_once(&start).expect("heading").1;
+    let line = after.trim_start().lines().next().expect("header");
+    line.trim_matches(|c| c == '|' || c == ' ')
+        .split(" | ")
+        .map(str::to_string)
+        .collect()
+}
+
+/// The dash count of each column in the separator row of the table under `heading`.
+fn separator_widths(markdown: &str, heading: &str) -> Vec<usize> {
+    let start = format!("## {}\n", escaped(heading));
+    let after = markdown.split_once(&start).expect("heading").1;
+    let line = after.trim_start().lines().nth(1).expect("separator");
+    line.trim_matches(|c| c == '|' || c == ' ')
+        .split(" | ")
+        .map(str::len)
+        .collect()
+}
+
+#[trace("FR-031-AC-12")]
+#[test]
+fn rmm_and_soup_columns_are_fixed_in_spec_order_whatever_the_key_order() {
+    let rig = Rig::new();
+    let rmm = rig.json_markdown("rmm.json", "rmm", "docx");
+    let expected: Vec<String> = [
+        "clauseId",
+        "force",
+        "applicability",
+        "compliance",
+        "reason",
+        "evidenceRefs",
+        "tailoringDescription",
+        "tailoringRationale",
+    ]
+    .iter()
+    .map(|name| escaped(name))
+    .collect();
+    assert_eq!(table_header(&rmm, "fict/ember-std@1"), expected);
+    let soup = rig.json_markdown("soup.json", "soup", "docx");
+    let header = table_header(&soup, "rows");
+    assert_eq!(header.len(), 14);
+    assert_eq!(header[0], "purl");
+    assert_eq!(header[1], "id");
+    assert_eq!(header[13], escaped("no_advisory_reported_by"));
+    // Members outside the spec list follow, sorted by name.
+    let table = rig.json_markdown("table.json", "table", "docx");
+    assert_eq!(table_header(&table, "items"), ["detail", "extra", "id"]);
+}
+
+#[trace("FR-031-AC-13")]
+#[test]
+fn a_wide_table_gives_each_column_a_relative_width_of_its_content() {
+    let rig = Rig::new();
+    let soup = rig.json_markdown("soup.json", "soup", "pdf");
+    let header = table_header(&soup, "rows");
+    let widths = separator_widths(&soup, "rows");
+    assert_eq!(widths.len(), header.len());
+    assert!(
+        widths.iter().all(|width| (3..=48).contains(width)),
+        "{widths:?}"
+    );
+    let width_of = |name: &str| {
+        let index = header
+            .iter()
+            .position(|cell| *cell == escaped(name))
+            .expect(name);
+        widths[index]
+    };
+    // "SOUP-CINDER" is 11 characters, "version" 7, and the long advisories cell is capped.
+    assert_eq!(width_of("id"), 11);
+    assert_eq!(width_of("version"), 7);
+    assert_eq!(width_of("advisories"), 48);
+}
+
+#[trace("FR-031-AC-9", "FR-031-AC-11")]
+#[test]
+fn an_rmm_report_yields_its_rows_as_of_line_and_unused_facts() {
+    let rig = Rig::new();
+    let markdown = rig.json_markdown("rmm.json", "rmm", "docx");
+    assert!(markdown.contains(&format!("As of: {}", escaped("2026-11-12T00:00:00Z"))));
+    assert_eq!(table_rows(&markdown, "fict/ember-std@1").len(), 3);
+    assert_eq!(table_rows(&markdown, "unusedFacts").len(), 1);
+    for needle in [
+        "EMB-4.1",
+        "EMB-4.2",
+        "EMB-4.3",
+        "FACT-UNUSED-1",
+        "undischarged",
+    ] {
+        assert!(markdown.contains(&escaped(needle)), "missing {needle}");
+    }
+}
+
+#[trace("FR-031-AC-9")]
+#[test]
+fn an_rmm_pack_yields_the_index_and_one_table_per_matrix() {
+    let rig = Rig::new();
+    let markdown = rig.json_markdown("rmm-pack.json", "rmm", "docx");
+    assert!(markdown.starts_with("Pack: ember\\-pack\n\n"), "{markdown}");
+    assert!(markdown.contains(&format!("As of: {}", escaped("2026-11-12T00:00:00Z"))));
+    // The context the verdicts were evaluated against.
+    assert_eq!(table_rows(&markdown, "context"), ["| class | b |"]);
+    // The index shows each set as its key, like the matrix headings.
+    assert_eq!(
+        table_rows(&markdown, "index"),
+        [
+            format!("| {} | 1 |", escaped("fict/set-a@1")),
+            format!("| {} | 2 |", escaped("fict/set-b@2")),
+        ]
+    );
+    assert_eq!(table_rows(&markdown, "fict/set-a@1").len(), 1);
+    assert_eq!(table_rows(&markdown, "fict/set-b@2").len(), 2);
+    // An unusedFacts table is labelled with its set.
+    assert_eq!(table_rows(&markdown, "unusedFacts: fict/set-b@2").len(), 1);
+    for id in ["PA-1", "PB-1", "PB-2", "PB-UNUSED-1"] {
+        assert!(markdown.contains(&escaped(id)), "missing {id}");
+    }
+}
+
+#[trace("FR-031-AC-9", "FR-031-AC-11")]
+#[test]
+fn a_soup_report_yields_rows_scans_unmatched_and_unreadable_scans() {
+    let rig = Rig::new();
+    let markdown = rig.json_markdown("soup.json", "soup", "pdf");
+    assert!(markdown.starts_with(&format!("As of: {}", escaped("2026-11-12"))));
+    assert_eq!(table_rows(&markdown, "rows").len(), 2);
+    assert_eq!(table_rows(&markdown, "unmatched").len(), 1);
+    assert_eq!(table_rows(&markdown, "scans").len(), 1);
+    for needle in [
+        "SOUP-EMBER",
+        "SOUP-CINDER",
+        "RUSTSEC-UNMATCHED-9",
+        "SCAN-SUITE-7",
+    ] {
+        assert!(markdown.contains(&escaped(needle)), "missing {needle}");
+    }
+    let list = markdown
+        .split_once(&format!("## {}\n\n", escaped("unreadable_scans")))
+        .expect("list")
+        .1;
+    for path in ["scans/broken-scan-1.json", "scans/broken-scan-2.json"] {
+        assert!(
+            list.contains(&format!("- {}\n", escaped(path))),
+            "missing {path}"
+        );
+    }
+}
+
+#[trace("FR-031-AC-10", "FR-033-AC-6")]
+#[test]
+fn json_that_does_not_match_its_kind_exits_3_without_a_converter() {
+    let rig = Rig::new();
+    let cases = [
+        ("soup", r#"{"as_of": "x", "unmatched": []}"#),
+        ("soup", r#"{"rows": {"a": 1}}"#),
+        ("rmm", r#"{"rows": []}"#),
+        (
+            "rmm",
+            r#"{"schemaVersion": "requirements-mapping-v2", "rows": []}"#,
+        ),
+        (
+            "rmm",
+            r#"{"schemaVersion": "requirements-mapping-pack-v1", "index": []}"#,
+        ),
+        (
+            "rmm",
+            r#"{"schemaVersion": "requirements-mapping-pack-v1", "matrices": []}"#,
+        ),
+        (
+            "rmm",
+            r#"{"schemaVersion": "requirements-mapping-pack-v1", "index": [],
+                "matrices": [{"schemaVersion": "requirements-mapping-v1"}]}"#,
+        ),
+        ("matrix", r#"{"coverage_matrix": 5}"#),
+        ("matrix", r#"{"coverage_matrix": [{"document": "d"}]}"#),
+        ("matrix", "[]"),
+        ("matrix", "{not json"),
+        ("table", r#"{"a": 1, "b": [1, 2]}"#),
+        (
+            "table",
+            r#"{"items": [{"id": "A"}, 5], "others": [{"id": "B"}]}"#,
+        ),
+    ];
+    for (kind, text) in cases {
+        let input = rig.work("bad.json");
+        fs::write(&input, text).expect("input");
+        let output = rig.work("out.docx");
+        let result = run(rig.export_json(&input, kind, "docx", &output));
+        assert_eq!(
+            result.status.code(),
+            Some(3),
+            "{kind} {text}: {}",
+            stderr(&result)
+        );
+        assert!(stderr(&result).contains("bad.json"), "{}", stderr(&result));
+        // A shape diagnostic names the flag value as typed, not a Rust type name.
+        if stderr(&result).contains("does not match") {
+            assert!(
+                stderr(&result).contains(&format!("--kind {kind}:")),
+                "{}",
+                stderr(&result)
+            );
+        }
+        assert!(!output.exists());
+        assert_eq!(rig.calls(), "", "{kind} {text}");
+    }
+}
+
+/// The character data of an XML text: tags removed, the five entities decoded.
+fn strip_tags(xml: &str) -> String {
+    let mut text = String::new();
+    let mut in_tag = false;
+    for ch in xml.chars() {
+        match ch {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            _ if !in_tag => text.push(ch),
+            _ => {}
+        }
+    }
+    text.replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'")
+        .replace("&amp;", "&")
+}
+
+fn require_real_tools() {
+    for tool in ["pandoc", "typst", "unzip", "pdftotext"] {
+        require_tool(tool);
+    }
+}
+
+#[trace("FR-031-AC-4", "FR-031-AC-9", "FR-031-AC-11")]
+#[test]
+#[ignore = "needs real pandoc, typst, unzip and pdftotext on PATH"]
+fn real_converters_keep_every_report_row_id() {
+    require_real_tools();
+    let dir = tempfile::tempdir().expect("dir");
+    let cases: [(&str, &str, &[&str]); 4] = [
+        (
+            "matrix.json",
+            "matrix",
+            &[
+                "FR-901-AC-1",
+                "FR-901-AC-2",
+                "FR-902-AC-1",
+                // Hostile cell text must come out literal.
+                "Ember | glows `red`",
+                "Ember dims <w:p>raw</w:p>",
+                "Cinder #strong[cools] $x$ @ref",
+            ],
+        ),
+        (
+            "rmm.json",
+            "rmm",
+            &[
+                "EMB-4.1",
+                "EMB-4.2",
+                "EMB-4.3",
+                "FACT-UNUSED-1",
+                "fict/ember-std@1",
+                "As of: 2026-11-12",
+            ],
+        ),
+        (
+            "rmm-pack.json",
+            "rmm",
+            &[
+                "PA-1",
+                "PB-1",
+                "PB-2",
+                "PB-UNUSED-1",
+                "Pack: ember-pack",
+                "As of: 2026-11-12",
+                // The index table (its headers occur nowhere else) and the context table.
+                "clauseSet",
+                "rowCount",
+                "class",
+            ],
+        ),
+        (
+            "soup.json",
+            "soup",
+            &[
+                "SOUP-EMBER",
+                "SOUP-CINDER",
+                "RUSTSEC-UNMATCHED-9",
+                "SCAN-SUITE-7",
+                "As of: 2026-11-12",
+                "broken-scan-1.json",
+                "broken-scan-2.json",
+            ],
+        ),
+    ];
+    for (fixture, kind, needles) in cases {
+        for to in ["docx", "pdf"] {
+            let output = dir.path().join(format!("{fixture}.{to}"));
+            let mut command = quire();
+            command
+                .arg("export")
+                .arg(json_fixture(fixture))
+                .args(["--kind", kind, "--to", to, "--output"])
+                .arg(&output);
+            let result = run(command);
+            assert!(result.status.success(), "{}", stderr(&result));
+            let text = if to == "docx" {
+                strip_tags(&docx_text(&output))
+            } else {
+                // PDF text wraps long tokens; compare with whitespace removed.
+                pdf_text(&output)
+            };
+            let squashed: String = text.split_whitespace().collect();
+            for needle in needles {
+                let needle: String = needle.split_whitespace().collect();
+                assert!(
+                    squashed.contains(&needle),
+                    "{fixture} {to}: missing {needle}"
+                );
+            }
+        }
+    }
+}

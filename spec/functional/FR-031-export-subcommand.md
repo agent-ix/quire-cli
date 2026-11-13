@@ -111,22 +111,35 @@ it hands to the converter.
 | Kind | Accepted shape | Table content |
 | --- | --- | --- |
 | `matrix` | The output of `quire matrix --format json`: a `coverage_matrix` array of `{document, criteria[]}` entries; or no `coverage_matrix` member (zero population). | One table per entry, headed by `document`, one row per criterion with every member of the criterion object as a column. For zero population, the single line `No obligations matched this scope.` |
-| `rmm` | The output of `quoin discharge --rmm --json`: a `requirements-mapping-v1` document with a `rows` array (one object per clause: `clauseId`, `force`, `applicability`, `compliance`, `reason`, `evidenceRefs`, `tailoringDescription`, `tailoringRationale`, and no others). Or the pack form of `quoin discharge --rmm --pack --json`: a `requirements-mapping-pack-v1` document with an `index` array and a `matrices` array of `requirements-mapping-v1` documents. | Single form: the line `As of: <asOf>`, one table headed by `clauseSet`, one row per element of `rows`, then `unusedFacts`, when non-empty, as one further table. Pack form: the line `As of: <asOf>`, the `index` as a table, then one such single-form rendering per matrix, in order. |
+| `rmm` | The output of `quoin discharge --rmm --json`: a `requirements-mapping-v1` document with a `rows` array (one object per clause: `clauseId`, `force`, `applicability`, `compliance`, `reason`, `evidenceRefs`, `tailoringDescription`, `tailoringRationale`, and no others). Or the pack form of `quoin discharge --rmm --pack --json`: a `requirements-mapping-pack-v1` document with an `index` array and a `matrices` array of `requirements-mapping-v1` documents. | Single form: the line `As of: <asOf>`, one table headed by `clauseSet`, one row per element of `rows`, then `unusedFacts`, when non-empty, as one further table. Pack form: the line `Pack: <pack>`, the line `As of: <asOf>`, the `context` object, when present, as a two-column table (`key`, `value`) headed `context`, the `index` as a table with each `clauseSet` shown as its key `authority/id@version`, then one such single-form rendering per matrix, in order, each `unusedFacts` table headed `unusedFacts: <key>`. |
 | `soup` | The output of `quoin soup report --json`: a top-level object with a `rows` array of objects with the members `purl`, `id`, `path`, `version`, `serves`, `known_anomalies`, `support_status`, `end_of_support`, `unresolved_advisory`, `past_end_of_support`, `support_disagreement`, `disposition_clause`, `advisories` and `no_advisory_reported_by`; the object also carries `as_of`, `unmatched`, `scans` and `unreadable_scans`. | The line `As of: <as_of>`, the `rows` as one table, one row per object, with every member as a column; `unmatched` and `scans`, when non-empty, as one further table each, headed by the member name; and `unreadable_scans`, when non-empty, as a bulleted list headed `unreadable_scans`. |
-| `table` | A top-level object with one or more array members, each holding objects. | One table per such member, headed by the member name. |
+| `table` | A top-level object with one or more array members, each holding objects. | One table per array member, headed by the member name. A member that holds anything other than objects is refused; a member that is not an array is not a table. |
 
 - The `rmm` and `soup` shapes are those the Quoin reports emit today (the
   `RmmRow` row of the requirements mapping matrix and the row of the SOUP
   report); `export` reads the named members and refuses a document that lacks
   `rows`, `index` or `matrices` as its form requires.
-- Columns are the union of member names in first-seen order. Every member of
+- Columns: the members named in this section for the kind's rows (the
+  criterion members `id`, `statement`, `method`, `binders`, `status` for
+  `matrix`; the row members listed for `rmm` and `soup`; `clauseSet` and
+  `rowCount` for a pack `index`; `clauseId`, `kind` and `reason` for
+  `unusedFacts`; `tool`, `rule_id`, `package`, `severity` and `reason` for
+  `unmatched`; `tool` and `state` for `scans`) come first in that order and are
+  always present, because the Quoin producers print keys sorted and omit
+  optional members. Members outside that list follow, sorted by name; for
+  `table` every column is sorted by name. Every member of
   every row appears; a missing member renders as an empty cell, a scalar as its
   text and a nested value as its compact JSON text. Pipe characters and line
   breaks in a cell are escaped so a cell never splits a row.
 - If a JSON input does not match the shape its `--kind` requires, then the
   command SHALL refuse it as invalid input ([FR-033](./FR-033-export-errors.md)).
-- Column ordering, units, grouping and captions beyond this are specified by
-  PLAT-1603.
+- Wide tables wrap. The separator row of each pipe table gives every column a
+  relative width in dashes equal to the character count of its longest cell or
+  header, at least 3 and at most 48, so pandoc, which wraps cells in
+  proportion to those dashes once a row passes the page width, keeps a table
+  within the page. The command sets no page orientation.
+- The diagnostic for a shape mismatch names the file, the flag value of
+  `--kind` as typed and the first cause.
 
 ### C. Mermaid diagrams
 
@@ -159,9 +172,11 @@ and an identity; JSON inputs carry none.
 | FR-031-AC-6 | A fixture with a `mermaid` block exports with the block's source text present and no image in the output; the converter input `in/document.md` equals the bytes of the committed body after the frontmatter. | Test |
 | FR-031-AC-7 | A fixture with frontmatter exports with the `title` on the title page and no `type:` frontmatter line in the extracted text. | Test |
 | FR-031-AC-8 | After an export, the working directory, the input directory and the output directory hold no file other than the input and `--output`. | Test |
-| FR-031-AC-9 | A `--kind rmm` fixture in the single form and one in the pack form, and a `--kind soup` fixture, each export with one table row per element of `rows`; the pack form also yields its index table and one table per matrix. | Test |
-| FR-031-AC-10 | A `--kind soup` document lacking `rows`, a `--kind rmm` document that is neither a `requirements-mapping-v1` nor a `requirements-mapping-pack-v1` document, and a pack document lacking `matrices` are each refused as invalid input, exit 3, with no converter started. | Test |
+| FR-031-AC-9 | A `--kind rmm` fixture in the single form and one in the pack form, and a `--kind soup` fixture, each export with one table row per element of `rows`; the pack form also yields its `Pack:` line, its `context` table, its index table with each set shown as its key, and one table per matrix. | Test |
+| FR-031-AC-10 | A `--kind soup` document lacking `rows`, a `--kind rmm` document that is neither a `requirements-mapping-v1` nor a `requirements-mapping-pack-v1` document, a pack document lacking `matrices`, and a `--kind table` document with an array member holding a non-object are each refused as invalid input, exit 3, with no converter started. | Test |
 | FR-031-AC-11 | A `--kind rmm` fixture with a non-empty `unusedFacts` and an `asOf`, and a `--kind soup` fixture with a non-empty `unreadable_scans`, `unmatched` and `scans` and an `as_of`, export with the `As of` line, every `unusedFacts` row, and every `unreadable_scans` entry present in the extracted text. | Test |
+| FR-031-AC-12 | For `--kind rmm` and `--kind soup` fixtures whose keys are sorted, as the Quoin reports print them, the header of the rows table lists the members of this section in the order given, and an `rmm` fixture whose first row lacks `reason` still has the `reason` column. | Test |
+| FR-031-AC-13 | The separator row of the `soup` rows table gives each column a dash count equal to its longest cell or header text, bounded to 3 and 48. | Test |
 
 ## Dependencies
 
