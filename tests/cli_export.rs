@@ -1097,7 +1097,7 @@ fn uncommitted_untracked_and_outside_inputs_are_refused_and_crlf_is_not_a_change
     fs::write(rig.fixture(), text.replace('\n', "\r\n")).expect("crlf");
     let result = run(rig.export(&rig.fixture(), "docx", &output));
     assert!(result.status.success(), "{}", stderr(&result));
-    assert_eq!(rig.converter_input("document.md").contains('\r'), false);
+    assert!(!rig.converter_input("document.md").contains('\r'));
 }
 
 #[trace("FR-034-AC-11", "FR-040-AC-4")]

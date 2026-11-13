@@ -10,6 +10,7 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 ## [Unreleased]
 
 - **`quire export` (PLAT-1435).** Exports a Markdown artifact to PDF or DOCX. Pandoc (and Typst for PDF) run only through `engineering-assurance producer-execute`; exit 3 for a missing converter or invalid input, exit 4 for a converter failure.
+- **`quire export` default template (PLAT-1606).** A Markdown export now reads the committed blob of its input from the source git repository in process (`--source-repo`, `--source-rev`, `--release`), refuses uncommitted or filtered input, and generates a title page (title, document id, version, release, source commit, committer date), a table of contents, and a header and footer with `Page N of M`, identically for PDF and DOCX.
 
 ## [0.44.0] — 2026-11-12
 

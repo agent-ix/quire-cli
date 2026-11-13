@@ -1664,6 +1664,7 @@ dependencies = [
  "assert_cmd",
  "bstr",
  "clap",
+ "crc32fast",
  "gix-attributes",
  "gix-discover",
  "gix-features",
@@ -1684,7 +1685,6 @@ dependencies = [
  "tempfile",
  "toml",
  "url",
- "zip",
 ]
 
 [[package]]
@@ -2335,12 +2335,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "typed-path"
-version = "0.12.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54ec2755506471f54baf5e4bb5499d8e510cc1caf271270e778a736bd2d7336c"
-
-[[package]]
 name = "unicode-bom"
 version = "2.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2806,18 +2800,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "zip"
-version = "8.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
-dependencies = [
- "crc32fast",
- "indexmap",
- "memchr",
- "typed-path",
 ]
 
 [[package]]

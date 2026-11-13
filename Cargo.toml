@@ -39,7 +39,7 @@ gix-hash = { version = "0.28", features = ["sha1"] }
 gix-attributes = "0.37"
 gix-glob = "0.29"
 bstr = { version = "1", default-features = false, features = ["std"] }
-zip = { version = "8", default-features = false }
+crc32fast = "1"
 gix-features = { version = "0.48", features = ["zlib"] }
 
 [dev-dependencies]

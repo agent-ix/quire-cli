@@ -3,12 +3,8 @@
 //! template of each output format. Nothing here is stored as a file; all of it
 //! is generated at export time into the capability root.
 
-use std::io::{Cursor, Write};
-
 use anyhow::Context;
 use serde_json::{Map, Value};
-use zip::write::SimpleFileOptions;
-use zip::{CompressionMethod, DateTime, ZipWriter};
 
 use super::identity::Identity;
 use super::Format;
@@ -330,15 +326,62 @@ const ROOT_RELS: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"
 
 const DOCUMENT_RELS: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId10" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/><Relationship Id="rId11" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header2.xml"/><Relationship Id="rId12" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/><Relationship Id="rId13" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer2.xml"/></Relationships>"#;
 
+/// A ZIP archive of stored (uncompressed) entries with the fixed timestamp
+/// 1980-01-01, so the bytes do not depend on the clock.
+fn stored_zip(entries: &[(&str, &[u8])]) -> anyhow::Result<Vec<u8>> {
+    const DOS_DATE: u16 = (1 << 5) | 1;
+    let mut archive = Vec::new();
+    let mut directory = Vec::new();
+    for (name, content) in entries {
+        let offset = u32::try_from(archive.len()).context("reference document is too large")?;
+        let size = u32::try_from(content.len()).context("reference part is too large")?;
+        let name_length = u16::try_from(name.len()).context("reference part name is too long")?;
+        let crc = crc32fast::hash(content);
+        let mut common = Vec::new();
+        common.extend_from_slice(&20u16.to_le_bytes()); // version needed
+        common.extend_from_slice(&0x0800u16.to_le_bytes()); // UTF-8 names
+        common.extend_from_slice(&0u16.to_le_bytes()); // stored
+        common.extend_from_slice(&0u16.to_le_bytes()); // time
+        common.extend_from_slice(&DOS_DATE.to_le_bytes());
+        common.extend_from_slice(&crc.to_le_bytes());
+        common.extend_from_slice(&size.to_le_bytes());
+        common.extend_from_slice(&size.to_le_bytes());
+        common.extend_from_slice(&name_length.to_le_bytes());
+        common.extend_from_slice(&0u16.to_le_bytes()); // extra length
+        archive.extend_from_slice(b"PK\x03\x04");
+        archive.extend_from_slice(&common);
+        archive.extend_from_slice(name.as_bytes());
+        archive.extend_from_slice(content);
+        directory.extend_from_slice(b"PK\x01\x02");
+        directory.extend_from_slice(&20u16.to_le_bytes()); // version made by
+        directory.extend_from_slice(&common);
+        directory.extend_from_slice(&0u16.to_le_bytes()); // comment length
+        directory.extend_from_slice(&0u16.to_le_bytes()); // disk number
+        directory.extend_from_slice(&0u16.to_le_bytes()); // internal attributes
+        directory.extend_from_slice(&0u32.to_le_bytes()); // external attributes
+        directory.extend_from_slice(&offset.to_le_bytes());
+        directory.extend_from_slice(name.as_bytes());
+    }
+    let count = u16::try_from(entries.len()).context("too many reference parts")?;
+    let directory_offset =
+        u32::try_from(archive.len()).context("reference document is too large")?;
+    let directory_size =
+        u32::try_from(directory.len()).context("reference document is too large")?;
+    archive.extend_from_slice(&directory);
+    archive.extend_from_slice(b"PK\x05\x06");
+    archive.extend_from_slice(&0u32.to_le_bytes()); // disk numbers
+    archive.extend_from_slice(&count.to_le_bytes());
+    archive.extend_from_slice(&count.to_le_bytes());
+    archive.extend_from_slice(&directory_size.to_le_bytes());
+    archive.extend_from_slice(&directory_offset.to_le_bytes());
+    archive.extend_from_slice(&0u16.to_le_bytes()); // comment length
+    Ok(archive)
+}
+
 /// The default DOCX reference document: page setup, styles, and a header and
 /// footer carrying the identity as literal text with `PAGE` and `NUMPAGES`
-/// fields, a different first page without either. Entries are stored with a
-/// fixed timestamp so the bytes do not depend on the clock.
+/// fields, a different first page without either.
 pub(super) fn docx_reference(identity: &Identity) -> anyhow::Result<Vec<u8>> {
-    let options = SimpleFileOptions::default()
-        .compression_method(CompressionMethod::Stored)
-        .last_modified_time(DateTime::default());
-    let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
     let parts: [(&str, String); 9] = [
         ("[Content_Types].xml", CONTENT_TYPES.to_string()),
         ("_rels/.rels", ROOT_RELS.to_string()),
@@ -350,18 +393,11 @@ pub(super) fn docx_reference(identity: &Identity) -> anyhow::Result<Vec<u8>> {
         ("word/footer1.xml", footer_part(identity)),
         ("word/footer2.xml", empty_header_footer("ftr")),
     ];
-    for (name, content) in parts {
-        writer
-            .start_file(name, options)
-            .with_context(|| format!("writing {name} of the reference document"))?;
-        writer
-            .write_all(content.as_bytes())
-            .with_context(|| format!("writing {name} of the reference document"))?;
-    }
-    let cursor = writer
-        .finish()
-        .context("finishing the reference document")?;
-    Ok(cursor.into_inner())
+    let entries: Vec<(&str, &[u8])> = parts
+        .iter()
+        .map(|(name, content)| (*name, content.as_bytes()))
+        .collect();
+    stored_zip(&entries)
 }
 
 #[cfg(test)]
