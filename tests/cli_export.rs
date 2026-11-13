@@ -299,7 +299,7 @@ fn literals(request: &Value) -> Vec<&str> {
         .collect()
 }
 
-const PANDOC_ARGUMENTS: [&str; 14] = [
+const PANDOC_ARGUMENTS: [&str; 17] = [
     "--sandbox",
     "--standalone",
     "--from",
@@ -310,8 +310,11 @@ const PANDOC_ARGUMENTS: [&str; 14] = [
     "OUT",
     "--metadata-file",
     "in/metadata.yaml",
+    "--preserve-tabs",
     "TEMPLATE_FLAG",
     "TEMPLATE",
+    "--lua-filter",
+    "in/diagrams.lua",
     "in/front.md",
     "in/document.md",
 ];
@@ -4502,16 +4505,10 @@ fn a_docx_export_renders_each_block_through_producer_execute_before_pandoc() {
     // The pandoc request: filter after the template, before the front matter.
     let pandoc = &requests[2];
     assert!(validator.is_valid(pandoc), "{pandoc}");
-    let mut expected = pandoc_arguments("docx", "out/document.docx");
-    let front = expected
-        .iter()
-        .position(|argument| argument == "in/front.md")
-        .expect("front");
-    expected.splice(
-        front..front,
-        ["--lua-filter".to_string(), "in/diagrams.lua".to_string()],
+    assert_eq!(
+        literals(pandoc),
+        pandoc_arguments("docx", "out/document.docx")
     );
-    assert_eq!(literals(pandoc), expected);
     assert!(literals(pandoc).contains(&"--sandbox"));
 
     // The data files, the filter, and the committed body.
@@ -4579,9 +4576,9 @@ fn a_pdf_export_writes_the_images_under_typ_img_and_renders_before_pandoc_and_ty
         .contains("local IMAGE_DIR = \"typ/img\"\n"));
 }
 
-#[trace("FR-042-AC-2", "FR-032-AC-8")]
+#[trace("FR-042-AC-6", "FR-032-AC-8")]
 #[test]
-fn a_document_without_a_mermaid_block_makes_no_mmdr_request_and_carries_no_filter() {
+fn a_document_without_a_mermaid_block_makes_no_mmdr_request_and_carries_a_zero_count_filter() {
     let rig = Rig::new();
     fs::remove_file(rig.bin("mmdr")).expect("remove mmdr");
     let result = run(rig.export(&rig.fixture(), "docx", &rig.work("out.docx")));
@@ -4592,7 +4589,107 @@ fn a_document_without_a_mermaid_block_makes_no_mmdr_request_and_carries_no_filte
         literals(&requests[0]),
         pandoc_arguments("docx", "out/document.docx")
     );
+    // Every Markdown input gets the filter, so a block quire-rs missed fails.
+    assert!(rig
+        .converter_input("diagrams.lua")
+        .starts_with("local COUNT = 0\n"));
+    assert_eq!(rig.calls(), "pandoc\n");
+    assert!(!rig.root().join("log/in/diagrams").exists());
+}
+
+#[trace("FR-032-AC-8")]
+#[test]
+fn a_json_input_gets_no_filter_and_no_preserve_tabs() {
+    let rig = Rig::new();
+    let result = run(rig.export_json(
+        &json_fixture("matrix.json"),
+        "matrix",
+        "docx",
+        &rig.work("out.docx"),
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let arguments = literals(&rig.requests()[0]).join(" ");
+    assert!(!arguments.contains("--lua-filter") && !arguments.contains("--preserve-tabs"));
     assert!(!rig.root().join("log/in/diagrams.lua").exists());
+}
+
+#[trace("FR-042-AC-8")]
+#[test]
+fn only_the_blocks_quire_rs_finds_are_rendered_whatever_the_fence_style() {
+    let rig = Rig::new();
+    let text = "---\nid: FR-031\ntitle: Fences\nversion: \"2.0\"\ntype: FR\n---\n# [FR-031] Overview\n\n\
+        ## Description\n\nThe system SHALL draw a real, concrete diagram.\n\n\
+        ## Specification\n\nThe implementation SHALL satisfy the described behavior.\n\n\
+        ### Fences\n\n    ```mermaid\n    flowchart TD\n      One --> Two\n    ```\n\n\
+        ````text\n```mermaid\nsequenceDiagram\n  Skipped->>Skipped: no\n```\n````\n\n\
+        ~~~mermaid\nclassDiagram\n  class Third\n~~~\n\n\
+        ````mermaid\nflowchart TD\n  Fourth --> Last\n````\n\n\
+        ## Acceptance Criteria\n\n| ID | Criteria |\n|----|----------|\n| FR-031-AC-1 | It draws |\n";
+    let input = rig.commit("fences.md", text, COMMIT_DATE);
+    let result = run(rig.export(&input, "docx", &rig.work("out.docx")));
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(rig.calls(), "mmdr\nmmdr\npandoc\n");
+    assert_eq!(
+        rig.converter_input("diagrams/1.mmd"),
+        "classDiagram\n  class Third"
+    );
+    assert_eq!(
+        rig.converter_input("diagrams/2.mmd"),
+        "flowchart TD\n  Fourth --> Last"
+    );
+    assert_eq!(
+        rig.converter_input("diagrams/1.alt"),
+        "Mermaid diagram 1: Fences"
+    );
+    assert_eq!(
+        rig.converter_input("diagrams/2.alt"),
+        "Mermaid diagram 2: Fences"
+    );
+    assert!(rig
+        .converter_input("diagrams.lua")
+        .starts_with("local COUNT = 2\n"));
+
+    // The diagnostics carry the ordinal and the line of the opening fence.
+    rig.mmdr_with("case \"$in\" in *2.mmd) echo 'mmdr: bad' >&2; exit 1 ;; esac");
+    let result = run(rig.export(&input, "docx", &rig.work("failed.docx")));
+    assert_eq!(result.status.code(), Some(4));
+    let line = text
+        .lines()
+        .position(|line| line == "````mermaid")
+        .expect("fence")
+        + 1;
+    assert!(
+        stderr(&result).contains(&format!("diagram 2 (line {line}, section 'Fences')")),
+        "{}",
+        stderr(&result)
+    );
+}
+
+#[trace("FR-042-AC-3", "FR-032-AC-3")]
+#[test]
+fn a_tab_in_a_block_reaches_the_converter_and_pandoc_is_told_to_keep_tabs() {
+    let rig = Rig::new();
+    let source = "flowchart TD\n\tStart --> Stop";
+    let input = diagram_document(&rig, "tab.md", "FR-021", &[("Tabs", source)]);
+    let result = run(rig.export(&input, "docx", &rig.work("out.docx")));
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert!(literals(&rig.requests()[1]).contains(&"--preserve-tabs"));
+    assert_eq!(rig.converter_input("diagrams/1.mmd"), source);
+    assert!(rig
+        .converter_input("document.md")
+        .contains("\tStart --> Stop"));
+}
+
+#[trace("FR-042-AC-7")]
+#[test]
+fn the_filter_fails_a_count_mismatch_with_a_message_distinct_from_a_block_failure() {
+    let source = exported_filter(0);
+    // A block beyond the count is left for the count check, not read as data.
+    assert!(source.contains("if k > COUNT then"));
+    assert!(
+        source.contains("'mermaid blocks: pandoc read ' .. seen .. ' and quire found ' .. COUNT")
+    );
+    assert!(source.contains("'mermaid block ' .. k .. ': "));
 }
 
 #[trace("FR-042-AC-4")]
@@ -4753,21 +4850,63 @@ fn a_hostile_heading_changes_no_generated_filter_and_is_only_alternative_text() 
         rig.converter_input("diagrams/1.alt"),
         format!("Mermaid diagram 1: {hostile}")
     );
-    assert!(!rig.root().join("work/pwned").exists());
-    assert!(!rig.root().join("pwned").exists());
 }
 
 // ---- Real converters (need pandoc, typst, mmdr, unzip, pdfimages) ----
 
-/// `quire export` over real tools, `mmdr` included.
-fn real_diagram_export(rig: &Rig, input: &Path, to: &str, output: &Path) -> Output {
-    require_tool("mmdr");
-    real_export(rig, input, to, output)
+/// The filter source an export of a document with `count` blocks writes.
+fn exported_filter(count: usize) -> String {
+    let rig = Rig::new();
+    let blocks: Vec<(&str, &str)> = (0..count).map(|_| ("H", FLOWCHART)).collect();
+    let input = diagram_document(&rig, "f.md", "FR-021", &blocks);
+    let result = run(rig.export(&input, "docx", &rig.work("f.docx")));
+    assert!(result.status.success(), "{}", stderr(&result));
+    rig.converter_input("diagrams.lua")
 }
 
 fn count_lines(text: &str) -> usize {
     text.lines().count()
 }
+
+/// The bytes of one part of a DOCX.
+fn docx_bytes(path: &Path, part: &str) -> Vec<u8> {
+    let output = Command::new(require_tool("unzip"))
+        .args(["-p"])
+        .arg(path)
+        .arg(part)
+        .output()
+        .expect("unzip runs");
+    assert!(output.status.success(), "{part}: {}", stderr(&output));
+    output.stdout
+}
+
+/// A pandoc wrapper that runs the real pandoc, then keeps `typ/document.typ`
+/// in the rig log, so a test can read the Typst source pandoc wrote.
+fn tee_pandoc(rig: &Rig) -> PathBuf {
+    let path = rig.bin("pandoc-tee");
+    script(
+        &path,
+        &format!(
+            "\"{}\" \"$@\"\nstatus=$?\ncp typ/document.typ \"{}/document.typ\" 2>/dev/null\nexit $status\n",
+            require_tool("pandoc").display(),
+            rig.root().join("log").display()
+        ),
+    );
+    path
+}
+
+fn real_diagram_command(rig: &Rig, input: &Path, to: &str, output: &Path) -> Command {
+    require_tool("mmdr");
+    let mut command = real_command(&[input], to);
+    command
+        .current_dir(rig.work(""))
+        .arg("--output")
+        .arg(output);
+    command
+}
+
+const WIDE: &str = "flowchart LR\n  A1[Alpha node one] --> A2[Alpha node two] --> A3[Alpha node three] --> A4[Alpha node four] --> A5[Alpha node five] --> A6[Alpha node six] --> A7[Alpha node seven] --> A8[Alpha node eight]";
+const NARROW: &str = "flowchart TD\n  Solo";
 
 #[trace("FR-042-AC-1")]
 #[test]
@@ -4778,31 +4917,38 @@ fn real_converters_embed_the_diagrams_as_images_in_both_formats() {
         &rig,
         "d.md",
         "FR-021",
-        &[
-            ("Flow", "flowchart TD\n  Start --> Stop"),
-            ("Talk", SEQUENCE),
-        ],
+        &[("Flow", FLOWCHART), ("Talk", SEQUENCE)],
     );
     let docx = rig.work("out.docx");
     let pdf = rig.work("out.pdf");
-    for (to, path) in [("docx", &docx), ("pdf", &pdf)] {
-        let result = real_diagram_export(&rig, &input, to, path);
-        assert!(result.status.success(), "{}", stderr(&result));
-    }
+    let result = run(real_diagram_command(&rig, &input, "docx", &docx));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let mut command = real_diagram_command(&rig, &input, "pdf", &pdf);
+    command.arg("--pandoc").arg(tee_pandoc(&rig));
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+
     let listing = Command::new(require_tool("unzip"))
         .arg("-Z1")
         .arg(&docx)
         .output()
         .expect("unzip");
     let names = String::from_utf8_lossy(&listing.stdout).into_owned();
-    assert_eq!(
-        names
-            .lines()
-            .filter(|name| name.starts_with("word/media/") && name.ends_with(".png"))
-            .count(),
-        2,
-        "{names}"
-    );
+    let media: Vec<_> = names
+        .lines()
+        .filter(|name| name.starts_with("word/media/") && name.ends_with(".png"))
+        .collect();
+    assert_eq!(media.len(), 2, "{names}");
+    let document = docx_part(&docx, "word/document.xml");
+    assert_eq!(document.matches("<w:drawing>").count(), 2, "{document}");
+    for text in [docx_text(&docx), pdf_text(&pdf)] {
+        for source in ["flowchart TD", "sequenceDiagram"] {
+            assert!(!text.contains(source), "{source} in {text}");
+        }
+    }
+    // The alternative texts are the images' descriptions, not run text.
+    assert!(!strip_tags(&document).contains("Mermaid diagram"));
+
     let images = Command::new(require_tool("pdfimages"))
         .arg("-list")
         .arg(&pdf)
@@ -4810,9 +4956,27 @@ fn real_converters_embed_the_diagrams_as_images_in_both_formats() {
         .expect("pdfimages");
     // Two header lines, then one line per image.
     assert_eq!(count_lines(&String::from_utf8_lossy(&images.stdout)), 4);
-    for text in [docx_text(&docx), pdf_text(&pdf)] {
-        assert!(!text.contains("sequenceDiagram"), "{text}");
+    let typst = log_file(&rig, "document.typ");
+    for name in ["img/1.png", "img/2.png"] {
+        assert!(typst.contains(&format!("\"{name}\"")), "{name} in {typst}");
     }
+}
+
+#[trace("FR-042-AC-5")]
+#[test]
+#[ignore = "needs real pandoc, typst, mmdr on PATH"]
+fn real_mmdr_rejects_a_block_without_a_diagram_header_and_the_export_names_it() {
+    let rig = Rig::new();
+    let input = diagram_document(&rig, "d.md", "FR-021", &[("Headless", "Start --> Stop")]);
+    let output = rig.work("out.docx");
+    let result = run(real_diagram_command(&rig, &input, "docx", &output));
+    assert_eq!(result.status.code(), Some(4), "{}", stderr(&result));
+    assert!(
+        stderr(&result).contains("diagram 1") && stderr(&result).contains("Headless"),
+        "{}",
+        stderr(&result)
+    );
+    assert!(!output.exists());
 }
 
 #[trace("FR-042-AC-7", "FR-042-AC-15")]
@@ -4820,42 +4984,250 @@ fn real_converters_embed_the_diagrams_as_images_in_both_formats() {
 #[ignore = "needs real pandoc, typst, mmdr and unzip on PATH"]
 fn real_pandoc_blocks_that_quire_rs_does_not_find_fail_the_export() {
     let rig = Rig::new();
+    let base = fs::read_to_string(diagram_document(
+        &rig,
+        "base.md",
+        "FR-021",
+        &[("One", FLOWCHART)],
+    ))
+    .expect("base");
+    let plain = "```mermaid\nflowchart TD\n  Start --> Stop\n```";
+    assert!(base.contains(plain));
+    // The only block is one quire-rs does not find, so the filter's count is 0.
     let attribute = rig.commit(
         "attribute.md",
-        &fs::read_to_string(diagram_document(
-            &rig,
-            "base.md",
-            "FR-021",
-            &[("One", FLOWCHART)],
-        ))
-        .expect("base")
-        .replace("```mermaid", "```{.mermaid}"),
+        &base.replace("```mermaid", "```{.mermaid}"),
         COMMIT_DATE,
     );
+    let quote = rig.commit(
+        "quote.md",
+        &base.replace(
+            plain,
+            "> ```mermaid\n> flowchart TD\n>   Start --> Stop\n> ```",
+        ),
+        COMMIT_DATE,
+    );
+    // The same quote after a block quire-rs does find: counts 2 and 1.
+    let mixed = rig.commit(
+        "mixed.md",
+        &base.replace(
+            plain,
+            &format!("{plain}\n\n> ```mermaid\n> flowchart TD\n>   Quoted --> Stop\n> ```"),
+        ),
+        COMMIT_DATE,
+    );
+    for (input, expected) in [
+        (&attribute, "pandoc read 1 and quire found 0"),
+        (&quote, "pandoc read 1 and quire found 0"),
+        (&mixed, "pandoc read 2 and quire found 1"),
+    ] {
+        let output = rig.work("out.docx");
+        let result = run(real_diagram_command(&rig, input, "docx", &output));
+        assert_eq!(result.status.code(), Some(4), "{}", stderr(&result));
+        assert!(stderr(&result).contains(expected), "{}", stderr(&result));
+        assert!(!output.exists());
+    }
+    // A block in a list item is found by quire-rs; pandoc strips the
+    // indentation, so the per-block comparison fails naming the block.
     let in_list = rig.commit(
         "list.md",
-        &fs::read_to_string(diagram_document(
-            &rig,
-            "base2.md",
-            "FR-021",
-            &[("One", FLOWCHART)],
-        ))
-        .expect("base")
-        .replace(
-            "```mermaid\nflowchart TD\n  Start --> Stop\n```",
+        &base.replace(
+            plain,
             "- item\n\n  ```mermaid\n  flowchart TD\n    Start --> Stop\n  ```",
         ),
         COMMIT_DATE,
     );
-    for input in [attribute, in_list] {
-        let output = rig.work("out.docx");
-        let result = real_diagram_export(&rig, &input, "docx", &output);
-        assert_eq!(result.status.code(), Some(4), "{}", stderr(&result));
+    let output = rig.work("out.docx");
+    let result = run(real_diagram_command(&rig, &in_list, "docx", &output));
+    assert_eq!(result.status.code(), Some(4), "{}", stderr(&result));
+    assert!(!output.exists());
+}
+
+#[trace("FR-042-AC-14")]
+#[test]
+#[ignore = "needs real pandoc on PATH"]
+fn real_pandoc_fails_the_generated_filter_on_a_missing_image_or_a_changed_source() {
+    let pandoc = require_tool("pandoc");
+    for (broken, expected) in [
+        ("image", "no image at img/2.png"),
+        ("source", "differs from in/diagrams/2.mmd"),
+    ] {
+        let root = tempfile::tempdir().expect("root");
+        let path = root.path();
+        for directory in ["in/diagrams", "img", "out"] {
+            fs::create_dir_all(path.join(directory)).expect("directory");
+        }
+        let markdown = format!("```mermaid\n{FLOWCHART}\n```\n\n```mermaid\n{SEQUENCE}\n```\n");
+        fs::write(path.join("in/document.md"), markdown).expect("document");
+        fs::write(path.join("in/diagrams.lua"), exported_filter(2)).expect("filter");
+        for (k, source) in [(1, FLOWCHART), (2, SEQUENCE)] {
+            let stored = if broken == "source" && k == 2 {
+                "changed"
+            } else {
+                source
+            };
+            fs::write(path.join(format!("in/diagrams/{k}.mmd")), stored).expect("source");
+            fs::write(
+                path.join(format!("in/diagrams/{k}.alt")),
+                format!("Mermaid diagram {k}"),
+            )
+            .expect("alt");
+            if !(broken == "image" && k == 2) {
+                fs::write(path.join(format!("img/{k}.png")), b"\x89PNG fake").expect("image");
+            }
+        }
+        let output = Command::new(&pandoc)
+            .current_dir(path)
+            .args([
+                "--from",
+                "markdown",
+                "--to",
+                "docx",
+                "--output",
+                "out/document.docx",
+                "--lua-filter",
+                "in/diagrams.lua",
+                "in/document.md",
+            ])
+            .output()
+            .expect("pandoc runs");
+        assert!(!output.status.success(), "{broken}");
         assert!(
-            stderr(&result).contains("mermaid block"),
-            "{}",
-            stderr(&result)
+            stderr(&output).contains(expected),
+            "{broken}: {}",
+            stderr(&output)
         );
-        assert!(!output.exists());
+        assert!(
+            stderr(&output).contains("block 2"),
+            "{broken}: {}",
+            stderr(&output)
+        );
+        assert!(!path.join("out/document.docx").exists(), "{broken}");
+    }
+}
+
+/// The width in EMU of every `wp:extent` in a DOCX document part, in order.
+fn extent_widths(document: &str) -> Vec<u64> {
+    document
+        .split("<wp:extent cx=\"")
+        .skip(1)
+        .map(|rest| rest.split('"').next().expect("cx").parse().expect("number"))
+        .collect()
+}
+
+/// The pixel width and the dots per metre (default 72 dpi) of a PNG.
+fn png_width_and_density(bytes: &[u8]) -> (u64, f64) {
+    let width = u64::from(u32::from_be_bytes(bytes[16..20].try_into().expect("IHDR")));
+    let mut density = 72.0 / 0.0254;
+    let mut at = 8;
+    while at + 12 <= bytes.len() {
+        let length = u32::from_be_bytes(bytes[at..at + 4].try_into().expect("length")) as usize;
+        if &bytes[at + 4..at + 8] == b"pHYs" {
+            let x = u32::from_be_bytes(bytes[at + 8..at + 12].try_into().expect("pHYs"));
+            density = f64::from(x);
+        }
+        at += 12 + length;
+    }
+    (width, density)
+}
+
+#[trace("FR-042-AC-10")]
+#[test]
+#[ignore = "needs real pandoc, mmdr and unzip on PATH"]
+fn real_docx_scales_a_wide_diagram_to_the_text_area_and_keeps_a_narrow_one() {
+    let rig = Rig::new();
+    let input = diagram_document(
+        &rig,
+        "d.md",
+        "FR-021",
+        &[("Wide", WIDE), ("Narrow", NARROW)],
+    );
+    let docx = rig.work("out.docx");
+    let result = run(real_diagram_command(&rig, &input, "docx", &docx));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let document = docx_part(&docx, "word/document.xml");
+    let widths = extent_widths(&document);
+    assert_eq!(widths.len(), 2, "{document}");
+    // The text area: page width minus the side margins, in twips, as EMU.
+    let attribute = |tag: &str, name: &str| -> u64 {
+        document
+            .split(&format!("<{tag} "))
+            .last()
+            .and_then(|rest| rest.split(&format!("{name}=\"")).nth(1))
+            .and_then(|rest| rest.split('"').next())
+            .and_then(|value| value.parse().ok())
+            .unwrap_or_else(|| panic!("{tag} {name} in {document}"))
+    };
+    let text_area = (attribute("w:pgSz", "w:w")
+        - attribute("w:pgMar", "w:left")
+        - attribute("w:pgMar", "w:right"))
+        * 635;
+    assert!(widths[0] <= text_area, "{} > {text_area}", widths[0]);
+    // The narrow image keeps its size at the image resolution.
+    let names = Command::new(require_tool("unzip"))
+        .arg("-Z1")
+        .arg(&docx)
+        .output()
+        .expect("unzip");
+    let media: Vec<String> = String::from_utf8_lossy(&names.stdout)
+        .lines()
+        .filter(|name| name.starts_with("word/media/") && name.ends_with(".png"))
+        .map(str::to_string)
+        .collect();
+    let narrow = media
+        .iter()
+        .map(|name| png_width_and_density(&docx_bytes(&docx, name)))
+        .min_by_key(|(width, _)| *width)
+        .expect("narrow image");
+    let expected = narrow.0 as f64 / narrow.1 * 914_400.0;
+    let actual = widths[1] as f64;
+    assert!(
+        (actual - expected).abs() <= expected * 0.01 + 1.0,
+        "{actual} vs {expected}"
+    );
+}
+
+#[trace("NFR-011-AC-5")]
+#[test]
+#[ignore = "needs real pandoc, typst, mmdr, unzip and pdfimages on PATH"]
+fn real_diagrams_are_byte_equal_across_time_zones() {
+    let rig = Rig::new();
+    let input = diagram_document(
+        &rig,
+        "d.md",
+        "FR-021",
+        &[("Flow", FLOWCHART), ("Talk", SEQUENCE)],
+    );
+    let mut images: Vec<Vec<Vec<u8>>> = Vec::new();
+    for (index, zone) in ["UTC", "Pacific/Auckland"].iter().enumerate() {
+        let docx = rig.work(&format!("out-{index}.docx"));
+        let mut command = real_diagram_command(&rig, &input, "docx", &docx);
+        command.env("TZ", zone);
+        let result = run(command);
+        assert!(result.status.success(), "{}", stderr(&result));
+        let mut parts: Vec<Vec<u8>> = Vec::new();
+        for k in 1..=2 {
+            parts.push(docx_bytes(&docx, &format!("word/media/image{k}.png")));
+        }
+        images.push(parts);
+    }
+    assert_eq!(images[0], images[1]);
+}
+
+#[trace("FR-042-AC-3", "FR-042-AC-1")]
+#[test]
+#[ignore = "needs real pandoc, typst, mmdr and unzip on PATH"]
+fn real_converters_export_a_diagram_that_contains_a_tab() {
+    let rig = Rig::new();
+    let input = diagram_document(
+        &rig,
+        "tab.md",
+        "FR-021",
+        &[("Tabs", "flowchart TD\n\tStart --> Stop")],
+    );
+    for to in ["docx", "pdf"] {
+        let output = rig.work(&format!("out.{to}"));
+        let result = run(real_diagram_command(&rig, &input, to, &output));
+        assert!(result.status.success(), "{to}: {}", stderr(&result));
     }
 }

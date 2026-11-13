@@ -121,6 +121,10 @@ function CodeBlock(block)
   end
   seen = seen + 1
   local k = seen
+  if k > COUNT then
+    -- A block quire-rs did not find: the count check below fails the export.
+    return nil
+  end
   local source = read('in/diagrams/' .. k .. '.mmd')
   if source == nil then
     error('mermaid block ' .. k .. ': cannot read in/diagrams/' .. k .. '.mmd')

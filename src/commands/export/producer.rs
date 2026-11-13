@@ -80,7 +80,6 @@ impl Step {
             with_identity,
             documents,
             approval,
-            diagrams,
             ..
         } = plan;
         let pandoc = |to: &'static str, output: &'static str, template: [&'static str; 2]| {
@@ -98,13 +97,13 @@ impl Step {
             ]
             .map(str::to_string)
             .to_vec();
+            // `with_identity` marks a Markdown input. Only a Markdown input has
+            // code blocks to keep byte-exact (FR-032) and gets the diagram
+            // filter, with a block count of 0 when it has no block (FR-042).
             if with_identity {
+                arguments.push("--preserve-tabs".to_string());
                 arguments.extend([template[0], template[1]].map(str::to_string));
-            }
-            if diagrams {
                 arguments.extend(["--lua-filter", diagrams::FILTER].map(str::to_string));
-            }
-            if with_identity {
                 arguments.push("in/front.md".to_string());
             }
             if documents == 0 {
@@ -234,12 +233,14 @@ pub(super) fn convert(
         files.push(("in/approval.md".to_string(), approval.as_bytes()));
     }
     let filter = diagrams::filter_source(generated.diagrams.len(), image_directory(to));
+    if generated.identity_parts.is_some() {
+        files.push((diagrams::FILTER.to_string(), filter.as_bytes()));
+    }
     if !generated.diagrams.is_empty() {
         for directory in ["in/diagrams", image_directory(to)] {
             fs::create_dir_all(root_path.join(directory))
                 .with_context(|| format!("creating {directory}"))?;
         }
-        files.push((diagrams::FILTER.to_string(), filter.as_bytes()));
     }
     let diagram_files: Vec<(String, &[u8])> = generated
         .diagrams
@@ -282,7 +283,6 @@ pub(super) fn convert(
                 with_identity: generated.identity_parts.is_some(),
                 documents: generated.bundle.len(),
                 approval: generated.approval.is_some(),
-                diagrams: !generated.diagrams.is_empty(),
                 epoch: generated.epoch,
             },
         )?;
@@ -312,8 +312,6 @@ struct Plan {
     /// The number of bundle documents; 0 for a single export.
     documents: usize,
     approval: bool,
-    /// The export has Mermaid blocks, so pandoc runs the generated filter.
-    diagrams: bool,
     epoch: i64,
 }
 
