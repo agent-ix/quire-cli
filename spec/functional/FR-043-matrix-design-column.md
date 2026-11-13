@@ -1,5 +1,5 @@
 ---
-id: FR-042
+id: FR-043
 title: "quire matrix design column and design gate"
 type: FR
 relationships:
@@ -16,7 +16,7 @@ relationships:
     type: "references"
 ---
 
-# FR-042: quire matrix design column and design gate
+# FR-043: quire matrix design column and design gate
 
 ## Description
 
@@ -95,28 +95,28 @@ is exit 3 as in FR-030.
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-042-AC-1 | `quire matrix --scope <DIR> --module $M` over a fixture with one realized and one unrealized requirement prints, in Markdown, a `Design` column between `Statement` and `Binders`, with the realized requirement's rows listing `id (kind)` and the other's rows reading `no design element`. | Test |
-| FR-042-AC-2 | `--format human` prints, per requirement, the `design:` line (elements, `no design element (<check>)` or `out of scope`) and one line per criterion with its status, design cell and tests. | Test |
-| FR-042-AC-3 | `--format json` carries each entry's `design` key as quire-rs emits it, names each element's `kind`, and omits `design` for an out-of-scope entry; two runs are byte-identical. | Test |
-| FR-042-AC-4 | `--format tsv` emits the header `document criterion design design_state status binders statement requirement_criticality`, a `kind:id` list in `design`, `uncovered` or `covered` in `design_state`, and empty values for an out-of-scope entry. | Test |
-| FR-042-AC-5 | A requirement whose criteria are named by `realized_criteria` shows an element only on those criteria, and an element realizing the requirement as a whole shows on every criterion row. | Test |
-| FR-042-AC-6 | A requirement with no acceptance criteria and no design element is printed in Markdown, human and TSV with the gap marker and `design_state` `uncovered`, and a covered requirement with no criteria prints no gap. | Test |
-| FR-042-AC-7 | `--strict` exits 1 over a fixture with a live requirement and no design element, with a stderr line naming the requirement and the block's `check` token; the same fixture without `--strict` exits 0 and shows the gap. | Test |
-| FR-042-AC-8 | `--strict` exits 0 over a fixture whose design relation's `where` selects only one value of a frontmatter field, when the only requirement lacking a design element holds another value; changing the module data to select it makes the gate exit 1 with no CLI change. | Test |
-| FR-042-AC-9 | A requirement with criteria all `retired` and no design element is rendered with the gap and does not fail `--strict`; one live criterion beside it makes the gate exit 1. | Test |
-| FR-042-AC-10 | A passing corpus, where every in-scope requirement has an element and every criterion is `tagged`, exits 0 under `--strict`; a corpus with a design gap and an `untagged` criterion exits 1 and the stderr names the design gap too. | Test |
-| FR-042-AC-11 | A module with no `design_relations` yields the FR-026 output in every format, including a `--strict` verdict. | Test |
-| FR-042-AC-12 | A `design_relations` entry naming no declared relation exits 3 naming the entry, with nothing on stdout. | Test |
-| FR-042-AC-13 | `--repo o/a=<A> --repo o/b=<B>` over a fixture whose requirement in `o/a` is realized by an element in `o/b` shows it with repo `o/b`, and without the `o/b` flag the requirement is a gap. | Test |
-| FR-042-AC-14 | Over a fixture whose relation, archetype, verb and criterion-id names are unrelated to requirements or design, all four formats are complete and the gate fires. | Test |
-| FR-042-AC-15 | The CLI source holds no join, edge-matching or selection logic beyond rendering the quire-rs `design_matrix` entries and `design_elements`, and no archetype name or verb. | Inspection |
-| FR-042-AC-17 | A requirement with one `covered` and one `uncovered` design relation prints its elements and `no design element (<check>)` in the same cell. | Test |
-| FR-042-AC-18 | A `covered` block of a `to: []` relation with only a dangling edge prints `-> <reference> (dangling)`, not an empty cell. | Test |
-| FR-042-AC-19 | A fixture whose only obliged requirements have no criteria prints each heading and `Design gap:` line, one TSV record each, and `--strict` exits 1. | Test |
-| FR-042-AC-20 | An element with no `kind` prints `id` in Markdown and human output and `id` in TSV. | Test |
-| FR-042-AC-16 | Running `matrix` in every format leaves every file under `<scope>` byte-identical ([FR-026](./FR-026-matrix-subcommand.md)-AC-14). | Test |
+| FR-043-AC-1 | `quire matrix --scope <DIR> --module $M` over a fixture with one realized and one unrealized requirement prints, in Markdown, a `Design` column between `Statement` and `Binders`, with the realized requirement's rows listing `id (kind)` and the other's rows reading `no design element`. | Test |
+| FR-043-AC-2 | `--format human` prints, per requirement, the `design:` line (elements, `no design element (<check>)` or `out of scope`) and one line per criterion with its status, design cell and tests. | Test |
+| FR-043-AC-3 | `--format json` carries each entry's `design` key as quire-rs emits it, names each element's `kind`, and omits `design` for an out-of-scope entry; two runs are byte-identical. | Test |
+| FR-043-AC-4 | `--format tsv` emits the header `document criterion design design_state status binders statement requirement_criticality`, a `kind:id` list in `design`, `uncovered` or `covered` in `design_state`, and empty values for an out-of-scope entry. | Test |
+| FR-043-AC-5 | A requirement whose criteria are named by `realized_criteria` shows an element only on those criteria, and an element realizing the requirement as a whole shows on every criterion row. | Test |
+| FR-043-AC-6 | A requirement with no acceptance criteria and no design element is printed in Markdown, human and TSV with the gap marker and `design_state` `uncovered`, and a covered requirement with no criteria prints no gap. | Test |
+| FR-043-AC-7 | `--strict` exits 1 over a fixture with a live requirement and no design element, with a stderr line naming the requirement and the block's `check` token; the same fixture without `--strict` exits 0 and shows the gap. | Test |
+| FR-043-AC-8 | `--strict` exits 0 over a fixture whose design relation's `where` selects only one value of a frontmatter field, when the only requirement lacking a design element holds another value; changing the module data to select it makes the gate exit 1 with no CLI change. | Test |
+| FR-043-AC-9 | A requirement with criteria all `retired` and no design element is rendered with the gap and does not fail `--strict`; one live criterion beside it makes the gate exit 1. | Test |
+| FR-043-AC-10 | A passing corpus, where every in-scope requirement has an element and every criterion is `tagged`, exits 0 under `--strict`; a corpus with a design gap and an `untagged` criterion exits 1 and the stderr names the design gap too. | Test |
+| FR-043-AC-11 | A module with no `design_relations` yields the FR-026 output in every format, including a `--strict` verdict. | Test |
+| FR-043-AC-12 | A `design_relations` entry naming no declared relation exits 3 naming the entry, with nothing on stdout. | Test |
+| FR-043-AC-13 | `--repo o/a=<A> --repo o/b=<B>` over a fixture whose requirement in `o/a` is realized by an element in `o/b` shows it with repo `o/b`, and without the `o/b` flag the requirement is a gap. | Test |
+| FR-043-AC-14 | Over a fixture whose relation, archetype, verb and criterion-id names are unrelated to requirements or design, all four formats are complete and the gate fires. | Test |
+| FR-043-AC-15 | The CLI source holds no join, edge-matching or selection logic beyond rendering the quire-rs `design_matrix` entries and `design_elements`, and no archetype name or verb. | Inspection |
+| FR-043-AC-17 | A requirement with one `covered` and one `uncovered` design relation prints its elements and `no design element (<check>)` in the same cell. | Test |
+| FR-043-AC-18 | A `covered` block of a `to: []` relation with only a dangling edge prints `-> <reference> (dangling)`, not an empty cell. | Test |
+| FR-043-AC-19 | A fixture whose only obliged requirements have no criteria prints each heading and `Design gap:` line, one TSV record each, and `--strict` exits 1. | Test |
+| FR-043-AC-20 | An element with no `kind` prints `id` in Markdown and human output and `id` in TSV. | Test |
+| FR-043-AC-16 | Running `matrix` in every format leaves every file under `<scope>` byte-identical ([FR-026](./FR-026-matrix-subcommand.md)-AC-14). | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-026](./FR-026-matrix-subcommand.md); [FR-028](./FR-028-matrix-criticality-column.md); [FR-041](./FR-041-relations-design-mode.md); [FR-007](./FR-007-exit-codes.md); [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); quire-rs [FR-092](ix://agent-ix/quire-rs/FR-092), [FR-086](ix://agent-ix/quire-rs/FR-086), [FR-058](ix://agent-ix/quire-rs/FR-058)
-- **Downstream**: `quoin matrix` (quoin FR-162)
+- **Downstream**: `quoin matrix` (quoin FR-165)
