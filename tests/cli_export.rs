@@ -8,6 +8,7 @@
 
 mod common;
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::os::unix::fs::{symlink, PermissionsExt};
 use std::path::{Path, PathBuf};
@@ -2091,6 +2092,7 @@ fn docx_parts(path: &Path, prefix: &str) -> String {
         .arg(path)
         .output()
         .expect("unzip runs");
+    assert!(listing.status.success(), "{}", stderr(&listing));
     String::from_utf8_lossy(&listing.stdout)
         .lines()
         .filter(|name| name.starts_with(prefix) && name.ends_with(".xml"))
@@ -3187,11 +3189,11 @@ struct Capture {
     roots: Vec<String>,
     environments: Vec<Value>,
     /// Every file the stand-in pandoc found under `in/`, by relative name.
-    inputs: std::collections::BTreeMap<String, Vec<u8>>,
+    inputs: BTreeMap<String, Vec<u8>>,
     output: Vec<u8>,
 }
 
-fn read_tree(dir: &Path, prefix: &str, files: &mut std::collections::BTreeMap<String, Vec<u8>>) {
+fn read_tree(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) {
     for entry in fs::read_dir(dir).expect("directory") {
         let entry = entry.expect("entry");
         let name = format!("{prefix}{}", entry.file_name().to_string_lossy());
@@ -3245,7 +3247,7 @@ fn export_varied(
     assert!(roots
         .iter()
         .all(|root| root.starts_with(tmp.to_str().expect("UTF-8"))));
-    let mut inputs = std::collections::BTreeMap::new();
+    let mut inputs = BTreeMap::new();
     read_tree(&rig.root().join("log/in"), "", &mut inputs);
     Capture {
         requests: requests
@@ -3282,6 +3284,7 @@ fn assert_stable(rig: &Rig, scenario: &str, epoch: &str, build: &dyn Fn(&Path) -
             assert_eq!(object["SOURCE_DATE_EPOCH"], epoch, "{scenario}");
         }
         let rig_root = rig.root().display().to_string();
+        let checkout = env!("CARGO_MANIFEST_DIR");
         let generated = capture
             .inputs
             .iter()
@@ -3292,6 +3295,10 @@ fn assert_stable(rig: &Rig, scenario: &str, epoch: &str, build: &dyn Fn(&Path) -
                 "{scenario}: host path in {name}"
             );
             assert!(
+                !contains_bytes(bytes, checkout),
+                "{scenario}: checkout path in {name}"
+            );
+            assert!(
                 !contains_bytes(bytes, "quire-export-"),
                 "{scenario}: root name in {name}"
             );
@@ -3299,7 +3306,7 @@ fn assert_stable(rig: &Rig, scenario: &str, epoch: &str, build: &dyn Fn(&Path) -
     }
 }
 
-#[trace("FR-037-AC-1", "FR-037-AC-3", "NFR-011-AC-1", "NFR-011-AC-3")]
+#[trace("FR-037-AC-1", "FR-037-AC-3")]
 #[test]
 fn a_markdown_export_gives_identical_requests_and_inputs_across_hosts_and_zones() {
     let rig = Rig::new();
@@ -3310,7 +3317,7 @@ fn a_markdown_export_gives_identical_requests_and_inputs_across_hosts_and_zones(
     }
 }
 
-#[trace("FR-037-AC-1", "NFR-011-AC-2")]
+#[trace("FR-037-AC-1", "FR-037-AC-3")]
 #[test]
 fn template_and_bundle_exports_are_identical_across_hosts_and_zones() {
     let rig = Rig::new();
@@ -3339,7 +3346,7 @@ fn template_and_bundle_exports_are_identical_across_hosts_and_zones() {
     }
 }
 
-#[trace("FR-037-AC-1", "NFR-011-AC-1")]
+#[trace("FR-037-AC-1", "FR-037-AC-3")]
 #[test]
 fn a_json_report_export_stamps_the_unix_epoch_and_is_identical_across_hosts() {
     let rig = Rig::new();
@@ -3350,10 +3357,36 @@ fn a_json_report_export_stamps_the_unix_epoch_and_is_identical_across_hosts() {
     }
 }
 
+/// The slices of `xml` that follow each opening tag of exactly the element
+/// `name` (`<w:t>` and `<w:t xml:space=..>`, not `<w:tab/>` or `<w:tbl>`),
+/// each up to the next such opening tag.
+fn after_element<'a>(xml: &'a str, name: &str) -> Vec<&'a str> {
+    let open = format!("<{name}");
+    let mut starts = Vec::new();
+    let mut from = 0;
+    while let Some(at) = xml[from..].find(&open) {
+        let end = from + at + open.len();
+        if matches!(xml[end..].chars().next(), Some('>' | ' ' | '/')) {
+            starts.push(end);
+        }
+        from = end;
+    }
+    let bounds: Vec<usize> = starts
+        .iter()
+        .skip(1)
+        .map(|start| start - open.len())
+        .collect();
+    starts
+        .iter()
+        .enumerate()
+        .map(|(index, &start)| &xml[start..bounds.get(index).copied().unwrap_or(xml.len())])
+        .collect()
+}
+
 /// The text of every `<w:t>` in `xml`, concatenated.
 fn xml_text(xml: &str) -> String {
-    xml.split("<w:t")
-        .skip(1)
+    after_element(xml, "w:t")
+        .iter()
         .filter_map(|piece| piece.split_once('>')?.1.split_once("</w:t>").map(|t| t.0))
         .collect()
 }
@@ -3385,6 +3418,7 @@ fn docx_parts_in_order(path: &Path) -> Vec<String> {
         .arg(path)
         .output()
         .expect("unzip runs");
+    assert!(listing.status.success(), "{}", stderr(&listing));
     let mut parts: Vec<String> = String::from_utf8_lossy(&listing.stdout)
         .lines()
         .filter(|name| {
@@ -3398,9 +3432,10 @@ fn docx_parts_in_order(path: &Path) -> Vec<String> {
     parts
 }
 
-/// The extracted structure of NFR-011 that this export can hold: for DOCX the
-/// heading levels and texts, the cell grid of every table and the field
-/// instructions; for PDF the page count.
+/// The extracted structure of NFR-011: for DOCX the heading levels and texts,
+/// the cell grid of every table and the field instructions; for PDF the page
+/// count (its heading, table and contents texts are compared in the extracted
+/// text).
 fn nfr_structure(path: &Path, to: &str) -> Vec<String> {
     if to == "pdf" {
         return vec![format!("pages={}", pdf_page_count(path))];
@@ -3415,14 +3450,13 @@ fn nfr_structure(path: &Path, to: &str) -> Vec<String> {
     }
     for table in xml.split("<w:tbl>").skip(1) {
         let table = table.split("</w:tbl>").next().unwrap_or_default();
-        for row in table.split("<w:tr").skip(1) {
+        for row in after_element(table, "w:tr") {
             let cells: Vec<String> = row.split("</w:tc>").map(xml_text).collect();
             structure.push(format!("row {cells:?}"));
         }
     }
-    let mut fields: Vec<&str> = xml
-        .split("<w:instrText")
-        .skip(1)
+    let mut fields: Vec<&str> = after_element(&xml, "w:instrText")
+        .iter()
         .filter_map(|piece| {
             piece
                 .split_once('>')?
@@ -3463,9 +3497,31 @@ fn real_command(input: &[&Path], to: &str) -> Command {
     command
 }
 
+fn real_json_command(to: &str) -> Command {
+    require_tool("pandoc");
+    require_tool("typst");
+    let mut command = quire();
+    command.arg("export").arg(json_fixture("matrix.json"));
+    command.args(["--kind", "matrix", "--to", to]);
+    command
+}
+
 /// A named way to build the export command of one scenario.
 type Scenario<'a> = Box<dyn Fn() -> Command + 'a>;
 
+/// A DOCX reference document made by the real pandoc, standing in for an
+/// organisation's template.
+fn pandoc_reference_docx(rig: &Rig) -> PathBuf {
+    let output = Command::new(require_tool("pandoc"))
+        .args(["--print-default-data-file", "reference.docx"])
+        .output()
+        .expect("pandoc runs");
+    assert!(output.status.success(), "{}", stderr(&output));
+    org_template(rig, "org.docx", &output.stdout)
+}
+
+/// The approval-verdict scenario of NFR-011-AC-2 is not run here: the approval
+/// block belongs to its own change and is added to this test with it.
 #[trace("NFR-011-AC-1", "NFR-011-AC-2", "NFR-011-AC-3", "NFR-011-AC-4")]
 #[test]
 #[ignore = "needs real pandoc, typst, unzip and pdftotext on PATH"]
@@ -3473,7 +3529,13 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
     let rig = Rig::new();
     let [one, two, three] = bundle_documents(&rig);
     let pdf_template = org_template(&rig, "org.typ", TYPST_ORG_TEMPLATE.as_bytes());
+    let docx_template = pandoc_reference_docx(&rig);
     for to in ["docx", "pdf"] {
+        let template = if to == "pdf" {
+            &pdf_template
+        } else {
+            &docx_template
+        };
         let scenarios: Vec<(&str, Scenario)> = vec![
             ("default", Box::new(|| real_command(&[&rig.fixture()], to))),
             (
@@ -3484,14 +3546,11 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
                     command
                 }),
             ),
-        ];
-        let mut scenarios = scenarios;
-        if to == "pdf" {
-            scenarios.push((
+            (
                 "template",
-                Box::new(|| with_template(real_command(&[&rig.fixture()], to), &pdf_template)),
-            ));
-        }
+                Box::new(|| with_template(real_command(&[&rig.fixture()], to), template)),
+            ),
+        ];
         for (name, build) in &scenarios {
             let first = real_varied(&rig, 0, "Pacific/Kiritimati", build(), to);
             let second = real_varied(&rig, 1, "America/Los_Angeles", build(), to);
@@ -3517,10 +3576,85 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
     }
 }
 
+/// The `CreationDate` and `ModDate` of a PDF as ISO 8601 text in UTC, where
+/// present.
+fn pdf_dates(path: &Path) -> Vec<String> {
+    let output = Command::new(require_tool("pdfinfo"))
+        .arg("-isodates")
+        .arg(path)
+        .env("TZ", "UTC")
+        .output()
+        .expect("pdfinfo runs");
+    assert!(output.status.success(), "{}", stderr(&output));
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| {
+            let value = line
+                .strip_prefix("CreationDate:")
+                .or_else(|| line.strip_prefix("ModDate:"))?;
+            Some(value.trim().to_string())
+        })
+        .collect()
+}
+
+/// The `dcterms:created` and `dcterms:modified` values of a DOCX, where present.
+fn docx_dates(path: &Path) -> Vec<String> {
+    let core = docx_part(path, "docProps/core.xml");
+    ["dcterms:created", "dcterms:modified"]
+        .iter()
+        .filter_map(|tag| {
+            let (_, rest) = core.split_once(&format!("<{tag}"))?;
+            Some(rest.split_once('>')?.1.split_once('<')?.0.to_string())
+        })
+        .collect()
+}
+
+/// Asserts every date of both documents starts with `expected`.
+fn assert_dates(docx: &Path, pdf: &Path, expected: &str) {
+    for date in docx_dates(docx).iter().chain(&pdf_dates(pdf)) {
+        assert!(date.starts_with(expected), "{date} is not {expected}");
+    }
+}
+
+/// The host name and user name of the machine running the test.
+fn host_and_user() -> Vec<String> {
+    let host = fs::read_to_string("/proc/sys/kernel/hostname").unwrap_or_default();
+    let user = std::env::var("USER").unwrap_or_default();
+    [host.trim().to_string(), user]
+        .into_iter()
+        .filter(|name| name.len() >= 3)
+        .collect()
+}
+
+/// Asserts that neither the text nor the properties of the documents hold a
+/// host path, host name or user name of the run.
+fn assert_no_host_content(rig: &Rig, docx: &Path, pdf: &Path) {
+    let mut surfaces = vec![
+        nfr_text(docx, "docx"),
+        nfr_text(pdf, "pdf"),
+        docx_part(docx, "docProps/core.xml"),
+        docx_part(docx, "docProps/app.xml"),
+    ];
+    let info = Command::new(require_tool("pdfinfo"))
+        .arg(pdf)
+        .output()
+        .expect("pdfinfo runs");
+    surfaces.push(String::from_utf8_lossy(&info.stdout).into_owned());
+    let mut forbidden = host_and_user();
+    forbidden.push(rig.root().display().to_string());
+    forbidden.push(env!("CARGO_MANIFEST_DIR").to_string());
+    forbidden.push("quire-export-".to_string());
+    for text in &surfaces {
+        for name in &forbidden {
+            assert!(!text.contains(name.as_str()), "{name} found in {text}");
+        }
+    }
+}
+
 #[trace("FR-037-AC-2", "FR-037-AC-3")]
 #[test]
-#[ignore = "needs real pandoc, typst, unzip and pdftotext on PATH"]
-fn real_documents_hold_the_commit_time_or_none_and_no_host_path() {
+#[ignore = "needs real pandoc, typst, unzip, pdftotext and pdfinfo on PATH"]
+fn real_documents_hold_the_commit_time_or_none_and_no_host_content() {
     let rig = Rig::new();
     let docx = real_varied(
         &rig,
@@ -3536,21 +3670,83 @@ fn real_documents_hold_the_commit_time_or_none_and_no_host_path() {
         real_command(&[&rig.fixture()], "pdf"),
         "pdf",
     );
-    let core = docx_part(&docx, "docProps/core.xml");
-    for tag in ["dcterms:created", "dcterms:modified"] {
-        if let Some((_, rest)) = core.split_once(&format!("<{tag}")) {
-            let value = rest.split_once('>').expect("tag").1;
-            assert!(value.starts_with("2001-02-04T04:30:00"), "{tag}: {value}");
+    assert_dates(&docx, &pdf, "2001-02-04T04:30:00");
+    assert_no_host_content(&rig, &docx, &pdf);
+}
+
+#[trace("FR-037-AC-5", "FR-037-AC-3")]
+#[test]
+#[ignore = "needs real pandoc, typst, unzip, pdftotext and pdfinfo on PATH"]
+fn real_json_report_documents_hold_the_unix_epoch_or_none_and_no_host_content() {
+    let rig = Rig::new();
+    let docx = real_varied(&rig, 0, "UTC", real_json_command("docx"), "docx");
+    let pdf = real_varied(&rig, 0, "UTC", real_json_command("pdf"), "pdf");
+    assert_dates(&docx, &pdf, "1970-01-01T00:00:00");
+    assert_no_host_content(&rig, &docx, &pdf);
+}
+
+/// Sleeps until the wall clock is in a later whole second.
+fn wait_for_next_second() {
+    let seconds = |now: std::time::SystemTime| {
+        now.duration_since(std::time::UNIX_EPOCH)
+            .expect("after the epoch")
+            .as_secs()
+    };
+    let start = seconds(std::time::SystemTime::now());
+    while seconds(std::time::SystemTime::now()) == start {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+#[trace("FR-037-AC-2", "NFR-011-AC-1")]
+#[test]
+#[ignore = "needs real pandoc, typst, unzip, pdftotext and pdfinfo on PATH"]
+fn real_document_dates_do_not_change_when_the_clock_moves_between_exports() {
+    let rig = Rig::new();
+    let mut dates = Vec::new();
+    for variant in 0..2 {
+        let docx = real_varied(
+            &rig,
+            variant,
+            "UTC",
+            real_command(&[&rig.fixture()], "docx"),
+            "docx",
+        );
+        let pdf = real_varied(
+            &rig,
+            variant,
+            "UTC",
+            real_command(&[&rig.fixture()], "pdf"),
+            "pdf",
+        );
+        dates.push((docx_dates(&docx), pdf_dates(&pdf)));
+        wait_for_next_second();
+    }
+    assert_eq!(dates[0], dates[1]);
+}
+
+#[trace("FR-037-AC-4")]
+#[test]
+fn the_export_code_reads_no_clock_time_zone_or_file_time() {
+    let mut files = vec![PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/commands/export.rs")];
+    let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/commands/export");
+    for entry in fs::read_dir(directory).expect("export directory") {
+        files.push(entry.expect("entry").path());
+    }
+    for file in files {
+        let source = fs::read_to_string(&file).expect("source");
+        for forbidden in [
+            "SystemTime",
+            "Instant::now",
+            "chrono",
+            "time::",
+            ".modified(",
+        ] {
+            assert!(
+                !source.contains(forbidden),
+                "{} reads {forbidden}",
+                file.display()
+            );
         }
-    }
-    let bytes = fs::read(&pdf).expect("pdf");
-    let text = String::from_utf8_lossy(&bytes);
-    for date in text.split("/CreationDate (D:").skip(1) {
-        assert!(date.starts_with("20010204"), "{date:.20}");
-    }
-    let host = rig.root().display().to_string();
-    for (path, to) in [(&docx, "docx"), (&pdf, "pdf")] {
-        assert!(!nfr_text(path, to).contains(&host));
-        assert!(!nfr_text(path, to).contains("quire-export-"));
     }
 }

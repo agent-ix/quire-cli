@@ -23,7 +23,8 @@ relationships:
 the process environment, so that the stability property of
 [NFR-011](../non-functional/NFR-011-export-reproducibility.md) holds. The date of
 a document is the source commit date of [FR-034](./FR-034-document-identity.md)
-and nothing else.
+and nothing else; a JSON report has no source commit, and its date is the Unix
+epoch, 1970-01-01.
 
 ## Behavior
 
@@ -31,11 +32,11 @@ and nothing else.
   set the environment variable `SOURCE_DATE_EPOCH` to the Unix time of the source
   commit date, in addition to `HOME` and `TMPDIR`, so a converter that stamps a
   creation or modification time stamps the commit time. The environment field of
-  FR-032 is read with this one added variable. A JSON report has no source
-  commit; its requests set `SOURCE_DATE_EPOCH` to `0`.
+  FR-032 is read with this one added variable. The requests for a JSON
+  report, which has no source commit, SHALL set `SOURCE_DATE_EPOCH` to `0`.
 - Document properties that name a time (DOCX core properties `created` and
   `modified`, PDF creation and modification dates) SHALL hold the source commit
-  time, or be absent. They SHALL NOT hold the export time.
+  time (the Unix epoch for a JSON report), or be absent. They SHALL NOT hold the export time.
 - The command SHALL pass the converter no host name, user name, absolute path of
   the repository or of the capability root as document text or property.
 - Where a converter would record a path or a random identifier in the extracted
@@ -53,6 +54,7 @@ and nothing else.
 | FR-037-AC-2 | With real pandoc and typst, the DOCX `docProps/core.xml` `created` and `modified` values and the PDF creation date each equal the fixture's commit time or are absent, and none is within a day of the test's wall-clock time when the commit is dated years earlier. | Test |
 | FR-037-AC-3 | The extracted text of both formats holds no host name, user name, capability-root path or repository path of the test run. | Test |
 | FR-037-AC-4 | A search of the export code finds no read of the wall clock, local time zone or file modification time on the path from input to request. | Inspection |
+| FR-037-AC-5 | With real pandoc and typst, the DOCX `docProps/core.xml` `created` and `modified` values and the PDF creation and modification dates of a JSON report export each equal the Unix epoch or are absent. | Test |
 
 ## Dependencies
 
