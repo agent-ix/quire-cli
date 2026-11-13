@@ -6,6 +6,7 @@
 //! under a temporary capability root, and copies the result to `--output`.
 //! Markdown parsing and validation stay in `quire-rs` (StR-004).
 
+mod approval;
 mod bundle;
 mod custom;
 mod identity;
@@ -89,6 +90,11 @@ pub struct Args {
     /// for a JSON input.
     #[arg(long, value_name = "PATH")]
     pub template: Option<PathBuf>,
+
+    /// A verdict file of `engineering-assurance approval-verify`, shown in an
+    /// approval block after the document. Repeatable; refused for a JSON input.
+    #[arg(long, value_name = "PATH")]
+    pub approval: Vec<PathBuf>,
 
     /// Title of a bundle of several inputs; required for a bundle, refused for
     /// one input.
@@ -186,6 +192,9 @@ fn check_flags(args: &Args, class: InputClass) -> anyhow::Result<()> {
         InputClass::Json if args.template.is_some() => {
             invalid_request!("--template is refused for a JSON input");
         }
+        InputClass::Json if !args.approval.is_empty() => {
+            invalid_request!("--approval is refused for a JSON input");
+        }
         _ => Ok(()),
     }
 }
@@ -265,6 +274,7 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
         .as_deref()
         .map(|path| custom::load(path, args.to))
         .transpose()?;
+    let approval = approval::load(&args.approval)?;
     let source = identity::resolve(
         &args.input[0],
         text,
@@ -295,6 +305,7 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
     let generated = producer::Generated {
         body: &source.body,
         bundle: Vec::new(),
+        approval: approval.as_deref(),
         metadata: &template::metadata_yaml(identity)?,
         identity_parts: Some(producer::IdentityParts {
             front: &template::front_matter(identity, args.to),

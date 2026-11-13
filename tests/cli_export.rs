@@ -3785,3 +3785,560 @@ fn the_export_code_reads_no_clock_time_zone_or_file_time() {
         );
     }
 }
+
+// ---- Approval block (FR-038, FR-039, FR-040) ----
+
+/// The members of an `engineering-assurance approval-verify` result that the
+/// block reads, as the verifier writes them.
+fn verdict(status: &str, extra: Value) -> Value {
+    let mut document = serde_json::json!({
+        "protocol": "engineering-assurance.approval-verify-result/v1",
+        "status": status,
+        "tag": "approvals/v1",
+        "record_id": "REC-1",
+        "record_digest": "sha256:abc123",
+        "trust": {"allowed_signers": "/trust/allowed_signers"},
+    });
+    if let (Some(base), Some(more)) = (document.as_object_mut(), extra.as_object()) {
+        base.extend(more.clone());
+    }
+    document
+}
+
+fn approved(approver: &str, signed_at: &str, meaning: &[&str]) -> Value {
+    verdict(
+        "approved",
+        serde_json::json!({
+            "approver": approver,
+            "meaning": meaning,
+            "signature_kind": "ssh",
+            "signed_at": signed_at,
+            "signed_at_source": "tagger_date",
+            "signature": {"status": "signed_valid", "kind": "tag"},
+        }),
+    )
+}
+
+/// A signed-but-not-approved verdict whose signer is unmapped.
+fn claimed(status: &str, meaning: &[&str]) -> Value {
+    verdict(
+        status,
+        serde_json::json!({
+            "signature": {
+                "status": "signed_untrusted",
+                "kind": "tag",
+                "signer": {"source": "allowed_signers", "mapping": "unmapped"},
+                "signed_off_meaning": {"presence": "present", "values": meaning},
+            },
+        }),
+    )
+}
+
+/// A validly signed tag by a mapped signer, as the verifier reports it for
+/// `wrong_record` and `meaning_missing`: the principal is in the signature
+/// verdict, and an absent meaning has `presence: missing` and no values.
+fn mapped(status: &str, principal: &str, meaning: Option<&[&str]>) -> Value {
+    let signed_off_meaning = match meaning {
+        Some(values) => serde_json::json!({"presence": "present", "values": values}),
+        None => serde_json::json!({"presence": "missing"}),
+    };
+    verdict(
+        status,
+        serde_json::json!({
+            "signature": {
+                "status": "signed_valid",
+                "kind": "tag",
+                "signature_kind": "ssh",
+                "signer": {
+                    "source": "allowed_signers",
+                    "mapping": "mapped",
+                    "principal": principal,
+                },
+                "signed_off_meaning": signed_off_meaning,
+            },
+        }),
+    )
+}
+
+fn verdict_file(rig: &Rig, name: &str, content: &Value) -> PathBuf {
+    let path = rig.work(name);
+    fs::write(&path, content.to_string()).expect("verdict file");
+    path
+}
+
+fn with_approvals(mut command: Command, files: &[&Path]) -> Command {
+    for file in files {
+        command.arg("--approval").arg(file);
+    }
+    command
+}
+
+fn rows(markdown: &str) -> Vec<Vec<String>> {
+    markdown
+        .lines()
+        .filter(|line| line.starts_with("| "))
+        .skip(2)
+        .map(|line| {
+            line.trim_matches(|c| c == '|' || c == ' ')
+                .split(" | ")
+                .map(str::to_string)
+                .collect()
+        })
+        .collect()
+}
+
+#[trace("FR-038-AC-1", "FR-038-AC-3", "FR-032-AC-3")]
+#[test]
+fn two_approvals_show_person_time_and_meaning_after_the_document() {
+    let rig = Rig::new();
+    let first = verdict_file(
+        &rig,
+        "a.json",
+        &approved(
+            "Ada Example",
+            "2026-01-02T03:04:05Z",
+            &["reviewed and approved"],
+        ),
+    );
+    let second = verdict_file(
+        &rig,
+        "b.json",
+        &approved(
+            "Bo Example",
+            "2026-02-03T04:05:06Z",
+            &["released", "second line"],
+        ),
+    );
+    let output = rig.work("out.docx");
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&first, &second],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let requests = rig.requests();
+    assert_eq!(
+        pandoc_inputs(&requests[0]),
+        ["in/front.md", "in/document.md", "in/approval.md"]
+    );
+    let block = rig.converter_input("approval.md");
+    assert!(block.starts_with("# Approval\n\n| Person | Signed at \\(signer\\'s claim\\) |"));
+    let table = rows(&block);
+    assert_eq!(table.len(), 2, "{block}");
+    assert_eq!(table[0][0], "Ada Example");
+    assert_eq!(table[0][1], "2026\\-01\\-02 03\\:04\\:05 UTC");
+    assert_eq!(table[0][2], "\\\"reviewed and approved\\\"");
+    assert_eq!(table[0][3], "approved");
+    assert_eq!(table[1][0], "Bo Example");
+    assert_eq!(table[1][2], "\\\"released\\\"\\, \\\"second line\\\"");
+    // The block is built from the verdict files alone: they sit outside the
+    // source repository and nothing else names a person.
+    assert!(!block.contains("Fixture"));
+}
+
+#[trace("FR-038-AC-2", "FR-038-AC-3")]
+#[test]
+fn a_verdict_that_is_not_approved_is_never_shown_as_signed() {
+    let rig = Rig::new();
+    let files = [
+        verdict_file(
+            &rig,
+            "1.json",
+            &approved(
+                "Ada Example",
+                "2026-01-02T03:04:05Z",
+                &["reviewed and approved"],
+            ),
+        ),
+        verdict_file(
+            &rig,
+            "2.json",
+            &claimed("untrusted_signer", &["reviewed and approved"]),
+        ),
+        verdict_file(
+            &rig,
+            "3.json",
+            &mapped(
+                "wrong_record",
+                "Wren Mapped",
+                Some(&["reviewed and approved"]),
+            ),
+        ),
+        verdict_file(
+            &rig,
+            "4.json",
+            &mapped("meaning_missing", "Maya Mapped", None),
+        ),
+        verdict_file(
+            &rig,
+            "5.json",
+            &serde_json::json!({
+                "protocol": "engineering-assurance.approval-verify-result/v1",
+                "status": "unverifiable",
+                "reason": "revision_not_found",
+            }),
+        ),
+        verdict_file(&rig, "6.json", &verdict("unsigned", serde_json::json!({}))),
+        verdict_file(
+            &rig,
+            "7.json",
+            &verdict(
+                "approved",
+                serde_json::json!({
+                    "approver": "Cy Example",
+                    "meaning": ["ok"],
+                    "signed_at_missing": "tagger_date_unreadable",
+                }),
+            ),
+        ),
+    ];
+    let refs: Vec<&Path> = files.iter().map(PathBuf::as_path).collect();
+    let output = rig.work("out.docx");
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &refs,
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let table = rows(&rig.converter_input("approval.md"));
+    assert_eq!(table.len(), 7);
+    assert_eq!(table[0][3], "approved");
+    for (index, status, person) in [
+        (1, "untrusted_signer", "unmapped"),
+        (2, "wrong_record", "Wren Mapped"),
+    ] {
+        assert_eq!(table[index][0], person);
+        assert_eq!(table[index][1], "not available");
+        assert_eq!(table[index][2], "claimed\\: \\\"reviewed and approved\\\"");
+        assert_eq!(table[index][3], status.replace('_', "\\_"));
+    }
+    assert_eq!(table[3][0], "Maya Mapped");
+    assert_eq!(table[3][2], "not recorded");
+    assert_eq!(table[4][1], "not available");
+    assert_eq!(table[4][2], "not recorded");
+    assert!(table[4][3].starts_with("unverifiable"), "{:?}", table[4]);
+    assert!(table[4][4].contains("not available"), "{:?}", table[4]);
+    assert_eq!(table[5][3], "unsigned");
+    assert_eq!(table[6][1], "not available");
+    assert_eq!(table[6][3], "approved");
+    // Only the first and last entries are approvals.
+    let approvals = table.iter().filter(|row| row[3] == "approved").count();
+    assert_eq!(approvals, 2);
+}
+
+#[trace("FR-038-AC-4")]
+#[test]
+fn the_time_is_the_verdicts_whatever_the_zone_and_the_clock() {
+    let rig = Rig::new();
+    let file = verdict_file(
+        &rig,
+        "a.json",
+        &approved("Ada Example", "2026-01-02T03:04:05Z", &["ok"]),
+    );
+    let later = rig.commit(
+        "later.md",
+        &fs::read_to_string(export_fixture()).expect("fixture"),
+        "2031-07-08T09:10:11+09:00",
+    );
+    let mut blocks = Vec::new();
+    for (input, zone) in [(rig.fixture(), "UTC"), (later, "Pacific/Kiritimati")] {
+        let mut command =
+            with_approvals(rig.export(&input, "docx", &rig.work("out.docx")), &[&file]);
+        command.env("TZ", zone);
+        let result = run(command);
+        assert!(result.status.success(), "{}", stderr(&result));
+        blocks.push(rig.converter_input("approval.md"));
+    }
+    assert!(blocks[0].contains("2026\\-01\\-02 03\\:04\\:05 UTC"));
+    // Another zone and another source commit time leave the block unchanged.
+    assert_eq!(blocks[0], blocks[1]);
+}
+
+#[trace("FR-038-AC-8")]
+#[test]
+fn the_block_is_the_same_whatever_the_source_repository() {
+    let verdicts = [
+        approved("Ada Example", "2026-01-02T03:04:05Z", &["ok"]),
+        claimed("untrusted_signer", &["ok"]),
+    ];
+    let mut blocks = Vec::new();
+    for date in [COMMIT_DATE, "2031-07-08T09:10:11+09:00"] {
+        let rig = Rig::new();
+        let input = rig.commit(
+            "other.md",
+            &fs::read_to_string(export_fixture()).expect("fixture"),
+            date,
+        );
+        let files: Vec<PathBuf> = verdicts
+            .iter()
+            .enumerate()
+            .map(|(index, verdict)| verdict_file(&rig, &format!("{index}.json"), verdict))
+            .collect();
+        let refs: Vec<&Path> = files.iter().map(PathBuf::as_path).collect();
+        let result = run(with_approvals(
+            rig.export(&input, "docx", &rig.work("out.docx")),
+            &refs,
+        ));
+        assert!(result.status.success(), "{}", stderr(&result));
+        blocks.push(rig.converter_input("approval.md"));
+    }
+    assert_eq!(blocks[0], blocks[1]);
+}
+
+#[trace("FR-038-AC-3")]
+#[test]
+fn one_meaning_with_a_separator_differs_from_two_meanings() {
+    let rig = Rig::new();
+    let one = verdict_file(
+        &rig,
+        "1.json",
+        &approved("A", "2026-01-02T03:04:05Z", &["a, b"]),
+    );
+    let two = verdict_file(
+        &rig,
+        "2.json",
+        &approved("A", "2026-01-02T03:04:05Z", &["a", "b"]),
+    );
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &rig.work("out.docx")),
+        &[&one, &two],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let table = rows(&rig.converter_input("approval.md"));
+    assert_ne!(table[0][2], table[1][2]);
+}
+
+#[trace("FR-038-AC-5")]
+#[test]
+fn signer_text_reaches_the_converter_only_as_escaped_data() {
+    let rig = Rig::new();
+    let hostile = "*x* `#pagebreak()`{=typst}";
+    let file = verdict_file(
+        &rig,
+        "a.json",
+        &approved(
+            "Mallory | <w:br/>\n| injected",
+            "2026-01-02T03:04:05Z",
+            &[hostile, "<raw>x</raw>"],
+        ),
+    );
+    let output = rig.work("out.docx");
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&file],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let block = rig.converter_input("approval.md");
+    assert!(
+        block.contains("\\*x\\* \\`\\#pagebreak\\(\\)\\`\\{\\=typst\\}"),
+        "{block}"
+    );
+    assert!(block.contains("Mallory \\| \\<w\\:br\\/\\>"), "{block}");
+    assert_eq!(rows(&block).len(), 1, "{block}");
+    assert!(!block.contains("<raw>"), "{block}");
+}
+
+#[trace("FR-038-AC-6", "FR-040-AC-5", "FR-040-AC-6", "FR-031-AC-6")]
+#[test]
+fn an_unusable_approval_file_exits_3_naming_it_before_any_converter() {
+    let rig = Rig::new();
+    let output = rig.work("out.docx");
+    fs::write(&output, "previous").expect("previous output");
+    let good = verdict_file(
+        &rig,
+        "good.json",
+        &approved("A", "2026-01-02T03:04:05Z", &["m"]),
+    );
+    let not_json = rig.work("not-json.json");
+    fs::write(&not_json, "nope").expect("file");
+    let other = verdict_file(
+        &rig,
+        "other.json",
+        &serde_json::json!({"protocol": "x", "status": "approved"}),
+    );
+    let no_status = verdict_file(
+        &rig,
+        "no-status.json",
+        &serde_json::json!({"protocol": "engineering-assurance.approval-verify-result/v1"}),
+    );
+    let bad_time = verdict_file(&rig, "bad-time.json", &approved("A", "yesterday", &["m"]));
+    let missing = rig.work("absent.json");
+    for bad in [&not_json, &other, &no_status, &bad_time, &missing] {
+        let result = run(with_approvals(
+            rig.export(&rig.fixture(), "docx", &output),
+            &[&good, bad],
+        ));
+        assert_eq!(result.status.code(), Some(3), "{bad:?}");
+        assert!(
+            stderr(&result).contains(&bad.display().to_string()),
+            "{}",
+            stderr(&result)
+        );
+    }
+    // The first failing file is the one named.
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&other, &not_json],
+    ));
+    assert!(
+        stderr(&result).contains("other.json"),
+        "{}",
+        stderr(&result)
+    );
+    assert!(!stderr(&result).contains("not-json.json"));
+    assert!(rig.requests().is_empty());
+    assert!(!rig.root().join("log/argv").exists());
+    assert_eq!(fs::read(&output).expect("output"), b"previous");
+
+    let json = rig.work("report.json");
+    fs::write(&json, "{}").expect("json");
+    let mut command = quire();
+    command
+        .arg("export")
+        .arg(&json)
+        .args(["--to", "docx", "--kind", "table", "--approval"])
+        .arg(&good)
+        .arg("--output")
+        .arg(rig.work("report.docx"));
+    let result = run(command);
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("--approval"),
+        "{}",
+        stderr(&result)
+    );
+}
+
+#[trace("FR-040-AC-5", "FR-040-AC-6")]
+#[test]
+fn a_fifo_an_oversized_file_and_an_impossible_time_are_refused_naming_the_file() {
+    let rig = Rig::new();
+    let fifo = rig.work("fifo.json");
+    let made = Command::new("mkfifo")
+        .arg(&fifo)
+        .status()
+        .expect("mkfifo runs");
+    assert!(made.success());
+    let big = rig.work("big.json");
+    let file = fs::File::create(&big).expect("big");
+    file.set_len(16 * 1024 * 1024 + 1).expect("sparse size");
+    let impossible = verdict_file(
+        &rig,
+        "time.json",
+        &approved("A", "2026-13-45T99:99:99Z", &["m"]),
+    );
+    for bad in [&fifo, &big, &impossible] {
+        let result = run(with_approvals(
+            rig.export(&rig.fixture(), "docx", &rig.work("out.docx")),
+            &[bad],
+        ));
+        assert_eq!(result.status.code(), Some(3), "{bad:?}");
+        assert!(
+            stderr(&result).contains(&bad.display().to_string()),
+            "{}",
+            stderr(&result)
+        );
+    }
+    assert!(rig.requests().is_empty());
+}
+
+#[trace("FR-038-AC-7")]
+#[test]
+fn an_export_without_approval_has_no_approval_input() {
+    let rig = Rig::new();
+    let result = run(rig.export(&rig.fixture(), "docx", &rig.work("out.docx")));
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert!(!rig.root().join("log/in/approval.md").exists());
+    assert!(!literals(&rig.requests()[0]).contains(&"in/approval.md"));
+}
+
+#[trace("FR-039-AC-4", "FR-038-AC-1")]
+#[test]
+fn a_bundle_shows_the_approval_block_once_after_the_last_document() {
+    let rig = Rig::new();
+    let [one, two, _] = bundle_documents(&rig);
+    let file = verdict_file(
+        &rig,
+        "a.json",
+        &approved("Ada Example", "2026-01-02T03:04:05Z", &["ok"]),
+    );
+    let output = rig.work("bundle.docx");
+    let result = run(with_approvals(
+        bundle_command(&rig, &[&one, &two], "docx", &output),
+        &[&file],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(
+        pandoc_inputs(&rig.requests()[0]),
+        [
+            "in/front.md",
+            "in/separator-1.md",
+            "in/document-1.md",
+            "in/separator-2.md",
+            "in/document-2.md",
+            "in/approval.md",
+        ]
+    );
+    assert_eq!(rows(&rig.converter_input("approval.md")).len(), 1);
+}
+
+#[trace("FR-038-AC-1", "FR-038-AC-2", "FR-038-AC-5")]
+#[test]
+#[ignore = "needs real pandoc, typst, unzip and pdftotext on PATH"]
+fn real_converters_show_the_approval_block_after_the_document() {
+    require_real_tools();
+    let rig = Rig::new();
+    let hostile = "*x* `#pagebreak()`{=typst}";
+    let first = verdict_file(
+        &rig,
+        "a.json",
+        &approved(
+            "Ada Example",
+            "2026-01-02T03:04:05Z",
+            &["reviewed and approved"],
+        ),
+    );
+    let second = verdict_file(
+        &rig,
+        "b.json",
+        &claimed("untrusted_signer", &["reviewed and approved"]),
+    );
+    let third = verdict_file(
+        &rig,
+        "c.json",
+        &approved("Pipe | Person", "2026-03-04T05:06:07Z", &[hostile]),
+    );
+    let pdf = rig.work("approval.pdf");
+    let docx = rig.work("approval.docx");
+    for (to, path) in [("pdf", &pdf), ("docx", &docx)] {
+        let mut command = quire();
+        command
+            .current_dir(rig.work(""))
+            .arg("export")
+            .arg(rig.fixture())
+            .args(["--to", to, "--output"])
+            .arg(path)
+            .arg("--module")
+            .arg(validate_module());
+        let result = run(with_approvals(command, &[&first, &second, &third]));
+        assert!(result.status.success(), "{}", stderr(&result));
+    }
+    let text = pdf_text(&pdf);
+    let visible = strip_tags(&docx_text(&docx));
+    for text in [text.as_str(), visible.as_str()] {
+        let approval = text.rfind("Approval").expect("Approval heading");
+        let block = &text[approval..];
+        for expected in [
+            "Ada Example",
+            "2026-01-02 03:04:05 UTC",
+            "claimed: \"reviewed and approved\"",
+            "untrusted_signer",
+            "not available",
+            "Pipe | Person",
+            hostile,
+        ] {
+            assert!(block.contains(expected), "{expected}: {block}");
+        }
+        assert!(block.contains("claim"), "{block}");
+    }
+}
