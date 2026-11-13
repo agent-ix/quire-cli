@@ -55,6 +55,7 @@ scope:
 | FND-003 | fixed | Round 2 (681346d): `DocumentRootError` text now says "name the repository root" (src/commands/mod.rs:105); test asserts no "point --scope". |
 | FND-004 | fixed | Round 2 (681346d): first-member discovery rule stated in FR-030 and in `relations --module` / `validate --repo` help, and tested in both orders (but see FND-006). |
 | FND-005 | fixed | Round 2 (681346d): single `UNTYPED = "(untyped)"`, the engine's spelling (src/commands/relations.rs:173). |
+| FND-006 | fixed | Round 3 (97252dc): each member writes its own `manifest.yaml` with a different relation name, and both `--repo` orders assert their first member's relation only. The whole cli_relations suite passes with `env -i HOME=<empty dir> PATH=/usr/bin:/bin` (no quoin, no IX_FILAMENT_MODULES_PATH) and writes nothing to HOME; switching discovery to the last member fails the test. |
 
 ## New findings (disposition pass 1)
 
@@ -73,3 +74,6 @@ Round 2 at head 0377fb2 (681346d fixes, 0377fb2 commits the round-1 SR files, id
 | --- | --- | --- | --- |
 | FND-006 | medium | `module_discovery_without_module_is_bounded_by_the_first_repo_member` depends on the host's installed modules. With `o/b` first, no module is at `b`, so discovery falls through to `~/.ix/filament/modules`; the `b_first` run succeeds only because this host has spec-objects-safety/security there, which declare `required_relations`. With an empty HOME and no quoin on PATH the same invocation exits 3 ("no modules found for scoped validation"), so the test fails on a clean host; with quoin on PATH it lazy-installs the default modules from inside a test. Make the run hermetic: give `b` its own manifest with a different relation name and assert each order reports its first member's relation, or point HOME / `IX_FILAMENT_MODULES_PATH` at a tempdir. | tests/cli_relations.rs:447-472 |
 
+## Round 3 summary
+
+Round 3 at head 97252dc. Gates: `cargo fmt --check` clean; clippy `--all-targets --all-features -D warnings` clean; `cargo test --test cli_relations --test cli_okf --test cli_validate --test cli_help` 58 passed, 0 failed. No new findings. Every finding's latest outcome is `fixed`. Verdict: PASS.

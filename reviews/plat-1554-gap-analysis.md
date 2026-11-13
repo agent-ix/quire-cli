@@ -56,6 +56,8 @@ scope:
 | FND-003 | fixed | Round 2 (681346d): the AC-17 test asserts `member 'o/a'`, the `<bare>/spec` path, and `MissingDocumentRoot` under `--diagnostics-format json`. |
 | FND-004 | fixed | Round 2 (681346d): new AC-7 test with an untyped target asserts the absent `archetype` key and the `is (untyped)` line; the untyped-text mutation now fails it. |
 | FND-005 | fixed | Round 2 (681346d): AC-20 and AC-24 assert the `[o/a] ` / `[o/b] ` prefix, and the AC-24 excluded half asserts success. |
+| FND-006 | fixed | Round 3 (97252dc): new FR-030-AC-25 states the first-member discovery rule; the discovery test is re-tagged `FR-030-AC-25` and `quire matrix` binds it there (tests/cli_relations.rs:447). FR-030-AC-9 keeps its two correct binders. |
+| FND-007 | fixed | Round 3 (97252dc): the `<A>/spec/tests.md` clause is gone from FR-030-AC-24. |
 
 ## New findings (disposition pass 1)
 
@@ -75,3 +77,6 @@ Round 2 at head 0377fb2. `quire matrix --scope .`: all Test-method FR-030 criter
 | FND-006 | low | `module_discovery_without_module_is_bounded_by_the_first_repo_member` is tagged FR-030-AC-9 (unknown `--relation` exits 3), which it does not test. It tests the first-member discovery rule that round 2 added to FR-030's prose, and that rule has no acceptance criterion. Add an AC for the rule and tag the test with it. | tests/cli_relations.rs:445-447, spec/functional/FR-030-relations-subcommand.md:51-53 |
 | FND-007 | low | The amended FR-030-AC-24 still opens with "member `o/a` holds `<A>/spec/tests.md`", left over from the deleted `document:` form. The new fixture has no `tests.md` and the rest of the AC does not use it. Drop the clause. | spec/functional/FR-030-relations-subcommand.md:104 |
 
+## Round 3 summary
+
+Round 3 at head 97252dc. `quire matrix --scope .`: every FR-030 Test-method criterion, including the new FR-030-AC-25, is `tagged`; FR-030-AC-22 re-inspected, clean. `quire validate` of FR-030 passes. No new findings. Every finding's latest outcome is `fixed`. Verdict: PASS.
