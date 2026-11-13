@@ -25,7 +25,7 @@ leave no file at `--output`.
 | Missing converter | `pandoc` (or `typst` for `--to pdf`) or `engineering-assurance` is not found on PATH or at the flag path or is not executable, or the result state is `unavailable`. | 3 | Names the tool, the flag that overrides it and where it looked. |
 | Converter failure | The result state is `failed`, `timed_out`, `refused`, `malformed_response` or `cancelled`, or the required output is absent. | 4 | Names the tool, the state, the exit code if any, and the producer's stderr as the executor retains it. |
 | Unsupported host | The result state is `containment_failure` on a host other than Linux. | 4 | States that export is unsupported on this host because producer-execute containment requires Linux. |
-| Containment failure | The result state is `containment_failure` on Linux. | 4 | Names the state and the executor's reason. |
+| Containment failure | The result state is `containment_failure` on Linux. | 4 | Names the state `containment_failure`; the result carries no further reason. |
 | Executor error | `producer-execute` exits 2 with an `engineering-assurance.error/v1` machine error, for example `producer_execute_request_invalid`. | 4 | Names the machine-error code and message, and says the installed `engineering-assurance` may not match this `quire`. |
 | Invalid input | Input file missing, wrong extension, not valid UTF-8, a Markdown file failing validation, JSON that does not parse or does not match its `--kind`, or a flag combination that FR-031 refuses. | 3 | Names the file or flag and the first cause. |
 | Unreadable input | The input exists but a permission refusal prevents reading it. | 2 | Names the file. |

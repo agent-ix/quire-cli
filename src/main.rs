@@ -52,6 +52,8 @@ enum Command {
     PublishCheck(commands::publish_check::Args),
     /// Parse a markdown document to JSON.
     Parse(commands::parse::Args),
+    /// Export a Markdown artifact as PDF or DOCX through producer-execute.
+    Export(commands::export::Args),
     /// Extract structured records + edges from a document.
     Extract(commands::extract::Args),
     /// Look up one parsed section by heading, id, or block id.
@@ -107,6 +109,7 @@ fn main() {
         Command::Clauses(a) => commands::clauses::run(&ctx, a),
         Command::PublishCheck(a) => commands::publish_check::run(&ctx, a),
         Command::Parse(a) => commands::parse::run(&ctx, a),
+        Command::Export(a) => commands::export::run(&ctx, a),
         Command::Extract(a) => commands::extract::run(&ctx, a),
         Command::Lookup(a) => commands::lookup::run(&ctx, a),
         Command::Edit(a) => commands::edit::run(&ctx, a),
