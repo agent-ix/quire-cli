@@ -14,3 +14,4 @@ description: "Index of artifacts in this directory."
 * [NFR-005: Diagnostics inherit quire-rs [FR-017](ix://agent-ix/quire-rs/FR-017) format](./NFR-005-diagnostic-format.md)
 * [NFR-006: CLI surface stability under SemVer](./NFR-006-cli-stability.md)
 * [NFR-009: Native qualification boundary](./NFR-009-native-qualification-boundary.md)
+* [NFR-010: Export uses declared converters through one execution path and vendors none](./NFR-010-export-single-converter-single-path.md)
