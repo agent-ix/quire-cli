@@ -36,6 +36,7 @@ Changes requested (1 low). The FR-092 edge targets a spec still in open quire-rs
 | FND | outcome | reason |
 | --- | --- | --- |
 | FND-001 | fixed | `relationships:` now references quire-rs FR-085, FR-058 and local FR-007, FR-028, FR-030 (FR-043:17-26) |
+| FND-002 | fixed | Round 2: Upstream now lists FR-030 and quire-rs FR-085 (FR-043:142) |
 
 ## New findings (disposition pass 1)
 

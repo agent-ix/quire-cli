@@ -69,6 +69,8 @@ Changes requested: 4 medium and 5 low findings, with no high finding. The follow
 | FND-007 | fixed | Stderr line `design gap: [<repo>:]<document> <check>`; AC-10 and AC-24 (FR-043:96-97) |
 | FND-008 | fixed | `kind mismatch: <id> (<archetype>)` appended to the cell; AC-23 (FR-043:62) |
 | FND-009 | fixed | TSV uses a leading `repo` column and `/` as the only repo separator in `design` (FR-043:81-84) |
+| FND-010 | fixed | Round 2: the human `design:` line has the forms elements plus markers, `n/a` or `(none)`; AC-25 (FR-043:75) |
+| FND-011 | fixed | Round 2: one stderr line per failing requirement and uncovered block, in block order; AC-26 (FR-043:97) |
 
 ## New findings (disposition pass 1)
 
