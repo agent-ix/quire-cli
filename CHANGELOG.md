@@ -9,6 +9,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **`quire export` (PLAT-1435).** Exports a Markdown artifact to PDF or DOCX. Pandoc (and Typst for PDF) run only through `engineering-assurance producer-execute`; exit 3 for a missing converter or invalid input, exit 4 for a converter failure.
+
 ## [0.44.0] — 2026-11-12
 
 Adopts quire-rs 0.59.1: the loader refuses an explicit null for several manifest keys (PLAT-1484), and the reference check scans every table under a declared section (PLAT-1491).

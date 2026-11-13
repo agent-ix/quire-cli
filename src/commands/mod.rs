@@ -41,6 +41,7 @@ pub mod check_lock;
 pub mod clauses;
 pub mod coverage;
 pub mod edit;
+pub mod export;
 pub mod extract;
 pub mod fix;
 pub mod lint;
