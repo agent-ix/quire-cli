@@ -5,6 +5,7 @@
 
 use std::path::PathBuf;
 
+use super::custom;
 use super::identity::{self, Identity, Source, SourceOptions};
 use super::template::{self, escape_markdown, raw_block};
 use super::{
@@ -18,6 +19,11 @@ const MAX_INPUTS: usize = 256;
 pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
     let (title, id) = check_request(args)?;
     check_output_target(&args.output)?;
+    let organisation_template = args
+        .template
+        .as_deref()
+        .map(|path| custom::load(path, args.to))
+        .transpose()?;
     let sources = resolve_sources(ctx, args)?;
     let first = &sources[0];
     let identity = Identity {
@@ -43,9 +49,10 @@ pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
         metadata: &template::metadata_yaml(&identity)?,
         identity_parts: Some(producer::IdentityParts {
             front: &template::bundle_front_matter(&identity, &documents, args.to),
-            template: match args.to {
-                Format::Pdf => template::typst_template(&identity).into_bytes(),
-                Format::Docx => template::docx_reference(&identity)?,
+            template: match (organisation_template, args.to) {
+                (Some(bytes), _) => bytes,
+                (None, Format::Pdf) => template::typst_template(&identity).into_bytes(),
+                (None, Format::Docx) => template::docx_reference(&identity)?,
             },
         }),
         epoch: Some(identity.epoch),

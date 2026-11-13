@@ -3088,3 +3088,90 @@ fn real_bundle(command: Command) -> Command {
     }
     real
 }
+
+#[trace("FR-036-AC-2", "FR-039-AC-4")]
+#[test]
+fn a_bundle_applies_the_organisation_template_unchanged() {
+    for (to, name, bytes, flag, target) in [
+        (
+            "pdf",
+            "org.typ",
+            TYPST_ORG_TEMPLATE.as_bytes(),
+            "--template",
+            "in/template.typ",
+        ),
+        (
+            "docx",
+            "org.docx",
+            b"PK\x03\x04 organisation reference".as_slice(),
+            "--reference-doc",
+            "in/template.docx",
+        ),
+    ] {
+        let rig = Rig::new();
+        let [one, two, _] = bundle_documents(&rig);
+        let template = org_template(&rig, name, bytes);
+        let output = rig.work(&format!("bundle.{to}"));
+        let result = run(with_template(
+            bundle_command(&rig, &[&one, &two], to, &output),
+            &template,
+        ));
+        assert!(result.status.success(), "{}", stderr(&result));
+
+        let requests = rig.requests();
+        let expected_output = if to == "pdf" {
+            "typ/document.typ"
+        } else {
+            "out/document.docx"
+        };
+        let pandoc_to = if to == "pdf" { "typst" } else { "docx" };
+        let mut expected = pandoc_arguments(pandoc_to, expected_output);
+        expected.truncate(expected.len() - 1);
+        expected.extend(
+            [
+                "in/separator-1.md",
+                "in/document-1.md",
+                "in/separator-2.md",
+                "in/document-2.md",
+            ]
+            .map(String::from),
+        );
+        let actual: Vec<String> = literals(&requests[0])
+            .into_iter()
+            .map(String::from)
+            .collect();
+        assert_eq!(actual, expected);
+        assert!(actual.windows(2).any(|pair| pair == [flag, target]));
+        assert!(!actual.iter().any(|argument| argument.contains("org.")));
+        let copied = rig
+            .root()
+            .join("log/in")
+            .join(target.trim_start_matches("in/"));
+        assert_eq!(fs::read(copied).expect("copy"), bytes);
+    }
+}
+
+#[trace("FR-036-AC-5", "FR-040-AC-2", "FR-040-AC-6")]
+#[test]
+fn a_bundle_with_an_invalid_template_exits_3_before_any_converter() {
+    let rig = Rig::new();
+    let [one, two, _] = bundle_documents(&rig);
+    let output = rig.work("bundle.pdf");
+    fs::write(&output, "previous").expect("previous output");
+    let wrong_extension = org_template(&rig, "org.docx", b"PK");
+    let missing = rig.root().join("org/absent.typ");
+    for template in [wrong_extension, missing] {
+        let result = run(with_template(
+            bundle_command(&rig, &[&one, &two], "pdf", &output),
+            &template,
+        ));
+        assert_eq!(result.status.code(), Some(3), "{template:?}");
+        assert!(
+            stderr(&result).contains(&template.display().to_string()),
+            "{}",
+            stderr(&result)
+        );
+    }
+    assert!(rig.requests().is_empty());
+    assert_eq!(fs::read(&output).expect("output"), b"previous");
+}
