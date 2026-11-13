@@ -22,7 +22,7 @@ can branch on typed outcomes without parsing diagnostics.
 | 1 | Partial result: a complete requested report was emitted, but strict coverage/matrix or property resolution found incomplete or failing records. |
 | 2 | Refusal: path traversal or an explicit domain policy prevented the operation. |
 | 3 | Invalid request: invalid argv, missing or incorrectly typed input paths, malformed input, unknown archetypes, unresolved selection, module load or structural validation failures, and a required external tool that is missing or not executable (`quire export`, [FR-033](./FR-033-export-errors.md)). |
-| 4 | Internal failure: unexpected implementation, serialization or output I/O failure, and a failure reported by an external tool that a subcommand runs (`quire export` converter failure, [FR-033](./FR-033-export-errors.md)). |
+| 4 | Internal failure: unexpected implementation, serialization or output I/O failure, and a failure reported by an external tool that a subcommand runs (`quire export` converter or diagram failure, [FR-033](./FR-033-export-errors.md)). |
 
 The CLI SHALL derive outcomes from typed errors and explicit domain verdicts,
 never diagnostic text. Input permission refusals SHALL use 2; missing input
@@ -44,7 +44,7 @@ SHALL remain unchanged. No compatibility mapping SHALL be provided.
 | FR-007-AC-6 | Covered invalid inputs return a classified failure without panicking. | Test |
 | FR-007-AC-7 | Strict coverage/matrix and unresolved property reports exit 1 with the complete requested payload. | Test |
 | FR-007-AC-8 | A failed output write exits 4; typed classification is independent of human diagnostic wording. | Test |
-| FR-007-AC-9 | A converter failure of `quire export` exits 4 and a missing converter exits 3, as FR-033 defines. | Test |
+| FR-007-AC-9 | A converter failure of `quire export` (including a failed Mermaid diagram render) exits 4 and a missing converter (including `mmdr`) exits 3, as FR-033 defines. | Test |
 
 > CR-001 (2026-10-02, PLAT-111): Peter explicitly approved the shared
 > outcomes in this workspace. Domain policy remains downstream; this replaces

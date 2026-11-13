@@ -26,6 +26,8 @@ relationships:
     type: "references"
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-034"
     type: "references"
+  - target: "ix://agent-ix/quire-cli/spec/functional/FR-042"
+    type: "references"
 ---
 # FR-031: quire export subcommand
 
@@ -47,7 +49,7 @@ behavior, so no upstream FR owns it.
 ```text
 quire export <INPUT> --to pdf|docx --output <PATH>
              [--kind matrix|rmm|soup|table] [--module <PATH>]...
-             [--pandoc <PATH>] [--typst <PATH>]
+             [--pandoc <PATH>] [--typst <PATH>] [--mmdr <PATH>]
              [--engineering-assurance <PATH>]
              [--template <PATH>] [--source-repo <DIR>] [--source-rev <REV>]
              [--release <TAG>] [--approval <PATH>]...
@@ -75,8 +77,10 @@ and [FR-033](./FR-033-export-errors.md) owns the failures.
 - `--module`: repeatable module directory used to validate a Markdown input. It
   resolves exactly as `--module` of [FR-004](./FR-004-validate-subcommand.md),
   including ambient discovery when omitted. It is refused for a JSON input.
-- `--pandoc`, `--typst`, `--engineering-assurance`: paths that override the PATH
-  lookup of the `pandoc`, `typst` and `engineering-assurance` executables.
+- `--pandoc`, `--typst`, `--mmdr`, `--engineering-assurance`: paths that override
+  the PATH lookup of the `pandoc`, `typst`, `mmdr` and `engineering-assurance`
+  executables. `mmdr` is needed only for a Markdown input with a Mermaid block
+  ([FR-042](./FR-042-export-mermaid-diagrams.md)).
 
 ## Outputs
 
@@ -143,12 +147,15 @@ it hands to the converter.
 
 ### C. Mermaid diagrams
 
-- A fenced code block whose info string is `mermaid` is an ordinary fenced code
-  block: the converter prints its source verbatim.
-- The command SHALL NOT render a Mermaid block to an image, because no diagram
-  renderer is a declared tool.
+- A fenced code block whose language tag is `mermaid` SHALL appear in the PDF or
+  DOCX output as a rendered image, not as source text. The rendering, the block
+  identification and the failures are specified by
+  [FR-042](./FR-042-export-mermaid-diagrams.md).
 - The command SHALL NOT edit the Markdown source to mark Mermaid blocks, because
-  finding them is Markdown parsing, which stays in `quire-rs`.
+  finding them is Markdown parsing, which stays in `quire-rs`; the converter
+  input stays the committed body.
+- A fenced code block of any other language is an ordinary code block and the
+  converter prints its source verbatim.
 
 ### D. Scope exclusions
 
@@ -169,7 +176,7 @@ and an identity; JSON inputs carry none.
 | FR-031-AC-3 | A JSON input without `--kind`, a Markdown input with `--kind`, and a JSON input with `--module` each exit 3 with a diagnostic naming the flag. | Test |
 | FR-031-AC-4 | Exporting a `quire matrix --format json` fixture with `--kind matrix` to `docx` yields tables whose rows hold every criterion id of the fixture, extracted as in FR-031-AC-1; a fixture without `coverage_matrix` yields the zero-population line. | Test |
 | FR-031-AC-5 | A `--kind table` fixture whose rows carry a nested object yields a cell holding that object as compact JSON, and the assembled Markdown text holds every member of every row. | Test |
-| FR-031-AC-6 | A fixture with a `mermaid` block exports with the block's source text present and no image in the output; the converter input `in/document.md` equals the bytes of the committed body after the frontmatter. | Test |
+| FR-031-AC-6 | A fixture with a `mermaid` block exports with an image in the output and the block's source text absent, as FR-042-AC-1 defines; the converter input `in/document.md` equals the bytes of the committed body after the frontmatter. A fixture with a code block of another language exports with that block's text present and no image. | Test |
 | FR-031-AC-7 | A fixture with frontmatter exports with the `title` on the title page and no `type:` frontmatter line in the extracted text. | Test |
 | FR-031-AC-8 | After an export, the working directory, the input directory and the output directory hold no file other than the input and `--output`. | Test |
 | FR-031-AC-9 | A `--kind rmm` fixture in the single form and one in the pack form, and a `--kind soup` fixture, each export with one table row per element of `rows`; the pack form also yields its `Pack:` line, its `context` table, its index table with each set shown as its key, and one table per matrix. | Test |
@@ -181,4 +188,4 @@ and an identity; JSON inputs carry none.
 ## Dependencies
 
 - **Upstream**: [FR-026](./FR-026-matrix-subcommand.md) writes the matrix JSON; [FR-004](./FR-004-validate-subcommand.md) validates Markdown; [FR-006](./FR-006-io-contract.md) and [FR-007](./FR-007-exit-codes.md) own streams and exit codes.
-- **Downstream**: [FR-032](./FR-032-export-converter-execution.md) executes the conversion; [FR-033](./FR-033-export-errors.md) owns the failures.
+- **Downstream**: [FR-032](./FR-032-export-converter-execution.md) executes the conversion; [FR-033](./FR-033-export-errors.md) owns the failures; [FR-042](./FR-042-export-mermaid-diagrams.md) renders Mermaid blocks.

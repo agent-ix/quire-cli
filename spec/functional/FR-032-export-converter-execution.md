@@ -11,6 +11,8 @@ relationships:
     type: "references"
   - target: "ix://agent-ix/engineering-assurance/FR-038"
     type: "references"
+  - target: "ix://agent-ix/quire-cli/spec/functional/FR-042"
+    type: "references"
 ---
 # FR-032: Run the export converter through producer-execute
 
@@ -20,12 +22,15 @@ relationships:
 `engineering-assurance.producer-execution-request/v1` protocol, executed by
 `engineering-assurance producer-execute`
 ([EA FR-029](ix://agent-ix/engineering-assurance/FR-029)), so a converter is a
-declared external tool and `quire` launches no converter process itself.
+declared external tool and `quire` launches no converter process itself. A
+Markdown input with Mermaid blocks adds one `mmdr` request per block, defined by
+[FR-042](./FR-042-export-mermaid-diagrams.md) with the field table below.
 
 ## Converter decision
 
 Pandoc is the converter. Typst is a declared second tool used only to typeset
-PDF.
+PDF. `mmdr` is a declared third tool used only to render Mermaid blocks to
+images ([FR-042](./FR-042-export-mermaid-diagrams.md)); it converts no document.
 
 - DOCX needs a document-format writer. Pandoc writes DOCX natively from
   Markdown. Typst writes only PDF, so Typst alone cannot serve both formats.
@@ -46,6 +51,10 @@ PDF.
 
 ### A. Requests
 
+- A Markdown input with Mermaid blocks SHALL first make the `mmdr` requests of
+  [FR-042](./FR-042-export-mermaid-diagrams.md), which add `--lua-filter` and
+  the diagram files to the pandoc request there defined. The pandoc request is
+  made only if all of them completed.
 - `--to docx` SHALL make one pandoc request. `--to pdf` SHALL make a pandoc
   request that writes `typ/document.typ`, then a typst request that compiles it
   to `out/document.pdf`. The typst request is made only if the pandoc request
@@ -102,9 +111,10 @@ PDF.
 | FR-032-AC-4 | When the pandoc request does not complete, no typst request is made. | Test |
 | FR-032-AC-5 | During a run, the only child process `quire` itself starts is `engineering-assurance`. | Test |
 | FR-032-AC-6 | After success and after each failure of [FR-033](./FR-033-export-errors.md), the one temporary capability root no longer exists. | Test |
+| FR-032-AC-8 | The requests of an export with Mermaid blocks are those of FR-042-AC-2 and FR-042-AC-3; an export without Mermaid blocks makes no `mmdr` request and its pandoc request carries no `--lua-filter`. | Test |
 | FR-032-AC-7 | With real pandoc and typst, a fixture exports to a DOCX that opens as a zip and a PDF that starts with `%PDF`. The test fails naming the missing tool if either is unavailable. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-031](./FR-031-export-subcommand.md); [EA FR-019](ix://agent-ix/engineering-assurance/FR-019) and [EA FR-029](ix://agent-ix/engineering-assurance/FR-029) own the executor and command.
-- **Downstream**: [FR-033](./FR-033-export-errors.md).
+- **Downstream**: [FR-033](./FR-033-export-errors.md), [FR-042](./FR-042-export-mermaid-diagrams.md).
