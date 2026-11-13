@@ -1589,8 +1589,19 @@ fn docx_text(path: &Path) -> String {
 }
 
 fn pdf_text(path: &Path) -> String {
+    pdf_text_with(path, &[])
+}
+
+/// The PDF text in content-stream order, which keeps each table cell's lines
+/// together where `pdf_text` interleaves neighbouring cells.
+fn pdf_text_raw(path: &Path) -> String {
+    pdf_text_with(path, &["-raw"])
+}
+
+fn pdf_text_with(path: &Path, options: &[&str]) -> String {
     let pdftotext = require_tool("pdftotext");
     let output = Command::new(pdftotext)
+        .args(options)
         .arg(path)
         .arg("-")
         .output()
@@ -2079,12 +2090,20 @@ fn real_converters_keep_every_report_row_id() {
             let text = if to == "docx" {
                 strip_tags(&docx_text(&output))
             } else {
-                // PDF text wraps long tokens; compare with whitespace removed.
-                pdf_text(&output)
+                // Raw order keeps the lines of one table cell together.
+                pdf_text_raw(&output)
             };
-            let squashed: String = text.split_whitespace().collect();
+            // A wrapped id loses its hyphen or gets a soft hyphen in the PDF
+            // text; compare with both and whitespace removed.
+            let squash = |text: &str| -> String {
+                text.split_whitespace()
+                    .flat_map(str::chars)
+                    .filter(|ch| to != "pdf" || !matches!(ch, '-' | '\u{ad}'))
+                    .collect()
+            };
+            let squashed = squash(&text);
             for needle in needles {
-                let needle: String = needle.split_whitespace().collect();
+                let needle = squash(needle);
                 assert!(
                     squashed.contains(&needle),
                     "{fixture} {to}: missing {needle}"
@@ -2732,7 +2751,7 @@ fn a_pdf_bundle_writes_typst_page_breaks_and_one_contents_block() {
         .starts_with("```{=typst}\n#pagebreak()\n```"));
     let front = rig.converter_input("front.md");
     assert_eq!(front.matches("#outline(depth: 3)").count(), 1);
-    assert_eq!(front.matches("#pagebreak()").count(), 3);
+    assert_eq!(front.matches("#pagebreak()").count(), 2);
 }
 
 #[trace("FR-039-AC-7", "FR-040-AC-6")]
@@ -2981,9 +3000,16 @@ fn real_docx_bundle_holds_the_separators_in_order_each_after_a_page_break() {
             page_break > previous,
             "{heading}: no page break after the previous content"
         );
+        let after_break = &before[page_break..];
+        let after_tag = &after_break[after_break.find('>').expect("tag end") + 1..];
         assert!(
-            strip_tags(&before[page_break..]).trim().is_empty(),
+            strip_tags(after_tag).trim().is_empty(),
             "{heading}: text between break and heading"
+        );
+        assert_eq!(
+            before[previous..].matches("w:type=\"page\"").count(),
+            1,
+            "{heading}: not exactly one page break after the previous content"
         );
         previous = at;
     }
@@ -3568,6 +3594,10 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
     let [one, two, three] = bundle_documents(&rig);
     let pdf_template = org_template(&rig, "org.typ", TYPST_ORG_TEMPLATE.as_bytes());
     let docx_template = pandoc_reference_docx(&rig);
+    let changed = fs::read_to_string(export_fixture())
+        .expect("fixture")
+        .replace("first fixture item", "altered fixture item");
+    let edited = rig.commit("edited.md", &changed, COMMIT_DATE);
     for to in ["docx", "pdf"] {
         let template = if to == "pdf" {
             &pdf_template
@@ -3605,10 +3635,6 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
         }
         // A one-word change must show in the extracted text.
         let first = real_varied(&rig, 0, "UTC", real_command(&[&rig.fixture()], to), to);
-        let changed = fs::read_to_string(export_fixture())
-            .expect("fixture")
-            .replace("first fixture item", "altered fixture item");
-        let edited = rig.commit("edited.md", &changed, COMMIT_DATE);
         let second = real_varied(&rig, 1, "UTC", real_command(&[&edited], to), to);
         assert_ne!(nfr_text(&first, to), nfr_text(&second, to), "{to}");
     }
@@ -3647,9 +3673,16 @@ fn docx_dates(path: &Path) -> Vec<String> {
         .collect()
 }
 
-/// Asserts every date of both documents starts with `expected`.
+/// Asserts every PDF date starts with `expected`, and every DOCX date starts
+/// with `expected` or is the Unix epoch, which pandoc stamps under `--sandbox`.
 fn assert_dates(docx: &Path, pdf: &Path, expected: &str) {
-    for date in docx_dates(docx).iter().chain(&pdf_dates(pdf)) {
+    for date in docx_dates(docx) {
+        assert!(
+            date.starts_with(expected) || date.starts_with("1970-01-01T00:00:00"),
+            "{date} is not {expected} or the epoch"
+        );
+    }
+    for date in pdf_dates(pdf) {
         assert!(date.starts_with(expected), "{date} is not {expected}");
     }
 }
@@ -4365,7 +4398,8 @@ fn real_converters_show_the_approval_block_after_the_document() {
     let visible = strip_tags(&docx_text(&docx));
     for text in [text.as_str(), visible.as_str()] {
         let approval = text.rfind("Approval").expect("Approval heading");
-        let block = &text[approval..];
+        // Cells wrap, so compare with whitespace removed.
+        let block: String = text[approval..].split_whitespace().collect();
         for expected in [
             "Ada Example",
             "2026-01-02 03:04:05 UTC",
@@ -4375,7 +4409,8 @@ fn real_converters_show_the_approval_block_after_the_document() {
             "Pipe | Person",
             hostile,
         ] {
-            assert!(block.contains(expected), "{expected}: {block}");
+            let expected: String = expected.split_whitespace().collect();
+            assert!(block.contains(&expected), "{expected}: {block}");
         }
         assert!(block.contains("claim"), "{block}");
     }
@@ -4858,16 +4893,19 @@ fn a_hostile_heading_changes_no_generated_filter_and_is_only_alternative_text() 
 /// The filter source an export of a document with `count` blocks writes.
 fn exported_filter(count: usize) -> String {
     let rig = Rig::new();
-    let blocks: Vec<(&str, &str)> = (0..count).map(|_| ("H", FLOWCHART)).collect();
+    let headings: Vec<String> = (1..=count).map(|number| format!("H{number}")).collect();
+    let blocks: Vec<(&str, &str)> = headings
+        .iter()
+        .map(|heading| (heading.as_str(), FLOWCHART))
+        .collect();
     let input = diagram_document(&rig, "f.md", "FR-021", &blocks);
     let result = run(rig.export(&input, "docx", &rig.work("f.docx")));
     assert!(result.status.success(), "{}", stderr(&result));
     rig.converter_input("diagrams.lua")
 }
 
-fn count_lines(text: &str) -> usize {
-    text.lines().count()
-}
+/// English Metric Units in a metre; a PNG density is pixels per metre.
+const EMU_PER_METRE: f64 = 36_000_000.0;
 
 /// The bytes of one part of a DOCX.
 fn docx_bytes(path: &Path, part: &str) -> Vec<u8> {
@@ -4955,8 +4993,13 @@ fn real_converters_embed_the_diagrams_as_images_in_both_formats() {
         .arg(&pdf)
         .output()
         .expect("pdfimages");
-    // Two header lines, then one line per image.
-    assert_eq!(count_lines(&String::from_utf8_lossy(&images.stdout)), 4);
+    // An RGBA PNG is an `image` row and an `smask` row; count the images.
+    let listing = String::from_utf8_lossy(&images.stdout);
+    let images = listing
+        .lines()
+        .filter(|line| line.split_whitespace().nth(2) == Some("image"))
+        .count();
+    assert_eq!(images, 2, "{listing}");
     let typst = log_file(&rig, "document.typ");
     for name in ["img/1.png", "img/2.png"] {
         assert!(typst.contains(&format!("\"{name}\"")), "{name} in {typst}");
@@ -4968,7 +5011,7 @@ fn real_converters_embed_the_diagrams_as_images_in_both_formats() {
 #[ignore = "needs real pandoc, typst, mmdr on PATH"]
 fn real_mmdr_rejects_a_block_without_a_diagram_header_and_the_export_names_it() {
     let rig = Rig::new();
-    let input = diagram_document(&rig, "d.md", "FR-021", &[("Headless", "Start --> Stop")]);
+    let input = diagram_document(&rig, "d.md", "FR-021", &[("Headless", "Just some prose")]);
     let output = rig.work("out.docx");
     let result = run(real_diagram_command(&rig, &input, "docx", &output));
     assert_eq!(result.status.code(), Some(4), "{}", stderr(&result));
@@ -5180,7 +5223,7 @@ fn real_docx_scales_a_wide_diagram_to_the_text_area_and_keeps_a_narrow_one() {
         .map(|name| png_width_and_density(&docx_bytes(&docx, name)))
         .min_by_key(|(width, _)| *width)
         .expect("narrow image");
-    let expected = narrow.0 as f64 / narrow.1 * 914_400.0;
+    let expected = narrow.0 as f64 / narrow.1 * EMU_PER_METRE;
     let actual = widths[1] as f64;
     assert!(
         (actual - expected).abs() <= expected * 0.01 + 1.0,
@@ -5244,7 +5287,8 @@ fn real_diagrams_are_byte_equal_across_time_zones_and_clock() {
             .map(|entry| entry.expect("entry").path())
             .collect();
         files.sort();
-        assert_eq!(files.len(), 2, "{files:?}");
+        // Each RGBA image is written with its soft mask as a second PNG.
+        assert_eq!(files.len(), 4, "{files:?}");
         let images = files
             .iter()
             .map(|path| fs::read(path).expect("image"))

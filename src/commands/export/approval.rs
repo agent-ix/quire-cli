@@ -207,20 +207,37 @@ fn cell(text: &str) -> String {
     escape_markdown(&flatten(text))
 }
 
+/// The dash count of each column: as wide as its longest cell up to
+/// `MAX_COLUMN_WIDTH`, but never narrower than its longest unbreakable token
+/// plus a margin, since the converter cannot wrap inside a token and it would
+/// run into the next column.
+fn column_widths(rows: &[[String; 5]]) -> Vec<usize> {
+    (0..COLUMNS.len())
+        .map(|index| {
+            let cells = || {
+                rows.iter()
+                    .map(move |row| row[index].as_str())
+                    .chain([COLUMNS[index]])
+            };
+            let longest = cells()
+                .map(|text| text.chars().count())
+                .max()
+                .unwrap_or(MIN_COLUMN_WIDTH);
+            let token = cells()
+                .flat_map(str::split_whitespace)
+                .map(|token| token.chars().count())
+                .max()
+                .unwrap_or(MIN_COLUMN_WIDTH);
+            longest
+                .clamp(MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH)
+                .max(token + token / 2)
+        })
+        .collect()
+}
+
 /// The level-1 heading `Approval` and the pipe table, one row per entry.
 fn markdown(rows: &[[String; 5]]) -> String {
-    let widths: Vec<usize> = COLUMNS
-        .iter()
-        .enumerate()
-        .map(|(index, title)| {
-            rows.iter()
-                .map(|row| row[index].chars().count())
-                .chain([title.chars().count()])
-                .max()
-                .unwrap_or(MIN_COLUMN_WIDTH)
-                .clamp(MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH)
-        })
-        .collect();
+    let widths = column_widths(rows);
     let line = |cells: Vec<String>| format!("| {} |\n", cells.join(" | "));
     let mut out = String::from("# Approval\n\n");
     out.push_str(&line(COLUMNS.iter().map(|title| cell(title)).collect()));
@@ -261,6 +278,23 @@ mod tests {
             assert_eq!(format_instant(bad), None, "{bad}");
         }
         assert!(format_instant("2024-02-29T23:59:59Z").is_some());
+    }
+
+    #[test]
+    #[trace("FR-038-AC-4")]
+    fn a_column_is_wider_than_its_longest_unbreakable_token() {
+        let row = |verdict: &str| {
+            [
+                "Ada".to_string(),
+                "n/a".to_string(),
+                "claimed: \"reviewed and approved\"".to_string(),
+                verdict.to_string(),
+                "id: REC-1".to_string(),
+            ]
+        };
+        let widths = column_widths(&[row("untrusted_signer"), row("approved")]);
+        assert!(widths[3] >= "untrusted_signer".len() * 3 / 2, "{widths:?}");
+        assert!(widths[2] <= MAX_COLUMN_WIDTH, "{widths:?}");
     }
 
     #[test]

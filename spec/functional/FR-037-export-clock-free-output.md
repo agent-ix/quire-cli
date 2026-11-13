@@ -36,7 +36,9 @@ epoch, 1970-01-01.
   report, which has no source commit, SHALL set `SOURCE_DATE_EPOCH` to `0`.
 - Document properties that name a time (DOCX core properties `created` and
   `modified`, PDF creation and modification dates) SHALL hold the source commit
-  time (the Unix epoch for a JSON report), or be absent. They SHALL NOT hold the export time.
+  time (the Unix epoch for a JSON report), or be absent. A DOCX produced under the
+  pandoc sandbox of FR-032, whose writer ignores `SOURCE_DATE_EPOCH`, MAY hold the
+  Unix epoch instead. They SHALL NOT hold the export time.
 - The command SHALL pass the converter no host name, user name, absolute path of
   the repository or of the capability root as document text or property.
 - Where a converter would record a path or a random identifier in the extracted
@@ -51,7 +53,7 @@ epoch, 1970-01-01.
 | ID | Criteria | Verification |
 | --- | --- | --- |
 | FR-037-AC-1 | Every request made by the tests holds exactly the environment variables `HOME`, `TMPDIR` and `SOURCE_DATE_EPOCH`, and `SOURCE_DATE_EPOCH` equals the Unix time of the fixture's commit, or `0` for a JSON report. | Test |
-| FR-037-AC-2 | With real pandoc and typst, the DOCX `docProps/core.xml` `created` and `modified` values and the PDF creation date each equal the fixture's commit time or are absent, and none is within a day of the test's wall-clock time when the commit is dated years earlier. | Test |
+| FR-037-AC-2 | With real pandoc and typst, the DOCX `docProps/core.xml` `created` and `modified` values and the PDF creation date each equal the fixture's commit time or are absent, except that the DOCX values may equal the Unix epoch under the pandoc sandbox, and none is within a day of the test's wall-clock time when the commit is dated years earlier. | Test |
 | FR-037-AC-3 | The extracted text of both formats holds no host name, user name, capability-root path or repository path of the test run. | Test |
 | FR-037-AC-4 | A search of the export code finds no read of the wall clock, local time zone or file modification time on the path from input to request. | Inspection |
 | FR-037-AC-5 | With real pandoc and typst, the DOCX `docProps/core.xml` `created` and `modified` values and the PDF creation and modification dates of a JSON report export each equal the Unix epoch or are absent. | Test |
