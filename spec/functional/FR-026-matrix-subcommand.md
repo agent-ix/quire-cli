@@ -13,6 +13,13 @@ relationships:
 
 ## Description
 
+> **CR note (design column and design gate, PLAT-1529):**
+> [FR-042](./FR-042-matrix-design-column.md) inserts a `Design` column between `Statement` and `Binders`
+> (and `design`, `design_state` after `criterion` in TSV), adds `--format human` and `--repo`, and adds
+> a design-gap failure to `--strict`. Its zero-population rule (no criterion in any entry) replaces
+> §B's "key absent" wording where a design relation yields entries with no criteria. The heading stays exactly `## <document>`. Everything else
+> here is unchanged.
+
 > **CR note (requirement criticality column, PLAT-1412):**
 > [FR-028](./FR-028-matrix-criticality-column.md) appends one column to each
 > tabular form. The Markdown table of §C and AC-4 has five columns, the last

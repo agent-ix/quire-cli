@@ -46,3 +46,4 @@ description: "Index of artifacts in this directory."
 * [FR-039: Export several documents as one bundle](./FR-039-export-bundle.md)
 * [FR-040: Export errors: template, identity, approval and bundle input](./FR-040-export-template-and-identity-errors.md)
 * [FR-041: quire relations design mode](./FR-041-relations-design-mode.md)
+* [FR-042: quire matrix design column and design gate](./FR-042-matrix-design-column.md)
