@@ -42,8 +42,8 @@ lint:
 test:
 	$(CARGO) test --workspace --locked --all-targets --all-features
 
-# Real-converter export tests (FR-031-AC-1, FR-032-AC-7, FR-034-AC-10, FR-035). Needs pandoc, typst,
-# unzip and pdftotext on PATH; the test fails naming the first missing tool.
+# Real-converter export tests (FR-031-AC-1, FR-032-AC-7, FR-034-AC-10, FR-035, FR-036). Needs pandoc, typst,
+# unzip, pdftotext and python3 on PATH; the test fails naming the first missing tool.
 .PHONY: test-export-real
 test-export-real:
 	$(CARGO) test --locked --test cli_export -- --ignored

@@ -6,6 +6,7 @@
 //! under a temporary capability root, and copies the result to `--output`.
 //! Markdown parsing and validation stay in `quire-rs` (StR-004).
 
+mod custom;
 mod identity;
 mod json;
 mod producer;
@@ -81,6 +82,12 @@ pub struct Args {
     #[arg(long, value_name = "TAG")]
     pub release: Option<String>,
 
+    /// Organisation template, used in place of the default: a Typst `.typ`
+    /// file for `pdf`, a Word `.docx` reference document for `docx`. Refused
+    /// for a JSON input.
+    #[arg(long, value_name = "PATH")]
+    pub template: Option<PathBuf>,
+
     /// Path to `pandoc`, overriding the PATH lookup.
     #[arg(long, value_name = "PATH")]
     pub pandoc: Option<PathBuf>,
@@ -147,6 +154,9 @@ fn check_flags(args: &Args, class: InputClass) -> anyhow::Result<()> {
         }
         InputClass::Json if args.release.is_some() => {
             invalid_request!("--release is refused for a JSON input");
+        }
+        InputClass::Json if args.template.is_some() => {
+            invalid_request!("--template is refused for a JSON input");
         }
         _ => Ok(()),
     }
@@ -222,6 +232,11 @@ fn output_error(message: String) -> anyhow::Error {
 }
 
 fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
+    let organisation_template = args
+        .template
+        .as_deref()
+        .map(|path| custom::load(path, args.to))
+        .transpose()?;
     let source = identity::resolve(
         &args.input,
         text,
@@ -254,9 +269,10 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
         metadata: &template::metadata_yaml(identity)?,
         identity_parts: Some(producer::IdentityParts {
             front: &template::front_matter(identity, args.to),
-            template: match args.to {
-                Format::Pdf => template::typst_template(identity).into_bytes(),
-                Format::Docx => template::docx_reference(identity)?,
+            template: match (organisation_template, args.to) {
+                (Some(bytes), _) => bytes,
+                (None, Format::Pdf) => template::typst_template(identity).into_bytes(),
+                (None, Format::Docx) => template::docx_reference(identity)?,
             },
         }),
         epoch: Some(identity.epoch),

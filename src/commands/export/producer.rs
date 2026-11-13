@@ -107,10 +107,12 @@ impl Step {
     }
 }
 
-/// The generated parts that come with a document identity.
+/// The parts that come with a document identity: the front matter and the
+/// template in use.
 pub(super) struct IdentityParts<'a> {
     pub(super) front: &'a str,
-    /// The default template: Typst source (PDF) or a DOCX reference document.
+    /// The template in use, the default or the organisation's: Typst source
+    /// (PDF) or a DOCX reference document.
     pub(super) template: Vec<u8>,
 }
 
@@ -118,7 +120,7 @@ pub(super) struct IdentityParts<'a> {
 pub(super) struct Generated<'a> {
     pub(super) body: &'a str,
     pub(super) metadata: &'a str,
-    /// Front matter and the default template, present for a Markdown input;
+    /// Front matter and the template, present for a Markdown input;
     /// a JSON report carries no identity and gets neither.
     pub(super) identity_parts: Option<IdentityParts<'a>>,
     /// The source commit time, the `SOURCE_DATE_EPOCH` of every request.
