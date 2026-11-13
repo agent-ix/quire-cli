@@ -71,9 +71,9 @@ impl Step {
         }
     }
 
-    fn arguments(self) -> Vec<&'static str> {
-        let pandoc = |to: &'static str, output: &'static str| {
-            vec![
+    fn arguments(self, with_identity: bool) -> Vec<&'static str> {
+        let pandoc = |to: &'static str, output: &'static str, template: [&'static str; 2]| {
+            let mut arguments = vec![
                 "--sandbox",
                 "--standalone",
                 "--from",
@@ -84,15 +84,45 @@ impl Step {
                 output,
                 "--metadata-file",
                 "in/metadata.yaml",
-                "in/document.md",
-            ]
+            ];
+            if with_identity {
+                arguments.extend([template[0], template[1], "in/front.md"]);
+            }
+            arguments.push("in/document.md");
+            arguments
         };
         match self {
-            Self::PandocDocx => pandoc("docx", "out/document.docx"),
-            Self::PandocTypst => pandoc("typst", "typ/document.typ"),
+            Self::PandocDocx => pandoc(
+                "docx",
+                "out/document.docx",
+                ["--reference-doc", "in/template.docx"],
+            ),
+            Self::PandocTypst => pandoc(
+                "typst",
+                "typ/document.typ",
+                ["--template", "in/template.typ"],
+            ),
             Self::TypstPdf => vec!["compile", "typ/document.typ", "out/document.pdf"],
         }
     }
+}
+
+/// The generated parts that come with a document identity.
+pub(super) struct IdentityParts<'a> {
+    pub(super) front: &'a str,
+    /// The default template: Typst source (PDF) or a DOCX reference document.
+    pub(super) template: Vec<u8>,
+}
+
+/// The generated converter inputs of one export, written under `in/`.
+pub(super) struct Generated<'a> {
+    pub(super) body: &'a str,
+    pub(super) metadata: &'a str,
+    /// Front matter and the default template, present for a Markdown input;
+    /// a JSON report carries no identity and gets neither.
+    pub(super) identity_parts: Option<IdentityParts<'a>>,
+    /// The source commit time, the `SOURCE_DATE_EPOCH` of every request.
+    pub(super) epoch: Option<i64>,
 }
 
 /// Runs the export's requests over one capability root and returns the path of
@@ -101,8 +131,7 @@ impl Step {
 pub(super) fn convert(
     converters: &Converters,
     to: Format,
-    body: &str,
-    metadata: &str,
+    generated: &Generated<'_>,
 ) -> anyhow::Result<RenderedFile> {
     let temp = std::env::temp_dir()
         .canonicalize()
@@ -128,15 +157,37 @@ pub(super) fn convert(
         fs::create_dir_all(root_path.join(directory))
             .with_context(|| format!("creating {directory}"))?;
     }
-    fs::write(root_path.join("in/document.md"), body).context("writing in/document.md")?;
-    fs::write(root_path.join("in/metadata.yaml"), metadata).context("writing in/metadata.yaml")?;
+    let template_name = match to {
+        Format::Pdf => "in/template.typ",
+        Format::Docx => "in/template.docx",
+    };
+    let mut files = vec![
+        ("in/document.md", generated.body.as_bytes()),
+        ("in/metadata.yaml", generated.metadata.as_bytes()),
+    ];
+    if let Some(parts) = &generated.identity_parts {
+        files.push(("in/front.md", parts.front.as_bytes()));
+        files.push((template_name, parts.template.as_slice()));
+    }
+    for (name, content) in files {
+        fs::write(root_path.join(name), content).with_context(|| format!("writing {name}"))?;
+    }
 
     let steps: &[Step] = match to {
         Format::Docx => &[Step::PandocDocx],
         Format::Pdf => &[Step::PandocTypst, Step::TypstPdf],
     };
     for &step in steps {
-        run_step(converters, &root_path, &root_text, step)?;
+        run_step(
+            converters,
+            &root_path,
+            &root_text,
+            Plan {
+                step,
+                with_identity: generated.identity_parts.is_some(),
+                epoch: generated.epoch,
+            },
+        )?;
     }
     let last = steps.last().map_or("", |step| step.output());
     let path = root_path.join(last);
@@ -155,12 +206,21 @@ impl AsRef<Path> for RenderedFile {
     }
 }
 
+/// One converter request: the step and the parts of the export it depends on.
+#[derive(Clone, Copy)]
+struct Plan {
+    step: Step,
+    with_identity: bool,
+    epoch: Option<i64>,
+}
+
 fn run_step(
     converters: &Converters,
     root: &Path,
     root_text: &str,
-    step: Step,
+    plan: Plan,
 ) -> anyhow::Result<()> {
+    let step = plan.step;
     let tool = match step {
         Step::TypstPdf => converters
             .typst
@@ -168,7 +228,7 @@ fn run_step(
             .context("typst was not resolved")?,
         Step::PandocDocx | Step::PandocTypst => &converters.pandoc,
     };
-    let request = request(root_text, tool, step);
+    let request = request(root_text, tool, plan);
     let result = execute(&converters.executor, &request)?;
     interpret(tool, root, &result, cfg!(target_os = "linux"))?;
     if !root.join(step.output()).is_file() {
@@ -182,7 +242,15 @@ fn run_step(
 }
 
 /// The complete FR-032 request for one step. Fields not in the table are not set.
-fn request(root: &str, tool: &Tool, step: Step) -> Value {
+fn request(root: &str, tool: &Tool, plan: Plan) -> Value {
+    let step = plan.step;
+    let mut environment = json!({
+        "HOME": format!("{root}/out/home"),
+        "TMPDIR": format!("{root}/out/tmp"),
+    });
+    if let (Some(epoch), Some(map)) = (plan.epoch, environment.as_object_mut()) {
+        map.insert("SOURCE_DATE_EPOCH".to_string(), json!(epoch.to_string()));
+    }
     json!({
         "protocol": "engineering-assurance.producer-execution-request/v1",
         "producer": {
@@ -194,14 +262,11 @@ fn request(root: &str, tool: &Tool, step: Step) -> Value {
         "procedure": "direct",
         "capabilityRoot": root,
         "arguments": step
-            .arguments()
+            .arguments(plan.with_identity)
             .into_iter()
             .map(|value| json!({"kind": "literal", "value": value}))
             .collect::<Vec<_>>(),
-        "environment": {
-            "HOME": format!("{root}/out/home"),
-            "TMPDIR": format!("{root}/out/tmp"),
-        },
+        "environment": environment,
         "inputs": [],
         "stdin": {"kind": "null"},
         "outputs": [{"role": "document", "path": step.output(), "required": true}],

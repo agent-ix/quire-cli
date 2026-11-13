@@ -61,7 +61,13 @@ pub(super) fn export(args: &Args, kind: Kind, text: &str) -> anyhow::Result<()> 
     let name = args.input.display().to_string();
     let markdown = to_markdown(kind, &name, text)?;
     let converters = producer::Converters::resolve(args)?;
-    let rendered = producer::convert(&converters, args.to, &markdown, "{}\n")?;
+    let generated = producer::Generated {
+        body: &markdown,
+        metadata: "{}\n",
+        identity_parts: None,
+        epoch: None,
+    };
+    let rendered = producer::convert(&converters, args.to, &generated)?;
     write_output(&args.output, rendered.as_ref())
 }
 

@@ -1,6 +1,7 @@
 ---
 id: FR-001
 title: Fictional export fixture
+version: "1.0"
 type: FR
 ---
 # [FR-001] Ember Overview
