@@ -4135,7 +4135,10 @@ fn a_verdict_that_is_not_approved_is_never_shown_as_signed() {
         assert_eq!(table[index][0], person);
         assert_eq!(table[index][1], "not available");
         assert_eq!(table[index][2], "claimed\\: \\\"reviewed and approved\\\"");
-        assert_eq!(table[index][3], status.replace('_', "\\_"));
+        assert_eq!(
+            table[index][3].replace('\u{200b}', ""),
+            status.replace('_', "\\_")
+        );
     }
     assert_eq!(table[3][0], "Maya Mapped");
     assert_eq!(table[3][2], "not recorded");
