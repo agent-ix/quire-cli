@@ -2705,6 +2705,10 @@ fn a_bad_bundle_request_exits_3_naming_the_cause_before_any_converter() {
     no_title.arg(&two).args(["--bundle-id", "BND-7"]);
     let mut no_id = rig.export(&one, "docx", &output);
     no_id.arg(&two).args(["--bundle-title", "T"]);
+    let mut blank = rig.export(&one, "docx", &output);
+    blank
+        .arg(&two)
+        .args(["--bundle-title", "  ", "--bundle-id", "BND-7"]);
     let mut one_input = rig.export(&one, "docx", &output);
     one_input.args(["--bundle-title", "T", "--bundle-id", "BND-7"]);
     let many: Vec<&Path> = std::iter::repeat_n(one.as_path(), 257).collect();
@@ -2712,6 +2716,7 @@ fn a_bad_bundle_request_exits_3_naming_the_cause_before_any_converter() {
         (no_options, "--bundle-title and --bundle-id"),
         (no_title, "--bundle-title"),
         (no_id, "--bundle-id"),
+        (blank, "non-blank --bundle-title"),
         (one_input, "more than one input"),
         (bundle_command(&rig, &many, "docx", &output), "at most 256"),
     ] {
@@ -2731,6 +2736,9 @@ fn a_bad_bundle_request_exits_3_naming_the_cause_before_any_converter() {
             stderr(&result)
         );
     }
+
+    assert!(rig.requests().is_empty(), "a converter was started");
+    assert!(!rig.work("many.docx").exists());
 
     // Exactly 256 inputs is accepted.
     let allowed: Vec<&Path> = std::iter::repeat_n(one.as_path(), 256).collect();
@@ -2839,7 +2847,7 @@ fn one_failing_document_fails_the_whole_bundle_and_names_it() {
     assert!(!output.exists());
 }
 
-#[trace("FR-040-AC-1")]
+#[trace("FR-034-AC-8")]
 #[test]
 fn bundle_options_are_refused_for_a_json_input() {
     let rig = Rig::new();
@@ -2878,29 +2886,32 @@ fn real_pdf_bundle_holds_the_title_page_list_contents_and_documents_in_order() {
     }
     let list = pdf_page(&pdf, 2);
     assert_in_order(&list, &["FR-013", "FR-011", "FR-012"]);
+    // The contents hold the separator and every heading of each document, in order.
     let contents = pdf_page(&pdf, 3);
-    assert_in_order(
-        &contents,
-        &[
-            "FR-013: Gamma",
-            "Description",
-            "FR-011: Alpha",
-            "FR-012: Beta",
-        ],
-    );
+    let mut expected = Vec::new();
+    for (id, title) in [("FR-013", "Gamma"), ("FR-011", "Alpha"), ("FR-012", "Beta")] {
+        expected.push(format!("{id}: {title}"));
+        expected.push(format!("[{id}] {title} Overview"));
+        expected.extend(["Description", "Specification", "Acceptance Criteria"].map(String::from));
+    }
+    let expected: Vec<&str> = expected.iter().map(String::as_str).collect();
+    assert_in_order(&contents, &expected);
+    // The documents follow in order, and the footer runs across every page after the first.
     let total = pdf_page_count(&pdf);
     let all = pdf_text(&pdf);
     assert_in_order(&all, &["FR-013: Gamma", "FR-011: Alpha", "FR-012: Beta"]);
-    let last = pdf_page(&pdf, total);
-    assert!(last.contains(&format!("Page {total} of {total}")), "{last}");
-    assert!(last.contains("BND-7"), "{last}");
-    // The heading level of each document is unchanged: one level-1 heading each.
-    assert!(all.contains("FR-011 Alpha Overview"), "{all}");
+    assert!(!first.contains("Page 1 of"), "{first}");
+    for page in 2..=total {
+        let text = pdf_page(&pdf, page);
+        assert!(text.contains(&format!("Page {page} of {total}")), "{text}");
+        assert!(text.contains("BND-7"), "header: {text}");
+        assert!(text.contains(&rig.head()[..12]), "footer: {text}");
+    }
 }
 
 #[trace("FR-039-AC-1")]
 #[test]
-#[ignore = "needs real pandoc, unzip on PATH"]
+#[ignore = "needs real pandoc, typst and unzip on PATH"]
 fn real_docx_bundle_holds_the_separators_in_order_each_after_a_page_break() {
     let rig = Rig::new();
     let [one, two, three] = bundle_documents(&rig);
@@ -2913,10 +2924,137 @@ fn real_docx_bundle_holds_the_separators_in_order_each_after_a_page_break() {
     )));
     assert!(result.status.success(), "{}", stderr(&result));
     let xml = docx_part(&docx, "word/document.xml");
-    assert_in_order(&xml, &["FR-012: Beta", "FR-013: Gamma", "FR-011: Alpha"]);
-    for heading in ["FR-012: Beta", "FR-013: Gamma", "FR-011: Alpha"] {
-        let at = xml.find(heading).expect("heading");
-        assert!(xml[..at].rfind("w:type=\"page\"").is_some(), "{heading}");
+    let headings = ["FR-012: Beta", "FR-013: Gamma", "FR-011: Alpha"];
+    assert_in_order(&xml, &headings);
+    // Each separator heading sits directly after its own page break, which
+    // follows the content of the previous document.
+    let mut previous = xml.find("TOC \\o").expect("contents field");
+    for heading in headings {
+        let at = xml.rfind(heading).expect("heading");
+        let before = &xml[..at];
+        let page_break = before.rfind("w:type=\"page\"").expect("page break");
+        assert!(
+            page_break > previous,
+            "{heading}: no page break after the previous content"
+        );
+        assert!(
+            strip_tags(&before[page_break..]).trim().is_empty(),
+            "{heading}: text between break and heading"
+        );
+        previous = at;
+    }
+    // Heading levels equal the sources': a separator and an overview at level 1,
+    // three sections at level 2, for each of the three documents.
+    assert_eq!(xml.matches("w:val=\"Heading1\"").count(), 6);
+    assert_eq!(xml.matches("w:val=\"Heading2\"").count(), 9);
+    assert!(!xml.contains("w:val=\"Heading3\""));
+}
+
+#[trace("FR-039-AC-7", "FR-034-AC-1")]
+#[test]
+fn inputs_at_different_commits_of_one_repository_exit_3_naming_both() {
+    let rig = Rig::new();
+    let [one, _, _] = bundle_documents(&rig);
+    let linked = rig.root().join("linked");
+    git(
+        &rig.repo(),
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "side",
+            linked.to_str().expect("UTF-8"),
+        ],
+        None,
+    );
+    let text = fs::read_to_string(&one).expect("document");
+    fs::write(linked.join("side.md"), text.replace("FR-011", "FR-031")).expect("side");
+    git(&linked, &["add", "side.md"], None);
+    git(
+        &linked,
+        &["commit", "-q", "-m", "side"],
+        Some("2003-04-05T06:07:08+00:00"),
+    );
+
+    let output = rig.work("bundle.docx");
+    let result = run(bundle_command(
+        &rig,
+        &[&one, &linked.join("side.md")],
+        "docx",
+        &output,
+    ));
+    assert_eq!(result.status.code(), Some(3));
+    let message = stderr(&result);
+    assert!(message.contains("one source commit"), "{message}");
+    assert!(
+        message.contains("one.md") && message.contains("side.md"),
+        "{message}"
+    );
+    assert!(message.contains(&rig.head()), "{message}");
+    assert!(
+        message.contains(&git(&linked, &["rev-parse", "HEAD"], None)),
+        "{message}"
+    );
+    assert!(rig.requests().is_empty());
+    assert!(!output.exists());
+}
+
+#[trace("FR-039-AC-6", "FR-034-AC-7")]
+#[test]
+fn hostile_bundle_and_document_values_reach_the_converter_only_as_escaped_data() {
+    let rig = Rig::new();
+    let [one, _, _] = bundle_documents(&rig);
+    let hostile_title = "*x* `#pagebreak()`{=typst} --output=/tmp/x";
+    let text = fs::read_to_string(&one)
+        .expect("document")
+        .replace("title: Alpha", &format!("title: \"{hostile_title}|y\""))
+        .replace("FR-011", "FR-041");
+    let hostile = rig.commit("hostile.md", &text, COMMIT_DATE);
+    let mut command = rig.export(&one, "docx", &rig.work("out.docx"));
+    command
+        .arg(&hostile)
+        .args(["--bundle-title", HOSTILE_TAG, "--bundle-id", "B|[x]-1"]);
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let front = rig.converter_input("front.md");
+    assert!(
+        front.contains(&format!("{}\n:::", escaped(HOSTILE_TAG))),
+        "{front}"
+    );
+    assert!(front.contains("Bundle id: B\\|\\[x\\]\\-1\n"), "{front}");
+    let row = format!("| FR\\-041 | {}\\|y | 2\\.0 |", escaped(hostile_title));
+    assert!(front.contains(&row), "{front}");
+    // The list is a table of the header, the rule and one row per document.
+    assert_eq!(
+        front.lines().filter(|line| line.starts_with('|')).count(),
+        4
+    );
+    let separator = rig.converter_input("separator-2.md");
+    assert!(
+        separator.contains(&format!("# FR\\-041: {}\\|y\n", escaped(hostile_title))),
+        "{separator}"
+    );
+    assert_eq!(
+        separator
+            .lines()
+            .filter(|line| line.starts_with('#'))
+            .count(),
+        1
+    );
+    let metadata = fs::read_to_string(rig.root().join("log/metadata.yaml")).expect("metadata");
+    assert!(
+        metadata.contains(&format!(
+            "\"title\":\"{}\"",
+            escaped(HOSTILE_TAG).replace('\\', "\\\\")
+        )),
+        "{metadata}"
+    );
+    for request in rig.requests() {
+        for argument in literals(&request) {
+            assert!(!argument.contains("--output=/tmp/x"));
+        }
     }
 }
 

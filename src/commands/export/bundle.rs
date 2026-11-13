@@ -16,16 +16,10 @@ use super::{
 const MAX_INPUTS: usize = 256;
 
 pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
-    check_request(args)?;
+    let (title, id) = check_request(args)?;
     check_output_target(&args.output)?;
     let sources = resolve_sources(ctx, args)?;
-    let (Some(title), Some(id), Some(first)) = (
-        args.bundle_title.as_deref(),
-        args.bundle_id.as_deref(),
-        sources.first(),
-    ) else {
-        unreachable!("check_request admits only a bundle with a title, an id and inputs");
-    };
+    let first = &sources[0];
     let identity = Identity {
         title: title.to_string(),
         document_id: id.to_string(),
@@ -48,7 +42,7 @@ pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
             .collect(),
         metadata: &template::metadata_yaml(&identity)?,
         identity_parts: Some(producer::IdentityParts {
-            front: &front_matter(&identity, &documents, args.to),
+            front: &template::bundle_front_matter(&identity, &documents, args.to),
             template: match args.to {
                 Format::Pdf => template::typst_template(&identity).into_bytes(),
                 Format::Docx => template::docx_reference(&identity)?,
@@ -62,7 +56,7 @@ pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
 
 /// The request-level refusals of FR-039 and FR-040, all before any file of the
 /// bundle is read.
-fn check_request(args: &Args) -> anyhow::Result<()> {
+fn check_request(args: &Args) -> anyhow::Result<(&str, &str)> {
     if args.input.len() < 2 {
         invalid_request!("--bundle-title and --bundle-id need more than one input");
     }
@@ -72,27 +66,31 @@ fn check_request(args: &Args) -> anyhow::Result<()> {
             args.input.len()
         );
     }
-    let mut missing = Vec::new();
-    if args.bundle_title.is_none() {
-        missing.push("--bundle-title");
+    fn present(value: &Option<String>) -> Option<&str> {
+        value.as_deref().filter(|text| !text.trim().is_empty())
     }
-    if args.bundle_id.is_none() {
-        missing.push("--bundle-id");
-    }
-    if !missing.is_empty() {
+    let (Some(title), Some(id)) = (present(&args.bundle_title), present(&args.bundle_id)) else {
+        let mut missing = Vec::new();
+        if present(&args.bundle_title).is_none() {
+            missing.push("--bundle-title");
+        }
+        if present(&args.bundle_id).is_none() {
+            missing.push("--bundle-id");
+        }
         invalid_request!(
-            "a bundle of {} inputs lacks {}",
+            "a bundle of {} inputs lacks a non-blank {}",
             args.input.len(),
             missing.join(" and ")
         );
-    }
+    };
     for input in &args.input {
         if input_class(input)? != InputClass::Markdown {
             invalid_request!("'{}': a bundle takes only Markdown inputs", input.display());
         }
         check_output_is_not_input(input, &args.output)?;
     }
-    check_flags(args, InputClass::Markdown)
+    check_flags(args, InputClass::Markdown)?;
+    Ok((title, id))
 }
 
 /// Reads, identifies and validates every input, in order, from the one
@@ -120,6 +118,18 @@ fn resolve_sources(ctx: &Ctx, args: &Args) -> anyhow::Result<Vec<Source>> {
                 );
             }
             Some(_) => {}
+        }
+        if let Some(earlier) = sources
+            .first()
+            .filter(|earlier| earlier.identity.commit != source.identity.commit)
+        {
+            invalid_request!(
+                "a bundle takes inputs from one source commit: '{}' is at {} but '{}' is at {}",
+                args.input[0].display(),
+                earlier.identity.commit,
+                input.display(),
+                source.identity.commit
+            );
         }
         sources.push(source);
     }
@@ -150,54 +160,4 @@ fn separator(document: &Identity, to: Format) -> String {
         escape_markdown(&document.document_id),
         escape_markdown(&document.title)
     )
-}
-
-/// `in/front.md` of a bundle: the title page, a page break, the document list,
-/// a page break and the table of contents.
-fn front_matter(bundle: &Identity, documents: &[&Identity], to: Format) -> String {
-    let page_break = || raw_block(to, template::PAGE_BREAK_TYPST, template::PAGE_BREAK_OPENXML);
-    let mut front = String::new();
-    match to {
-        Format::Docx => front.push_str(&format!(
-            "::: {{custom-style=\"Title\"}}\n{}\n:::\n\n",
-            escape_markdown(&bundle.title)
-        )),
-        Format::Pdf => front.push_str(&format!("{}\n\n", escape_markdown(&bundle.title))),
-    }
-    let mut line = |label: &str, value: &str| {
-        front.push_str(&format!("{label}: {}\n\n", escape_markdown(value)));
-    };
-    line("Bundle id", &bundle.document_id);
-    if let Some(release) = &bundle.release {
-        line("Release", release);
-    }
-    line("Source commit", &bundle.commit);
-    line("Date", &bundle.date);
-    front.push_str(&page_break());
-    match to {
-        Format::Docx => front.push_str("::: {custom-style=\"TOC Heading\"}\nDocuments\n:::\n\n"),
-        Format::Pdf => front.push_str("Documents\n\n"),
-    }
-    front.push_str("| Id | Title | Version |\n| --- | --- | --- |\n");
-    for document in documents {
-        let revision = document
-            .version
-            .as_deref()
-            .or(document.release.as_deref())
-            .unwrap_or_default();
-        front.push_str(&format!(
-            "| {} | {} | {} |\n",
-            escape_markdown(&document.document_id),
-            escape_markdown(&document.title),
-            escape_markdown(revision)
-        ));
-    }
-    front.push('\n');
-    front.push_str(&page_break());
-    if to == Format::Docx {
-        front.push_str("::: {custom-style=\"TOC Heading\"}\nContents\n:::\n\n");
-    }
-    front.push_str(&raw_block(to, template::TOC_TYPST, template::TOC_OPENXML));
-    front.push_str(&page_break());
-    front
 }
