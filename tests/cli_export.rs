@@ -2273,3 +2273,255 @@ fn real_pdf_without_headings_exports_with_the_same_title_page() {
     assert_eq!(pdf_page(&with, 1), pdf_page(&without, 1));
     assert!(pdf_page(&without, 3).contains("Plain text with no headings."));
 }
+
+/// The customer template fixtures, created at test time; none is committed.
+const TYPST_ORG_TEMPLATE: &str = "#set page(paper: \"a4\", header: context {\n  if counter(page).get().first() > 1 [ORG-HEADER-MARKER $quire-export.document-id$]\n})\n$body$\n";
+
+fn org_template(rig: &Rig, name: &str, bytes: &[u8]) -> PathBuf {
+    let dir = rig.root().join("org");
+    fs::create_dir_all(&dir).expect("org directory");
+    let path = dir.join(name);
+    fs::write(&path, bytes).expect("template");
+    path
+}
+
+fn with_template(mut command: Command, template: &Path) -> Command {
+    command.arg("--template").arg(template);
+    command
+}
+
+#[trace("FR-036-AC-2", "FR-036-AC-3")]
+#[test]
+fn a_template_is_copied_unchanged_into_the_capability_root_only() {
+    for (to, name, bytes) in [
+        ("pdf", "org.typ", TYPST_ORG_TEMPLATE.as_bytes()),
+        (
+            "docx",
+            "org.docx",
+            b"PK\x03\x04 organisation reference".as_slice(),
+        ),
+    ] {
+        let rig = Rig::new();
+        let template = org_template(&rig, name, bytes);
+        let output = rig.work(&format!("out.{to}"));
+        let before = repo_files(&rig);
+        let result = run(with_template(
+            rig.export(&rig.fixture(), to, &output),
+            &template,
+        ));
+        assert!(result.status.success(), "{}", stderr(&result));
+
+        let requests = rig.requests();
+        let pandoc = &requests[0];
+        let arguments = literals(pandoc);
+        let flag = if to == "pdf" {
+            "--template"
+        } else {
+            "--reference-doc"
+        };
+        let at = arguments
+            .iter()
+            .position(|a| *a == flag)
+            .expect("template flag");
+        assert_eq!(
+            arguments[at + 1],
+            format!(
+                "in/template.{to_ext}",
+                to_ext = if to == "pdf" { "typ" } else { "docx" }
+            )
+        );
+        assert!(
+            !arguments.iter().any(|a| a.contains("org.")),
+            "{arguments:?}"
+        );
+
+        let copied = rig
+            .root()
+            .join("log/in")
+            .join(arguments[at + 1].trim_start_matches("in/"));
+        assert_eq!(fs::read(copied).expect("copy"), bytes);
+        let root = pandoc["capabilityRoot"].as_str().expect("root");
+        assert!(!Path::new(root).exists());
+        assert_eq!(dir_names(&rig.root().join("work")), [format!("out.{to}")]);
+        assert_eq!(repo_files(&rig), before);
+
+        let identity = exported_identity(&rig);
+        for member in ["title", "document-id", "commit", "date", "version"] {
+            assert!(identity.get(member).is_some(), "{member}: {identity}");
+        }
+    }
+}
+
+#[trace("FR-035-AC-6")]
+#[test]
+fn without_a_template_the_default_one_is_used() {
+    let rig = Rig::new();
+    let result = run(rig.export(&rig.fixture(), "pdf", &rig.work("out.pdf")));
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert!(rig
+        .converter_input("template.typ")
+        .contains("paper: \"a4\""));
+}
+
+#[trace("FR-036-AC-4")]
+#[test]
+fn a_failing_template_exits_4_writes_no_output_and_does_not_retry_with_the_default() {
+    let rig = Rig::new();
+    script(
+        &rig.bin("pandoc"),
+        "echo 'error: template does not compile' >&2\nexit 9\n",
+    );
+    let template = org_template(&rig, "bad.typ", b"#let broken(");
+    let output = rig.work("out.pdf");
+    let result = run(with_template(
+        rig.export(&rig.fixture(), "pdf", &output),
+        &template,
+    ));
+    assert_eq!(result.status.code(), Some(4));
+    assert!(stderr(&result).contains("template does not compile"));
+    assert_eq!(rig.requests().len(), 1);
+    assert!(!output.exists());
+}
+
+#[trace("FR-036-AC-5", "FR-040-AC-2", "FR-040-AC-7")]
+#[test]
+fn an_invalid_template_exits_3_naming_the_path_and_starts_no_converter() {
+    let rig = Rig::new();
+    let output = rig.work("out.pdf");
+    let docx_template = org_template(&rig, "org.docx", b"PK");
+    let typ_template = org_template(&rig, "org.typ", b"x");
+    let directory = rig.root().join("org/dir.typ");
+    fs::create_dir_all(&directory).expect("directory");
+    let big = org_template(&rig, "big.typ", &vec![b'x'; 16 * 1024 * 1024 + 1]);
+    let missing = rig.root().join("org/absent.typ");
+
+    let cases = [
+        ("pdf", docx_template),
+        ("docx", typ_template),
+        ("pdf", missing),
+        ("pdf", directory),
+        ("pdf", big),
+    ];
+    for (to, template) in cases {
+        let result = run(with_template(
+            rig.export(&rig.fixture(), to, &output),
+            &template,
+        ));
+        assert_eq!(result.status.code(), Some(3), "{template:?}");
+        assert!(
+            stderr(&result).contains(&template.display().to_string()),
+            "{}",
+            stderr(&result)
+        );
+    }
+    assert!(rig.requests().is_empty());
+    assert!(!output.exists());
+}
+
+#[trace("FR-040-AC-2")]
+#[test]
+fn an_unreadable_template_exits_2_naming_the_path() {
+    let rig = Rig::new();
+    let template = org_template(&rig, "locked.typ", b"x");
+    fs::set_permissions(&template, fs::Permissions::from_mode(0o000)).expect("mode");
+    // A process with the capability to read regardless of mode cannot test this.
+    if fs::read(&template).is_ok() {
+        return;
+    }
+    let result = run(with_template(
+        rig.export(&rig.fixture(), "pdf", &rig.work("out.pdf")),
+        &template,
+    ));
+    assert_eq!(result.status.code(), Some(2));
+    assert!(stderr(&result).contains("locked.typ"));
+    assert!(rig.requests().is_empty());
+}
+
+#[trace("FR-036-AC-6")]
+#[test]
+fn a_template_is_refused_for_a_json_input_naming_the_flag() {
+    let rig = Rig::new();
+    let template = org_template(&rig, "org.typ", b"x");
+    let json = rig.work("report.json");
+    fs::write(&json, "{}").expect("json");
+    let mut command = quire();
+    command
+        .arg("export")
+        .arg(&json)
+        .args(["--to", "pdf", "--kind", "table", "--output"])
+        .arg(rig.work("out.pdf"))
+        .arg("--template")
+        .arg(&template);
+    let result = run(command);
+    assert_eq!(result.status.code(), Some(3));
+    assert!(stderr(&result).contains("--template"));
+    assert!(rig.requests().is_empty());
+}
+
+#[trace("FR-036-AC-1")]
+#[test]
+#[ignore = "needs real pandoc, typst and pdftotext on PATH"]
+fn real_pdf_uses_the_organisation_template_header_and_keeps_the_title_page() {
+    let rig = Rig::new();
+    let template = org_template(&rig, "org.typ", TYPST_ORG_TEMPLATE.as_bytes());
+    let pdf = rig.work("out.pdf");
+    require_tool("pandoc");
+    require_tool("typst");
+    let mut command = quire();
+    command
+        .current_dir(rig.work(""))
+        .arg("export")
+        .arg(rig.fixture())
+        .args(["--to", "pdf", "--output"])
+        .arg(&pdf)
+        .arg("--module")
+        .arg(validate_module())
+        .arg("--template")
+        .arg(&template);
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+    let first = pdf_page(&pdf, 1);
+    assert!(first.contains("Fictional export fixture"), "{first}");
+    assert!(!first.contains("ORG-HEADER-MARKER"), "{first}");
+    let second = pdf_page(&pdf, 2);
+    assert!(second.contains("ORG-HEADER-MARKER"), "{second}");
+    assert!(second.contains("FR-001"), "{second}");
+}
+
+#[trace("FR-036-AC-1")]
+#[test]
+#[ignore = "needs real pandoc, unzip and python3 on PATH"]
+fn real_docx_uses_the_organisation_reference_footer_and_keeps_the_title_page() {
+    let rig = Rig::new();
+    // The organisation's reference document is built here from a default export
+    // whose footer is rewritten to a marker.
+    let base = rig.work("base.docx");
+    let result = real_export(&rig, &rig.fixture(), "docx", &base);
+    assert!(result.status.success(), "{}", stderr(&result));
+    let reference = org_template(&rig, "org.docx", b"");
+    let patch = "import sys, zipfile\nsrc, dst = sys.argv[1:3]\nwith zipfile.ZipFile(src) as zin, zipfile.ZipFile(dst, 'w') as zout:\n    for item in zin.infolist():\n        data = zin.read(item.filename)\n        if item.filename.startswith('word/footer'):\n            text = data.decode()\n            at = text.rindex('</w:p>')\n            data = (text[:at] + '<w:r><w:t>ORG-FOOTER-MARKER</w:t></w:r>' + text[at:]).encode()\n        zout.writestr(item, data)\n";
+    let status = Command::new("python3")
+        .args(["-c", patch])
+        .arg(&base)
+        .arg(&reference)
+        .status()
+        .expect("python3 runs");
+    assert!(status.success());
+
+    let docx = rig.work("out.docx");
+    let mut command = quire();
+    command
+        .current_dir(rig.work(""))
+        .arg("export")
+        .arg(rig.fixture())
+        .args(["--to", "docx", "--output"])
+        .arg(&docx)
+        .arg("--module")
+        .arg(validate_module())
+        .arg("--template")
+        .arg(&reference);
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert!(docx_parts(&docx, "word/footer").contains("ORG-FOOTER-MARKER"));
+    assert!(docx_text(&docx).contains("Fictional export fixture"));
+}
