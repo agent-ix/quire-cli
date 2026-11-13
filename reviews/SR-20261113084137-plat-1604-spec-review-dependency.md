@@ -82,3 +82,18 @@ scope:
 ## Verdict
 
 FAIL (medium). The quire-rs ask must be restated precisely (FND-001, FND-003) and filed (FND-002) before the implementation ticket can start. The EA producer-execute dependency is sound.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | This was introduced by the fix. FR-042 states the ask as including "the info word read after the whole fence", which FR-042-AC-8's four-backtick `mermaid` block depends on. The acceptance criteria of PLAT-1682 list fence length, indentation and fence characters, but not the info word after a fence longer than three characters. Fix: add that criterion to PLAT-1682, so the ticket and FR-042 state the same requirement. | spec/functional/FR-042-export-mermaid-diagrams.md:243; Linear PLAT-1682 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |

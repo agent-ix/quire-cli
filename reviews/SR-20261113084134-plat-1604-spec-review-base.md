@@ -162,3 +162,12 @@ scope:
 ## Verdict
 
 FAIL. This is not mergeable as written. FND-001 is a wrong claim about the renderer that matters to the ticket's never-silently-dropped AC. FND-003 leaves the renderer decision unconfirmed. Both need the owner. FND-002 and FND-004 are text fixes. Clean on public-repo hygiene, exit-code consistency with FR-007, the US-009 examples and FR-031 section C.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |

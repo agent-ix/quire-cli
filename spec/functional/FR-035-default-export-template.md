@@ -3,6 +3,8 @@ id: FR-035
 title: "Default export template: title page, contents, headers, footers, page numbers"
 type: FR
 relationships:
+  - target: "ix://agent-ix/quire-cli/spec/functional/FR-042"
+    type: "references"
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-004"
     type: "implements"
     cardinality: "1:1"
@@ -78,7 +80,10 @@ whatever the template:
 - The default template SHALL fix the page size (A4), margins, fonts and heading
   styles inside the generated template, so they do not depend on the host.
 - The default template SHALL use only fonts that the converter bundles or declares
-  as generic families, and SHALL add no image.
+  as generic families, and SHALL add no image of its own.
+- The default template SHALL carry a Typst rule that scales an image wider than
+  the text area down to it and does not enlarge a smaller image, so that a
+  rendered diagram ([FR-042](./FR-042-export-mermaid-diagrams.md)) fits the page.
 
 ## Acceptance Criteria
 
@@ -92,6 +97,7 @@ whatever the template:
 | FR-035-AC-6 | The repository tree and the package file list hold no `.typ`, `.docx` or `.dotx` file for the default template or the generated parts, and these reach the converter only through the capability root. | Inspection |
 | FR-035-AC-7 | A fixture with no headings still exports, with an empty table of contents, and the title page is unchanged. | Test |
 | FR-035-AC-8 | The pandoc request lists `in/front.md` before the document input and holds no `--table-of-contents`; the page-break and contents raw blocks in `in/front.md` equal the output format and no raw block elsewhere in the generated Markdown comes from input text. | Test |
+| FR-035-AC-9 | In a PDF of a fixture holding one diagram wider and one narrower than the text area, the pixel width over the horizontal resolution of `pdfimages -list` does not exceed the text area for the first and equals the natural size for the second. | Test |
 
 ## Dependencies
 

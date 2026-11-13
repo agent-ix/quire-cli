@@ -126,3 +126,17 @@ scope:
 ## Verdict
 
 PASS with low findings. The verification methods fit their obligations.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-004 | low | Under quire-rs as it is today (before PLAT-1682), quire-rs counts the first (indented) block and the third, and pandoc counts the third and fourth. The counts agree, so only the text comparison stands between the fixture and an accidental pass. That holds only if the blocks' diagram texts differ. The AC does not require that, and with identical texts "images of the third and fourth blocks" cannot be told apart. Fix: require four distinct diagram texts and check that each image comes from the expected block, for example by its pixel size or by `in/diagrams/<k>.mmd`. | spec/functional/FR-042-export-mermaid-diagrams.md:232 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |

@@ -116,3 +116,19 @@ scope:
 ## Verdict
 
 FAIL. FND-001 (sandbox: images silently replaced by alt text) and FND-002 (document text spliced into executable Lua) are high and must be fixed in the spec before implementation. FND-003 and FND-004 are medium text fixes. The fail-closed design otherwise holds: no partial output, no retry, no placeholder, and the run stops at the first failed block.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | high | This was introduced by the fix, as a regression. The filter now names every image `<image directory>/<k>.png`, and for PDF the image directory is `typ/img/`. Pandoc's typst writer writes the image source unchanged, as `image("typ/img/<k>.png")`, into `typ/document.typ`. The typst request is `compile typ/document.typ out/document.pdf` with no `--root`, so Typst resolves that path relative to `typ/` and looks for `typ/typ/img/<k>.png`. Every PDF export with a diagram would then fail at typst. The round-0 text had the path relative to the Typst source directory. Fix: the filter reads `typ/img/<k>.png` but names the image `img/<k>.png` for PDF (the media bag insert is only needed for DOCX), or the spec fixes the Typst root. FR-042-AC-1 with real tools would catch this. | spec/functional/FR-042-export-mermaid-diagrams.md:172-180, 126-128; spec/functional/FR-032-export-converter-execution.md:71 |
+| FND-006 | medium | This was introduced by the fix. The new text comparison is exact apart from line endings. Inside a list item, pandoc removes the container indentation from the code text, and CommonMark also removes up to the fence's own indentation from each content line. The quire-rs scanner works line by line and keeps each line raw. A `mermaid` block nested in a list item therefore never matches, and one inside a block quote (`> ```mermaid`) is not seen by quire-rs at all, so its count mismatches. Both fail the export. That is fail-closed, so nothing wrong is published, but a common placement of a diagram can never be exported. Fix: either add stripping of the fence indentation from content lines, and of container prefixes, to PLAT-1682, or state in FR-042 that a `mermaid` block inside a list item or block quote fails the export, with an AC. | spec/functional/FR-042-export-mermaid-diagrams.md:172-180, 243 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |

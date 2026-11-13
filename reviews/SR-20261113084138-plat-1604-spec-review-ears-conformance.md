@@ -87,3 +87,10 @@ scope:
 ## Verdict
 
 PASS with low findings. No EARS validator warning on FR-042, and the statements are otherwise well formed.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |

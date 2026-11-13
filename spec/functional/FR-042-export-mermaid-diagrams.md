@@ -172,17 +172,23 @@ package ([NFR-010](../non-functional/NFR-010-export-single-converter-single-path
 - For the k-th code block that pandoc reads with the class `mermaid`, the filter
   SHALL: compare the block text with the content of `in/diagrams/<k>.mmd`, after
   converting line endings to LF in both, and fail pandoc on any difference,
-  naming `k`; read `<image directory>/<k>.png`, insert it into the media bag
-  under the name `<image directory>/<k>.png` with `pandoc.mediabag.insert`, and
-  fail pandoc, naming `k`, if the file cannot be read or is empty; and replace
-  the block by one paragraph holding one image of that name with the alternative
-  text. After the last block the filter SHALL fail pandoc if the number of
+  naming `k`; read the image file `<k>.png` from the image directory (`img/`
+  for DOCX, `typ/img/` for PDF) and fail pandoc, naming `k`, if it cannot be
+  read or is empty; for DOCX insert the bytes into the media bag under the name
+  `img/<k>.png` with `pandoc.mediabag.insert`; and replace the block by one
+  paragraph holding one image named `img/<k>.png`, with the alternative text.
+  The image is named `img/<k>.png` for both formats: for DOCX that is the
+  media-bag name and the path from the capability root; for PDF it is the path
+  from the Typst source `typ/document.typ`, which pandoc's Typst writer writes
+  unchanged and which `typst compile typ/document.typ` resolves to
+  `typ/img/<k>.png`. No media-bag insert is made for PDF, because the Typst
+  writer does not read the file. After the last block the filter SHALL fail pandoc if the number of
   blocks it saw differs from the count in its source, stating both numbers.
   Pandoc, not `quire`, recognises the blocks in the Markdown.
 - The pandoc `--sandbox` argument stays in every request. Under it the DOCX
   writer cannot fetch files itself and, for an image it cannot fetch, replaces
   the image by its description and exits 0; loading each PNG into the media bag
-  in the filter, which the sandbox does not restrict, is what puts the image in
+  in the filter (DOCX), which the sandbox does not restrict, is what puts the image in
   the document, and the filter's failure on an unreadable PNG is what keeps a
   missing image from passing. `quire` SHALL NOT remove `--sandbox`.
 - A failure of the filter is a failure of the pandoc request, so it is a
@@ -192,11 +198,17 @@ package ([NFR-010](../non-functional/NFR-010-export-single-converter-single-path
   A block that one reader recognises and the other does not, such as a block
   with attribute syntax or a block in a longer fence, therefore fails the
   export and is never left as source text or given the image of another block.
+- Only top-level fenced blocks are supported. A `mermaid` block inside a list
+  item or a block quote is an export error and never an image: pandoc strips
+  the container's indentation, so the text comparison of the filter fails for a
+  block in a list item, and quire-rs does not see a block in a block quote, so
+  the counts differ. Both end as the converter failure above (exit 4, stderr
+  with the block number or both counts). Supporting nested blocks is not part
+  of this FR.
 - The filter SHALL set no width or height on the image. The pandoc DOCX writer
   scales an image wider than the text area down to it and does not enlarge a
-  smaller image; the default template of [FR-035](./FR-035-default-export-template.md)
-  SHALL carry a Typst rule that scales an image wider than the text area down to
-  it and does not enlarge a smaller image. An organisation template
+  smaller image; the default template carries the same rule for PDF
+  ([FR-035](./FR-035-default-export-template.md) section C). An organisation template
   ([FR-036](./FR-036-organisation-export-template.md)) is the user's, and the
   rule is the user's to carry in it.
 
@@ -222,24 +234,25 @@ package ([NFR-010](../non-functional/NFR-010-export-single-converter-single-path
 
 | ID | Criteria | Verification |
 | --- | --- | --- |
-| FR-042-AC-1 | With real pandoc, typst and mmdr, a committed fixture with one flowchart and one sequence diagram exports to DOCX with exactly two PNG parts under `word/media` referenced by `w:drawing` elements, and to PDF with exactly two images by `pdfimages -list`; the fixture's `mermaid` source text appears in neither output's extracted text, and the DOCX does not hold the two alternative texts as run text in place of the images. The test fails naming the missing tool if one is unavailable. | Test |
+| FR-042-AC-1 | With real pandoc, typst and mmdr, a committed fixture with one flowchart and one sequence diagram exports to DOCX with exactly two PNG parts under `word/media` referenced by `w:drawing` elements, and to PDF with exactly two images by `pdfimages -list`, the image paths in the `typ/document.typ` that pandoc wrote being `img/1.png` and `img/2.png`, each existing under `typ/` at that relative path; the fixture's `mermaid` source text appears in neither output's extracted text, and the DOCX does not hold the two alternative texts as run text in place of the images. The test fails naming the missing tool if one is unavailable. | Test |
 | FR-042-AC-2 | With stand-in executables, the export makes one `mmdr` request per block in document order, then the pandoc request, then (PDF) the typst request, and each `mmdr` request equals the field definitions of this FR, validates against `engineering-assurance producer-execute --schema request` and names a canonical `producer.executable`; `in/diagrams/`, and `img/` (DOCX) or `typ/img/` (PDF), exist before the first `mmdr` request. | Test |
 | FR-042-AC-3 | The pandoc request of an export with diagrams carries `--sandbox` and `--lua-filter in/diagrams.lua` after the template argument and before `in/front.md`; the converter input `in/document.md` equals the committed body bytes; the working directory, input directory and output directory hold no file other than the input and `--output` afterwards. | Test |
 | FR-042-AC-4 | With a stand-in `mmdr` that exits 1 for the second block, the export exits 4, writes no `--output`, makes no pandoc request and no `mmdr` request for a third block, and the diagnostic holds the document path, ordinal 2, the line number of that block's opening fence in the committed file, its section heading and `mmdr`'s stderr. | Test |
 | FR-042-AC-5 | A stand-in `mmdr` that exits 0 without writing the PNG, and one that writes an empty PNG, each fail the export as exit 4 naming the block. A fixture whose block has no diagram header line fails the export the same way with real `mmdr`, which rejects it as a missing diagram header. | Test |
 | FR-042-AC-6 | With `mmdr` absent and a fixture holding a `mermaid` block, the export exits 3 naming `mmdr` and `--mmdr` and makes no request; with `mmdr` absent and a fixture holding no `mermaid` block, the export succeeds and makes no `mmdr` request. | Test |
 | FR-042-AC-7 | A fixture with a block pandoc reads as `mermaid` and quire-rs does not (an attribute-style info string, ```` ```{.mermaid} ````) fails the export as exit 4, a converter failure, whose stderr carries the filter's message with both block counts; the output of no run holds the source text as a code block. | Test |
-| FR-042-AC-8 | A fixture with, in this order, a four-space-indented fence tagged `mermaid`, a four-backtick fence tagged `text` that holds a line reading ```` ```mermaid ````, a `~~~mermaid` block, and a four-backtick fence tagged `mermaid`, exports with exactly two images, those of the third and fourth blocks in that order, and the first two printed as code; the diagnostics-bearing ordinals of the two rendered blocks are 1 and 2. | Test |
+| FR-042-AC-8 | A fixture with, in this order, a four-space-indented fence tagged `mermaid`, a four-backtick fence tagged `text` that holds a line reading ```` ```mermaid ````, a `~~~mermaid` block, and a four-backtick fence tagged `mermaid`, each holding a different valid diagram (four distinct texts, the rendered two differing in node labels), exports with exactly two images, those of the third and fourth blocks in that order, and the first two printed as code; the test checks that each image comes from its expected block by comparing the image bytes with those of `mmdr` run on that block alone and not on the other; the ordinals of the two rendered blocks are 1 and 2. | Test |
 | FR-042-AC-9 | A bundle of two fixtures with one block and two blocks yields three images in input order, and a failure of the second document's first block names that document and ordinal 1; the alternative text of the third image names ordinal 2. | Test |
-| FR-042-AC-10 | In a DOCX of a fixture with one diagram wider and one narrower than the text area, the `wp:extent` width of the first does not exceed the page width minus margins of `w:sectPr` and the second equals its pixel width at the image resolution; in the PDF, the pixel width over the horizontal resolution of `pdfimages -list` does not exceed the text area for the first and equals the natural size for the second. | Test |
+| FR-042-AC-10 | In a DOCX of a fixture with one diagram wider and one narrower than the text area, the `wp:extent` width of the first does not exceed the page width minus margins of `w:sectPr` and the second equals its pixel width at the image resolution; the PDF case is FR-035-AC-9. | Test |
 | FR-042-AC-11 | A JSON input with `--kind table` whose cell text contains a fenced `mermaid` block starts no `mmdr` request. | Test |
 | FR-042-AC-12 | Review of the export code finds the `mermaid` blocks found only through the quire-rs query and no Markdown scan for fences in quire-cli. | Inspection |
 | FR-042-AC-13 | Two fixtures that differ only in the section heading above a `mermaid` block, one with the heading ``]] os.execute("touch pwned") --[[ "'`` and one plain, yield byte-equal `in/diagrams.lua`; exporting the hostile one creates no file `pwned`, and the heading text appears literally in the image's alternative text. | Test |
 | FR-042-AC-14 | With real pandoc, the generated filter run over a capability root in which `img/2.png` is absent, and over one in which `in/diagrams/2.mmd` differs from the second block, each makes pandoc exit non-zero with stderr naming block 2 and write no output. | Test |
+| FR-042-AC-15 | A fixture with a `mermaid` block inside a list item, and one with a `mermaid` block inside a block quote, each fail the export as exit 4, a converter failure, with stderr carrying the block number (list item) or both counts (block quote), and no output file. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-031](./FR-031-export-subcommand.md), [FR-032](./FR-032-export-converter-execution.md), [FR-033](./FR-033-export-errors.md), [FR-007](./FR-007-exit-codes.md), [FR-035](./FR-035-default-export-template.md).
-- **Upstream, quire-rs, blocked by Linear PLAT-1682**: `DiagramBlock` of `extract_diagrams` ([quire-rs FR-010](ix://agent-ix/quire-rs/FR-010)) carries `index`, `language`, `source`, `section` and `tag`, and no line. With the language filter `mermaid`, `index` is already the 0-based ordinal among `mermaid` blocks; its doc comment saying otherwise is a quire-rs documentation fault. PLAT-1682 adds the 1-based line of the opening fence in full-file coordinates, with the CommonMark fence rules: an opening of three or more backticks or tildes with up to three spaces of indentation, the info word read after the whole fence, and a close of the same character and at least the opening length. This FR depends on it; quire-cli SHALL NOT compute positions itself, and has no fallback without them.
+- **Upstream, quire-rs, blocked by Linear PLAT-1682**: `DiagramBlock` of `extract_diagrams` ([quire-rs FR-010](ix://agent-ix/quire-rs/FR-010)) carries `index`, `language`, `source`, `section` and `tag`, and no line. With the language filter `mermaid`, `index` is already the 0-based ordinal among `mermaid` blocks; its doc comment saying otherwise is a quire-rs documentation fault. PLAT-1682 adds the 1-based line of the opening fence in full-file coordinates, with the CommonMark fence rules: the 1-based full-file opening-fence line; CommonMark fence rules including fence length, indentation up to three spaces, tilde and backtick fences, and the info word read after the whole opening fence. This FR depends on it; quire-cli SHALL NOT compute positions itself, and has no fallback without them.
 - **Upstream, engineering-assurance**: none. Neither network access nor filesystem confinement is a producer-execute guarantee ([EA FR-019](ix://agent-ix/engineering-assurance/FR-019) `process-group-v1`); the no-network property of `mmdr` rests on the renderer, and is checked by [NFR-010](../non-functional/NFR-010-export-single-converter-single-path.md).
 - **Downstream**: [NFR-011](../non-functional/NFR-011-export-reproducibility.md).

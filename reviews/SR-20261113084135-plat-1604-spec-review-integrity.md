@@ -121,3 +121,19 @@ scope:
 ## Verdict
 
 FAIL (medium). FND-001 needs a text change to FR-033 so classification does not depend on diagnostic text. The rest are low text fixes. No contradiction with the merged FR-034..FR-040 was found.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | low | This was introduced by the fix. FR-042 now requires that "the default template of FR-035 SHALL carry a Typst rule that scales an image wider than the text area down". FR-035, which owns the default template's content (its section C Layout), is not amended. Someone implementing the template from FR-035 alone would miss the rule. Fix: add the image-scaling rule to FR-035 section C, with an AC there, and keep only a reference in FR-042. | spec/functional/FR-042-export-mermaid-diagrams.md:195-201; spec/functional/FR-035-default-export-template.md:76-81 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |
+| FND-005 | fixed | - |
