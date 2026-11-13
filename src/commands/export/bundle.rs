@@ -55,7 +55,7 @@ pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
                 (None, Format::Docx) => template::docx_reference(&identity)?,
             },
         }),
-        epoch: Some(identity.epoch),
+        epoch: identity.epoch,
     };
     let rendered = producer::convert(&converters, args.to, &generated)?;
     write_output(&args.output, rendered.as_ref())

@@ -31,7 +31,8 @@ and nothing else.
   set the environment variable `SOURCE_DATE_EPOCH` to the Unix time of the source
   commit date, in addition to `HOME` and `TMPDIR`, so a converter that stamps a
   creation or modification time stamps the commit time. The environment field of
-  FR-032 is read with this one added variable.
+  FR-032 is read with this one added variable. A JSON report has no source
+  commit; its requests set `SOURCE_DATE_EPOCH` to `0`.
 - Document properties that name a time (DOCX core properties `created` and
   `modified`, PDF creation and modification dates) SHALL hold the source commit
   time, or be absent. They SHALL NOT hold the export time.
@@ -48,7 +49,7 @@ and nothing else.
 
 | ID | Criteria | Verification |
 | --- | --- | --- |
-| FR-037-AC-1 | Every request made by the tests holds exactly the environment variables `HOME`, `TMPDIR` and `SOURCE_DATE_EPOCH`, and `SOURCE_DATE_EPOCH` equals the Unix time of the fixture's commit. | Test |
+| FR-037-AC-1 | Every request made by the tests holds exactly the environment variables `HOME`, `TMPDIR` and `SOURCE_DATE_EPOCH`, and `SOURCE_DATE_EPOCH` equals the Unix time of the fixture's commit, or `0` for a JSON report. | Test |
 | FR-037-AC-2 | With real pandoc and typst, the DOCX `docProps/core.xml` `created` and `modified` values and the PDF creation date each equal the fixture's commit time or are absent, and none is within a day of the test's wall-clock time when the commit is dated years earlier. | Test |
 | FR-037-AC-3 | The extracted text of both formats holds no host name, user name, capability-root path or repository path of the test run. | Test |
 | FR-037-AC-4 | A search of the export code finds no read of the wall clock, local time zone or file modification time on the path from input to request. | Inspection |

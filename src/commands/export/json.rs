@@ -51,6 +51,8 @@ const SOUP_COLUMNS: [&str; 14] = [
 ];
 const SOUP_UNMATCHED_COLUMNS: [&str; 5] = ["tool", "rule_id", "package", "severity", "reason"];
 const SOUP_SCAN_COLUMNS: [&str; 2] = ["tool", "state"];
+/// A report has no source commit, so its converters stamp the Unix epoch.
+const REPORT_EPOCH: i64 = 0;
 /// The narrowest and widest relative width a column asks for, in characters.
 const MIN_COLUMN_WIDTH: usize = 3;
 const MAX_COLUMN_WIDTH: usize = 48;
@@ -66,7 +68,7 @@ pub(super) fn export(args: &Args, kind: Kind, text: &str) -> anyhow::Result<()> 
         bundle: Vec::new(),
         metadata: "{}\n",
         identity_parts: None,
-        epoch: None,
+        epoch: REPORT_EPOCH,
     };
     let rendered = producer::convert(&converters, args.to, &generated)?;
     write_output(&args.output, rendered.as_ref())
