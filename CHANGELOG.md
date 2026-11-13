@@ -9,6 +9,7 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- PLAT-1418: `quire relations --design` renders the quire-rs design-element join (FR-041): per requirement the design elements that realize it, with their `realized_criteria`, and an explicit gap when there are none. It conflicts with `--relation` and `--strict`, and exits 3 when no loaded module declares `traceability.design_relations` or an entry names no declared relation.
 - **`quire matrix` design column (PLAT-1587, PLAT-1589; FR-043).** `matrix` calls quire-rs `design_matrix`: a `Design` column between `Statement` and `Binders` (and `design`, `design_state` in TSV), `Design gap:` lines, `--format human`, and `--repo <ORG/REPO>=<DIR>` for sibling-repository elements (`repo:` lines, a TSV `repo` column; conflicts with `--scope`). `--strict` also exits 1 for each live requirement with an uncovered design block, naming `design gap: [<repo>:]<document> <check>` on stderr. Output is unchanged when no module declares `design_relations`.
 
 ## [0.45.0] — 2026-11-13

@@ -2,9 +2,11 @@
 //!
 //! The engine owns the rows, the states and the verification statuses; this
 //! command resolves roots, applies path safety, calls
-//! `quire_rs::relation_report` and renders. It holds no archetype, verb or
+//! `quire_rs::relation_report` and renders. With `--design` it calls
+//! `quire_rs::design_join` instead (FR-041). It holds no archetype, verb or
 //! chain name: which rows exist comes from the loaded modules'
-//! `traceability.required_relations`.
+//! `traceability.required_relations`, and with `--design` from the relations
+//! they name in `traceability.design_relations`.
 
 use std::path::PathBuf;
 
@@ -12,8 +14,8 @@ use clap::Parser;
 use quire_cli::safety;
 use quire_rs::traceability::RelationDirection;
 use quire_rs::{
-    relation_report, LinkedEntry, RelationReport, RelationReportMember, RelationRow, RowDocument,
-    RowState, Verification,
+    design_join, relation_report, LinkedEntry, RelationReport, RelationReportMember, RelationRow,
+    RowDocument, RowState, Verification,
 };
 
 use super::corpus_input::{parse_repo, Corpus, RepoArg};
@@ -32,7 +34,8 @@ pub struct Args {
     #[arg(long, value_name = "ORG/REPO=DIR", value_parser = parse_repo)]
     pub repo: Vec<RepoArg>,
 
-    /// Module directory supplying `traceability.required_relations`.
+    /// Module directory supplying `traceability.required_relations` (and, with
+    /// `--design`, `traceability.design_relations`).
     /// Repeatable; the roots REPLACE ambient discovery (see `quire coverage`).
     /// Without it, ambient discovery is bounded by the first `--repo` member
     /// only, so `--repo` order decides which modules load.
@@ -40,8 +43,15 @@ pub struct Args {
     pub module: Vec<String>,
 
     /// Restrict the report to the named declaration. Repeatable.
-    #[arg(long, value_name = "NAME")]
+    #[arg(long, value_name = "NAME", conflicts_with = "design")]
     pub relation: Vec<String>,
+
+    /// Render the design-element join (FR-041) instead of the relation
+    /// selection: for each requirement the design elements that realize it, and
+    /// a gap when there are none. Which relations are design relations is the
+    /// loaded modules' `traceability.design_relations`.
+    #[arg(long, conflicts_with_all = ["relation", "strict"])]
+    pub design: bool,
 
     /// Emit the engine's report as JSON on stdout instead of the human form.
     #[arg(long)]
@@ -67,7 +77,17 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     let discovery: PathBuf = corpus.members[0].root.clone();
     let registry = super::coverage::load_registry_for(ctx, &args.module, &discovery)?;
-    if registry
+    if args.design {
+        if registry
+            .traceability()
+            .is_none_or(|model| model.design_relations.is_empty())
+        {
+            invalid_request!(
+                "no loaded module declares `traceability.design_relations`, so there is \
+                 no design join to report; install a module that declares one or pass --module"
+            );
+        }
+    } else if registry
         .traceability()
         .is_none_or(|model| model.required_relations.is_empty())
     {
@@ -103,13 +123,17 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             matrix: &coverage.coverage_matrix,
         })
         .collect();
-    let report = relation_report(&corpus.spec, &registry, &inputs, &args.relation)
-        .map_err(|e| invalid_error!("{e}"))?;
+    let report = if args.design {
+        design_join(&corpus.spec, &registry, &inputs)
+    } else {
+        relation_report(&corpus.spec, &registry, &inputs, &args.relation)
+    }
+    .map_err(|e| invalid_error!("{e}"))?;
 
     if args.json {
         primary_line!("{}", ix_cli_kit::json::encode(&report, ctx.pretty)?);
     } else {
-        primary!("{}", render_human(&report));
+        primary!("{}", render_human(&report, args.design));
     }
 
     if args.strict {
@@ -197,10 +221,21 @@ fn label(document: &RowDocument) -> String {
     }
 }
 
+/// A design element as `id (kind)`, with its repo when present, followed by the
+/// criterion ids it realizes.
+fn design_element(document: &RowDocument, realized: Option<&[String]>) -> String {
+    let kind = document.archetype.as_deref().unwrap_or(UNTYPED);
+    let mut text = format!("{} ({kind})", label(document));
+    if let Some(criteria) = realized.filter(|c| !c.is_empty()) {
+        text.push_str(&format!(" realizes {}", criteria.join(", ")));
+    }
+    text
+}
+
 /// One block per relation, one line per row (document, state, verification,
 /// linked documents with their own verification), dangling and kind-mismatch
 /// entries beneath, and the relation's summary last.
-fn render_human(report: &RelationReport) -> String {
+fn render_human(report: &RelationReport, design: bool) -> String {
     let mut out = String::new();
     for section in &report.relations {
         out.push_str(&format!(
@@ -217,12 +252,18 @@ fn render_human(report: &RelationReport) -> String {
                 verification_word(row.verification)
             );
             if row.state == RowState::Uncovered {
-                line.push_str(&format!("  GAP {}", row.check));
+                let gap = if design { "no design element" } else { "GAP" };
+                line.push_str(&format!("  {gap} {}", row.check));
             }
             let linked: Vec<String> = row
                 .linked
                 .iter()
                 .map(|entry| match entry {
+                    LinkedEntry::Resolved {
+                        document,
+                        realized_criteria,
+                        ..
+                    } if design => design_element(document, realized_criteria.as_deref()),
                     LinkedEntry::Resolved { document, .. } => format!(
                         "{} ({})",
                         label(document),

@@ -1,0 +1,8 @@
+relation sigil-has-beacon (incoming, check sigil-dark)
+  SIG-001  covered  unverified  linked: BEA-001 (Beacon) realizes SIG-001-AC-1
+  SIG-002  uncovered  unverified  no design element sigil-dark
+  summary: 2 row(s); uncovered 1, covered 1; verified 0, partial 0, unverified 2, not-tracked 0
+relation sigil-lit-by (outgoing, check sigil-unlit)
+  SIG-001  covered  unverified  linked: BEA-001 (Beacon) realizes SIG-001-AC-1
+  SIG-002  uncovered  unverified  no design element sigil-unlit
+  summary: 2 row(s); uncovered 1, covered 1; verified 0, partial 0, unverified 2, not-tracked 0
