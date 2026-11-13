@@ -1671,7 +1671,7 @@ dependencies = [
 [[package]]
 name = "quire-code-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?branch=main#9baf155815c8889d37f236b1c0d7f17c1353c15b"
+source = "git+https://github.com/agent-ix/quire-rs?branch=main#b502d6c8496431b606163a7b754b75f795bc0d66"
 dependencies = [
  "quire-code-parse",
 ]
@@ -1718,7 +1718,7 @@ dependencies = [
 [[package]]
 name = "quire-rs"
 version = "0.59.1"
-source = "git+https://github.com/agent-ix/quire-rs?branch=main#9baf155815c8889d37f236b1c0d7f17c1353c15b"
+source = "git+https://github.com/agent-ix/quire-rs?branch=main#b502d6c8496431b606163a7b754b75f795bc0d66"
 dependencies = [
  "agent-ix-semantic-schema",
  "globset",
