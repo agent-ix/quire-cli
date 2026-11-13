@@ -21,3 +21,10 @@ Ticket: PLAT-1418 (CLI half). Code review with the Rust lane (rust-style loaded)
 ## Verdict
 
 CONDITIONAL (two low findings, no wrong results). The CLI stays a thin boundary (StR-004, FR-041-AC-11): `--design` swaps `relation_report` for `design_join`, `--json` encodes the engine's `RelationReport` unchanged, and the human renderer only adds the `id (kind) realizes <ids>` element form and the `no design element <check>` gap word. No archetype, verb or relation name in the CLI diff. Exit codes follow FR-007: clap conflicts (`--relation`, `--strict`), missing `design_relations` (CLI pre-check, before any coverage is computed) and the engine's `UnknownDesignRelation` all exit 3 with empty stdout. Determinism: output order is the engine's; two runs byte-identical (tested). Merge against #184's squash: the tree equals main plus the seven listed files; `validate.rs`, `corpus_input.rs`, `tests/cli_relations.rs` are identical to main, so nothing of #184 is lost or duplicated. CHANGELOG entry is accurate. No compat layer, digest, pin or SHA added. No unsafe, panic path or unbounded input. Mutations of the gap word, the `realizes` suffix, the design_relations pre-check, the `--strict` conflict, `design_join` to `relation_report`, the kind label and the design flag to the renderer are each killed by the new tests (see the gap-analysis SR for the surviving ones).
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1 (head c605087): main itself moved to quire-rs 0.60.0 in release 0.45.0 (#199); the fix-round merge takes main's Cargo.lock and matrix.rs, so neither file is in `git diff origin/main...HEAD` any more and the overlap with #195 is gone. |
+| FND-002 | fixed | Round 1: the module doc now names `quire_rs::design_join` and `traceability.design_relations` for `--design`, and the `--module` help names `design_relations`. |

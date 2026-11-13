@@ -22,3 +22,11 @@ Ticket: PLAT-1418 (CLI half). Planless gap analysis of FR-041 against the PR's t
 ## Verdict
 
 CONDITIONAL: one medium (untested branch of AC-4), two low. AC-1/2 (join only, JSON-only stdout, byte-identical reruns), AC-3 (relation outside `design_relations` absent in JSON and human), AC-4/5 (element form, gap word with check token, summary equal to JSON), AC-6 (sibling element `o/b`, dangling inverse without `o/b`), AC-7/8 (exit 3 naming `design_relations` / the entry, empty stdout), AC-9 (both conflicts, naming both flags) each have a test that fails when the behaviour is removed: mutations of the gap word, the `realizes` suffix, the design_relations pre-check, the `--strict` conflict, `design_join` to `relation_report`, the kind label and the renderer's design flag are each killed. The `--design` side of the `--relation` conflict is declared twice (on both args), so removing one survives; harmless.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | Round 1: `an_element_linked_as_a_whole_prints_without_a_realizes_list` (FR-041-AC-4) asserts `linked: BEA-002 (Beacon)` with no `realizes`; removing the empty filter now fails it (9 passed, 1 failed). |
+| FND-002 | fixed | Round 1: `human_output_prints_elements_gaps_and_a_summary_equal_to_the_json` and `worked_example_matches_its_snapshots` are now tagged FR-041-AC-10. |
+| FND-003 | fixed | Round 1: `design_module_discovery_without_module_is_bounded_by_the_first_repo_member` (FR-030-AC-25) runs `--design --repo` without `--module` in both orders; switching discovery to the last member fails it (9 passed, 1 failed). |
