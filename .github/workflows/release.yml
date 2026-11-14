@@ -24,7 +24,8 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write   # create the GitHub Release
+  id-token: write   # OIDC token for npm Trusted Publishing (public npm)
 
 jobs:
   build:
@@ -55,7 +56,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
           sparse-checkout: |
             src
             benches
@@ -63,9 +63,7 @@ jobs:
 
       - name: Authenticate cargo git fetch (private quire-rs)
         shell: bash
-        env:
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-        run: git config --global url."https://x-access-token:${REGISTRY_TOKEN}@github.com/".insteadOf "https://github.com/"
+        run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: Install Rust toolchain
         shell: bash
@@ -111,12 +109,9 @@ jobs:
       # report a stale version.
       - name: Assert binary version matches release version
         shell: bash
-        env:
-          RELEASE_EVENT_NAME: ${{ github.event_name }}
-          RELEASE_INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "$RELEASE_EVENT_NAME" = "workflow_dispatch" ]; then
-            EXPECTED="$RELEASE_INPUT_VERSION"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            EXPECTED="${{ github.event.inputs.version }}"
           else
             EXPECTED="${GITHUB_REF_NAME#v}"
           fi
@@ -147,29 +142,16 @@ jobs:
     name: Package + publish
     needs: build
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write   # create the GitHub Release
-      id-token: write   # OIDC token for npm Trusted Publishing (public npm)
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-          sparse-checkout: LICENSE
+      - uses: actions/checkout@v4
 
       - name: Resolve version
         id: ver
-        env:
-          RELEASE_EVENT_NAME: ${{ github.event_name }}
-          RELEASE_INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "$RELEASE_EVENT_NAME" = "workflow_dispatch" ]; then
-            VERSION="$RELEASE_INPUT_VERSION"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
           else
             VERSION="${GITHUB_REF_NAME#v}"
-          fi
-          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::release version must be X.Y.Z" >&2
-            exit 1
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           # The release is cut against the dispatched --ref, so the tag is
@@ -178,7 +160,7 @@ jobs:
           echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Download all binaries
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
           pattern: bin-*
@@ -195,9 +177,8 @@ jobs:
           mv normalized artifacts
 
       - name: Build release tarballs + checksums
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
         run: |
+          VERSION="${{ steps.ver.outputs.version }}"
           mkdir -p release
           cd artifacts
           for target in */; do
@@ -235,7 +216,7 @@ jobs:
       # Public npm via OIDC Trusted Publishing (id-token: write above); the
       # NPM_TOKEN secret is only a first-publish bootstrap and may be unset.
       - name: Package and publish the npm distribution
-        uses: agent-ix/nodejs-actions/publish-native-npm@1ff76b73ec0033cb49b766c93832153e0376db73
+        uses: agent-ix/nodejs-actions/publish-native-npm@main
         with:
           package: "@agent-ix/quire-cli"
           binary: quire
