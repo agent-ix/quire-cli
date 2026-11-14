@@ -44,15 +44,21 @@ carry no libc restriction and install on glibc and musl hosts alike.
 - The repository SHALL keep its `spec/evidence/suites.md` declaration and
   `spec/evidence/bindings.json` in source control as the registry for this
   suite.
+- The release-verification binding registry SHALL be non-empty.
+- The release-verification binding registry SHALL bind every test-based
+  criterion in FR-022-AC-4 through FR-022-AC-8 to at least one `SUITE-001` test
+  whose trace includes that criterion id.
 - The `SUITE-001` run SHALL record the test outcomes and trace bindings in a
   Quoin evidence root under `spec/evidence`; the run record is generated for
   the checked-out tag and is not committed as historical state.
 - When a tag push matches `v*`, the tag-attestation build job SHALL create that evidence
   root for the checked-out tag and upload the complete root as the
   `release-evidence` workflow artifact.
-- The tag-attestation job that has `id-token: write` SHALL execute no
-  repository code and SHALL pass the `release-evidence` artifact to the
-  Engineering Assurance reusable workflow as the `evidence_artifact` input.
+- The tag-attestation job with `id-token: write` SHALL execute no repository
+  code.
+- When the tag-attestation workflow calls the Engineering Assurance reusable
+  workflow, it SHALL pass the `release-evidence` artifact as the
+  `evidence_artifact` input.
 - If the evidence root is absent or invalid, or the run is failed or stale, the
   workflow SHALL write no release attestation.
 
@@ -65,7 +71,7 @@ carry no libc restriction and install on glibc and musl hosts alike.
 | FR-022-AC-3 | The release workflow publishes only when dispatched with `publish` true, authenticates to public npm by OIDC Trusted Publishing, and passes the four built targets as `artifacts/<rust-target>/quire[.exe]`. | Inspection |
 | FR-022-AC-4 | `quire-dist verify-binary` fails unless the built executable's `--version` equals the release version, and the release workflow runs it for each target before packaging. | Test |
 | FR-022-AC-5 | A workflow-parsing integration test confirms `.github/workflows/release.yml` remains `workflow_dispatch`-only and both GitHub Release creation and npm publication remain gated by `inputs.publish`; the additive `.github/workflows/tag-attestation.yml` runs on `v*` tag pushes and invokes the Engineering Assurance reusable attestation workflow independently of the manual release workflow. | Test |
-| FR-022-AC-6 | `spec/evidence/suites.md` declares `SUITE-001` as `make evidence`, running `cargo nextest run --workspace --locked --all-features --profile evidence`; Quoin records the run outcomes and trace bindings in `spec/evidence/bindings.json` and `spec/evidence/runs/` for the checked-out tag. | Test |
+| FR-022-AC-6 | `spec/evidence/suites.md` declares `SUITE-001` as `make evidence`, running `cargo nextest run --workspace --locked --all-features --profile evidence`; the committed `bindings.json` is non-empty and maps every test-based criterion in FR-022-AC-4 through FR-022-AC-8 to at least one `SUITE-001` test whose trace includes that criterion id. Quoin records the run outcomes in `spec/evidence/runs/` for the checked-out tag. | Test |
 | FR-022-AC-7 | When a tag push matches `v*`, the tag-attestation build job creates the `SUITE-001` evidence root for the checked-out tag and uploads it as `release-evidence`; the id-token-bearing attestation job passes that artifact as `evidence_artifact` to the Engineering Assurance reusable workflow and contains no checkout or repository-code execution. | Test |
 | FR-022-AC-8 | An absent or invalid evidence root, or a failed or stale `SUITE-001` run, results in a failed tag-attestation workflow with no release attestation written; the run is never exported as a passing Test Result. | Test |
 
@@ -78,4 +84,8 @@ carry no libc restriction and install on glibc and musl hosts alike.
 
 ## Dependencies
 
-- **Upstream**: ADR-0003; the shared `publish-native-npm` action.
+- **Upstream**: ADR-0003; the shared `publish-native-npm` action; Quoin
+  [FR-030](ix://agent-ix/quoin/FR-030) (evidence-store recording) and
+  [FR-185](ix://agent-ix/quoin/FR-185) (Test Result export); Engineering
+  Assurance [FR-070](ix://agent-ix/engineering-assurance/FR-070) (reusable
+  release workflow and evidence-artifact input).
