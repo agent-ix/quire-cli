@@ -81,9 +81,13 @@ This specification does not govern:
 - Python bindings (owned by `quire-py`) or WASM bindings (owned by `quire-wasm`).
 - Server-side validation in `filament-core-service` (uses `quire-py`, not this CLI).
 - Editor live preview (uses `quire-wasm`).
-- Test/proof/solver execution, evidence retention, audit verdicts, proof
-  attestations, and verification receipts; those remain native-runner and
-  Quoin responsibilities.
+- Test/proof/solver execution, evidence-store schema and record/export
+  semantics, audit verdicts, proof attestations, and verification receipts
+  remain native-runner and Quoin responsibilities. Under
+  [FR-022](./functional/FR-022-npm-distribution.md), this repository declares
+  its release-verification suite and maintains its repository-local Quoin
+  evidence root and tag-workflow artifact handoff; it does not define the store
+  format or implement evidence processing.
 - WASM/browser parity and remediation (explicitly deferred by the owner).
 - Native Quire language/profile design, formal-clause grammar, temporal or
   protocol semantics, and extraction/source-semantics redesign. Distribution
