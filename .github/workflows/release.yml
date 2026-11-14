@@ -63,7 +63,9 @@ jobs:
 
       - name: Authenticate cargo git fetch (private quire-rs)
         shell: bash
-        run: git config --global url."https://x-access-token:${{ secrets.REGISTRY_TOKEN }}@github.com/".insteadOf "https://github.com/"
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: git config --global url."https://x-access-token:${REGISTRY_TOKEN}@github.com/".insteadOf "https://github.com/"
 
       - name: Install Rust toolchain
         shell: bash
@@ -109,9 +111,12 @@ jobs:
       # report a stale version.
       - name: Assert binary version matches release version
         shell: bash
+        env:
+          RELEASE_EVENT_NAME: ${{ github.event_name }}
+          RELEASE_INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            EXPECTED="${{ github.event.inputs.version }}"
+          if [ "$RELEASE_EVENT_NAME" = "workflow_dispatch" ]; then
+            EXPECTED="$RELEASE_INPUT_VERSION"
           else
             EXPECTED="${GITHUB_REF_NAME#v}"
           fi
@@ -153,11 +158,18 @@ jobs:
 
       - name: Resolve version
         id: ver
+        env:
+          RELEASE_EVENT_NAME: ${{ github.event_name }}
+          RELEASE_INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [ "$RELEASE_EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="$RELEASE_INPUT_VERSION"
           else
             VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release version must be X.Y.Z" >&2
+            exit 1
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           # The release is cut against the dispatched --ref, so the tag is
@@ -183,8 +195,9 @@ jobs:
           mv normalized artifacts
 
       - name: Build release tarballs + checksums
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          VERSION="${{ steps.ver.outputs.version }}"
           mkdir -p release
           cd artifacts
           for target in */; do
