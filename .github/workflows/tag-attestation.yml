@@ -1,0 +1,227 @@
+name: Tag Attestation
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+jobs:
+  build-targets:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-24.04
+            musl: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+            musl: true
+          - target: aarch64-apple-darwin
+            os: macos-15
+          - target: x86_64-pc-windows-msvc
+            os: windows-2025
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate release tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release tag must be vX.Y.Z" >&2
+            exit 1
+          fi
+
+      - name: Authenticate cargo git fetch (private quire-rs)
+        shell: bash
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: git config --global url."https://x-access-token:${REGISTRY_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: Install Rust toolchain
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add "$TARGET"
+
+      - name: Install musl toolchain
+        if: matrix.musl
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if timeout 240 sudo apt-get update \
+              && timeout 240 sudo apt-get install -y musl-tools; then
+              exit 0
+            fi
+            echo "attempt $attempt failed; retrying"
+            sleep 10
+          done
+          echo "musl-tools could not be installed after 3 attempts" >&2
+          exit 1
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build release binary
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: cargo build --locked --release --target "$TARGET"
+
+      - name: Verify binary version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          BIN="target/${TARGET}/release/quire"
+          if [ "${RUNNER_OS}" = "Windows" ]; then
+            BIN="${BIN}.exe"
+          fi
+          cargo run --locked -p quire-dist -- verify-binary \
+            --version "$VERSION" --binary "$BIN"
+
+      - name: Stage binary
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          mkdir -p "dist/${TARGET}"
+          if [ "${RUNNER_OS}" = "Windows" ]; then
+            cp "target/${TARGET}/release/quire.exe" "dist/${TARGET}/quire.exe"
+          else
+            cp "target/${TARGET}/release/quire" "dist/${TARGET}/quire"
+          fi
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bin-${{ matrix.target }}
+          path: dist/${{ matrix.target }}
+          if-no-files-found: error
+          retention-days: 1
+
+  build:
+    name: Package release artifacts
+    needs: build-targets
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      record_path: ${{ steps.release-config.outputs.record_path }}
+      allowed_signers_path: ${{ steps.release-config.outputs.allowed_signers_path }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Download platform binaries
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          path: artifacts
+          pattern: bin-*
+
+      - name: Package release artifacts
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release tag must be vX.Y.Z" >&2
+            exit 1
+          fi
+          VERSION="${RELEASE_TAG#v}"
+          mkdir -p normalized release
+          for artifact_dir in artifacts/bin-*; do
+            [ -d "$artifact_dir" ] || continue
+            target="${artifact_dir#artifacts/bin-}"
+            mkdir -p "normalized/${target}"
+            cp "${artifact_dir}"/quire* "normalized/${target}/"
+          done
+          for target_dir in normalized/*/; do
+            [ -d "$target_dir" ] || continue
+            target="${target_dir%/}"
+            target="${target##*/}"
+            if [ -f "${target_dir}/quire.exe" ]; then
+              (cd "$target_dir" && zip -q "${GITHUB_WORKSPACE}/release/quire-${VERSION}-${target}.zip" quire.exe)
+            else
+              tar -czf "release/quire-${VERSION}-${target}.tar.gz" -C "$target_dir" quire
+            fi
+          done
+          compgen -G 'release/*' >/dev/null || {
+            echo "::error::no release artifacts were produced" >&2
+            exit 1
+          }
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-artifacts
+          path: release/*
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Validate release record paths
+        id: release-config
+        shell: bash
+        env:
+          RELEASE_RECORD_PATH: ${{ vars.RELEASE_RECORD_PATH }}
+          ALLOWED_SIGNERS_PATH: ${{ vars.ALLOWED_SIGNERS_PATH }}
+        run: |
+          set -euo pipefail
+          validate_path() {
+            local value="$1"
+            [[ -n "$value" && "$value" =~ ^[A-Za-z0-9._/-]+$ ]] \
+              && [[ "$value" != /* && "$value" != *..* && "$value" != *//* && "$value" != */ ]]
+          }
+          if ! validate_path "$RELEASE_RECORD_PATH"; then
+            echo "::error::RELEASE_RECORD_PATH must be a nonempty safe relative file path" >&2
+            exit 1
+          fi
+          if ! validate_path "$ALLOWED_SIGNERS_PATH"; then
+            echo "::error::ALLOWED_SIGNERS_PATH must be a nonempty safe relative file path" >&2
+            exit 1
+          fi
+          printf 'record_path=%s\n' "$RELEASE_RECORD_PATH" >> "$GITHUB_OUTPUT"
+          printf 'allowed_signers_path=%s\n' "$ALLOWED_SIGNERS_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Fail closed without retained evidence
+        shell: bash
+        run: |
+          echo "::error title=no_retained_evidence_store::quire-cli has no retained release evidence store; no Test Result or release statement will be created" >&2
+          exit 1
+
+  attest:
+    needs: build
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    uses: agent-ix/engineering-assurance/.github/workflows/release-attestation.yml@v0.9.0
+    with:
+      tag: ${{ github.ref_name }}
+      ea_tooling_tag: v0.9.0
+      quoin_tooling_tag: 0.30.1
+      record_path: ${{ needs.build.outputs.record_path }}
+      allowed_signers_path: ${{ needs.build.outputs.allowed_signers_path }}
+      artifact_name: release-artifacts
+      evidence_artifact: release-evidence
