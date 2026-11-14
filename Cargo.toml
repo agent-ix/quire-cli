@@ -51,6 +51,7 @@ predicates = "3"
 # `draft202012` is a non-default `jsonschema` feature and the schemas declare
 # that draft, so the test validates them as what they claim.
 jsonschema = { version = "~0.18", default-features = false, features = ["draft202012"] }
+yaml_serde = "0.10.7"
 
 [profile.release]
 lto = "thin"

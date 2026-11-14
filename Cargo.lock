@@ -1666,6 +1666,7 @@ dependencies = [
  "tempfile",
  "toml",
  "url",
+ "yaml_serde",
 ]
 
 [[package]]
