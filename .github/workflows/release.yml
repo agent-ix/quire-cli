@@ -24,8 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write   # create the GitHub Release
-  id-token: write   # OIDC token for npm Trusted Publishing (public npm)
+  contents: read
 
 jobs:
   build:
@@ -56,6 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           sparse-checkout: |
             src
             benches
@@ -142,8 +142,14 @@ jobs:
     name: Package + publish
     needs: build
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write   # create the GitHub Release
+      id-token: write   # OIDC token for npm Trusted Publishing (public npm)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          sparse-checkout: LICENSE
 
       - name: Resolve version
         id: ver
@@ -160,7 +166,7 @@ jobs:
           echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Download all binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           path: artifacts
           pattern: bin-*
@@ -216,7 +222,7 @@ jobs:
       # Public npm via OIDC Trusted Publishing (id-token: write above); the
       # NPM_TOKEN secret is only a first-publish bootstrap and may be unset.
       - name: Package and publish the npm distribution
-        uses: agent-ix/nodejs-actions/publish-native-npm@main
+        uses: agent-ix/nodejs-actions/publish-native-npm@1ff76b73ec0033cb49b766c93832153e0376db73
         with:
           package: "@agent-ix/quire-cli"
           binary: quire
