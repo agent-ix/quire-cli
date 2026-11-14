@@ -31,6 +31,7 @@ carry no libc restriction and install on glibc and musl hosts alike.
 | FR-022-AC-2 | Under an npm install, `quire update` exits non-zero and names `npm install -g @agent-ix/quire-cli@latest` instead of replacing the binary. | Inspection (release workflow post-publish smoke) |
 | FR-022-AC-3 | The release workflow publishes only when dispatched with `publish` true, authenticates to public npm by OIDC Trusted Publishing, and passes the four built targets as `artifacts/<rust-target>/quire[.exe]`. | Inspection |
 | FR-022-AC-4 | `quire-dist verify-binary` fails unless the built executable's `--version` equals the release version, and the release workflow runs it for each target before packaging. | Test |
+| FR-022-AC-5 | A workflow-parsing integration test confirms `.github/workflows/release.yml` remains `workflow_dispatch`-only and both GitHub Release creation and npm publication remain gated by `inputs.publish`; the additive `.github/workflows/tag-attestation.yml` runs on `v*` tag pushes and invokes the Engineering Assurance reusable attestation workflow independently of the manual release workflow. | Test |
 
 ## Dependencies
 
