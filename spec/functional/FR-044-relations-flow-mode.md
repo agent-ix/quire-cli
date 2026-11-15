@@ -69,12 +69,13 @@ produced.
   `matched`, `remediations`, `rationale` and `severity`) and the sibling `remediations`. Two runs over
   identical inputs are byte-identical, the denial order being the engine's: `check`, then subject
   (`repo`, then `id`, an absent `repo` first), then rule `name`.
-- The command always emits the complete report first, then sets the exit status. With `--strict` it
-  exits 1 when the report holds any denial, whatever its severity (warning included), and exits 0 only
-  when it holds none. Without `--strict` the exit follows the severity of the denials as
-  `quire validate` does (quire-rs FR-096): 1 when the report holds a denial of `error` severity, 0
-  when it holds none or only `warning` denials. A denial dropped by `--severity ... off` is not in the
-  report and so does not count.
+- The command always emits the complete report first, then sets the exit status. A denial is never
+  exit 3: the report was emitted, so a denial maps to exit 1, the partial-result code of
+  [FR-007](./FR-007-exit-codes.md), and exit 3 is reserved for the invalid requests below. With
+  `--strict` it exits 1 when the report holds any denial, whatever its severity (warning included),
+  and exits 0 only when it holds none. Without `--strict` it exits 1 when the report holds a denial
+  of `error` severity (quire-rs FR-096), and exits 0 when it holds no denial or only `warning`
+  denials. A denial dropped by `--severity ... off` is not in the report and so does not count.
 - Each of these is an invalid request: exit 3 ([FR-007](./FR-007-exit-codes.md)) naming the cause and
   writing no report on stdout. A module set declaring no `flow_rules`, naming the missing
   declaration; a module that fails the quire-rs load-time validation of `flow_rules` or
