@@ -62,7 +62,6 @@ use quire_rs::symbols::trace::{
 };
 use quire_rs::symbols::trace_search::{self, language_confidence, symbol_language, Query};
 use quire_rs::symbols::SymbolExtraction;
-use quire_rs::Spec;
 
 use crate::commands::Ctx;
 
@@ -303,7 +302,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     let mut graph = quire_rs::symbols::trace::bind(&extraction, model);
-    resolve_formalizes(&mut graph, &scope, &registry)?;
+    super::coverage::resolve_formalizes_in_scope(&mut graph, &scope, &registry)?;
 
     let (query_desc, mut result) = run_query(&args, &graph, &extraction)?;
 
@@ -363,26 +362,6 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         OutputFormat::Tsv => primary!("{}", render_tsv(&report)),
         OutputFormat::Human => emit_human(ctx, &report)?,
     }
-    Ok(())
-}
-
-/// Drop every `formalizes` relation whose id the corpus does not carry, so an
-/// unknown or stale id never reaches the output (FR-094-AC-5). `bind` knows no
-/// corpus and mints every grammar-valid id; only a graph that holds a relation
-/// needs the spec loaded, so a tree without QSL markers reads no `spec/` here.
-fn resolve_formalizes(
-    graph: &mut SymbolGraph,
-    scope: &Path,
-    registry: &quire_rs::Registry,
-) -> Result<()> {
-    if graph.formalizes.is_empty() {
-        return Ok(());
-    }
-    let spec_root = super::spec_root_of(scope)?;
-    let spec_root = safety::validate_dir_path("document root", &spec_root.display().to_string())
-        .with_context(|| format!("validating document root '{}'", spec_root.display()))?;
-    let spec = Spec::from_path(&spec_root);
-    quire_rs::coverage::resolve_formalizes(graph, &spec, registry, scope);
     Ok(())
 }
 

@@ -833,9 +833,9 @@ fn trace_json(args: &[&str]) -> serde_json::Value {
     serde_json::from_str(&r.stdout).expect("json")
 }
 
-/// FR-094-AC-1, FR-077-AC-8: a forward query lists the QSL declaration under
+/// FR-045-AC-1: a forward query lists the QSL declaration under
 /// `claims.formalizes` only, with `verifies` and `implements` empty.
-#[trace("FR-094-AC-1", "FR-077-AC-8")]
+#[trace("FR-045-AC-1")]
 #[test]
 fn forward_query_lists_the_declaration_under_formalizes_only() {
     let dir = TempDir::new().expect("tmp");
@@ -863,10 +863,11 @@ fn forward_query_lists_the_declaration_under_formalizes_only() {
     assert_eq!(v["resolved"], true);
 }
 
-/// FR-094-AC-5: an id the corpus does not define never appears as a relation.
-#[trace("FR-094-AC-5")]
+/// FR-045-AC-3: an id the corpus does not define never appears as a relation,
+/// in `trace` or in `symbols`.
+#[trace("FR-045-AC-3")]
 #[test]
-fn an_id_absent_from_the_corpus_is_not_listed() {
+fn an_id_absent_from_the_corpus_is_listed_by_neither_trace_nor_symbols() {
     let dir = TempDir::new().expect("tmp");
     let module = formalizes_module(&dir);
     let scope = formalizes_tree(&dir);
@@ -882,11 +883,75 @@ fn an_id_absent_from_the_corpus_is_not_listed() {
         "{v}"
     );
     assert_eq!(v["resolved"], false);
+
+    let r = run(&[
+        "symbols", "--scope", &scope, "--module", &module, "--format", "json",
+    ]);
+    assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
+    assert!(r.stdout.contains("FR-001"), "{}", r.stdout);
+    assert!(!r.stdout.contains("FR-999"), "{}", r.stdout);
 }
 
-/// FR-094-AC-1, FR-077-AC-8: the inverse file query lists each declaration
+/// FR-045-AC-4: the TSV form carries a `formalizes` record, and a `--prefix`
+/// query reaches the relation through its id.
+#[trace("FR-045-AC-4")]
+#[test]
+fn tsv_and_prefix_queries_carry_the_formalizes_record() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    for selector in [&["--id", "FR-001"][..], &["--id", "FR", "--prefix"][..]] {
+        let mut args = vec![
+            "trace", "--scope", &scope, "--module", &module, "--format", "tsv",
+        ];
+        args.extend_from_slice(selector);
+        let r = run(&args);
+        assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
+        let row = r
+            .stdout
+            .lines()
+            .find(|l| l.starts_with("formalizes\t"))
+            .unwrap_or_else(|| panic!("no formalizes row: {}", r.stdout));
+        assert!(
+            row.contains("FR-001") && row.contains("rules/rules.native"),
+            "{row}"
+        );
+        assert!(!r.stdout.contains("FR-999"), "{}", r.stdout);
+    }
+}
+
+/// FR-045-AC-5: with no `spec/` there is no corpus, so an unrelated query
+/// still succeeds and lists no relation.
+#[trace("FR-045-AC-5")]
+#[test]
+fn a_scope_without_a_spec_directory_lists_no_formalizes_and_does_not_fail() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    fs::remove_dir_all(dir.path().join("spec")).expect("rm spec");
+    let v = trace_json(&[
+        "trace",
+        "--scope",
+        &scope,
+        "--module",
+        &module,
+        "--file",
+        "rules/rules.native",
+        "--json",
+    ]);
+    assert_eq!(
+        v["claims"]["formalizes"]
+            .as_array()
+            .expect("formalizes")
+            .len(),
+        0,
+        "{v}"
+    );
+}
+
+/// FR-045-AC-2: the inverse file query lists each declaration
 /// with its ids, and the human form reads `formalized by <path>::<label>`.
-#[trace("FR-077-AC-8", "FR-094-AC-1")]
+#[trace("FR-045-AC-2")]
 #[test]
 fn inverse_file_query_lists_each_declaration_with_its_resolved_ids() {
     let dir = TempDir::new().expect("tmp");

@@ -17,6 +17,7 @@ use anyhow::Context;
 use clap::Parser;
 use quire_cli::safety;
 use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
+use quire_rs::symbols::trace::SymbolGraph;
 use quire_rs::{compute_coverage, Registry, Spec};
 
 use crate::commands::Ctx;
@@ -235,15 +236,41 @@ pub(super) fn compute_report(
     // root. `compute_coverage` still relativizes against `<scope>`, so
     // report paths keep their `spec/` prefix and output is byte-identical
     // for a compliant repo.
-    // Path-safety on the derived document root, the same guard
-    // `validate --okf` has always applied to its bundle root. `coverage`
-    // skipped it, so the two commands disagreed about what a `..` in the
-    // resolved root meant (agent-ix/quire-rs#113).
+    let spec = load_spec(scope)?;
+    compute_report_over(ctx, scope, registry, &spec)
+}
+
+/// Load the documents under `<scope>/spec`, with path-safety on the derived
+/// document root — the same guard `validate --okf` has always applied to its
+/// bundle root. `coverage` skipped it, so the two commands disagreed about what
+/// a `..` in the resolved root meant (agent-ix/quire-rs#113).
+pub(super) fn load_spec(scope: &Path) -> anyhow::Result<Spec> {
     let spec_root = super::spec_root_of(scope)?;
     let spec_root = safety::validate_dir_path("document root", &spec_root.display().to_string())
         .with_context(|| format!("validating document root '{}'", spec_root.display()))?;
-    let spec = Spec::from_path(&spec_root);
-    compute_report_over(ctx, scope, registry, &spec)
+    Ok(Spec::from_path(&spec_root))
+}
+
+/// Drop every `formalizes` relation whose id the corpus does not define
+/// (FR-045-AC-3), so `trace` and `symbols` list the same relations. `bind`
+/// knows no corpus and mints every grammar-valid id. Only a graph that holds a
+/// relation reads `spec/`; a scope with none then has no corpus, so nothing
+/// resolves and no unrelated query fails for want of one.
+pub(super) fn resolve_formalizes_in_scope(
+    graph: &mut SymbolGraph,
+    scope: &Path,
+    registry: &Registry,
+) -> anyhow::Result<()> {
+    if graph.formalizes.is_empty() {
+        return Ok(());
+    }
+    if !scope.join(super::DOCUMENT_ROOT_DIR).is_dir() {
+        graph.formalizes.clear();
+        return Ok(());
+    }
+    let spec = load_spec(scope)?;
+    quire_rs::coverage::resolve_formalizes(graph, &spec, registry, scope);
+    Ok(())
 }
 
 /// [`compute_report`] over documents the caller already loaded, so a command
