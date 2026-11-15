@@ -484,6 +484,7 @@ fn search_by_prefix(
         query: Query::Id(prefix.to_string()),
         verifies,
         implements,
+        formalizes: Vec::new(),
         citations,
         ambiguous_matches: Vec::new(),
         resolved,

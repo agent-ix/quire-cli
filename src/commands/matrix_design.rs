@@ -240,6 +240,7 @@ mod tests {
                 method: None,
                 binders: Vec::new(),
                 record_binders: None,
+                unbacked_claims: Vec::new(),
                 identity: None,
                 status,
             },
