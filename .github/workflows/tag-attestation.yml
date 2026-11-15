@@ -31,7 +31,7 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-2025
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -112,7 +112,7 @@ jobs:
           fi
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@v7
         with:
           name: bin-${{ matrix.target }}
           path: dist/${{ matrix.target }}
@@ -129,12 +129,12 @@ jobs:
       record_path: ${{ steps.release-config.outputs.record_path }}
       allowed_signers_path: ${{ steps.release-config.outputs.allowed_signers_path }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Download platform binaries
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: bin-*
@@ -173,7 +173,7 @@ jobs:
           }
 
       - name: Upload release artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@v7
         with:
           name: release-artifacts
           path: release/*
