@@ -17,13 +17,15 @@ name: record-fixture
 version: 0.1.0
 artifact_types:
 - name: Connection
+  data_schema:
+    schema: schemas/Record.json
 - name: Classification
   data_schema:
-    schema: schemas/Classification.json
+    schema: schemas/Record.json
 semantic:
   contract_version: 1.0.0
   package: agent-ix/record-fixture
-  exports: [Classification]
+  exports: [Connection, Classification]
   targets: [json-schema, markdown]
 traceability:
   required_relations:
@@ -33,22 +35,22 @@ traceability:
     to: [Classification]
     direction: outgoing
     check: conn-unclassified
-    record_keys: [cats]
+    record_keys: [regulatedCategories]
   - name: cls-used
     from: Classification
     edges: [classified-as]
     to: [Connection]
     direction: incoming
     check: cls-unused
-    record_keys: [cats]
+    record_keys: [regulatedCategories]
 ";
 
 const SCHEMA: &str = r#"{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
-    "cats": { "type": "array", "items": { "enum": ["a", "b", "c"] } },
-    "lvl": { "enum": ["hi", "lo"] }
+    "regulatedCategories": { "type": "array", "items": { "enum": ["alpha", "beta"] } },
+    "level": { "enum": ["high", "low"] }
   },
   "additionalProperties": false
 }"#;
@@ -59,7 +61,7 @@ fn write(root: &Path, rel: &str, text: &str) {
     fs::write(path, text).unwrap();
 }
 
-fn connection(id: &str, targets: &[&str]) -> String {
+fn doc(id: &str, ty: &str, record: &str, targets: &[&str]) -> String {
     let mut rels = String::new();
     if !targets.is_empty() {
         rels.push_str("relationships:\n");
@@ -69,41 +71,50 @@ fn connection(id: &str, targets: &[&str]) -> String {
             ));
         }
     }
-    format!("---\nid: {id}\ntype: Connection\ntitle: {id}\n{rels}---\n\n# {id}\n")
+    format!("---\nid: {id}\ntype: {ty}\ntitle: {id}\n{record}{rels}---\n\n# {id}\n")
 }
 
-fn classification(id: &str, record: &str) -> String {
-    format!("---\nid: {id}\ntype: Classification\ntitle: {id}\n{record}---\n\n# {id}\n")
-}
-
-/// CLS-001 states `cats` and `lvl`; CLS-002 states only `lvl`, so it has no
-/// selected record. CONN-001 points at both, CONN-002 at CLS-001.
+/// Every document states `level`, which no relation selects. CONN-001 and
+/// CLS-001 also state `regulatedCategories`; CONN-002 and CLS-002 state no
+/// selected key at all. CONN-001 points at both classifications, CONN-002 at
+/// CLS-001.
 fn world() -> TempDir {
     let dir = TempDir::new().unwrap();
     let module = dir.path().join("m");
     write(&module, "manifest.yaml", MANIFEST);
-    write(&module, "schemas/Classification.json", SCHEMA);
+    write(&module, "schemas/Record.json", SCHEMA);
     let repo = dir.path().join("repo");
-    write(
-        &repo,
-        "spec/CONN-001.md",
-        &connection("CONN-001", &["CLS-001", "CLS-002"]),
-    );
-    write(
-        &repo,
-        "spec/CONN-002.md",
-        &connection("CONN-002", &["CLS-001"]),
-    );
-    write(
-        &repo,
-        "spec/CLS-001.md",
-        &classification("CLS-001", "cats: [a, b]\nlvl: hi\n"),
-    );
-    write(
-        &repo,
-        "spec/CLS-002.md",
-        &classification("CLS-002", "lvl: lo\n"),
-    );
+    let docs = [
+        (
+            "CONN-001",
+            doc(
+                "CONN-001",
+                "Connection",
+                "regulatedCategories: [alpha, beta]\nlevel: high\n",
+                &["CLS-001", "CLS-002"],
+            ),
+        ),
+        (
+            "CONN-002",
+            doc("CONN-002", "Connection", "level: low\n", &["CLS-001"]),
+        ),
+        (
+            "CLS-001",
+            doc(
+                "CLS-001",
+                "Classification",
+                "regulatedCategories: [alpha]\nlevel: high\n",
+                &[],
+            ),
+        ),
+        (
+            "CLS-002",
+            doc("CLS-002", "Classification", "level: low\n", &[]),
+        ),
+    ];
+    for (id, text) in docs {
+        write(&repo, &format!("spec/{id}.md"), &text);
+    }
     dir
 }
 
@@ -128,7 +139,7 @@ fn report(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap()
 }
 
-fn rows<'v>(report: &'v Value, relation: &str) -> &'v Vec<Value> {
+fn row<'v>(report: &'v Value, relation: &str, id: &str) -> &'v Value {
     report["relations"]
         .as_array()
         .unwrap()
@@ -137,10 +148,6 @@ fn rows<'v>(report: &'v Value, relation: &str) -> &'v Vec<Value> {
         .unwrap_or_else(|| panic!("no relation {relation}"))["rows"]
         .as_array()
         .unwrap()
-}
-
-fn row<'v>(report: &'v Value, relation: &str, id: &str) -> &'v Value {
-    rows(report, relation)
         .iter()
         .find(|r| r["document"]["id"] == id)
         .unwrap_or_else(|| panic!("no row {id} in {relation}"))
@@ -155,32 +162,42 @@ fn linked<'v>(row: &'v Value, id: &str) -> &'v Value {
         .unwrap_or_else(|| panic!("no linked {id}"))
 }
 
-#[trace("FR-030-AC-26")]
-#[test]
-fn a_connection_reports_its_classifications_selected_record() {
-    let dir = world();
-    let report = report(&relations(&dir));
-    let conn = row(&report, "conn-classified", "CONN-001");
-    // The selected key is carried; the unselected `lvl` is not.
-    assert_eq!(
-        linked(conn, "CLS-001")["record"],
-        json!({"cats": ["a", "b"]})
+fn assert_no_record(entry: &Value) {
+    assert!(
+        entry.get("record").is_none(),
+        "expected no record key: {entry}"
     );
-    // A classification stating no selected key has no `record` key at all.
-    assert!(linked(conn, "CLS-002")
-        .as_object()
-        .unwrap()
-        .get("record")
-        .is_none());
 }
 
 #[trace("FR-030-AC-26")]
 #[test]
-fn the_reverse_relation_lists_each_classifications_connections() {
+fn a_connection_and_its_linked_classifications_carry_the_selected_record() {
+    let dir = world();
+    let report = report(&relations(&dir));
+    let conn = row(&report, "conn-classified", "CONN-001");
+    assert_eq!(
+        conn["document"]["record"],
+        json!({"regulatedCategories": ["alpha", "beta"]})
+    );
+    assert_eq!(
+        linked(conn, "CLS-001")["record"],
+        json!({"regulatedCategories": ["alpha"]})
+    );
+    assert_no_record(linked(conn, "CLS-002"));
+    // No selected key: no `regulatedCategories`, and no `record` at all.
+    assert_no_record(&row(&report, "conn-classified", "CONN-002")["document"]);
+}
+
+#[trace("FR-030-AC-26")]
+#[test]
+fn the_reverse_relation_lists_each_classifications_connections_with_their_record() {
     let dir = world();
     let report = report(&relations(&dir));
     let cls = row(&report, "cls-used", "CLS-001");
-    assert_eq!(cls["document"]["record"], json!({"cats": ["a", "b"]}));
+    assert_eq!(
+        cls["document"]["record"],
+        json!({"regulatedCategories": ["alpha"]})
+    );
     let ids: Vec<&str> = cls["linked"]
         .as_array()
         .unwrap()
@@ -188,22 +205,25 @@ fn the_reverse_relation_lists_each_classifications_connections() {
         .map(|e| e["id"].as_str().unwrap())
         .collect();
     assert_eq!(ids, ["CONN-001", "CONN-002"]);
-    // Connections declare no `cats`, so their entries carry no record.
-    assert!(linked(cls, "CONN-001")
-        .as_object()
-        .unwrap()
-        .get("record")
-        .is_none());
+    assert_eq!(
+        linked(cls, "CONN-001")["record"],
+        json!({"regulatedCategories": ["alpha", "beta"]})
+    );
+    assert_no_record(linked(cls, "CONN-002"));
+    assert_no_record(&row(&report, "cls-used", "CLS-002")["document"]);
 }
 
 #[trace("FR-030-AC-26")]
 #[test]
-fn level_and_unselected_keys_are_omitted_and_runs_are_byte_identical() {
+fn level_is_omitted_and_runs_are_byte_identical() {
     let dir = world();
     let first = relations(&dir);
     let second = relations(&dir);
     assert_eq!(first.stdout, second.stdout);
     let text = String::from_utf8(first.stdout).unwrap();
-    assert!(!text.contains("\"lvl\""), "unselected key leaked: {text}");
-    assert!(!text.contains("\"hi\""), "unselected value leaked: {text}");
+    assert!(!text.contains("\"level\""), "unselected key leaked: {text}");
+    assert!(
+        !text.contains("\"high\""),
+        "unselected value leaked: {text}"
+    );
 }
