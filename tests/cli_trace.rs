@@ -888,36 +888,87 @@ fn an_id_absent_from_the_corpus_is_listed_by_neither_trace_nor_symbols() {
         "symbols", "--scope", &scope, "--module", &module, "--format", "json",
     ]);
     assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
-    assert!(r.stdout.contains("FR-001"), "{}", r.stdout);
     assert!(!r.stdout.contains("FR-999"), "{}", r.stdout);
 }
 
-/// FR-045-AC-4: the TSV form carries a `formalizes` record, and a `--prefix`
-/// query reaches the relation through its id.
+/// FR-045-AC-4: the TSV form carries one `formalizes` record per relation.
 #[trace("FR-045-AC-4")]
 #[test]
-fn tsv_and_prefix_queries_carry_the_formalizes_record() {
+fn tsv_output_carries_one_formalizes_record_per_relation() {
     let dir = TempDir::new().expect("tmp");
     let module = formalizes_module(&dir);
     let scope = formalizes_tree(&dir);
-    for selector in [&["--id", "FR-001"][..], &["--id", "FR", "--prefix"][..]] {
-        let mut args = vec![
-            "trace", "--scope", &scope, "--module", &module, "--format", "tsv",
-        ];
-        args.extend_from_slice(selector);
-        let r = run(&args);
-        assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
-        let row = r
-            .stdout
-            .lines()
-            .find(|l| l.starts_with("formalizes\t"))
-            .unwrap_or_else(|| panic!("no formalizes row: {}", r.stdout));
-        assert!(
-            row.contains("FR-001") && row.contains("rules/rules.native"),
-            "{row}"
-        );
-        assert!(!r.stdout.contains("FR-999"), "{}", r.stdout);
-    }
+    let r = run(&[
+        "trace", "--scope", &scope, "--module", &module, "--id", "FR-001", "--format", "tsv",
+    ]);
+    assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
+    let rows: Vec<&str> = r
+        .stdout
+        .lines()
+        .filter(|l| l.starts_with("formalizes\t"))
+        .collect();
+    assert_eq!(rows.len(), 1, "{}", r.stdout);
+    assert!(
+        rows[0].contains("FR-001") && rows[0].contains("rules/rules.native"),
+        "{}",
+        rows[0]
+    );
+}
+
+/// FR-045-AC-7: a `--prefix` query includes the relations whose id matches.
+#[trace("FR-045-AC-7")]
+#[test]
+fn prefix_query_includes_the_matching_formalizes_relations() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    let v = trace_json(&[
+        "trace", "--scope", &scope, "--module", &module, "--id", "FR", "--prefix", "--json",
+    ]);
+    let f = v["claims"]["formalizes"].as_array().expect("formalizes");
+    assert_eq!(f.len(), 1, "{v}");
+    assert_eq!(f[0]["trace_id"], "FR-001");
+    assert_eq!(f[0]["symbol"], "P1");
+}
+
+/// The `formalizes` ids the symbol table binds to the symbol named `name`.
+fn symbol_formalizes(scope: &str, module: &str, name: &str) -> Vec<String> {
+    let r = run(&[
+        "symbols", "--scope", scope, "--module", module, "--format", "json",
+    ]);
+    assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
+    let v: serde_json::Value = serde_json::from_str(&r.stdout).expect("json");
+    v["symbols"]
+        .as_array()
+        .expect("symbols")
+        .iter()
+        .filter(|s| s["symbol"] == name)
+        .flat_map(|s| s["formalizes"].as_array().cloned().unwrap_or_default())
+        .map(|id| id.as_str().expect("id").to_string())
+        .collect()
+}
+
+/// FR-045-AC-8: `symbols` lists a corpus-defined formalized id on the
+/// declaring symbol.
+#[trace("FR-045-AC-8")]
+#[test]
+fn symbols_lists_the_resolved_formalized_id_on_the_declaring_symbol() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    assert_eq!(symbol_formalizes(&scope, &module, "P1"), ["FR-001"]);
+    assert!(symbol_formalizes(&scope, &module, "P2").is_empty());
+}
+
+/// FR-045-AC-9: with no `spec/`, `symbols` succeeds and lists no formalized id.
+#[trace("FR-045-AC-9")]
+#[test]
+fn symbols_without_a_spec_directory_lists_no_formalized_id_and_does_not_fail() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    fs::remove_dir_all(dir.path().join("spec")).expect("rm spec");
+    assert!(symbol_formalizes(&scope, &module, "P1").is_empty());
 }
 
 /// FR-045-AC-5: with no `spec/` there is no corpus, so an unrelated query
@@ -949,8 +1000,8 @@ fn a_scope_without_a_spec_directory_lists_no_formalizes_and_does_not_fail() {
     );
 }
 
-/// FR-045-AC-2: the inverse file query lists each declaration
-/// with its ids, and the human form reads `formalized by <path>::<label>`.
+/// FR-045-AC-2: the inverse file query lists each declaration with its
+/// resolved ids.
 #[trace("FR-045-AC-2")]
 #[test]
 fn inverse_file_query_lists_each_declaration_with_its_resolved_ids() {
@@ -978,7 +1029,15 @@ fn inverse_file_query_lists_each_declaration_with_its_resolved_ids() {
         })
         .collect();
     assert_eq!(pairs, [("P1", "FR-001")], "FR-999 must not reappear: {v}");
+}
 
+/// FR-045-AC-6: human output reads `formalized by <path>::<label>`.
+#[trace("FR-045-AC-6")]
+#[test]
+fn human_output_prints_formalized_by_path_and_label() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
     let r = run(&[
         "trace", "--scope", &scope, "--module", &module, "--id", "FR-001",
     ]);
