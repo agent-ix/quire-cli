@@ -18,6 +18,8 @@ relationships:
     type: "consumes"
   - target: "ix://agent-ix/engineering-assurance/FR-037"
     type: "references"
+  - target: "ix://agent-ix/engineering-assurance/FR-047"
+    type: "consumes"
 ---
 # FR-038: Approval block from signed-approval verdicts
 
@@ -25,7 +27,9 @@ relationships:
 
 `quire export` SHALL accept `--approval <PATH>`, repeatable, each a verdict file
 of `engineering-assurance approval-verify`
-([EA FR-041](ix://agent-ix/engineering-assurance/FR-041)), and SHALL generate an
+([EA FR-041](ix://agent-ix/engineering-assurance/FR-041)) or a result file of
+`engineering-assurance release-verify`
+([EA FR-047](ix://agent-ix/engineering-assurance/FR-047)), and SHALL generate an
 approval block (`in/approval.md`, [FR-035](./FR-035-default-export-template.md))
 with one entry per file. The export verifies no signature, decides no approval and
 reads no repository for it: the block is a presentation of verdicts the toolchain
@@ -51,6 +55,42 @@ Every member is taken from the verdict file; nothing is read from git.
 The time is what the signer's tag claims: the verification does not attest it
 ([EA FR-041](ix://agent-ix/engineering-assurance/FR-041)), and the block says so
 in the column title.
+
+## Release-verify input
+
+A file whose `protocol` is `engineering-assurance.release-verify-result/v1` is a
+release result. Its `status` is `released` or `not_released`, `reasons` lists the
+failed checks of a `not_released` result, and its `approval` member, when present,
+is the unchanged FR-041 verdict of the release tag (EA FR-047). The file is read as
+data like any other verdict file, and the entry takes every member from it.
+
+| Entry field | Source for a release result |
+| --- | --- |
+| Person, Signed at, Meaning, Record | When `approval` is present, the nested `approval` verdict, read exactly as the table above reads a verdict file. The top-level `approver`, `meaning` and `signed_at` of a `released` result are not read. When `approval` is absent: Person `not available`, Signed at `not available`, Meaning `not recorded`, Record `not available`. |
+| Verdict | For `released`, the nested `status`, which is `approved`. Otherwise the nested `status` (`unavailable` when `approval` is absent), then `not_released`, then each entry of `reasons` verbatim in order, as recorded text joined by `, `. |
+
+- The command SHALL label an entry of a release result as an approval only when the
+  result `status` is `released` and the nested `approval.status` is `approved`.
+- If the result `status` is `not_released`, then the command SHALL NOT give the
+  entry a heading, label or Verdict text that reads as an approval, including when
+  the nested `approval.status` is `approved` (for example with reason
+  `decision_owner_mismatch`), and SHALL prefix a recorded Meaning with `claimed:`.
+- The command SHALL preserve every entry of `reasons` and SHALL NOT drop, reorder,
+  reinterpret or add a reason.
+- If `approval` is absent, then the command SHALL NOT supply a signer, a meaning, a
+  signing time or a record from the release result or from anywhere else.
+- The command SHALL NOT re-verify a signature, a tag or a release check, and SHALL
+  NOT decide a release: it presents the nested verdict and the reasons the result
+  already holds.
+- The command SHALL refuse a release result whose `status` is neither `released`
+  nor `not_released`, a `released` result without a nested `approval`, a `released`
+  result whose nested `approval.status` is not `approved`, a `not_released` result
+  whose `reasons` is absent or not a list of strings, and an `approval` member that
+  is present but is not an `engineering-assurance.approval-verify-result/v1`
+  document ([FR-040](./FR-040-export-template-and-identity-errors.md)).
+- A release result SHALL be one entry, in the order given on the command line, and
+  SHALL be handled by the sanitising, escaping, wrapping, sizing and
+  no-inference rules of this requirement exactly as a standalone verdict is.
 
 ## Behavior
 
@@ -89,8 +129,11 @@ in the column title.
   or any member other than those in the table, and SHALL NOT default a missing
   meaning.
 - The command SHALL read a verdict file as data and never execute it. A file that
-  is not an `engineering-assurance.approval-verify-result/v1` document, or that
-  lacks `status`, is refused, as is a file above 16 MiB, one that is not a regular file, and an `approved` verdict whose `signed_at` is not a valid UTC instant ([FR-040](./FR-040-export-template-and-identity-errors.md)).
+  is neither an `engineering-assurance.approval-verify-result/v1` nor an
+  `engineering-assurance.release-verify-result/v1` document, or that lacks
+  `status`, is refused before any converter starts, as is a file above 16 MiB, one that is not a regular file, and an `approved` verdict whose `signed_at` is not a valid UTC instant ([FR-040](./FR-040-export-template-and-identity-errors.md)).
+- A standalone `approval-verify` verdict file SHALL produce the entry this
+  requirement specifies for it, unchanged by the release-verify input.
 - The block states what the verdict said when it was produced. The command does
   not re-verify and does not state that the verdict is current.
 
@@ -106,9 +149,16 @@ in the column title.
 | FR-038-AC-6 | A file that is not an approval-verify result, a file lacking `status`, and `--approval` with a JSON input each exit 3 naming the file or flag, with no converter started. | Test |
 | FR-038-AC-7 | An export with no `--approval` holds no `Approval` heading and no `in/approval.md`. | Test |
 | FR-038-AC-9 | An approval whose record digest is `sha256:` followed by 64 hexadecimal digits and an `untrusted_signer` entry whose meaning is a 73-character URL, exports to PDF with every cell's content inside its own column: no word of one column's text overlaps another column's in the page geometry. | Test |
+| FR-038-AC-10 | A static `released` release-verify result whose nested `approval` is `approved` with approver `Ada Example`, `signed_at` `2026-01-02T03:04:05Z` and meaning `reviewed and approved` exports successfully, and the entry carries that approver, `2026-01-02 03:04:05 UTC`, that meaning and the verdict `approved`, equal to the entry of the nested verdict exported as a standalone file. | Test |
+| FR-038-AC-11 | A static `not_released` result with a nested `untrusted_signer` approval and reasons `decision_owner_mismatch` and `release_commit_record_not_added` shows the nested status, `not_released` and both reasons in order in the Verdict cell, the meaning prefixed `claimed:`, and is not labelled an approval. A `not_released` result whose nested approval is `approved` is likewise not labelled an approval. | Test |
+| FR-038-AC-12 | A static `not_released` result with reasons `record_invalid` and no `approval` member shows Person and Signed at `not available`, Meaning `not recorded`, Record `not available` and the reason `record_invalid` in the Verdict cell, and holds no signer, meaning or time. | Test |
+| FR-038-AC-13 | A standalone approval-verify fixture exports to an `in/approval.md` byte-identical to the one FR-038-AC-1 and FR-038-AC-2 specify, whether or not a release-verify result is also supplied. | Test |
+| FR-038-AC-14 | A release result with `status` `unknown`, a `released` result without `approval`, a `released` result whose nested status is `wrong_record`, a `not_released` result without `reasons`, and a nested `approval` of another protocol each exit 3 naming the file, with no converter started. | Test |
+| FR-038-AC-15 | A release result whose reason holds `*x* \`#pagebreak()\`{=typst}` and a pipe, and whose nested meaning holds the same, shows both as literal text in PDF and DOCX, adds no table row and applies no emphasis. | Test |
+| FR-038-AC-16 | The release-verify fixtures are static documents; the export of one starts no git process, reads no repository and makes no signature check. | Test |
 | FR-038-AC-8 | The same verdict files exported from two different source repositories yield a byte-identical `in/approval.md`; the approval is built from the verdict files alone. | Test |
 
 ## Dependencies
 
-- **Upstream**: [FR-034](./FR-034-document-identity.md), [FR-035](./FR-035-default-export-template.md); [EA FR-041](ix://agent-ix/engineering-assurance/FR-041) (including `signed_at`, PLAT-1592) and [EA FR-037](ix://agent-ix/engineering-assurance/FR-037) own the verdict and the meaning.
+- **Upstream**: [FR-034](./FR-034-document-identity.md), [FR-035](./FR-035-default-export-template.md); [EA FR-041](ix://agent-ix/engineering-assurance/FR-041) (including `signed_at`, PLAT-1592) and [EA FR-037](ix://agent-ix/engineering-assurance/FR-037) own the verdict and the meaning; [EA FR-047](ix://agent-ix/engineering-assurance/FR-047) owns the release result (PLAT-1761).
 - **Downstream**: [FR-040](./FR-040-export-template-and-identity-errors.md).
