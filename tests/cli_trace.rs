@@ -11,6 +11,7 @@ mod common;
 
 use std::fs;
 
+use ix_trace_rs::trace;
 use tempfile::TempDir;
 
 use common::quire;
@@ -834,6 +835,7 @@ fn trace_json(args: &[&str]) -> serde_json::Value {
 
 /// FR-094-AC-1, FR-077-AC-8: a forward query lists the QSL declaration under
 /// `claims.formalizes` only, with `verifies` and `implements` empty.
+#[trace("FR-094-AC-1", "FR-077-AC-8")]
 #[test]
 fn forward_query_lists_the_declaration_under_formalizes_only() {
     let dir = TempDir::new().expect("tmp");
@@ -862,6 +864,7 @@ fn forward_query_lists_the_declaration_under_formalizes_only() {
 }
 
 /// FR-094-AC-5: an id the corpus does not define never appears as a relation.
+#[trace("FR-094-AC-5")]
 #[test]
 fn an_id_absent_from_the_corpus_is_not_listed() {
     let dir = TempDir::new().expect("tmp");
@@ -883,6 +886,7 @@ fn an_id_absent_from_the_corpus_is_not_listed() {
 
 /// FR-094-AC-1, FR-077-AC-8: the inverse file query lists each declaration
 /// with its ids, and the human form reads `formalized by <path>::<label>`.
+#[trace("FR-077-AC-8", "FR-094-AC-1")]
 #[test]
 fn inverse_file_query_lists_each_declaration_with_its_resolved_ids() {
     let dir = TempDir::new().expect("tmp");
