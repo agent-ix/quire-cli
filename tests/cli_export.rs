@@ -5224,9 +5224,13 @@ fn release_approval_text_reaches_real_converters() {
 
     // Gap FND-001/FND-008/AC-15: Run with stand-in converters to get markdown for row count
     let md_out = rig.work("release-md.pdf");
-    let mut md_command = rig.export(&rig.fixture(), "pdf", &md_out);
+    let md_command = rig.export(&rig.fixture(), "pdf", &md_out);
     let md_result = run(with_approvals(md_command, &[&release_file]));
-    assert!(md_result.status.success(), "markdown: {}", stderr(&md_result));
+    assert!(
+        md_result.status.success(),
+        "markdown: {}",
+        stderr(&md_result)
+    );
     let approval_md = rig.converter_input("approval.md");
     let table = rows(&approval_md);
     assert_eq!(
@@ -5235,21 +5239,34 @@ fn release_approval_text_reaches_real_converters() {
         "Expected exactly 1 approval row, found {}: {approval_md}",
         table.len()
     );
-
-    // Gap FND-001/FND-007/AC-15: Verify no actual page breaks in PDF or DOCX
+    // Also verify the DOCX table has exactly 1 data row (not_released adds no row)
     let docx_raw = docx_text(&docx);
+    let approval_table = docx_raw
+        .split("Approval")
+        .nth(1)
+        .and_then(|after| after.split("<w:tbl>").nth(1))
+        .and_then(|tbl| tbl.split("</w:tbl>").next())
+        .expect("Approval table in DOCX");
+    let data_rows = approval_table.matches("<w:tr>").count().saturating_sub(1); // subtract header
+    assert_eq!(
+        data_rows, 1,
+        "DOCX approval table should have 1 data row, found {data_rows}"
+    );
+
+    // Gap FND-001/FND-010/AC-15: Verify baseline page structure (no injected breaks)
     assert_eq!(
         pdf_page_count(&pdf),
-        1,
-        "PDF has page breaks when it should be a single page"
+        3,
+        "PDF should have exactly 3 pages (title, contents, body); extra pages indicate an injected break"
     );
-    assert!(
-        !docx_raw.contains("w:type=\"page\""),
-        "DOCX has page break elements"
+    let page_break_count = docx_raw.matches("w:type=\"page\"").count();
+    assert_eq!(
+        page_break_count, 2,
+        "DOCX should have exactly 2 page breaks (the template baseline); found {page_break_count}"
     );
 
     // Gap FND-001/AC-15: literal text reaches both PDF and DOCX
-    let pdf_visible = pdf_text(&pdf);
+    let pdf_visible = pdf_text_raw(&pdf);
     let docx_visible = strip_tags(&docx_raw);
     for (format, text) in [
         ("PDF", pdf_visible.as_str()),
@@ -5263,14 +5280,21 @@ fn release_approval_text_reaches_real_converters() {
             .collect();
 
         let expected: String = hostile.split_whitespace().collect();
+        // Gap FND-001/FND-011/AC-15: Verify hostile text in all three fields (reason, nested meaning, nested reason)
+        let hostile_count = block.matches(&expected).count();
         assert!(
-            block.contains(&expected),
-            "{format}: hostile text not found in: {block}"
+            hostile_count >= 3,
+            "{format}: hostile text should appear at least 3 times (reason, nested meaning, nested reason), found {hostile_count} in: {block}"
         );
         // Gap FND-001/FND-009/AC-15: Verify literal asterisks (not interpreted as emphasis)
         assert!(
             block.contains("*x*"),
             "{format}: literal *x* not found (emphasis may have been applied): {block}"
+        );
+        // Gap FND-001/FND-011/AC-15: Verify the pipe from the nested reason appears as literal text
+        assert!(
+            block.contains("|pipe"),
+            "{format}: nested reason's pipe character not found in: {block}"
         );
         assert!(block.contains("not_released"), "{format}: {block}");
         assert!(
