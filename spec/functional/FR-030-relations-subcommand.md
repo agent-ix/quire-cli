@@ -66,6 +66,15 @@ cause; a run that emits a complete report and then fails `--strict` exits 1.
 - `--json` writes the quire-rs report on stdout and nothing else, with rows carrying document id,
   linked ids and per-document verification as the engine produced them. It honours `--pretty`
   ([FR-008](./FR-008-json-output-encoding.md)).
+- Each document entry of a `--json` row (the row's `document` and each resolved `linked` entry)
+  carries, unchanged, whatever selected `record` fields quire-rs
+  [FR-084](ix://agent-ix/quire-rs/FR-084) supplies for it; when FR-084 omits `record` the entry has
+  no `record` key, never `null` or an empty value. Record keys keep the spelling the engine emitted: the key
+  `regulatedCategories` is declared by the spec-objects-security module
+  (`agent-ix/spec-objects-security` FR-023), not known to the engine or the CLI, and the CLI does
+  not re-spell the authored snake_case form. The reverse classification-to-connection view is an ordinary row
+  set from the second relation declaration over the same verb, preserved as the engine produced it.
+  The CLI neither interprets, filters nor adds to any record.
 - The command is report-only. With `--strict` it emits the complete report and then exits 1 when any
   row is `uncovered` or has `verification` `unverified` or `partial`, when the selected relations
   produce zero rows, or when rows exist and every one is `not-tracked`. The last two print a
@@ -100,10 +109,11 @@ cause; a run that emits a complete report and then fails `--strict` exits 1.
 | FR-030-AC-19 | Two `--repo` flags with one identity exit 3 naming the identity (quire-rs FR-085-AC-9), and a `--repo` value that is not `<ORG/REPO>=<DIR>` exits 3 naming the value. | Test |
 | FR-030-AC-20 | `quire validate --okf --repo o/a=<A> --repo o/b=<B> --module $M` over a fixture where a classified requirement in `o/a` mitigates a hazard in `o/b` carries no finding bearing the fixture relation's own `check` token for it, and with the `o/b` flag removed carries that finding, naming the member identity `o/a`. | Test |
 | FR-030-AC-21 | `quire validate --repo ...` without `--okf` exits 3 naming the missing flag. | Test |
+| FR-030-AC-22 | The CLI's executable source contains no category-specific behavior and constructs no regulated-data facts (no branching on, matching of, or building of hazard, threat, safety-classification or regulated-data category values); domain words appearing only in comments do not fail this criterion. The report is delegated to quire-rs. | Inspection |
 | FR-030-AC-23 | `quire validate --okf --repo o/a=<A> --scope <DIR>` exits 3 naming both flags, and `quire validate <DIR> --okf --repo o/a=<A>` (a positional bundle directory) exits 3 naming the positional argument and `--repo`. | Test |
 | FR-030-AC-24 | `quire validate --okf --repo o/a=<A> --repo o/b=<B> --module $M` over a fixture where the module declares an `exclude: ['spec/fixtures/**']` glob on a trace target, with a broken fixture under `spec/fixtures/` in both members: the glob excludes the fixture in `o/a` and in `o/b` when it resolves against each member's own `<DIR>`, and without the glob each member reports its own finding, so each member's declarations resolve against its own `<DIR>`, not `<DIR>/spec`. | Test |
 | FR-030-AC-25 | `quire relations --repo o/a=<A> --repo o/b=<B>` without `--module`, where `<A>` and `<B>` each hold a `manifest.yaml` declaring a differently named relation, reports only the relation of the first `--repo` member, in either order. | Test |
-| FR-030-AC-22 | The CLI source holds no hazard, threat or safety-classification name, and delegates the report to quire-rs. | Inspection |
+| FR-030-AC-26 | `quire relations --scope <DIR> --module $M --json` over a fixture module declaring two relation declarations over the same verb, each setting `record_keys` to a key that at least one document entry and at least one resolved `linked` entry of that declaration's rows state, so the quire-rs FR-084 report holds a non-empty `record` on such an entry in both declarations, emits for the rows of both declarations the `document` and `linked` records unchanged from that report, and emits no `record` and no `regulatedCategories` key on an entry for which FR-084 omits it. A CLI that drops `record` therefore fails this criterion. | Test |
 
 ## Dependencies
 
