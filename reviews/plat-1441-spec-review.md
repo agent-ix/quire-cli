@@ -52,8 +52,20 @@ Round 2, fix commit 7f38e6a. Compared with quire-rs FR-084 as merged by PR #688 
 | FND-005 | fixed | The bullet now reads "The reverse classification-to-connection view is an ordinary row set from the second relation declaration over the same verb, preserved as the engine produced it." The wrong `direction: incoming` claim is gone, and "same relation" is now "same verb". Merged FR-084 titles its section "Carried record values and the reverse view", and architecture FR-013 calls the incoming entry "the reverse `required_relations` entry". So "reverse", qualified as classification-to-connection, matches both upstream specs. |
 | FND-006 | fixed | The omission parenthetical is gone. The bullet now says "when FR-084 omits `record` the entry has no `record` key, never `null` or an empty value". This defers to FR-084 and holds under the merged `record_keys` rule. |
 
+Round 3, fix commit 40376e8. Compared with quire-rs FR-084 on `main` (as merged by PR #688), `agent-ix/spec-objects-architecture` FR-013 on main, and `agent-ix/quoin` FR-121 on main.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-007 | fixed | AC-26 now requires each of the two declarations to set `record_keys` to a key that at least one document entry and at least one resolved `linked` entry state, "so the quire-rs FR-084 report holds a non-empty `record` on such an entry in both declarations", and it closes with "A CLI that drops `record` therefore fails this criterion." Under merged FR-084 ("The engine SHALL serialize `record` on the obliged `document` and on each resolved `linked` entry ... holding only the keys in `record_keys` that the document's composed semantic record ... states"), that fixture always makes the engine emit `record`, so the positive clause can no longer pass vacuously. It also matches architecture FR-013, where both entries set `record_keys: [regulatedCategories]`. The negative clause has a remaining weaker gap, recorded as FND-008. |
+
 ## New findings (disposition pass 2)
 
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-007 | medium | Merged FR-084 serializes `record` only for a relation that declares `record_keys` ("A relation without `record_keys` serializes no `record` at all", FR-084-AC-26). FR-030-AC-26's fixture is "two relation declarations over the same verb, whose documents carry semantic records" and does not require `record_keys`. A fixture without `record_keys` makes FR-084 emit no `record` anywhere. A CLI that dropped or never serialized `record` would then pass AC-26, because "unchanged from the FR-084 report" and "no `record` key where FR-084 omits it" both hold trivially. Require both declarations to set `record_keys` naming a key that at least one `document` and one `linked` entry state, so the report carries a non-empty `record` in both views. | spec/functional/FR-030-relations-subcommand.md:116 |
+
+## New findings (disposition pass 3)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-008 | low | AC-26's negative clause, "emits no `record` and no `regulatedCategories` key on an entry for which FR-084 omits it", still holds trivially when the fixture has no such entry. The round-3 fixture only requires that "at least one" document entry and one `linked` entry state the selected key, and it does not require any entry that does not. So a CLI that writes `record: null` or `record: {}` where the engine omits `record` passes AC-26 against a fixture where every entry states the key. Require at least one document or resolved `linked` entry in each declaration that does not state the selected key, matching quire-rs FR-084-AC-21. The CLI is a pass-through, so this is low: it hardens the test but changes no behaviour. | spec/functional/FR-030-relations-subcommand.md:116 |
