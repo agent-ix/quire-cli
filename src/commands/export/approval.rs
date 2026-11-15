@@ -10,8 +10,11 @@ use serde_json::Value;
 use super::custom::{invalid, read_bounded};
 use super::template::escape_markdown;
 
-const RESULT_PROTOCOL: &str = "engineering-assurance.approval-verify-result/v1";
+const APPROVAL_PROTOCOL: &str = "engineering-assurance.approval-verify-result/v1";
+const RELEASE_PROTOCOL: &str = "engineering-assurance.release-verify-result/v1";
 const APPROVED: &str = "approved";
+const RELEASED: &str = "released";
+const NOT_RELEASED: &str = "not_released";
 const NOT_AVAILABLE: &str = "not available";
 const NOT_RECORDED: &str = "not recorded";
 const UNMAPPED: &str = "unmapped";
@@ -57,6 +60,21 @@ struct Meaning {
     values: Option<Vec<String>>,
 }
 
+/// A release-verify result, which may contain a nested approval verdict.
+#[derive(Debug, Deserialize)]
+struct ReleaseResult {
+    status: String,
+    reasons: Option<Value>,
+    approval: Option<Value>,
+}
+
+/// An entry for the approval block: either a standalone verdict or a release result.
+#[derive(Debug)]
+enum Entry {
+    Approval(Verdict),
+    Release(ReleaseResult, Option<Box<Verdict>>),
+}
+
 /// The text of `in/approval.md` for the verdict files, in the order given, or
 /// `None` without any. The first unusable file is an invalid-input error
 /// naming it.
@@ -74,22 +92,147 @@ pub(super) fn load(paths: &[PathBuf]) -> anyhow::Result<Option<String>> {
     Ok(Some(markdown(&rows)))
 }
 
-fn parse(path: &Path, text: &str) -> anyhow::Result<Verdict> {
+/// Validates a release result before any converter starts (FR-040).
+fn validate_release(result: &ReleaseResult, path: &Path) -> anyhow::Result<()> {
+    let name = path.display();
+    if result.status != RELEASED && result.status != NOT_RELEASED {
+        invalid_request!(
+            "--approval '{name}': release result status must be 'released' or 'not_released', found '{}'",
+            result.status
+        );
+    }
+    if result.status == RELEASED {
+        if result.approval.is_none() {
+            invalid_request!("--approval '{name}': 'released' result must have 'approval' member");
+        }
+        // Released must not have non-empty reasons (any value other than None or empty array)
+        match &result.reasons {
+            None => {}
+            Some(Value::Array(arr)) if arr.is_empty() => {}
+            _ => {
+                invalid_request!(
+                    "--approval '{name}': 'released' result must not have non-empty 'reasons'"
+                );
+            }
+        }
+    }
+    if result.status == NOT_RELEASED {
+        match &result.reasons {
+            None => {
+                invalid_request!("--approval '{name}': 'not_released' result must have 'reasons'")
+            }
+            Some(Value::Array(arr)) => {
+                if !arr.iter().all(|v| v.is_string()) {
+                    invalid_request!("--approval '{name}': 'reasons' must be a list of strings");
+                }
+            }
+            Some(_) => invalid_request!("--approval '{name}': 'reasons' must be a list of strings"),
+        }
+    }
+    if let Some(approval) = &result.approval {
+        if !approval.is_object() {
+            invalid_request!("--approval '{name}': 'approval' member must be an object");
+        }
+        if approval.get("protocol").and_then(Value::as_str) != Some(APPROVAL_PROTOCOL) {
+            invalid_request!(
+                "--approval '{name}': nested 'approval' must have protocol '{APPROVAL_PROTOCOL}'"
+            );
+        }
+        if approval.get("status").is_none() {
+            invalid_request!("--approval '{name}': nested 'approval' must have 'status'");
+        }
+        // For released, the nested approval must have status "approved"
+        if result.status == RELEASED
+            && approval.get("status").and_then(Value::as_str) != Some(APPROVED)
+        {
+            invalid_request!(
+                "--approval '{name}': 'released' result must have nested approval with status 'approved'"
+            );
+        }
+    }
+    Ok(())
+}
+
+fn parse(path: &Path, text: &str) -> anyhow::Result<Entry> {
     let name = path.display();
     let value: Value = serde_json::from_str(text)
         .map_err(|error| invalid_error!("--approval '{name}': not valid JSON: {error}"))?;
-    if value.get("protocol").and_then(Value::as_str) != Some(RESULT_PROTOCOL) {
-        invalid_request!("--approval '{name}': not an {RESULT_PROTOCOL} document");
+
+    let protocol = value.get("protocol").and_then(Value::as_str);
+    match protocol {
+        Some(APPROVAL_PROTOCOL) => {
+            if value.get("status").is_none() {
+                invalid_request!("--approval '{name}': the verdict lacks `status`");
+            }
+            let verdict: Verdict = serde_json::from_value(value).map_err(|error| {
+                invalid_error!("--approval '{name}': unusable verdict: {error}")
+            })?;
+            Ok(Entry::Approval(verdict))
+        }
+        Some(RELEASE_PROTOCOL) => {
+            let result: ReleaseResult = serde_json::from_value(value).map_err(|error| {
+                invalid_error!("--approval '{name}': unusable release result: {error}")
+            })?;
+            validate_release(&result, path)?;
+
+            let nested_verdict = if let Some(approval) = &result.approval {
+                let verdict = Verdict::deserialize(approval).map_err(|error| {
+                    invalid_error!("--approval '{name}': unusable nested approval: {error}")
+                })?;
+                // Validate signed_at for nested approved verdicts
+                if verdict.status == APPROVED {
+                    if let Some(instant) = &verdict.signed_at {
+                        if format_instant(instant).is_none() {
+                            invalid_request!(
+                                "--approval '{name}': signed_at '{instant}' is not a UTC instant YYYY-MM-DDTHH:MM:SSZ"
+                            );
+                        }
+                    }
+                }
+                Some(Box::new(verdict))
+            } else {
+                None
+            };
+
+            Ok(Entry::Release(result, nested_verdict))
+        }
+        Some(other) => {
+            invalid_request!("--approval '{name}': not an {APPROVAL_PROTOCOL} or {RELEASE_PROTOCOL} document, found protocol '{other}'");
+        }
+        None => {
+            invalid_request!(
+                "--approval '{name}': not an {APPROVAL_PROTOCOL} or {RELEASE_PROTOCOL} document"
+            );
+        }
     }
-    if value.get("status").is_none() {
-        invalid_request!("--approval '{name}': the verdict lacks `status`");
-    }
-    serde_json::from_value(value)
-        .map_err(|error| invalid_error!("--approval '{name}': unusable verdict: {error}"))
 }
 
 /// The five cell texts of one entry, unescaped.
-fn row(verdict: &Verdict, path: &Path) -> anyhow::Result<[String; 5]> {
+fn row(entry: &Entry, path: &Path) -> anyhow::Result<[String; 5]> {
+    match entry {
+        Entry::Approval(verdict) => row_approval(verdict, path),
+        Entry::Release(result, nested) => row_release(result, nested.as_deref(), path),
+    }
+}
+
+/// Extracts the recorded meaning from a verdict, trying verdict.meaning first, then
+/// signature.signed_off_meaning.values, filtering out empty results.
+fn extract_meaning(verdict: &Verdict) -> Option<&[String]> {
+    verdict
+        .meaning
+        .as_deref()
+        .or_else(|| {
+            verdict
+                .signature
+                .as_ref()
+                .and_then(|s| s.signed_off_meaning.as_ref())
+                .and_then(|m| m.values.as_deref())
+        })
+        .filter(|values| !values.is_empty())
+}
+
+/// Generates a row for a standalone approval-verify verdict.
+fn row_approval(verdict: &Verdict, path: &Path) -> anyhow::Result<[String; 5]> {
     let approved = verdict.status == APPROVED;
     let signer = verdict.signature.as_ref().and_then(|s| s.signer.as_ref());
     let person = verdict
@@ -108,18 +251,7 @@ fn row(verdict: &Verdict, path: &Path) -> anyhow::Result<[String; 5]> {
         })?,
         None => NOT_AVAILABLE.to_string(),
     };
-    let recorded = verdict
-        .meaning
-        .as_deref()
-        .or_else(|| {
-            verdict
-                .signature
-                .as_ref()
-                .and_then(|s| s.signed_off_meaning.as_ref())
-                .and_then(|m| m.values.as_deref())
-        })
-        .filter(|values| !values.is_empty());
-    let meaning = match recorded {
+    let meaning = match extract_meaning(verdict) {
         Some(values) if approved => quoted(values),
         Some(values) => format!("claimed: {}", quoted(values)),
         None => NOT_RECORDED.to_string(),
@@ -136,6 +268,68 @@ fn row(verdict: &Verdict, path: &Path) -> anyhow::Result<[String; 5]> {
         member(&verdict.tag)
     );
     Ok([person.to_string(), signed_at, meaning, verdict_text, record])
+}
+
+/// Generates a row for a release-verify result, optionally with a nested approval verdict.
+fn row_release(
+    result: &ReleaseResult,
+    nested: Option<&Verdict>,
+    path: &Path,
+) -> anyhow::Result<[String; 5]> {
+    // For released with approved nested verdict: use row_approval directly (validation
+    // guarantees the nested verdict is approved when status is released).
+    if result.status == RELEASED {
+        if let Some(verdict) = nested {
+            return row_approval(verdict, path);
+        }
+    }
+
+    // For not_released: show "not available" / "claimed:" regardless of nested content
+    let (person, signed_at, record) = (
+        NOT_AVAILABLE.to_string(),
+        NOT_AVAILABLE.to_string(),
+        NOT_AVAILABLE.to_string(),
+    );
+
+    // Meaning: from nested approval when present, with "claimed:" prefix for not_released
+    let meaning = if let Some(verdict) = nested {
+        match extract_meaning(verdict) {
+            Some(values) => format!("claimed: {}", quoted(values)),
+            None => NOT_RECORDED.to_string(),
+        }
+    } else {
+        NOT_RECORDED.to_string()
+    };
+
+    // Verdict: build the multi-segment verdict for not_released
+    let mut segments = vec![NOT_RELEASED.to_string()];
+
+    // Add reasons segment
+    if let Some(Value::Array(reasons)) = &result.reasons {
+        let reasons_json: Vec<String> = reasons
+            .iter()
+            .filter_map(|v| v.as_str())
+            .map(|s| Value::String(flatten(s)).to_string())
+            .collect();
+        if !reasons_json.is_empty() {
+            segments.push(format!("reasons: [{}]", reasons_json.join(", ")));
+        }
+    }
+
+    // Add nested segment if present and not approved
+    if let Some(verdict) = nested {
+        if verdict.status != APPROVED {
+            let nested_text = match &verdict.reason {
+                Some(reason) => format!("{} ({})", verdict.status, flatten(reason)),
+                None => verdict.status.clone(),
+            };
+            segments.push(format!("nested: {nested_text}"));
+        }
+    }
+
+    let verdict_text = segments.join("; ");
+
+    Ok([person, signed_at, meaning, verdict_text, record])
 }
 
 /// Each value as a JSON string, joined by `, `, so the boundary between two

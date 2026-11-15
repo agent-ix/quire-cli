@@ -3991,6 +3991,35 @@ fn verdict_file(rig: &Rig, name: &str, content: &Value) -> PathBuf {
     path
 }
 
+/// A release-verify result with the given status, reasons, and optional nested approval.
+fn release_result(status: &str, reasons: Option<Vec<&str>>, approval: Option<Value>) -> Value {
+    let mut result = serde_json::json!({
+        "protocol": "engineering-assurance.release-verify-result/v1",
+        "status": status,
+    });
+    if let Some(r) = reasons {
+        result["reasons"] = serde_json::json!(r);
+    }
+    if let Some(a) = approval {
+        result["approval"] = a;
+    }
+    result
+}
+
+/// A `released` release result with an approved nested verdict.
+fn released(approver: &str, signed_at: &str, meaning: &[&str]) -> Value {
+    release_result(
+        "released",
+        None,
+        Some(approved(approver, signed_at, meaning)),
+    )
+}
+
+/// A `not_released` result with reasons and an optional nested approval verdict.
+fn not_released(reasons: Vec<&str>, approval: Option<Value>) -> Value {
+    release_result("not_released", Some(reasons), approval)
+}
+
 fn with_approvals(mut command: Command, files: &[&Path]) -> Command {
     for file in files {
         command.arg("--approval").arg(file);
@@ -4480,6 +4509,802 @@ fn real_converters_show_the_approval_block_after_the_document() {
             assert!(block.contains(&expected), "{expected}: {block}");
         }
         assert!(block.contains("claim"), "{block}");
+    }
+}
+
+// ---- Release-verify results (FR-038, FR-040) --------------------------------
+
+#[trace("FR-038-AC-10")]
+#[test]
+fn a_released_result_with_approved_nested_verdict_shows_as_an_approval() {
+    let rig = Rig::new();
+    let standalone = verdict_file(
+        &rig,
+        "standalone.json",
+        &approved(
+            "Ada Example",
+            "2026-01-02T03:04:05Z",
+            &["reviewed and approved"],
+        ),
+    );
+    let release = verdict_file(
+        &rig,
+        "release.json",
+        &released(
+            "Ada Example",
+            "2026-01-02T03:04:05Z",
+            &["reviewed and approved"],
+        ),
+    );
+    let output = rig.work("out.docx");
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&release],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let block = rig.converter_input("approval.md");
+    let table = rows(&block);
+    assert_eq!(table.len(), 1, "{block}");
+    assert_eq!(table[0][0], "Ada Example");
+    assert_eq!(table[0][1], "2026\\-01\\-02 03\\:04\\:05 UTC");
+    assert_eq!(table[0][2], "\\\"reviewed and approved\\\"");
+    assert_eq!(table[0][3], "approved");
+
+    // Verify the cells match standalone verdict exactly (FR-038-AC-13)
+    let result_standalone = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&standalone],
+    ));
+    assert!(result_standalone.status.success());
+    let block_standalone = rig.converter_input("approval.md");
+    let table_standalone = rows(&block_standalone);
+
+    // Person, Signed at, Meaning, Record cells must be byte-identical
+    for col in [0, 1, 2, 4] {
+        assert_eq!(table[0][col], table_standalone[0][col], "column {col}");
+    }
+}
+
+#[trace("FR-038-AC-11")]
+#[test]
+fn a_not_released_result_shows_reasons_and_nested_verdict() {
+    let rig = Rig::new();
+
+    // not_released with untrusted_signer nested verdict and two reasons
+    let file1 = verdict_file(
+        &rig,
+        "nr1.json",
+        &not_released(
+            vec!["untrusted_signer", "release_commit_record_not_added"],
+            Some(claimed("untrusted_signer", &["reviewed and approved"])),
+        ),
+    );
+    let output = rig.work("out.docx");
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&file1],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let block = rig.converter_input("approval.md");
+    let block_no_breaks = block.replace('\u{200b}', "");
+    let table = rows(&block_no_breaks);
+    assert_eq!(table.len(), 1, "{block}");
+    assert_eq!(
+        table[0][3],
+        "not\\_released\\; reasons\\: \\[\\\"untrusted\\_signer\\\"\\, \\\"release\\_commit\\_record\\_not\\_added\\\"\\]\\; nested\\: untrusted\\_signer",
+        "{}",
+        table[0][3]
+    );
+    assert_eq!(table[0][2], "claimed\\: \\\"reviewed and approved\\\"");
+    assert_eq!(table[0][1], "not available");
+
+    // With a nested reason
+    let nested_with_reason = verdict(
+        "untrusted_signer",
+        serde_json::json!({
+            "reason": "x, y",
+            "signature": {
+                "status": "signed_untrusted",
+                "kind": "tag",
+                "signer": {"source": "allowed_signers", "mapping": "unmapped"},
+                "signed_off_meaning": {"presence": "present", "values": ["reviewed and approved"]},
+            },
+        }),
+    );
+    let file2 = verdict_file(
+        &rig,
+        "nr2.json",
+        &not_released(
+            vec!["untrusted_signer", "release_commit_record_not_added"],
+            Some(nested_with_reason),
+        ),
+    );
+    let result2 = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&file2],
+    ));
+    assert!(result2.status.success(), "{}", stderr(&result2));
+    let block2 = rig.converter_input("approval.md");
+    let block2_no_breaks = block2.replace('\u{200b}', "");
+    let table2 = rows(&block2_no_breaks);
+    assert!(
+        table2[0][3].contains("nested\\: untrusted\\_signer \\(x\\, y\\)"),
+        "{}",
+        table2[0][3]
+    );
+
+    // Reason with comma shows as one array element
+    let file3 = verdict_file(
+        &rig,
+        "nr3.json",
+        &not_released(vec!["a, b"], Some(claimed("unsigned", &["m"]))),
+    );
+    let result3 = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&file3],
+    ));
+    assert!(result3.status.success());
+    let block3 = rig.converter_input("approval.md");
+    let block3_no_breaks = block3.replace('\u{200b}', "");
+    let table3 = rows(&block3_no_breaks);
+    assert!(
+        table3[0][3].contains("reasons\\: \\[\\\"a\\, b\\\"\\]"),
+        "{}",
+        table3[0][3]
+    );
+}
+
+#[trace("FR-038-AC-12")]
+#[test]
+fn a_not_released_result_without_approval_shows_not_available() {
+    let rig = Rig::new();
+    let file = verdict_file(
+        &rig,
+        "no-approval.json",
+        &not_released(vec!["record_invalid"], None),
+    );
+    let output = rig.work("out.docx");
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&file],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let block = rig.converter_input("approval.md");
+    let block_no_breaks = block.replace('\u{200b}', "");
+    let table = rows(&block_no_breaks);
+    assert_eq!(table.len(), 1, "{block}");
+    assert_eq!(
+        table[0][3],
+        "not\\_released\\; reasons\\: \\[\\\"record\\_invalid\\\"\\]"
+    );
+    assert_eq!(table[0][0], "not available", "Person");
+    assert_eq!(table[0][1], "not available", "Signed at");
+    assert_eq!(table[0][2], "not recorded", "Meaning");
+    assert_eq!(table[0][4], "not available", "Record");
+}
+
+#[trace("FR-038-AC-13", "FR-038-AC-18")]
+#[test]
+fn release_and_standalone_verdicts_preserve_order_and_standalone_content() {
+    let rig = Rig::new();
+    let standalone = verdict_file(
+        &rig,
+        "a.json",
+        &approved(
+            "Ada Example",
+            "2026-01-02T03:04:05Z",
+            &["reviewed and approved"],
+        ),
+    );
+    let release = verdict_file(
+        &rig,
+        "r.json",
+        &released("Bo Example", "2026-02-03T04:05:06Z", &["release approved"]),
+    );
+
+    let output = rig.work("out.docx");
+
+    // Export A alone (FR-038-AC-13)
+    let result_a = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&standalone],
+    ));
+    assert!(result_a.status.success(), "{}", stderr(&result_a));
+    let block_a = rig.converter_input("approval.md");
+    let table_a = rows(&block_a);
+    assert_eq!(table_a.len(), 1, "A alone should have 1 row");
+
+    // Export R+A (release before standalone, FR-038-AC-18)
+    let result1 = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&release, &standalone],
+    ));
+    assert!(result1.status.success(), "{}", stderr(&result1));
+    let block1 = rig.converter_input("approval.md");
+    let table1 = rows(&block1);
+    assert_eq!(table1.len(), 2, "R+A should have 2 rows");
+    assert_eq!(table1[0][0], "Bo Example");
+    assert_eq!(table1[1][0], "Ada Example");
+
+    // Export A+R (standalone before release, FR-038-AC-18)
+    let result2 = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&standalone, &release],
+    ));
+    assert!(result2.status.success());
+    let block2 = rig.converter_input("approval.md");
+    let table2 = rows(&block2);
+    assert_eq!(table2.len(), 2, "A+R should have 2 rows");
+    assert_eq!(table2[0][0], "Ada Example");
+    assert_eq!(table2[1][0], "Bo Example");
+
+    // Verify standalone row is byte-identical in all three cases (FR-038-AC-13)
+    assert_eq!(
+        table_a[0], table1[1],
+        "A row differs between A alone and R+A"
+    );
+    assert_eq!(
+        table_a[0], table2[0],
+        "A row differs between A alone and A+R"
+    );
+    assert_eq!(table1[1], table2[0], "A row differs between R+A and A+R");
+
+    // Verify the row of A carries the AC-1 values (FR-038-AC-13)
+    let a_row = &table_a[0];
+    assert_eq!(a_row[0], "Ada Example", "Person");
+    assert!(
+        a_row[1].contains("2026\\-01\\-02 03\\:04\\:05 UTC"),
+        "Signed at: {}",
+        a_row[1]
+    );
+    assert!(
+        a_row[2].contains("reviewed and approved"),
+        "Meaning: {}",
+        a_row[2]
+    );
+    assert_eq!(a_row[3], "approved", "Verdict");
+    assert!(a_row[4].contains("REC\\-1"), "Record: {}", a_row[4]);
+}
+
+#[trace("FR-038-AC-14", "FR-040-AC-8")]
+#[test]
+fn invalid_release_results_exit_3_before_converter() {
+    let rig = Rig::new();
+    let output = rig.work("out.docx");
+    fs::write(&output, "previous").expect("previous");
+
+    let cases = vec![
+        ("unknown-status", release_result("unknown", None, None)),
+        (
+            "no-status",
+            serde_json::json!({
+                "protocol": "engineering-assurance.release-verify-result/v1",
+            }),
+        ),
+        (
+            "released-no-approval",
+            release_result("released", None, None),
+        ),
+        (
+            "released-wrong-nested",
+            release_result(
+                "released",
+                None,
+                Some(verdict("wrong_record", serde_json::json!({}))),
+            ),
+        ),
+        (
+            "released-with-reasons",
+            release_result(
+                "released",
+                Some(vec!["x"]),
+                Some(approved("A", "2026-01-02T03:04:05Z", &["m"])),
+            ),
+        ),
+        (
+            "not-released-no-reasons",
+            release_result("not_released", None, None),
+        ),
+        (
+            "not-released-reasons-not-array",
+            serde_json::json!({
+                "protocol": "engineering-assurance.release-verify-result/v1",
+                "status": "not_released",
+                "reasons": "x",
+            }),
+        ),
+        (
+            "not-released-reasons-number",
+            serde_json::json!({
+                "protocol": "engineering-assurance.release-verify-result/v1",
+                "status": "not_released",
+                "reasons": [1],
+            }),
+        ),
+        (
+            "approval-is-string",
+            serde_json::json!({
+                "protocol": "engineering-assurance.release-verify-result/v1",
+                "status": "not_released",
+                "reasons": ["x"],
+                "approval": "not-object",
+            }),
+        ),
+        (
+            "approval-wrong-protocol",
+            serde_json::json!({
+                "protocol": "engineering-assurance.release-verify-result/v1",
+                "status": "not_released",
+                "reasons": ["x"],
+                "approval": {
+                    "protocol": "other/v1",
+                    "status": "approved",
+                },
+            }),
+        ),
+        (
+            "approval-no-status",
+            serde_json::json!({
+                "protocol": "engineering-assurance.release-verify-result/v1",
+                "status": "not_released",
+                "reasons": ["x"],
+                "approval": {
+                    "protocol": "engineering-assurance.approval-verify-result/v1",
+                },
+            }),
+        ),
+        // Gap FND-005: nested approved verdict with invalid signed_at
+        (
+            "nested-approved-invalid-signed-at",
+            serde_json::json!({
+                "protocol": "engineering-assurance.release-verify-result/v1",
+                "status": "released",
+                "approval": {
+                    "protocol": "engineering-assurance.approval-verify-result/v1",
+                    "status": "approved",
+                    "approver": "A",
+                    "meaning": ["m"],
+                    "signed_at": "invalid",
+                    "tag": "approvals/v1",
+                    "record_id": "REC-1",
+                    "record_digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                },
+            }),
+        ),
+        // Gap FND-005: nested verdict with wrong-typed approver
+        (
+            "nested-wrong-type-approver",
+            serde_json::json!({
+                "protocol": "engineering-assurance.release-verify-result/v1",
+                "status": "not_released",
+                "reasons": ["x"],
+                "approval": {
+                    "protocol": "engineering-assurance.approval-verify-result/v1",
+                    "status": "approved",
+                    "approver": 1,
+                    "meaning": ["m"],
+                    "tag": "approvals/v1",
+                    "record_id": "REC-1",
+                    "record_digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                },
+            }),
+        ),
+        // Gap FND-005: nested verdict with wrong-typed meaning
+        (
+            "nested-wrong-type-meaning",
+            serde_json::json!({
+                "protocol": "engineering-assurance.release-verify-result/v1",
+                "status": "not_released",
+                "reasons": ["x"],
+                "approval": {
+                    "protocol": "engineering-assurance.approval-verify-result/v1",
+                    "status": "approved",
+                    "approver": "A",
+                    "meaning": "not-an-array",
+                    "tag": "approvals/v1",
+                    "record_id": "REC-1",
+                    "record_digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                },
+            }),
+        ),
+    ];
+
+    for (name, content) in cases {
+        let file = verdict_file(&rig, &format!("{name}.json"), &content);
+        let result = run(with_approvals(
+            rig.export(&rig.fixture(), "docx", &output),
+            &[&file],
+        ));
+        assert_eq!(result.status.code(), Some(3), "{name}");
+        assert!(
+            stderr(&result).contains(&file.display().to_string()),
+            "{name}: {}",
+            stderr(&result)
+        );
+        assert!(rig.requests().is_empty(), "{name}");
+        assert_eq!(fs::read(&output).expect("output"), b"previous", "{name}");
+    }
+
+    // Valid cases that should NOT fail
+    let valid_cases = vec![
+        (
+            "released-empty-reasons",
+            release_result(
+                "released",
+                Some(vec![]),
+                Some(approved("A", "2026-01-02T03:04:05Z", &["m"])),
+            ),
+        ),
+        (
+            "not-released-approved-nested",
+            not_released(
+                vec!["decision_owner_mismatch"],
+                Some(approved("A", "2026-01-02T03:04:05Z", &["m"])),
+            ),
+        ),
+    ];
+
+    for (name, content) in valid_cases {
+        let file = verdict_file(&rig, &format!("{name}.json"), &content);
+        let result = run(with_approvals(
+            rig.export(&rig.fixture(), "docx", &output),
+            &[&file],
+        ));
+        assert!(result.status.success(), "{name}: {}", stderr(&result));
+    }
+}
+
+#[trace("FR-038-AC-15")]
+#[test]
+fn a_not_released_result_escapes_markup_in_reasons_and_nested_reason() {
+    let rig = Rig::new();
+    let hostile = "*x* `#pagebreak()`{=typst}";
+    let nested = verdict(
+        "untrusted_signer",
+        serde_json::json!({
+            "reason": format!("{hostile} | pipe"),
+            "signature": {
+                "status": "signed_untrusted",
+                "kind": "tag",
+                "signer": {"source": "allowed_signers", "mapping": "unmapped"},
+                "signed_off_meaning": {"presence": "present", "values": [hostile]},
+            },
+        }),
+    );
+    let file = verdict_file(
+        &rig,
+        "hostile.json",
+        &not_released(vec![hostile], Some(nested)),
+    );
+    let output = rig.work("out.docx");
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&file],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let block = rig.converter_input("approval.md");
+    let block_without_breaks = block.replace('\u{200b}', "");
+    assert!(
+        block_without_breaks.contains("\\*x\\* \\`\\#pagebreak\\(\\)\\`\\{\\=typst\\}"),
+        "{block}"
+    );
+    assert!(block.contains("\\|"), "{block}");
+    assert_eq!(rows(&block).len(), 1);
+    assert!(!block.contains("<"), "{block}");
+}
+
+#[trace("FR-038-AC-16")]
+#[test]
+fn release_result_calls_no_verification_tools() {
+    let rig = Rig::new();
+    let stub_dir = rig.root().join("stubs");
+    fs::create_dir_all(&stub_dir).expect("stub dir");
+
+    for tool in ["engineering-assurance", "gpg", "ssh-keygen"] {
+        let stub = stub_dir.join(tool);
+        fs::write(
+            &stub,
+            format!(
+                "#!/bin/sh\necho '{tool} called' >> {}/calls\necho \"$@\" >> {}/calls\nexit 1\n",
+                stub_dir.display(),
+                stub_dir.display()
+            ),
+        )
+        .expect("stub");
+        fs::set_permissions(&stub, fs::Permissions::from_mode(0o755)).expect("mode");
+    }
+
+    // Keep real engineering-assurance but shadow the others
+    let real_ea = real_executor();
+    let wrapper = stub_dir.join("engineering-assurance");
+    fs::write(
+        &wrapper,
+        format!("#!/bin/sh\nif [ \"$1\" = 'producer-execute' ]; then exec {} \"$@\"; else echo 'ea called' >> {}/calls; exit 1; fi\n",
+                real_ea.display(), stub_dir.display()),
+    ).expect("wrapper");
+    fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o755)).expect("mode");
+
+    let release = verdict_file(
+        &rig,
+        "r.json",
+        &released("A", "2026-01-02T03:04:05Z", &["m"]),
+    );
+    let standalone = verdict_file(
+        &rig,
+        "s.json",
+        &approved("B", "2026-02-03T04:05:06Z", &["n"]),
+    );
+
+    // Create git wrapper to record calls (Gap FND-002)
+    let git_wrapper = stub_dir.join("git");
+    fs::write(
+        &git_wrapper,
+        format!(
+            "#!/bin/sh\necho \"git $@\" >> {}/git-calls\n\
+             # Find real git by searching PATH, skipping our stub dir\n\
+             for dir in $(echo \"$PATH\" | tr ':' '\\n'); do\n\
+               if [ \"$dir\" != \"{}\" ] && [ -x \"$dir/git\" ]; then\n\
+                 exec \"$dir/git\" \"$@\"\n\
+               fi\n\
+             done\n\
+             echo \"git not found in PATH\" >&2\n\
+             exit 127\n",
+            stub_dir.display(),
+            stub_dir.display()
+        ),
+    )
+    .expect("git wrapper");
+    fs::set_permissions(&git_wrapper, fs::Permissions::from_mode(0o755)).expect("mode");
+
+    let mut path_env = stub_dir.into_os_string();
+    if let Some(existing) = std::env::var_os("PATH") {
+        path_env.push(":");
+        path_env.push(&existing);
+    }
+
+    // Export with release result and record git calls
+    let output = rig.work("out.docx");
+    let mut command_r = rig.export(&rig.fixture(), "docx", &output);
+    command_r.env("PATH", &path_env);
+    let result_r = run(with_approvals(command_r, &[&release]));
+    assert!(result_r.status.success(), "{}", stderr(&result_r));
+
+    let calls_file = rig.root().join("stubs/calls");
+    assert!(
+        !calls_file.exists()
+            || fs::read_to_string(&calls_file)
+                .unwrap_or_default()
+                .is_empty(),
+        "verification tool was called for release"
+    );
+    if calls_file.exists() {
+        fs::remove_file(&calls_file).ok();
+    }
+
+    let git_calls_r = fs::read_to_string(rig.root().join("stubs/git-calls")).unwrap_or_default();
+    fs::remove_file(rig.root().join("stubs/git-calls")).ok();
+
+    // Export with standalone and record git calls
+    let mut command_s = rig.export(&rig.fixture(), "docx", &output);
+    command_s.env("PATH", &path_env);
+    let result_s = run(with_approvals(command_s, &[&standalone]));
+    assert!(result_s.status.success(), "{}", stderr(&result_s));
+
+    assert!(
+        !calls_file.exists()
+            || fs::read_to_string(&calls_file)
+                .unwrap_or_default()
+                .is_empty(),
+        "verification tool was called for standalone"
+    );
+
+    let git_calls_s = fs::read_to_string(rig.root().join("stubs/git-calls")).unwrap_or_default();
+
+    // Compare git calls are the same (Gap FND-002)
+    assert_eq!(
+        git_calls_r, git_calls_s,
+        "git calls differ between release and standalone"
+    );
+
+    // Verify no git call names the approval file or a tag (Gap FND-002)
+    let release_name = release.file_name().unwrap().to_str().unwrap();
+    assert!(
+        !git_calls_r.contains(release_name),
+        "git calls mention approval file: {git_calls_r}"
+    );
+    assert!(
+        !git_calls_r.contains("--approval"),
+        "git calls mention --approval: {git_calls_r}"
+    );
+    assert!(
+        !git_calls_r.contains("approvals/"),
+        "git calls mention tag: {git_calls_r}"
+    );
+}
+
+#[trace("FR-038-AC-17")]
+#[test]
+fn not_released_with_approved_nested_shows_claimed_meaning_and_not_available() {
+    let rig = Rig::new();
+    let file = verdict_file(
+        &rig,
+        "nr-approved.json",
+        &not_released(
+            vec!["decision_owner_mismatch"],
+            Some(approved(
+                "Ada Example",
+                "2026-01-02T03:04:05Z",
+                &["reviewed and approved"],
+            )),
+        ),
+    );
+    let output = rig.work("out.docx");
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &output),
+        &[&file],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let block = rig.converter_input("approval.md");
+    let block_no_breaks = block.replace('\u{200b}', "");
+    let table = rows(&block_no_breaks);
+    assert_eq!(table.len(), 1);
+    assert_eq!(
+        table[0][3], "not\\_released\\; reasons\\: \\[\\\"decision\\_owner\\_mismatch\\\"\\]",
+        "Verdict"
+    );
+    assert_eq!(table[0][0], "not available", "Person");
+    assert_eq!(table[0][1], "not available", "Signed at");
+    assert_eq!(table[0][4], "not available", "Record");
+    assert_eq!(
+        table[0][2], "claimed\\: \\\"reviewed and approved\\\"",
+        "Meaning"
+    );
+
+    // Verify Ada Example and the timestamp do not appear anywhere (Gap FND-003: robust after escaping)
+    assert!(!block.contains("Ada Example"), "{block}");
+    let escaped_time = "2026\\-01\\-02 03\\:04\\:05 UTC";
+    assert!(!block.contains(escaped_time), "{block}");
+    assert!(!block.contains("2026-01-02 03:04:05 UTC"), "{block}");
+    // Also verify the Person and Signed at cells confirm no leak
+    assert!(
+        !block.contains("Ada Example") && table[0][0] == "not available",
+        "Person leaked"
+    );
+    assert!(
+        !block.contains("2026") && table[0][1] == "not available",
+        "Time leaked"
+    );
+}
+
+#[trace("FR-038-AC-15")]
+#[test]
+#[ignore = "needs real pandoc, typst, unzip and pdftotext on PATH"]
+fn release_approval_text_reaches_real_converters() {
+    require_real_tools();
+    let rig = Rig::new();
+    let hostile = "*x* `#pagebreak()`{=typst}";
+    let nested = verdict(
+        "untrusted_signer",
+        serde_json::json!({
+            "reason": format!("{hostile} | pipe"),
+            "signature": {
+                "status": "signed_untrusted",
+                "kind": "tag",
+                "signer": {"source": "allowed_signers", "mapping": "unmapped"},
+                "signed_off_meaning": {"presence": "present", "values": [hostile]},
+            },
+        }),
+    );
+    let release_file = verdict_file(
+        &rig,
+        "release.json",
+        &not_released(vec![hostile], Some(nested)),
+    );
+
+    let pdf = rig.work("release.pdf");
+    let docx = rig.work("release.docx");
+    for (to, path) in [("pdf", &pdf), ("docx", &docx)] {
+        let mut command = quire();
+        command
+            .current_dir(rig.work(""))
+            .arg("export")
+            .arg(rig.fixture())
+            .args(["--to", to, "--output"])
+            .arg(path)
+            .arg("--module")
+            .arg(validate_module());
+        let result = run(with_approvals(command, &[&release_file]));
+        assert!(result.status.success(), "{to}: {}", stderr(&result));
+    }
+
+    // Gap FND-001/FND-008/AC-15: Run with stand-in converters to get markdown for row count
+    let md_out = rig.work("release-md.pdf");
+    let md_command = rig.export(&rig.fixture(), "pdf", &md_out);
+    let md_result = run(with_approvals(md_command, &[&release_file]));
+    assert!(
+        md_result.status.success(),
+        "markdown: {}",
+        stderr(&md_result)
+    );
+    let approval_md = rig.converter_input("approval.md");
+    let table = rows(&approval_md);
+    assert_eq!(
+        table.len(),
+        1,
+        "Expected exactly 1 approval row, found {}: {approval_md}",
+        table.len()
+    );
+    // Also verify the DOCX table has exactly 1 data row (not_released adds no row)
+    let docx_raw = docx_text(&docx);
+    let approval_table = docx_raw
+        .split("Approval")
+        .nth(1)
+        .and_then(|after| after.split("<w:tbl>").nth(1))
+        .and_then(|tbl| tbl.split("</w:tbl>").next())
+        .expect("Approval table in DOCX");
+    let data_rows = approval_table.matches("<w:tr>").count().saturating_sub(1); // subtract header
+    assert_eq!(
+        data_rows, 1,
+        "DOCX approval table should have 1 data row, found {data_rows}"
+    );
+
+    // Gap FND-001/FND-010/AC-15: Verify baseline page structure (no injected breaks)
+    assert_eq!(
+        pdf_page_count(&pdf),
+        3,
+        "PDF should have exactly 3 pages (title, contents, body); extra pages indicate an injected break"
+    );
+    let page_break_count = docx_raw.matches("w:type=\"page\"").count();
+    assert_eq!(
+        page_break_count, 2,
+        "DOCX should have exactly 2 page breaks (the template baseline); found {page_break_count}"
+    );
+
+    // Gap FND-001/AC-15: literal text reaches both PDF and DOCX
+    let pdf_visible = pdf_text_raw(&pdf);
+    let docx_visible = strip_tags(&docx_raw);
+    for (format, text) in [
+        ("PDF", pdf_visible.as_str()),
+        ("DOCX", docx_visible.as_str()),
+    ] {
+        let approval = text.rfind("Approval").expect("Approval heading");
+        let block: String = text[approval..]
+            .split_whitespace()
+            .flat_map(str::chars)
+            .filter(|ch| *ch != '\u{200b}')
+            .collect();
+
+        let expected: String = hostile.split_whitespace().collect();
+        // Gap FND-001/FND-011/AC-15: Verify hostile text in all three fields (reason, nested meaning, nested reason)
+        let hostile_count = block.matches(&expected).count();
+        assert!(
+            hostile_count >= 3,
+            "{format}: hostile text should appear at least 3 times (reason, nested meaning, nested reason), found {hostile_count} in: {block}"
+        );
+        // Gap FND-001/FND-009/AC-15: Verify literal asterisks (not interpreted as emphasis)
+        assert!(
+            block.contains("*x*"),
+            "{format}: literal *x* not found (emphasis may have been applied): {block}"
+        );
+        // Gap FND-001/FND-011/AC-15: Verify the pipe from the nested reason appears as literal text
+        assert!(
+            block.contains("|pipe"),
+            "{format}: nested reason's pipe character not found in: {block}"
+        );
+        assert!(block.contains("not_released"), "{format}: {block}");
+        assert!(
+            block.contains("reasons"),
+            "{format}: reasons segment missing: {block}"
+        );
+        assert!(
+            block.contains("nested:untrusted_signer"),
+            "{format}: nested segment missing: {block}"
+        );
     }
 }
 
