@@ -31,3 +31,12 @@ scope:
   - {id: FR-030-AC-26, path: spec/functional/FR-030-relations-subcommand.md, role: examined, excerpt: "`quire relations --scope <DIR> --module $M --json` over a fixture whose linked target carries a semantic record with `regulatedCategories` emits, on the row, the same `record` (including `regulatedCategories`, camelCase) as the quire-rs FR-084 report, and emits the reverse classification-to-connection rows unchanged; a second run over identical inputs is byte-identical to the first."}
   - {id: FR-030-AC-25, path: spec/functional/FR-030-relations-subcommand.md, role: context_only, excerpt: "`quire relations --repo o/a=<A> --repo o/b=<B>` without `--module`, where `<A>` and `<B>` each hold a `manifest.yaml` declaring a differently named relation, reports only the relation of the first `--repo` member, in either order."}
 ```
+
+## Dispositions
+
+Round 1, fix commit 7a89d89.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | AC-22 now says "The CLI source holds no hazard, threat, safety-classification or regulated-data category name (`regulatedCategories`, `health`, `personal`, `financial`), and delegates the report to quire-rs." At 7a89d89, `grep -rniE "regulated\|health\|personal\|financial" src` finds nothing. |
+| FND-002 | fixed | AC-22 now sits between AC-21 and AC-23, so the table runs AC-1 to AC-26 in id order. |

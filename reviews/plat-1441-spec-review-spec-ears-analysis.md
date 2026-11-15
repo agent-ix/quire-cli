@@ -29,3 +29,11 @@ scope:
   - {id: FR-030-AC-26, path: spec/functional/FR-030-relations-subcommand.md, role: examined, excerpt: "`quire relations --scope <DIR> --module $M --json` over a fixture whose linked target carries a semantic record with `regulatedCategories` emits, on the row, the same `record` (including `regulatedCategories`, camelCase) as the quire-rs FR-084 report, and emits the reverse classification-to-connection rows unchanged; a second run over identical inputs is byte-identical to the first."}
   - {id: FR-030-AC-2, path: spec/functional/FR-030-relations-subcommand.md, role: context_only, excerpt: "In the same run, stdout holds only the JSON document, and two runs over identical inputs are byte-identical."}
 ```
+
+## Dispositions
+
+Round 1, fix commit 7a89d89.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The determinism clause is gone, and AC-2 covers it. The separate reverse-row clause is now one property: in both directions, every entry's `record` equals the FR-084 report's, including where it is absent. AC-26 now reads "emits in both directions the `document` and `linked` records unchanged from the quire-rs FR-084 report, and emits no `record` and no `regulatedCategories` key on an entry for which FR-084 omits it". One comparison of each entry with the engine report can fail on either clause and name the entry. |

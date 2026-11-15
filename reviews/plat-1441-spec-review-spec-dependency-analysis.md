@@ -28,3 +28,17 @@ scope:
   - {id: FR-030, path: spec/functional/FR-030-relations-subcommand.md, role: examined, excerpt: "Each `--json` row carries, unchanged, the generic semantic `record` that quire-rs FR-084 attaches to the linked target ... Reverse classification-to-connection rows of FR-084 are preserved as the engine produced them."}
   - {id: quire-rs/FR-084, path: "agent-ix/quire-rs main spec/functional/FR-084-two-way-relation-coverage-report.md", role: context_only, excerpt: "Document (the obliged `document` and a resolved `linked` entry): {\"id\", \"path\", \"archetype\", \"repo\", \"verification\", \"criteria\"} ... No other key is emitted"}
 ```
+
+## Dispositions
+
+Round 1, fix commit 7a89d89. Compared with quire-rs PR #688 head 7b43672, its only commit; the PR is OPEN and not merged.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | deferred: re-check FR-030 against FR-084 once quire-rs #688 merges | At 7b43672, the bullet's record placement (`document` and each resolved `linked` entry), its omission rule and its incoming-view wording agree with FR-084 "Carried record values and the reverse view". #688's own base review (SR-20261115183659 FND-001, high) asks for declared record-key selection, so FR-084 is likely to change before it merges. This PR stays unmerged until #688 merges and FR-030 is re-checked against it. The PR hold settles the sequencing. |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-002 | low | The new Dependencies line "**Ordering**: the quire-rs FR-084 `record` change (quire-rs PR #688) must land before this CLI behavior; do not merge this change before it" is a merge instruction in a normative spec. Once #688 merges it is stale, and the PR number in it guards nothing. FND-001 asked for sequencing, not a spec record. Sequencing belongs to the PR hold and the Linear blocked-by edge. Delete the line, since the Upstream FR-084 reference already states the dependency. | spec/functional/FR-030-relations-subcommand.md:123 |

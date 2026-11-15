@@ -33,3 +33,21 @@ scope:
   - {id: quire-rs/FR-084, path: "agent-ix/quire-rs PR #688 spec/functional/FR-084-two-way-relation-coverage-report.md", role: context_only, excerpt: "Every document entry of the report (the obliged `document` and each resolved `linked` entry) carries `record`: the document's composed semantic record, exactly as extracted ... `record` is omitted when the document has no resolved `data_schema` or its record is empty; a key the document did not state is absent, never defaulted. The engine selects no key"}
   - {id: spec-objects-security/FR-023, path: "agent-ix/spec-objects-security spec/functional/FR-023-regulated-data-categories-on-data-classification.md", role: context_only, excerpt: "The `data_classification` manifest entry SHALL extract the frontmatter list `regulated_categories` into `regulatedCategories` with a `frontmatter_field` locator that has `required: false`."}
 ```
+
+## Dispositions
+
+Round 1, fix commit 7a89d89. Compared with quire-rs PR #688 head 7b43672 (OPEN, not merged).
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The bullet now says "Each document entry of a `--json` row (the row's `document` and each resolved `linked` entry) carries ... the generic semantic `record`", which matches #688 FR-084. AC-26 asserts "the `document` and `linked` records" in both directions. |
+| FND-002 | fixed | The bullet says the `record` is present "only when the engine produced one", and that the entry otherwise has "no `record` key, never `null` or an empty value". AC-26 adds "emits no `record` and no `regulatedCategories` key on an entry for which FR-084 omits it". |
+| FND-003 | fixed | The bullet now says "the key `regulatedCategories` is declared by the spec-objects-security module (`agent-ix/spec-objects-security` FR-023), not known to the engine or the CLI". |
+| FND-004 | fixed | The bullet now calls the incoming view "an ordinary row set", not a distinct row kind. AC-26 now says "a fixture module declaring both an outgoing relation and its incoming relation". The new wording has its own defect, recorded as FND-005. |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-005 | low | "The reverse view is an ordinary row set from a declaration with `direction: incoming` over the same relation" gets FR-084's terms wrong. In #688 FR-084 ("One report, both directions"), the **reverse view** is `direction: outgoing` with a `where` selector, and an incoming declaration gives the forward view. The two views are also two declarations, so two relations, over the same **verb**, not "the same relation". Say "the classification-to-connection view is an ordinary row set from a second declaration, with `direction: incoming`, over the same verb". | spec/functional/FR-030-relations-subcommand.md:76-78 |
+| FND-006 | medium | The parenthetical "(no resolved `data_schema`, or an empty record)" restates FR-084's omission conditions in the CLI spec. It matches #688 head 7b43672. But #688's own base review (SR-20261115183659 FND-001, high) asks FR-084 to carry only the record keys the declaration selects, which would change when `record` is omitted. A pass-through spec only needs "when FR-084 omits `record`, the entry has no `record` key". Drop the parenthetical so FR-030 cannot drift from the engine's rule. | spec/functional/FR-030-relations-subcommand.md:71-73 |
