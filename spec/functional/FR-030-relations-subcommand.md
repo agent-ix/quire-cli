@@ -66,6 +66,12 @@ cause; a run that emits a complete report and then fails `--strict` exits 1.
 - `--json` writes the quire-rs report on stdout and nothing else, with rows carrying document id,
   linked ids and per-document verification as the engine produced them. It honours `--pretty`
   ([FR-008](./FR-008-json-output-encoding.md)).
+- Each `--json` row carries, unchanged, the generic semantic `record` that quire-rs
+  [FR-084](ix://agent-ix/quire-rs/FR-084) attaches to the linked target, including its
+  `regulatedCategories` when the engine produced them, under the engine's own camelCase key
+  spelling; the CLI does not re-spell the authored snake_case form. Reverse
+  classification-to-connection rows of FR-084 are preserved as the engine produced them. The CLI
+  neither interprets, filters nor adds to the record, and holds no category-specific logic.
 - The command is report-only. With `--strict` it emits the complete report and then exits 1 when any
   row is `uncovered` or has `verification` `unverified` or `partial`, when the selected relations
   produce zero rows, or when rows exist and every one is `not-tracked`. The last two print a
@@ -103,6 +109,7 @@ cause; a run that emits a complete report and then fails `--strict` exits 1.
 | FR-030-AC-23 | `quire validate --okf --repo o/a=<A> --scope <DIR>` exits 3 naming both flags, and `quire validate <DIR> --okf --repo o/a=<A>` (a positional bundle directory) exits 3 naming the positional argument and `--repo`. | Test |
 | FR-030-AC-24 | `quire validate --okf --repo o/a=<A> --repo o/b=<B> --module $M` over a fixture where the module declares an `exclude: ['spec/fixtures/**']` glob on a trace target, with a broken fixture under `spec/fixtures/` in both members: the glob excludes the fixture in `o/a` and in `o/b` when it resolves against each member's own `<DIR>`, and without the glob each member reports its own finding, so each member's declarations resolve against its own `<DIR>`, not `<DIR>/spec`. | Test |
 | FR-030-AC-25 | `quire relations --repo o/a=<A> --repo o/b=<B>` without `--module`, where `<A>` and `<B>` each hold a `manifest.yaml` declaring a differently named relation, reports only the relation of the first `--repo` member, in either order. | Test |
+| FR-030-AC-26 | `quire relations --scope <DIR> --module $M --json` over a fixture whose linked target carries a semantic record with `regulatedCategories` emits, on the row, the same `record` (including `regulatedCategories`, camelCase) as the quire-rs FR-084 report, and emits the reverse classification-to-connection rows unchanged; a second run over identical inputs is byte-identical to the first. | Test |
 | FR-030-AC-22 | The CLI source holds no hazard, threat or safety-classification name, and delegates the report to quire-rs. | Inspection |
 
 ## Dependencies
