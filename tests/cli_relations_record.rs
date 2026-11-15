@@ -167,6 +167,10 @@ fn assert_no_record(entry: &Value) {
         entry.get("record").is_none(),
         "expected no record key: {entry}"
     );
+    assert!(
+        entry.get("regulatedCategories").is_none(),
+        "expected no regulatedCategories key: {entry}"
+    );
 }
 
 #[trace("FR-030-AC-26")]
