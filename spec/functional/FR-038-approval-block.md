@@ -58,23 +58,41 @@ in the column title.
 
 ## Release-verify input
 
-A file whose `protocol` is `engineering-assurance.release-verify-result/v1` is a
-release result. Its `status` is `released` or `not_released`, `reasons` lists the
-failed checks of a `not_released` result, and its `approval` member, when present,
-is the unchanged FR-041 verdict of the release tag (EA FR-047). The file is read as
-data like any other verdict file, and the entry takes every member from it.
+- The command SHALL treat a file whose `protocol` is
+  `engineering-assurance.release-verify-result/v1` as a release result and SHALL
+  read it as data, like any other verdict file.
+- The command SHALL read only the members `protocol`, `status`, `reasons` and
+  `approval` of a release result. Its `status` is `released` or `not_released`;
+  `reasons` lists the failed checks of a `not_released` result, an FR-041 status
+  other than `approved` being itself one of them
+  ([EA FR-047](ix://agent-ix/engineering-assurance/FR-047)); `approval`, when
+  present, is the unchanged FR-041 verdict of the release tag.
+- The command SHALL NOT read the top-level `approver`, `meaning`, `signed_at`,
+  `release`, `baseline` or `accepted_anomalies` of a release result, whatever its
+  `status`.
+
+For a standalone verdict file the sources are the members of that file, as the
+table above states. For a release result the nested `approval` object stands for
+the verdict file in that table, and nothing outside it is a source of Person,
+Signed at, Meaning or Record.
 
 | Entry field | Source for a release result |
 | --- | --- |
-| Person, Signed at, Meaning, Record | When `approval` is present, the nested `approval` verdict, read exactly as the table above reads a verdict file. The top-level `approver`, `meaning` and `signed_at` of a `released` result are not read. When `approval` is absent: Person `not available`, Signed at `not available`, Meaning `not recorded`, Record `not available`. |
-| Verdict | For `released`, the nested `status`, which is `approved`. Otherwise the nested `status` (`unavailable` when `approval` is absent), then `not_released`, then each entry of `reasons` verbatim in order, as recorded text joined by `, `. |
+| Person, Signed at, Meaning, Record | The nested `approval` object, read as the table above reads a verdict file. When `approval` is absent: Person `not available`, Signed at `not available`, Meaning `not recorded`, Record `not available`. For a `not_released` result whose nested `approval.status` is `approved`: Person `not available`, Signed at `not available`, Record `not available`, and the Meaning read as above and prefixed `claimed:`. |
+| Verdict | For `released`, the nested verdict text formed as for a standalone verdict (`approved`). For `not_released`, up to three segments joined by `; `: first the text `not_released`; second `reasons: ` and the `reasons` as a JSON array, each reason one array element written as a JSON string (`["a", "b"]`, so a reason containing `, ` stays one value); third, only when `approval` is present and its `status` is not `approved`, `nested: ` and the nested verdict text formed as for a standalone verdict (`status`, or `status (reason)` when the nested `reason` is present). |
+
+A nested `status` that is not `approved` is therefore shown twice, once as a
+reason (EA FR-047) and once in the `nested:` segment, which also carries the nested
+`reason`. A nested `approved` status of a `not_released` result is not shown.
 
 - The command SHALL label an entry of a release result as an approval only when the
   result `status` is `released` and the nested `approval.status` is `approved`.
 - If the result `status` is `not_released`, then the command SHALL NOT give the
   entry a heading, label or Verdict text that reads as an approval, including when
   the nested `approval.status` is `approved` (for example with reason
-  `decision_owner_mismatch`), and SHALL prefix a recorded Meaning with `claimed:`.
+  `decision_owner_mismatch`).
+- If the result `status` is `not_released`, then the command SHALL prefix a
+  recorded Meaning with `claimed:`.
 - The command SHALL preserve every entry of `reasons` and SHALL NOT drop, reorder,
   reinterpret or add a reason.
 - If `approval` is absent, then the command SHALL NOT supply a signer, a meaning, a
@@ -82,15 +100,19 @@ data like any other verdict file, and the entry takes every member from it.
 - The command SHALL NOT re-verify a signature, a tag or a release check, and SHALL
   NOT decide a release: it presents the nested verdict and the reasons the result
   already holds.
-- The command SHALL refuse a release result whose `status` is neither `released`
-  nor `not_released`, a `released` result without a nested `approval`, a `released`
-  result whose nested `approval.status` is not `approved`, a `not_released` result
-  whose `reasons` is absent or not a list of strings, and an `approval` member that
-  is present but is not an `engineering-assurance.approval-verify-result/v1`
-  document ([FR-040](./FR-040-export-template-and-identity-errors.md)).
-- A release result SHALL be one entry, in the order given on the command line, and
-  SHALL be handled by the sanitising, escaping, wrapping, sizing and
-  no-inference rules of this requirement exactly as a standalone verdict is.
+- If a release result matches a cause of the Release result invalid row of
+  [FR-040](./FR-040-export-template-and-identity-errors.md), then the command SHALL
+  refuse it before any converter starts.
+- The command SHALL present a release result as one entry, in the order given on the
+  command line, and SHALL handle it by the sanitising, escaping, wrapping, sizing
+  and no-inference rules of this requirement exactly as it handles a standalone
+  verdict.
+- The command SHALL NOT order or group entries by kind. A release result that a
+  caller adds (for example a dossier export adding the result of
+  `engineering-assurance release-verify`) takes the position the caller gives it
+  among the `--approval` arguments, and `--approval` inputs a user supplied
+  ([quoin FR-191](ix://agent-ix/quoin/FR-191) passes them unchanged) keep their
+  relative order.
 
 ## Behavior
 
@@ -99,7 +121,7 @@ data like any other verdict file, and the entry takes every member from it.
   a verdict whose tag did not resolve (`unverifiable`) and a lightweight tag
   (`unsigned`); these show with `not available` where a member is absent.
 - The command SHALL label only an entry whose `status` is `approved` as an
-  approval.
+  approval; an entry of a release result is labelled under Release-verify input.
 - For an entry of any other status the command SHALL prefix a recorded Meaning
   with `claimed:` (the text `not recorded` is not prefixed) and set the Verdict
   cell to the status.
@@ -132,8 +154,9 @@ data like any other verdict file, and the entry takes every member from it.
   is neither an `engineering-assurance.approval-verify-result/v1` nor an
   `engineering-assurance.release-verify-result/v1` document, or that lacks
   `status`, is refused before any converter starts, as is a file above 16 MiB, one that is not a regular file, and an `approved` verdict whose `signed_at` is not a valid UTC instant ([FR-040](./FR-040-export-template-and-identity-errors.md)).
-- A standalone `approval-verify` verdict file SHALL produce the entry this
-  requirement specifies for it, unchanged by the release-verify input.
+- The command SHALL produce for a standalone `approval-verify` verdict file the
+  entry this requirement specifies for it, unchanged by whether a release result is
+  also supplied.
 - The block states what the verdict said when it was produced. The command does
   not re-verify and does not state that the verdict is current.
 
@@ -146,17 +169,21 @@ data like any other verdict file, and the entry takes every member from it.
 | FR-038-AC-3 | A `meaning_missing` verdict shows the text `not recorded` as its meaning, an `unverifiable` verdict for a tag that did not resolve and an `unsigned` verdict for a lightweight tag are shown with `not available` where absent, and a verdict with two meaning values shows both in order. | Test |
 | FR-038-AC-4 | The time shown equals the verdict's `signed_at` and is unchanged when the test process runs under a different `TZ` and when the source commit has a different date; an `approved` verdict with `signed_at_missing` shows `not available`. | Test |
 | FR-038-AC-5 | A verdict whose meaning is `*x* \`#pagebreak()\`{=typst}` and whose principal holds a pipe shows both as literal text in PDF and DOCX, adds no table row and applies no emphasis. | Test |
-| FR-038-AC-6 | A file that is not an approval-verify result, a file lacking `status`, and `--approval` with a JSON input each exit 3 naming the file or flag, with no converter started. | Test |
+| FR-038-AC-6 | A file that is neither an approval-verify nor a release-verify result, a file lacking `status`, and `--approval` with a JSON input each exit 3 naming the file or flag, with no converter started. | Test |
 | FR-038-AC-7 | An export with no `--approval` holds no `Approval` heading and no `in/approval.md`. | Test |
-| FR-038-AC-9 | An approval whose record digest is `sha256:` followed by 64 hexadecimal digits and an `untrusted_signer` entry whose meaning is a 73-character URL, exports to PDF with every cell's content inside its own column: no word of one column's text overlaps another column's in the page geometry. | Test |
-| FR-038-AC-10 | A static `released` release-verify result whose nested `approval` is `approved` with approver `Ada Example`, `signed_at` `2026-01-02T03:04:05Z` and meaning `reviewed and approved` exports successfully, and the entry carries that approver, `2026-01-02 03:04:05 UTC`, that meaning and the verdict `approved`, equal to the entry of the nested verdict exported as a standalone file. | Test |
-| FR-038-AC-11 | A static `not_released` result with a nested `untrusted_signer` approval and reasons `decision_owner_mismatch` and `release_commit_record_not_added` shows the nested status, `not_released` and both reasons in order in the Verdict cell, the meaning prefixed `claimed:`, and is not labelled an approval. A `not_released` result whose nested approval is `approved` is likewise not labelled an approval. | Test |
-| FR-038-AC-12 | A static `not_released` result with reasons `record_invalid` and no `approval` member shows Person and Signed at `not available`, Meaning `not recorded`, Record `not available` and the reason `record_invalid` in the Verdict cell, and holds no signer, meaning or time. | Test |
-| FR-038-AC-13 | A standalone approval-verify fixture exports to an `in/approval.md` byte-identical to the one FR-038-AC-1 and FR-038-AC-2 specify, whether or not a release-verify result is also supplied. | Test |
-| FR-038-AC-14 | A release result with `status` `unknown`, a `released` result without `approval`, a `released` result whose nested status is `wrong_record`, a `not_released` result without `reasons`, and a nested `approval` of another protocol each exit 3 naming the file, with no converter started. | Test |
-| FR-038-AC-15 | A release result whose reason holds `*x* \`#pagebreak()\`{=typst}` and a pipe, and whose nested meaning holds the same, shows both as literal text in PDF and DOCX, adds no table row and applies no emphasis. | Test |
-| FR-038-AC-16 | The release-verify fixtures are static documents; the export of one starts no git process, reads no repository and makes no signature check. | Test |
 | FR-038-AC-8 | The same verdict files exported from two different source repositories yield a byte-identical `in/approval.md`; the approval is built from the verdict files alone. | Test |
+| FR-038-AC-9 | An approval whose record digest is `sha256:` followed by 64 hexadecimal digits and an `untrusted_signer` entry whose meaning is a 73-character URL, exports to PDF with every cell's content inside its own column: no word of one column's text overlaps another column's in the page geometry. | Test |
+| FR-038-AC-10 | A static `released` release-verify result whose nested `approval` is `approved` with approver `Ada Example`, `signed_at` `2026-01-02T03:04:05Z` and meaning `reviewed and approved` exports successfully; its entry is labelled an approval, its Verdict cell is exactly `approved`, and its Person, Signed at, Meaning and Record cells are byte-identical to the cells of the row of the nested verdict exported as a standalone file. | Test |
+| FR-038-AC-11 | A static `not_released` result with reasons `untrusted_signer` and `release_commit_record_not_added` and a nested `untrusted_signer` approval (meaning `reviewed and approved`, no `reason`) has the Verdict cell exactly `not_released; reasons: ["untrusted_signer", "release_commit_record_not_added"]; nested: untrusted_signer`, the Meaning `claimed: ` followed by the meaning, Signed at `not available`, and is not labelled an approval. With a nested `reason` of `x, y` the third segment is `nested: untrusted_signer (x, y)`. A reason `a, b` shows as the one array element `"a, b"`. | Test |
+| FR-038-AC-12 | A static `not_released` result with reasons `record_invalid` and no `approval` member has the Verdict cell exactly `not_released; reasons: ["record_invalid"]`, Person `not available`, Signed at `not available`, Meaning `not recorded`, Record `not available`, holds no signer, meaning or time, and is not labelled an approval. | Test |
+| FR-038-AC-13 | The `in/approval.md` of an export of a standalone approval-verify fixture A alone, of A with a release result R before it and of A with R after it holds the row of A byte-identical in all three; the exports with R hold exactly one more row than the export without it, the row of R; and the row of A carries the values FR-038-AC-1 specifies. | Test |
+| FR-038-AC-14 | Each of these exits 3 naming the file, with no converter started: a release result with `status` `unknown`; a release result with no `status`; a `released` result without `approval`; a `released` result whose nested status is `wrong_record`; a `released` result with `reasons` `["x"]`; a `not_released` result without `reasons`, one with `reasons` `[1]` and one with `reasons` `"x"`; a release result whose `approval` is a string; a release result whose `approval` has another `protocol`. | Test |
+| FR-038-AC-15 | A `not_released` release result whose reason holds `*x* \`#pagebreak()\`{=typst}` and a pipe, and whose nested non-approved verdict has a meaning and a `reason` holding the same, shows each as literal text in PDF and DOCX, adds no table row and applies no emphasis. | Test |
+| FR-038-AC-16 | The export of a release result, run with stub `engineering-assurance`, `gpg` and `ssh-keygen` executables first on `PATH` that record each call, calls none of them, and its `git` calls are the same as for the same export with a standalone verdict in its place and none names an `--approval` file or a tag. | Test |
+| FR-038-AC-17 | A static `not_released` result with reasons `decision_owner_mismatch` and a nested `approved` approval (approver `Ada Example`, `signed_at` `2026-01-02T03:04:05Z`, meaning `reviewed and approved`, record fields present) has the Verdict cell exactly `not_released; reasons: ["decision_owner_mismatch"]`, Person, Signed at and Record `not available`, the Meaning `claimed: ` followed by the meaning, no heading or label reading as an approval, and neither `Ada Example` nor `2026-01-02 03:04:05 UTC` anywhere in the block. | Test |
+| FR-038-AC-18 | An export with two `--approval` arguments, a standalone verdict and a release result, lists the two entries in command-line order, whichever argument comes first. | Test |
+| FR-038-AC-17 | A static `not_released` result with reasons `decision_owner_mismatch` and a nested `approved` approval (approver `Ada Example`, `signed_at` `2026-01-02T03:04:05Z`, meaning `reviewed and approved`, record fields present) has the Verdict cell exactly `not_released; reasons: ["decision_owner_mismatch"]`, Person, Signed at and Record `not available`, the Meaning `claimed: ` followed by the meaning, no heading or label reading as an approval, and neither `Ada Example` nor `2026-01-02 03:04:05 UTC` anywhere in the block. | Test |
+| FR-038-AC-18 | An export with two `--approval` arguments, a standalone verdict and a release result, lists the two entries in command-line order, whichever argument comes first. | Test |
 
 ## Dependencies
 
