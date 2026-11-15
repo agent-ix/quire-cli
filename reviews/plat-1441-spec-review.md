@@ -45,9 +45,15 @@ Round 1, fix commit 7a89d89. Compared with quire-rs PR #688 head 7b43672 (OPEN, 
 | FND-003 | fixed | The bullet now says "the key `regulatedCategories` is declared by the spec-objects-security module (`agent-ix/spec-objects-security` FR-023), not known to the engine or the CLI". |
 | FND-004 | fixed | The bullet now calls the incoming view "an ordinary row set", not a distinct row kind. AC-26 now says "a fixture module declaring both an outgoing relation and its incoming relation". The new wording has its own defect, recorded as FND-005. |
 
-## New findings (disposition pass 1)
+Round 2, fix commit 7f38e6a. Compared with quire-rs FR-084 as merged by PR #688 (merge commit c687adf, MERGED 2026-11-15) and with `agent-ix/spec-objects-architecture` FR-013 on main.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-005 | fixed | The bullet now reads "The reverse classification-to-connection view is an ordinary row set from the second relation declaration over the same verb, preserved as the engine produced it." The wrong `direction: incoming` claim is gone, and "same relation" is now "same verb". Merged FR-084 titles its section "Carried record values and the reverse view", and architecture FR-013 calls the incoming entry "the reverse `required_relations` entry". So "reverse", qualified as classification-to-connection, matches both upstream specs. |
+| FND-006 | fixed | The omission parenthetical is gone. The bullet now says "when FR-084 omits `record` the entry has no `record` key, never `null` or an empty value". This defers to FR-084 and holds under the merged `record_keys` rule. |
+
+## New findings (disposition pass 2)
 
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
-| FND-005 | low | "The reverse view is an ordinary row set from a declaration with `direction: incoming` over the same relation" gets FR-084's terms wrong. In #688 FR-084 ("One report, both directions"), the **reverse view** is `direction: outgoing` with a `where` selector, and an incoming declaration gives the forward view. The two views are also two declarations, so two relations, over the same **verb**, not "the same relation". Say "the classification-to-connection view is an ordinary row set from a second declaration, with `direction: incoming`, over the same verb". | spec/functional/FR-030-relations-subcommand.md:76-78 |
-| FND-006 | medium | The parenthetical "(no resolved `data_schema`, or an empty record)" restates FR-084's omission conditions in the CLI spec. It matches #688 head 7b43672. But #688's own base review (SR-20261115183659 FND-001, high) asks FR-084 to carry only the record keys the declaration selects, which would change when `record` is omitted. A pass-through spec only needs "when FR-084 omits `record`, the entry has no `record` key". Drop the parenthetical so FR-030 cannot drift from the engine's rule. | spec/functional/FR-030-relations-subcommand.md:71-73 |
+| FND-007 | medium | Merged FR-084 serializes `record` only for a relation that declares `record_keys` ("A relation without `record_keys` serializes no `record` at all", FR-084-AC-26). FR-030-AC-26's fixture is "two relation declarations over the same verb, whose documents carry semantic records" and does not require `record_keys`. A fixture without `record_keys` makes FR-084 emit no `record` anywhere. A CLI that dropped or never serialized `record` would then pass AC-26, because "unchanged from the FR-084 report" and "no `record` key where FR-084 omits it" both hold trivially. Require both declarations to set `record_keys` naming a key that at least one `document` and one `linked` entry state, so the report carries a non-empty `record` in both views. | spec/functional/FR-030-relations-subcommand.md:116 |

@@ -37,8 +37,8 @@ Round 1, fix commit 7a89d89. Compared with quire-rs PR #688 head 7b43672, its on
 | --- | --- | --- |
 | FND-001 | deferred: re-check FR-030 against FR-084 once quire-rs #688 merges | At 7b43672, the bullet's record placement (`document` and each resolved `linked` entry), its omission rule and its incoming-view wording agree with FR-084 "Carried record values and the reverse view". #688's own base review (SR-20261115183659 FND-001, high) asks for declared record-key selection, so FR-084 is likely to change before it merges. This PR stays unmerged until #688 merges and FR-030 is re-checked against it. The PR hold settles the sequencing. |
 
-## New findings (disposition pass 1)
+Round 2, fix commit 7f38e6a. quire-rs PR #688 is MERGED (merge commit c687adf, 2026-11-15), so the FND-001 deferral condition is met. The re-check against merged FR-084 agrees on record placement (the obliged `document` and each resolved `linked` entry), on omission (FR-030 now defers to "when FR-084 omits `record`" and restates no conditions), and on the two declarations over one verb. The merged `record_keys` rule exposes a vacuous case in FR-030-AC-26. That is recorded as SR-20261113192643 FND-007, not here. FND-001's latest outcome stays `deferred`, and its condition is now met, so it needs no new row.
 
-| ID | Severity | Summary | Refs |
-| --- | --- | --- | --- |
-| FND-002 | low | The new Dependencies line "**Ordering**: the quire-rs FR-084 `record` change (quire-rs PR #688) must land before this CLI behavior; do not merge this change before it" is a merge instruction in a normative spec. Once #688 merges it is stale, and the PR number in it guards nothing. FND-001 asked for sequencing, not a spec record. Sequencing belongs to the PR hold and the Linear blocked-by edge. Delete the line, since the Upstream FR-084 reference already states the dependency. | spec/functional/FR-030-relations-subcommand.md:123 |
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-002 | fixed | The `**Ordering**` line is gone from `## Dependencies`, which now lists only Upstream and Downstream. |
