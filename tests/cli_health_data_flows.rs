@@ -197,6 +197,59 @@ fn add_flow_only_rule(module: &Path) {
     write(module, "manifest.yaml", &manifest);
 }
 
+fn add_flow_rule_with_remediation(module: &Path) {
+    write(
+        module,
+        "manifest.yaml",
+        "\
+name: health-flow-fixture
+version: 0.1.0
+description: Flow remediation CLI fixture
+archetypes:
+- name: Connection
+  frontmatter_schema_ref: schemas/Connection.json
+  allowed_links:
+    classified-as: [Classification]
+    crosses: [TrustBoundary]
+- name: Classification
+  frontmatter_schema_ref: schemas/Classification.json
+- name: TrustBoundary
+  frontmatter_schema_ref: schemas/TrustBoundary.json
+edge_types:
+  classified-as: {description: connection has a classification, category: traceability}
+  crosses: {description: connection crosses a trust boundary, category: traceability}
+traceability:
+  flow_rules:
+  - name: connection-present
+    subject: [Connection]
+    match: [{path: [], field: id, present: true}]
+    unless_any: [{path: [], field: flowDirection, any_of: [bidirectional]}]
+    check: connection-present
+    remediations: [set-flow-direction]
+    rationale: Report the authored connection.
+  remediations:
+  - name: set-flow-direction
+    description: Set flowDirection to bidirectional.
+    sets: {field: flowDirection, value: bidirectional}
+",
+    );
+    write(
+        module,
+        "schemas/Connection.json",
+        r#"{"type":"object","properties":{"id":{"type":"string"},"type":{"const":"Connection"},"sourceEnd":{"type":"object"},"targetEnd":{"type":"object"},"flowDirection":{"type":"string","enum":["bidirectional"]}}}"#,
+    );
+    write(
+        module,
+        "schemas/Classification.json",
+        r#"{"type":"object","properties":{"id":{"type":"string"},"type":{"const":"Classification"},"regulatedCategories":{"type":"array","items":{"type":"string"}}}}"#,
+    );
+    write(
+        module,
+        "schemas/TrustBoundary.json",
+        r#"{"type":"object","properties":{"id":{"type":"string"},"type":{"const":"TrustBoundary"},"trust_level":{"type":"string"}}}"#,
+    );
+}
+
 fn json(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
         panic!(
@@ -506,6 +559,47 @@ fn flow_mode_passes_through_generic_engine_report_and_applies_strict_exit() {
     );
     assert!(empty.status.success());
     assert!(json(&empty)["denials"].as_array().unwrap().is_empty());
+}
+
+#[test]
+#[trace("FR-046-AC-5")]
+fn flow_mode_json_preserves_remediation_details_from_the_engine() {
+    let (temp, scope) = world(
+        "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
+        "health",
+        Some("trust_level: untrusted\n"),
+        true,
+    );
+    let module = temp.path().join("module");
+    add_flow_rule_with_remediation(&module);
+    let registry = quire_rs::Registry::load_module(&module).expect("fixture module loads");
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    assert_eq!(
+        registry.traceability().unwrap().flow_rules.len(),
+        1,
+        "fixture flow declaration is retained"
+    );
+
+    let output = run(&scope, &module, &["--flow", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = json(&output);
+    assert_eq!(
+        report["denials"][0]["remediations"],
+        json!([{
+            "name": "set-flow-direction",
+            "description": "Set flowDirection to bidirectional.",
+            "change": {
+                "sets": {
+                    "field": "flowDirection",
+                    "value": "bidirectional"
+                }
+            }
+        }])
+    );
 }
 
 #[test]
