@@ -36,8 +36,8 @@ pub struct Args {
     #[arg(long, value_name = "ORG/REPO=DIR", value_parser = parse_repo)]
     pub repo: Vec<RepoArg>,
 
-    /// Module directory supplying `traceability.required_relations` (and, with
-    /// `--design`, `traceability.design_relations`).
+    /// Module directory supplying `traceability.required_relations`,
+    /// `design_relations` with `--design`, or `flow_rules` with `--flow`.
     /// Repeatable; the roots REPLACE ambient discovery (see `quire coverage`).
     /// Without it, ambient discovery is bounded by the first `--repo` member
     /// only, so `--repo` order decides which modules load.
@@ -52,8 +52,7 @@ pub struct Args {
     #[arg(long)]
     pub health_data_flows: bool,
 
-    /// Reserved flow mode selector, used here to report an incompatible
-    /// combination with `--health-data-flows` (FR-046).
+    /// Emit the engine's generic flow report (FR-044).
     #[arg(long)]
     pub flow: bool,
 
@@ -68,10 +67,10 @@ pub struct Args {
     #[arg(long)]
     pub json: bool,
 
-    /// Emit the complete report, then exit 1 when any row is `uncovered`,
-    /// `unverified` or `partial`, when no rows were selected
-    /// (`empty-population`), or when every row is `not-tracked`
-    /// (`nothing-measured`).
+    /// Emit the complete report, then exit 1 when a flow denial exists in
+    /// `--flow` mode, or when relation rows are `uncovered`, `unverified` or
+    /// `partial`, no rows were selected (`empty-population`), or every row is
+    /// `not-tracked` (`nothing-measured`).
     #[arg(long)]
     pub strict: bool,
 }
@@ -95,8 +94,20 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             );
         }
     }
-    if args.flow && !args.health_data_flows {
-        invalid_request!("--flow is not available in this quire build");
+    if args.flow {
+        let mut conflicting = Vec::new();
+        if !args.relation.is_empty() {
+            conflicting.push("--relation");
+        }
+        if args.design {
+            conflicting.push("--design");
+        }
+        if args.health_data_flows {
+            conflicting.push("--health-data-flows");
+        }
+        if !conflicting.is_empty() {
+            invalid_request!("--flow conflicts with {}", conflicting.join(", "));
+        }
     }
 
     let corpus = if args.repo.is_empty() {
@@ -110,7 +121,17 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 
     let discovery: PathBuf = corpus.members[0].root.clone();
     let registry = super::coverage::load_registry_for(ctx, &args.module, &discovery)?;
-    if args.design {
+    if args.flow {
+        if registry
+            .traceability()
+            .is_none_or(|model| model.flow_rules.is_empty())
+        {
+            invalid_request!(
+                "no loaded module declares `traceability.flow_rules`, so there is \
+                 no flow report to render; install a module that declares one or pass --module"
+            );
+        }
+    } else if args.design {
         if registry
             .traceability()
             .is_none_or(|model| model.design_relations.is_empty())
@@ -162,6 +183,32 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         relation_report(&corpus.spec, &registry, &inputs, &args.relation)
     }
     .map_err(|e| invalid_error!("{e}"))?;
+
+    if args.flow {
+        let flow = report.flow.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("flow rules were declared but the engine returned no flow report")
+        })?;
+        if args.json {
+            primary_line!("{}", ix_cli_kit::json::encode(flow, ctx.pretty)?);
+        } else {
+            primary!("{}", render_flow_human(flow));
+        }
+        if args.strict {
+            if !flow.denials.is_empty() {
+                partial_report!("{} flow denial(s) (--strict)", flow.denials.len());
+            }
+        } else {
+            let errors = flow
+                .denials
+                .iter()
+                .filter(|denial| denial.severity == "error")
+                .count();
+            if errors > 0 {
+                partial_report!("{} error-severity flow denial(s)", errors);
+            }
+        }
+        return Ok(());
+    }
 
     if args.health_data_flows {
         let projected = project_health_data_flows(&report, args.repo.is_empty())?;
@@ -559,6 +606,43 @@ fn render_health_human(report: &HealthReport) -> String {
     out
 }
 
+fn render_flow_human(report: &quire_rs::corpus::FlowReport) -> String {
+    let mut out = String::new();
+    for denial in &report.denials {
+        let subject = match &denial.subject.repo {
+            Some(repo) => format!("{repo}:{}", denial.subject.id),
+            None => denial.subject.id.clone(),
+        };
+        let matched = denial
+            .matched
+            .iter()
+            .map(|(archetype, documents)| {
+                let ids = documents
+                    .iter()
+                    .map(|document| match &document.repo {
+                        Some(repo) => format!("{repo}:{}", document.id),
+                        None => document.id.clone(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{archetype}: [{ids}]")
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        let remediations = denial
+            .remediations
+            .iter()
+            .map(|remediation| remediation.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!(
+            "{}: {} ({}) — {} [matched: {}] [remediations: {}]\n",
+            denial.check, subject, denial.severity, denial.rationale, matched, remediations
+        ));
+    }
+    out
+}
+
 /// Why `--strict` fails this report, one entry per distinct cause.
 fn strict_problems(report: &RelationReport) -> Vec<String> {
     let rows: Vec<&RelationRow> = report.relations.iter().flat_map(|s| &s.rows).collect();
@@ -725,5 +809,62 @@ fn render_human(report: &RelationReport, design: bool) -> String {
             s.verification.not_tracked
         ));
     }
+    if let Some(flow) = &report.flow {
+        out.push_str("flow:\n");
+        out.push_str(&render_flow_human(flow));
+    }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use ix_trace_rs::trace;
+    use quire_rs::corpus::{
+        FlowDenial, FlowDenialRemediation, FlowRemediationChange, FlowReport, FlowSubjectRef,
+    };
+    use quire_rs::traceability::FlowSetRemediation;
+
+    use super::render_flow_human;
+
+    #[test]
+    #[trace("FR-044-AC-2")]
+    fn human_flow_output_renders_denial_remediation_names() {
+        let report = FlowReport {
+            schema: "quire.flow-report/v1",
+            rules: vec![],
+            vocabularies: BTreeMap::new(),
+            facts: BTreeMap::new(),
+            denials: vec![FlowDenial {
+                rule: "generic-rule".into(),
+                check: "generic-check".into(),
+                subject: FlowSubjectRef {
+                    id: "A-1".into(),
+                    repo: None,
+                    archetype: "alpha".into(),
+                },
+                matched: BTreeMap::new(),
+                remediations: vec![FlowDenialRemediation {
+                    name: "generic-fix".into(),
+                    description: "Set the authored state.".into(),
+                    change: FlowRemediationChange {
+                        adds: None,
+                        sets: Some(FlowSetRemediation {
+                            field: "state".into(),
+                            value: "covered".into(),
+                        }),
+                        removes: None,
+                    },
+                }],
+                rationale: "A declared condition holds.".into(),
+                severity: "warning",
+            }],
+            remediations: vec![],
+        };
+
+        let output = render_flow_human(&report);
+        assert!(output.contains("generic-check: A-1 (warning)"));
+        assert!(output.contains("[remediations: generic-fix]"));
+    }
 }
