@@ -69,3 +69,12 @@ Round 1, published head 89cd7594e6accae571b8209f10bfe0f9525637b1.
 | FND-001 | fixed | `emits_the_canonical_health_flow_envelope_from_generic_relation_facts` now asserts closed, ordered object shapes for the envelope, output, flow, ModelDocument, DeclaredReference, crossing and boundary, including field types and nullable repository identity. |
 | FND-002 | fixed | `sorts_multiple_flows_classifications_crossings_and_missing_references` now exercises reverse-authored multiple flows, classifications, crossings, gaps and missing references, asserts lexical output order, and compares repeat output byte-for-byte. |
 | FND-003 | still-open | The unavailable-record test checks only `connection_record` by itself. Add an unavailable selected record and a dangling crossing in the same fixture, and assert both missing items remain in the emitted gap. The production code currently retains that crossing item, but no test protects the explicit AC-3 combination. |
+
+
+Round 2, published head d47d870ed714206ebf5451cf462361506ec4e407.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The canonical output test continues to assert closed ordered shapes for the nested model and reference objects. |
+| FND-002 | fixed | The multi-value test continues to assert ordering across multiple flows, classifications, crossings, gaps, and missing references, plus byte-identical repeated output. |
+| FND-003 | fixed | The added invalid-record case includes a dangling boundary crossing; it asserts exactly two missing items (`connection_record` with null reference and the `crossing` reference to BOUNDARY-1 authored by CONN-1). The focused test passed. |

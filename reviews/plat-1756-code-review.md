@@ -55,3 +55,10 @@ Round 1, published head 89cd7594e6accae571b8209f10bfe0f9525637b1.
 | FND | outcome | reason |
 | --- | --- | --- |
 | FND-001 | fixed | `project_health_data_flows` now detects a missing selected connection record from a health-classified relation, removes guessed endpoint gaps, and emits one `connection_record` item with a null reference. `an_invalid_connection_record_reports_unavailability_without_guessing_endpoints` uses a schema requiring both endpoints and flowDirection, then verifies the unavailable-record output for each missing endpoint. |
+
+
+Round 2, published head d47d870ed714206ebf5451cf462361506ec4e407.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | The production projection is unchanged from the round-1 fix; the required-connection-schema test still asserts the unavailable record produces one `connection_record` item and no guessed endpoint. Focused integration test passed at this head. |
