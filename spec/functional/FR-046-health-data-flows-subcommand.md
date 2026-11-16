@@ -73,9 +73,11 @@ model facts. The CLI does not determine whether a flow is legally permissible.
 - The `connection` field in a gap SHALL be a `ModelDocument`.
 - The `missing` field in a gap SHALL be a non-empty array.
 - Each missing-reference item SHALL have exactly `field` followed by `reference`.
-- The `field` value in a missing-reference item SHALL be a string equal to one of `source`, `destination`, `crossing`, or `trust_level`.
-- The `reference` value in a missing-reference item SHALL be a `DeclaredReference` or `null` when the corresponding reference identifier is absent.
-- The CLI SHALL emit a gap for a health-classified connection when an endpoint record value is absent, an explicitly declared crossing is dangling, or a resolved boundary lacks `trust_level`.
+- The `field` value in a missing-reference item SHALL be a string equal to one of `connection_record`, `source`, `destination`, `crossing`, or `trust_level`.
+- The `reference` value in a missing-reference item SHALL be a `DeclaredReference` or `null` when the corresponding reference identifier is absent or the selected connection record is unavailable.
+- When FR-084 omits a health-classified connection's selected record, the CLI SHALL emit a missing-reference item with `field` equal to `connection_record` and `reference` equal to `null`.
+- When FR-084 omits a health-classified connection's selected record, the CLI SHALL NOT report either endpoint as missing because the report does not establish which endpoint value is absent.
+- When the selected connection record is present, the CLI SHALL emit a gap for a missing endpoint record value, an explicitly declared dangling crossing, or a resolved boundary that lacks `trust_level`.
 - A connection with no declared crossing SHALL have no crossing entry.
 - A connection with no declared crossing SHALL NOT be treated as a missing boundary.
 - The CLI SHALL NOT emit a complete flow entry for a connection with any missing endpoint or boundary fact.
@@ -116,7 +118,7 @@ model facts. The CLI does not determine whether a flow is legally permissible.
 |----|----------|--------------|
 | FR-046-AC-1 | `quire relations --scope <DIR> --module $M --health-data-flows --json` over a fixture module with `required_relations` for connection-to-classification and connection-to-trust-boundary facts, and `record_keys` selecting `sourceEnd`, `targetEnd`, `regulatedCategories`, and `trust_level`, emits a complete JSON envelope. The fixture model has one health-classified connection with source and destination record values and one declared boundary crossing. | Test |
 | FR-046-AC-2 | The AC-1 envelope's `schema`, `output`, `flows`, `gaps`, `ModelDocument`, `DeclaredReference`, flow, crossing, and gap keys have the exact names, order, types, nullability, and closed shapes specified in this requirement; each reference carries repository identity and a source artifact path or `declared_by` document. | Test |
-| FR-046-AC-3 | A health-classified connection with a missing source value, missing destination value, dangling crossing, or boundary without `trust_level` emits a gap naming the connection and missing reference, emits no complete entry for that connection, and substitutes no identifier or value. A connection with no declared crossing emits no boundary gap. | Test |
+| FR-046-AC-3 | A health-classified connection whose selected FR-084 record is omitted emits a `connection_record` missing item with a null reference, without claiming either endpoint is missing; independently observed crossing gaps remain present. If no other missing facts exist, that gap has exactly one missing item. When the selected record is present but only one endpoint value is missing, the gap names only that endpoint; a dangling crossing or boundary without `trust_level` names its missing reference. Each case emits no complete entry and substitutes no identifier or value. A connection with no declared crossing emits no boundary gap. | Test |
 | FR-046-AC-4 | A connection carrying a declared category other than `health` is absent from the complete flow entries and gaps, even when another category is regulated. | Test |
 | FR-046-AC-5 | Two runs over the same corpus produce byte-identical JSON. With multiple repositories, references retain each `--repo` identity and records, crossings, and gaps follow the specified order. | Test |
 | FR-046-AC-6 | The emitted metadata's name, kind, and description exactly match the `health-data-flows` row in US pack FR-005, and the pack's catalog test accepts those values. | Test |
