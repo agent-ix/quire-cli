@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.47.0] — 2026-11-16
+
+- **Health-data-flow relation mode (PLAT-1756).** `quire relations --health-data-flows` projects classified architecture connections into a deterministic health-data-flow report, including explicit gaps for incomplete records.
+
 ## [0.46.0] — 2026-11-15
 
 Adopts quire-rs 0.61.0 (engine 0.61.0): `quire relations` now carries the engine's semantic record data.
