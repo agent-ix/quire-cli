@@ -17,6 +17,8 @@ use quire_rs::{
     design_join, relation_report, LinkedEntry, RelationReport, RelationReportMember, RelationRow,
     RowDocument, RowState, Verification,
 };
+use serde::Serialize;
+use serde_json::Value;
 
 use super::corpus_input::{parse_repo, Corpus, RepoArg};
 use super::Ctx;
@@ -46,6 +48,15 @@ pub struct Args {
     #[arg(long, value_name = "NAME", conflicts_with = "design")]
     pub relation: Vec<String>,
 
+    /// Emit the health-data-flow projection of the generic relation report.
+    #[arg(long)]
+    pub health_data_flows: bool,
+
+    /// Reserved flow mode selector, used here to report an incompatible
+    /// combination with `--health-data-flows` (FR-046).
+    #[arg(long)]
+    pub flow: bool,
+
     /// Render the design-element join (FR-041) instead of the relation
     /// selection: for each requirement the design elements that realize it, and
     /// a gap when there are none. Which relations are design relations is the
@@ -66,6 +77,28 @@ pub struct Args {
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
+    if args.health_data_flows {
+        let mut conflicting = Vec::new();
+        if !args.relation.is_empty() {
+            conflicting.push("--relation");
+        }
+        if args.design {
+            conflicting.push("--design");
+        }
+        if args.flow {
+            conflicting.push("--flow");
+        }
+        if !conflicting.is_empty() {
+            invalid_request!(
+                "--health-data-flows conflicts with {}",
+                conflicting.join(", ")
+            );
+        }
+    }
+    if args.flow && !args.health_data_flows {
+        invalid_request!("--flow is not available in this quire build");
+    }
+
     let corpus = if args.repo.is_empty() {
         let raw = args.scope.as_deref().unwrap_or(".");
         let scope = safety::validate_dir_path("--scope", raw)
@@ -130,6 +163,22 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
     .map_err(|e| invalid_error!("{e}"))?;
 
+    if args.health_data_flows {
+        let projected = project_health_data_flows(&report, args.repo.is_empty())?;
+        if args.json {
+            primary_line!("{}", ix_cli_kit::json::encode(&projected, ctx.pretty)?);
+        } else {
+            primary!("{}", render_health_human(&projected));
+        }
+        if args.strict && !projected.gaps.is_empty() {
+            partial_report!(
+                "{} health-data-flow gap(s) (--strict)",
+                projected.gaps.len()
+            );
+        }
+        return Ok(());
+    }
+
     if args.json {
         primary_line!("{}", ix_cli_kit::json::encode(&report, ctx.pretty)?);
     } else {
@@ -143,6 +192,359 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct HealthOutput {
+    name: &'static str,
+    kind: &'static str,
+    description: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+struct HealthReport {
+    schema: &'static str,
+    output: HealthOutput,
+    flows: Vec<HealthFlow>,
+    gaps: Vec<HealthGap>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ModelDocument {
+    repo: Option<String>,
+    id: String,
+    archetype: String,
+    path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DeclaredReference {
+    repo: Option<String>,
+    id: String,
+    archetype: String,
+    declared_by: ModelDocument,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct HealthCrossing {
+    boundary: ModelDocument,
+    trust_level: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct HealthFlow {
+    connection: ModelDocument,
+    source: DeclaredReference,
+    destination: DeclaredReference,
+    classifications: Vec<ModelDocument>,
+    crossings: Vec<HealthCrossing>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct MissingReference {
+    field: &'static str,
+    reference: Option<DeclaredReference>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct HealthGap {
+    connection: ModelDocument,
+    missing: Vec<MissingReference>,
+}
+
+#[derive(Default)]
+struct ConnectionFacts {
+    document: Option<ModelDocument>,
+    source: Option<DeclaredReference>,
+    destination: Option<DeclaredReference>,
+    endpoint_facts_seen: bool,
+    classifications: Vec<ModelDocument>,
+    crossings: Vec<HealthCrossing>,
+    missing: Vec<MissingReference>,
+    health_classified: bool,
+}
+
+const HEALTH_OUTPUT: HealthOutput = HealthOutput {
+    name: "health-data-flows",
+    kind: "record",
+    description: "Health-data flow records; PLAT-1756 in the Data-Flow Model project owns the producer definition.",
+};
+
+/// Build the FR-046 view from the generic FR-084 relation report. No corpus
+/// documents are read here; every input is a selected relation fact.
+fn project_health_data_flows(report: &RelationReport, scope: bool) -> anyhow::Result<HealthReport> {
+    let mut connections =
+        std::collections::BTreeMap::<(Option<String>, String), ConnectionFacts>::new();
+
+    for section in &report.relations {
+        let relation_name = section.name.to_ascii_lowercase();
+        let section_is_crossing =
+            relation_name.contains("trust") && relation_name.contains("boundary");
+        for row in &section.rows {
+            let key = (row.document.repo.clone(), row.document.id.clone());
+            let facts = connections.entry(key).or_default();
+            let connection = model_document(&row.document)?;
+            facts.document = Some(connection.clone());
+
+            if let Some(record) = row.document.record.as_ref() {
+                let source = endpoint(record.get("sourceEnd"), &connection, scope);
+                let destination = endpoint(record.get("targetEnd"), &connection, scope);
+                if source.is_some()
+                    || destination.is_some()
+                    || record.contains_key("sourceEnd")
+                    || record.contains_key("targetEnd")
+                {
+                    facts.endpoint_facts_seen = true;
+                    facts.source = source;
+                    facts.destination = destination;
+                }
+            }
+
+            let mut has_boundary_link = false;
+            for entry in &row.linked {
+                let LinkedEntry::Resolved { document, .. } = entry else {
+                    continue;
+                };
+                if is_health_classification(document) {
+                    facts.health_classified = true;
+                    facts.classifications.push(model_document(document)?);
+                }
+                if let Some(trust_level) = document
+                    .record
+                    .as_ref()
+                    .and_then(|record| record.get("trust_level"))
+                    .and_then(Value::as_str)
+                {
+                    has_boundary_link = true;
+                    facts.crossings.push(HealthCrossing {
+                        boundary: model_document(document)?,
+                        trust_level: trust_level.to_owned(),
+                    });
+                } else if is_trust_boundary(document) {
+                    has_boundary_link = true;
+                    facts.missing.push(MissingReference {
+                        field: "trust_level",
+                        reference: Some(declared_document_reference(document, &connection)?),
+                    });
+                }
+            }
+
+            if section_is_crossing || has_boundary_link {
+                for entry in &row.dangling {
+                    let reference = parse_declared_reference(
+                        &entry.reference,
+                        &connection,
+                        scope,
+                        "TrustBoundary",
+                    );
+                    facts.missing.push(MissingReference {
+                        field: "crossing",
+                        reference,
+                    });
+                }
+            }
+        }
+    }
+
+    let mut flows = Vec::new();
+    let mut gaps = Vec::new();
+    for (_, mut facts) in connections {
+        if !facts.health_classified {
+            continue;
+        }
+        let connection = facts
+            .document
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("health flow has no connection document"))?;
+        if !facts.endpoint_facts_seen || facts.source.is_none() {
+            facts.missing.push(MissingReference {
+                field: "source",
+                reference: None,
+            });
+        }
+        if !facts.endpoint_facts_seen || facts.destination.is_none() {
+            facts.missing.push(MissingReference {
+                field: "destination",
+                reference: None,
+            });
+        }
+        sort_dedup_documents(&mut facts.classifications);
+        sort_dedup_crossings(&mut facts.crossings);
+        sort_missing(&mut facts.missing);
+        facts.missing.dedup_by(|left, right| {
+            left.field == right.field
+                && left.reference.as_ref().map(|r| (&r.repo, &r.id))
+                    == right.reference.as_ref().map(|r| (&r.repo, &r.id))
+        });
+
+        if facts.missing.is_empty() {
+            if let (Some(source), Some(destination)) = (facts.source, facts.destination) {
+                flows.push(HealthFlow {
+                    connection,
+                    source,
+                    destination,
+                    classifications: facts.classifications,
+                    crossings: facts.crossings,
+                });
+            }
+        } else {
+            gaps.push(HealthGap {
+                connection,
+                missing: facts.missing,
+            });
+        }
+    }
+
+    flows.sort_by(|left, right| {
+        document_key(&left.connection).cmp(&document_key(&right.connection))
+    });
+    gaps.sort_by(|left, right| {
+        document_key(&left.connection).cmp(&document_key(&right.connection))
+    });
+    Ok(HealthReport {
+        schema: "quire.health-data-flows/v1",
+        output: HEALTH_OUTPUT,
+        flows,
+        gaps,
+    })
+}
+
+fn model_document(document: &RowDocument) -> anyhow::Result<ModelDocument> {
+    let archetype = document.archetype.clone().ok_or_else(|| {
+        anyhow::anyhow!(
+            "relation report document '{}' has no archetype",
+            document.id
+        )
+    })?;
+    Ok(ModelDocument {
+        repo: document.repo.clone(),
+        id: document.id.clone(),
+        archetype,
+        path: document.path.clone(),
+    })
+}
+
+fn endpoint(
+    value: Option<&Value>,
+    connection: &ModelDocument,
+    scope: bool,
+) -> Option<DeclaredReference> {
+    let id = value?.get("type")?.as_str()?;
+    parse_declared_reference(id, connection, scope, "port")
+}
+
+fn parse_declared_reference(
+    target: &str,
+    declared_by: &ModelDocument,
+    scope: bool,
+    archetype: &str,
+) -> Option<DeclaredReference> {
+    let (id, target_repo) = if let Some(uri) = target.strip_prefix("ix://") {
+        let parts: Vec<&str> = uri.split('/').collect();
+        if parts.len() < 2 {
+            return None;
+        }
+        let id = *parts.last()?;
+        let repo = (parts.len() >= 3).then(|| format!("{}/{}", parts[0], parts[1]));
+        (id, repo)
+    } else {
+        (target, declared_by.repo.clone())
+    };
+    if id.is_empty() {
+        return None;
+    }
+    Some(DeclaredReference {
+        repo: if scope { None } else { target_repo },
+        id: id.to_owned(),
+        archetype: archetype.to_owned(),
+        declared_by: declared_by.clone(),
+    })
+}
+
+fn declared_document_reference(
+    document: &RowDocument,
+    declared_by: &ModelDocument,
+) -> anyhow::Result<DeclaredReference> {
+    Ok(DeclaredReference {
+        repo: document.repo.clone(),
+        id: document.id.clone(),
+        archetype: document
+            .archetype
+            .clone()
+            .ok_or_else(|| anyhow::anyhow!("boundary '{}' has no archetype", document.id))?,
+        declared_by: declared_by.clone(),
+    })
+}
+
+fn is_health_classification(document: &RowDocument) -> bool {
+    document
+        .record
+        .as_ref()
+        .and_then(|record| record.get("regulatedCategories"))
+        .and_then(Value::as_array)
+        .is_some_and(|categories| {
+            categories
+                .iter()
+                .any(|category| category.as_str() == Some("health"))
+        })
+}
+
+fn is_trust_boundary(document: &RowDocument) -> bool {
+    document.archetype.as_deref().is_some_and(|archetype| {
+        let lower = archetype.to_ascii_lowercase();
+        lower.contains("trust") && lower.contains("boundary")
+    })
+}
+
+fn document_key(document: &ModelDocument) -> (Option<&str>, &str) {
+    (document.repo.as_deref(), &document.id)
+}
+
+fn sort_dedup_documents(documents: &mut Vec<ModelDocument>) {
+    documents.sort_by(|left, right| document_key(left).cmp(&document_key(right)));
+    documents.dedup_by(|left, right| document_key(left) == document_key(right));
+}
+
+fn sort_dedup_crossings(crossings: &mut Vec<HealthCrossing>) {
+    crossings
+        .sort_by(|left, right| document_key(&left.boundary).cmp(&document_key(&right.boundary)));
+    crossings.dedup_by(|left, right| document_key(&left.boundary) == document_key(&right.boundary));
+}
+
+fn sort_missing(missing: &mut [MissingReference]) {
+    missing.sort_by(|left, right| {
+        let left_key = left
+            .reference
+            .as_ref()
+            .map(|reference| (reference.repo.as_deref(), reference.id.as_str()));
+        let right_key = right
+            .reference
+            .as_ref()
+            .map(|reference| (reference.repo.as_deref(), reference.id.as_str()));
+        left.field
+            .cmp(right.field)
+            .then_with(|| left_key.cmp(&right_key))
+    });
+}
+
+fn render_health_human(report: &HealthReport) -> String {
+    let mut out = String::new();
+    for flow in &report.flows {
+        out.push_str(&format!(
+            "{}: {} -> {}\n",
+            flow.connection.id, flow.source.id, flow.destination.id
+        ));
+    }
+    for gap in &report.gaps {
+        let fields = gap
+            .missing
+            .iter()
+            .map(|missing| missing.field)
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!("{}: missing {fields}\n", gap.connection.id));
+    }
+    out
 }
 
 /// Why `--strict` fails this report, one entry per distinct cause.
