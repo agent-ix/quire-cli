@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.48.0] — 2026-11-16
+
+- **Generic flow reports (PLAT-1479, #214).** `quire relations --flow` lists remediation names in human output; JSON preserves structured remediation names, descriptions and declared changes. Requires quire-rs 0.62.0.
+
 ## [0.47.0] — 2026-11-16
 
 - **Health-data-flow relation mode (PLAT-1756).** `quire relations --health-data-flows` projects classified architecture connections into a deterministic health-data-flow report, including explicit gaps for incomplete records.
