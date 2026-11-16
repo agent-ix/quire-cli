@@ -11,7 +11,7 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [0.48.0] — 2026-11-16
 
-- **Generic flow reports (PLAT-1479, #214).** `quire relations --flow` renders the engine's flow denial report, including structured remediation names, descriptions and declared changes. Requires quire-rs 0.62.0.
+- **Generic flow reports (PLAT-1479, #214).** `quire relations --flow` lists remediation names in human output; JSON preserves structured remediation names, descriptions and declared changes. Requires quire-rs 0.62.0.
 
 ## [0.47.0] — 2026-11-16
 
