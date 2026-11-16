@@ -749,6 +749,33 @@ fn an_invalid_connection_record_reports_unavailability_without_guessing_endpoint
             &["field", "reference"],
         );
     }
+
+    let missing_target = "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\nflowDirection: source-to-target\n";
+    let (temp, scope) = world(missing_target, "health", None, true);
+    write(
+        &temp.path().join("module"),
+        "schemas/Connection.json",
+        REQUIRED_CONNECTION_SCHEMA,
+    );
+    let output = run(
+        &scope,
+        &temp.path().join("module"),
+        &["--health-data-flows", "--json"],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = json(&output);
+    assert!(report["flows"].as_array().unwrap().is_empty());
+    let missing = report["gaps"][0]["missing"].as_array().unwrap();
+    assert_eq!(missing.len(), 2);
+    assert_eq!(missing[0]["field"], "connection_record");
+    assert!(missing[0]["reference"].is_null());
+    assert_eq!(missing[1]["field"], "crossing");
+    assert_eq!(missing[1]["reference"]["id"], "BOUNDARY-1");
+    assert_eq!(missing[1]["reference"]["declared_by"]["id"], "CONN-1");
 }
 
 #[test]

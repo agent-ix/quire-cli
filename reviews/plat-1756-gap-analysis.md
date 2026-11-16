@@ -53,3 +53,19 @@ The computed matrix binds tests to FR-046 AC-1 through AC-9 and treats AC-10 as 
 ## Coverage
 
 The matrix and tests were inspected for all ten criteria. `Plan completion: not assessed`. Semantic review was skipped because it was not requested.
+
+## New findings (round 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | medium | AC-3 explicitly requires independently observed crossing gaps to remain in a gap when FR-084 omits the selected connection record. The implementation preserves those items, but the unavailable-record test supplies no crossing, so a regression that drops crossing gaps on this path would pass. | tests/cli_health_data_flows.rs:693-750 |
+
+## Dispositions
+
+Round 1, published head 89cd7594e6accae571b8209f10bfe0f9525637b1.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `emits_the_canonical_health_flow_envelope_from_generic_relation_facts` now asserts closed, ordered object shapes for the envelope, output, flow, ModelDocument, DeclaredReference, crossing and boundary, including field types and nullable repository identity. |
+| FND-002 | fixed | `sorts_multiple_flows_classifications_crossings_and_missing_references` now exercises reverse-authored multiple flows, classifications, crossings, gaps and missing references, asserts lexical output order, and compares repeat output byte-for-byte. |
+| FND-003 | still-open | The unavailable-record test checks only `connection_record` by itself. Add an unavailable selected record and a dangling crossing in the same fixture, and assert both missing items remain in the emitted gap. The production code currently retains that crossing item, but no test protects the explicit AC-3 combination. |

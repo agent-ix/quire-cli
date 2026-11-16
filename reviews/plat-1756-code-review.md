@@ -47,3 +47,11 @@ FR-084 says `record` is omitted when record validation fails. The architecture C
 - `FR-046-AC-10` (examined): The CLI derives health selection and record structure only from the generic FR-084 relation report's `document`, `linked`, `dangling`, and selected `record` values; it reads no source files and does not alter the report used by `--flow`.
 - `FR-084` (context_only): the generic relation report omits `record` when record validation fails.
 - `FR-007` (context_only): a connection requires `sourceEnd`, `targetEnd`, and `flowDirection`.
+
+## Dispositions
+
+Round 1, published head 89cd7594e6accae571b8209f10bfe0f9525637b1.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `project_health_data_flows` now detects a missing selected connection record from a health-classified relation, removes guessed endpoint gaps, and emits one `connection_record` item with a null reference. `an_invalid_connection_record_reports_unavailability_without_guessing_endpoints` uses a schema requiring both endpoints and flowDirection, then verifies the unavailable-record output for each missing endpoint. |
