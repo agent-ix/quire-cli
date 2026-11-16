@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.49.0] — 2026-11-16
+
+- **Preserve flow-rule load diagnostics (PLAT-1770).** `quire relations --flow` now reports the module path and invalid rule value or remediation when a module's flow rules cannot be loaded.
+
 ## [0.48.0] — 2026-11-16
 
 - **Generic flow reports (PLAT-1479, #214).** `quire relations --flow` lists remediation names in human output; JSON preserves structured remediation names, descriptions and declared changes. Requires quire-rs 0.62.0.
