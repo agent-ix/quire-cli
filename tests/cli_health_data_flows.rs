@@ -56,6 +56,18 @@ const CONNECTION_SCHEMA: &str = r#"{
   "additionalProperties":false
 }"#;
 
+const REQUIRED_CONNECTION_SCHEMA: &str = r#"{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "type":"object",
+  "properties":{
+    "sourceEnd":{"type":"object","properties":{"type":{"type":"string"}}},
+    "targetEnd":{"type":"object","properties":{"type":{"type":"string"}}},
+    "flowDirection":{"type":"string"}
+  },
+  "required":["sourceEnd","targetEnd","flowDirection"],
+  "additionalProperties":false
+}"#;
+
 const CLASSIFICATION_SCHEMA: &str = r#"{
   "$schema":"https://json-schema.org/draft/2020-12/schema",
   "type":"object",
@@ -173,6 +185,63 @@ fn json(output: &Output) -> Value {
     })
 }
 
+fn assert_object_shape(value: &Value, encoded: &str, marker: &str, expected: &[&str]) {
+    let object = value.as_object().expect("value is an object");
+    let mut actual: Vec<&str> = object.keys().map(String::as_str).collect();
+    actual.sort_unstable();
+    let mut expected_sorted = expected.to_vec();
+    expected_sorted.sort_unstable();
+    assert_eq!(
+        actual, expected_sorted,
+        "unexpected object keys at {marker}"
+    );
+
+    let marker_start = encoded.find(marker).expect("object marker is serialized");
+    let object_start = marker_start + marker.len() - 1;
+    let bytes = encoded.as_bytes();
+    let mut depth = 0usize;
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut object_end = None;
+    for (offset, byte) in bytes.iter().enumerate().skip(object_start) {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if *byte == b'\\' {
+                escaped = true;
+            } else if *byte == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match *byte {
+            b'"' => in_string = true,
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    object_end = Some(offset + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let object_text = &encoded[object_start..object_end.expect("object is closed")];
+    let positions: Vec<usize> = expected
+        .iter()
+        .map(|key| {
+            object_text
+                .find(&format!("\"{key}\":"))
+                .unwrap_or_else(|| panic!("missing key {key} from {object_text}"))
+        })
+        .collect();
+    assert!(
+        positions.windows(2).all(|pair| pair[0] < pair[1]),
+        "wrong key order in {object_text}"
+    );
+}
+
 #[test]
 #[trace("FR-046-AC-1", "FR-046-AC-2", "FR-046-AC-5", "FR-046-AC-6")]
 fn emits_the_canonical_health_flow_envelope_from_generic_relation_facts() {
@@ -222,6 +291,84 @@ fn emits_the_canonical_health_flow_envelope_from_generic_relation_facts() {
         "untrusted"
     );
     let encoded = String::from_utf8_lossy(&output.stdout);
+    assert_object_shape(
+        &report,
+        &encoded,
+        "{",
+        &["schema", "output", "flows", "gaps"],
+    );
+    assert_object_shape(
+        &report["output"],
+        &encoded,
+        "\"output\":{",
+        &["name", "kind", "description"],
+    );
+    assert_object_shape(
+        &report["flows"][0],
+        &encoded,
+        "\"flows\":[{",
+        &[
+            "connection",
+            "source",
+            "destination",
+            "classifications",
+            "crossings",
+        ],
+    );
+    assert_object_shape(
+        &report["flows"][0]["connection"],
+        &encoded,
+        "\"connection\":{",
+        &["repo", "id", "archetype", "path"],
+    );
+    assert_object_shape(
+        &report["flows"][0]["source"],
+        &encoded,
+        "\"source\":{",
+        &["repo", "id", "archetype", "declared_by"],
+    );
+    assert_object_shape(
+        &report["flows"][0]["source"]["declared_by"],
+        &encoded,
+        "\"declared_by\":{",
+        &["repo", "id", "archetype", "path"],
+    );
+    assert_object_shape(
+        &report["flows"][0]["classifications"][0],
+        &encoded,
+        "\"classifications\":[{",
+        &["repo", "id", "archetype", "path"],
+    );
+    assert_object_shape(
+        &report["flows"][0]["crossings"][0],
+        &encoded,
+        "\"crossings\":[{",
+        &["boundary", "trust_level"],
+    );
+    assert_object_shape(
+        &report["flows"][0]["crossings"][0]["boundary"],
+        &encoded,
+        "\"boundary\":{",
+        &["repo", "id", "archetype", "path"],
+    );
+    for document in [
+        &report["flows"][0]["connection"],
+        &report["flows"][0]["classifications"][0],
+        &report["flows"][0]["crossings"][0]["boundary"],
+    ] {
+        assert!(document["repo"].is_null() || document["repo"].is_string());
+        assert!(document["id"].is_string());
+        assert!(document["archetype"].is_string());
+        assert!(document["path"].is_string());
+    }
+    assert!(
+        report["flows"][0]["source"]["repo"].is_null()
+            || report["flows"][0]["source"]["repo"].is_string()
+    );
+    assert!(report["flows"][0]["source"]["id"].is_string());
+    assert!(report["flows"][0]["source"]["archetype"].is_string());
+    assert!(report["flows"][0]["source"]["declared_by"].is_object());
+    assert!(report["flows"][0]["crossings"][0]["trust_level"].is_string());
     let top_level = ["\"schema\"", "\"output\"", "\"flows\"", "\"gaps\""];
     let top_positions: Vec<usize> = top_level
         .iter()
@@ -325,6 +472,132 @@ fn multi_repo_references_keep_their_declared_member_identity() {
 }
 
 #[test]
+#[trace("FR-046-AC-5")]
+fn sorts_multiple_flows_classifications_crossings_and_missing_references() {
+    let temp = TempDir::new().unwrap();
+    let module = temp.path().join("module");
+    write(&module, "manifest.yaml", MANIFEST);
+    write(&module, "schemas/Connection.json", CONNECTION_SCHEMA);
+    write(
+        &module,
+        "schemas/Classification.json",
+        CLASSIFICATION_SCHEMA,
+    );
+    write(&module, "schemas/TrustBoundary.json", BOUNDARY_SCHEMA);
+    let scope = temp.path().join("repo");
+
+    let endpoints = "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n";
+    let mut multiple_refs = vec![
+        ("classified-as", "CLS-Z"),
+        ("classified-as", "CLS-A"),
+        ("crosses", "BOUNDARY-Z"),
+        ("crosses", "BOUNDARY-A"),
+    ];
+    write(
+        &scope,
+        "spec/a.md",
+        &document("CONN-Z", "Connection", endpoints, &multiple_refs),
+    );
+    multiple_refs = vec![("classified-as", "CLS-M"), ("crosses", "BOUNDARY-M")];
+    write(
+        &scope,
+        "spec/z.md",
+        &document("CONN-A", "Connection", endpoints, &multiple_refs),
+    );
+    multiple_refs = vec![
+        ("classified-as", "CLS-G"),
+        ("crosses", "BOUNDARY-Z-DANGLING"),
+        ("crosses", "BOUNDARY-A-DANGLING"),
+        ("crosses", "BOUNDARY-EMPTY"),
+    ];
+    write(
+        &scope,
+        "spec/a-gap.md",
+        &document("CONN-GAP-Z", "Connection", endpoints, &multiple_refs),
+    );
+    multiple_refs = vec![
+        ("classified-as", "CLS-G"),
+        ("crosses", "BOUNDARY-Q-DANGLING"),
+        ("crosses", "BOUNDARY-P-DANGLING"),
+    ];
+    write(
+        &scope,
+        "spec/z-gap.md",
+        &document("CONN-GAP-A", "Connection", endpoints, &multiple_refs),
+    );
+
+    for id in ["CLS-Z", "CLS-A", "CLS-M", "CLS-G"] {
+        write(
+            &scope,
+            &format!("spec/{id}.md"),
+            &document(id, "Classification", "regulatedCategories: [health]\n", &[]),
+        );
+    }
+    for id in ["BOUNDARY-Z", "BOUNDARY-A", "BOUNDARY-M"] {
+        write(
+            &scope,
+            &format!("spec/{id}.md"),
+            &document(id, "TrustBoundary", "trust_level: untrusted\n", &[]),
+        );
+    }
+    write(
+        &scope,
+        "spec/BOUNDARY-EMPTY.md",
+        &document("BOUNDARY-EMPTY", "TrustBoundary", "", &[]),
+    );
+
+    let output = run(&scope, &module, &["--health-data-flows", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = json(&output);
+    let flows = report["flows"].as_array().unwrap();
+    assert_eq!(flows.len(), 2);
+    assert_eq!(flows[0]["connection"]["id"], "CONN-A");
+    assert_eq!(flows[1]["connection"]["id"], "CONN-Z");
+    let classification_ids: Vec<&str> = flows[1]["classifications"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|document| document["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(classification_ids, ["CLS-A", "CLS-Z"]);
+    let crossing_ids: Vec<&str> = flows[1]["crossings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|crossing| crossing["boundary"]["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(crossing_ids, ["BOUNDARY-A", "BOUNDARY-Z"]);
+    assert_eq!(report["gaps"].as_array().unwrap().len(), 2);
+    assert_eq!(report["gaps"][0]["connection"]["id"], "CONN-GAP-A");
+    assert_eq!(report["gaps"][1]["connection"]["id"], "CONN-GAP-Z");
+    let missing: Vec<(&str, Option<&str>)> = report["gaps"][1]["missing"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            (
+                item["field"].as_str().unwrap(),
+                item["reference"]["id"].as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        missing,
+        [
+            ("crossing", Some("BOUNDARY-A-DANGLING")),
+            ("crossing", Some("BOUNDARY-Z-DANGLING")),
+            ("trust_level", Some("BOUNDARY-EMPTY")),
+        ]
+    );
+    let second = run(&scope, &module, &["--health-data-flows", "--json"]);
+    assert_eq!(output.stdout, second.stdout);
+}
+
+#[test]
 #[trace("FR-046-AC-3")]
 fn reports_missing_endpoint_dangling_crossing_and_missing_trust_level() {
     let (temp, scope) = world(
@@ -349,9 +622,27 @@ fn reports_missing_endpoint_dangling_crossing_and_missing_trust_level() {
     assert!(missing
         .iter()
         .any(|item| item["field"] == "source" && item["reference"].is_null()));
+    assert!(!missing.iter().any(|item| item["field"] == "destination"));
     assert!(missing
         .iter()
         .any(|item| item["field"] == "crossing" && item["reference"]["id"] == "BOUNDARY-1"));
+
+    let (temp, scope) = world(
+        "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\n",
+        "health",
+        None,
+        false,
+    );
+    let output = run(
+        &scope,
+        &temp.path().join("module"),
+        &["--health-data-flows", "--json"],
+    );
+    let report = json(&output);
+    let missing = report["gaps"][0]["missing"].as_array().unwrap();
+    assert_eq!(missing.len(), 1);
+    assert_eq!(missing[0]["field"], "destination");
+    assert!(missing[0]["reference"].is_null());
 
     let (temp, scope) = world(
         "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
@@ -370,6 +661,94 @@ fn reports_missing_endpoint_dangling_crossing_and_missing_trust_level() {
         .unwrap()
         .iter()
         .any(|item| item["field"] == "trust_level"));
+    let encoded = String::from_utf8_lossy(&output.stdout);
+    let missing_item = report["gaps"][0]["missing"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["field"] == "trust_level")
+        .expect("missing trust level is represented");
+    assert_object_shape(
+        &report["gaps"][0],
+        &encoded,
+        "\"gaps\":[{",
+        &["connection", "missing"],
+    );
+    assert_object_shape(
+        &missing_item["reference"],
+        &encoded,
+        "\"reference\":{",
+        &["repo", "id", "archetype", "declared_by"],
+    );
+    assert_object_shape(
+        &missing_item["reference"]["declared_by"],
+        &encoded,
+        "\"declared_by\":{",
+        &["repo", "id", "archetype", "path"],
+    );
+}
+
+#[test]
+#[trace("FR-046-AC-3")]
+fn an_invalid_connection_record_reports_unavailability_without_guessing_endpoints() {
+    let complete = "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\nflowDirection: source-to-target\n";
+    let cases = [
+        (
+            "PORT-TARGET",
+            "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\n",
+        ),
+        (
+            "PORT-SOURCE",
+            "targetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
+        ),
+    ];
+    for (endpoint_id, remaining_endpoint) in cases {
+        let mut record = complete.to_owned();
+        let removed = if endpoint_id == "PORT-TARGET" {
+            "targetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n"
+        } else {
+            "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\n"
+        };
+        record = record.replace(removed, "");
+        assert!(record.contains(remaining_endpoint));
+        let (temp, scope) = world(&record, "health", None, false);
+        write(
+            &temp.path().join("module"),
+            "schemas/Connection.json",
+            REQUIRED_CONNECTION_SCHEMA,
+        );
+        let output = run(
+            &scope,
+            &temp.path().join("module"),
+            &["--health-data-flows", "--json"],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let report = json(&output);
+        assert!(report["flows"].as_array().unwrap().is_empty());
+        let gap = &report["gaps"][0];
+        assert_eq!(gap["connection"]["id"], "CONN-1");
+        assert_eq!(gap["missing"].as_array().unwrap().len(), 1);
+        assert_eq!(gap["missing"][0]["field"], "connection_record");
+        assert!(gap["missing"][0]["reference"].is_null());
+        let encoded = String::from_utf8_lossy(&output.stdout);
+        assert_object_shape(gap, &encoded, "\"gaps\":[{", &["connection", "missing"]);
+        assert_object_shape(
+            &gap["connection"],
+            &encoded,
+            "\"connection\":{",
+            &["repo", "id", "archetype", "path"],
+        );
+        assert_object_shape(
+            &gap["missing"][0],
+            &encoded,
+            "\"missing\":[{",
+            &["field", "reference"],
+        );
+    }
 }
 
 #[test]

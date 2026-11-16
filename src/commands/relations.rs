@@ -258,6 +258,7 @@ struct ConnectionFacts {
     source: Option<DeclaredReference>,
     destination: Option<DeclaredReference>,
     endpoint_facts_seen: bool,
+    connection_record_unavailable: bool,
     classifications: Vec<ModelDocument>,
     crossings: Vec<HealthCrossing>,
     missing: Vec<MissingReference>,
@@ -307,6 +308,7 @@ fn project_health_data_flows(report: &RelationReport, scope: bool) -> anyhow::Re
                 };
                 if is_health_classification(document) {
                     facts.health_classified = true;
+                    facts.connection_record_unavailable |= row.document.record.is_none();
                     facts.classifications.push(model_document(document)?);
                 }
                 if let Some(trust_level) = document
@@ -356,17 +358,27 @@ fn project_health_data_flows(report: &RelationReport, scope: bool) -> anyhow::Re
             .document
             .take()
             .ok_or_else(|| anyhow::anyhow!("health flow has no connection document"))?;
-        if !facts.endpoint_facts_seen || facts.source.is_none() {
+        if facts.connection_record_unavailable {
+            facts
+                .missing
+                .retain(|missing| !matches!(missing.field, "source" | "destination"));
             facts.missing.push(MissingReference {
-                field: "source",
+                field: "connection_record",
                 reference: None,
             });
-        }
-        if !facts.endpoint_facts_seen || facts.destination.is_none() {
-            facts.missing.push(MissingReference {
-                field: "destination",
-                reference: None,
-            });
+        } else {
+            if !facts.endpoint_facts_seen || facts.source.is_none() {
+                facts.missing.push(MissingReference {
+                    field: "source",
+                    reference: None,
+                });
+            }
+            if !facts.endpoint_facts_seen || facts.destination.is_none() {
+                facts.missing.push(MissingReference {
+                    field: "destination",
+                    reference: None,
+                });
+            }
         }
         sort_dedup_documents(&mut facts.classifications);
         sort_dedup_crossings(&mut facts.crossings);
