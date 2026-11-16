@@ -176,6 +176,27 @@ fn run_repos(repos: &[(&str, &Path)], module: &Path, extra: &[&str]) -> Output {
     command.output().unwrap()
 }
 
+fn add_flow_rule(module: &Path) {
+    let manifest = MANIFEST.replacen(
+        "traceability:\n  required_relations:",
+        "traceability:\n  flow_rules:\n  - name: connection-present\n    subject: [Connection]\n    match: [{path: [], field: id, present: true}]\n    check: connection-present\n    rationale: Report the authored connection.\n  required_relations:",
+        1,
+    );
+    assert!(
+        manifest.contains("flow_rules:"),
+        "fixture manifest has no flow rules"
+    );
+    write(module, "manifest.yaml", &manifest);
+}
+
+fn add_flow_only_rule(module: &Path) {
+    let declarations = MANIFEST.split("traceability:").next().unwrap();
+    let manifest = format!(
+        "{declarations}traceability:\n  flow_rules:\n  - name: connection-present\n    subject: [Connection]\n    match: [{{path: [], field: id, present: true}}]\n    check: connection-present\n    rationale: Report the authored connection.\n"
+    );
+    write(module, "manifest.yaml", &manifest);
+}
+
 fn json(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
         panic!(
@@ -394,6 +415,97 @@ fn emits_the_canonical_health_flow_envelope_from_generic_relation_facts() {
     );
     assert!(second.status.success());
     assert_eq!(output.stdout, second.stdout);
+}
+
+#[test]
+#[trace("FR-044-AC-5", "FR-044-AC-7")]
+fn flow_mode_passes_through_generic_engine_report_and_applies_strict_exit() {
+    let (temp, scope) = world(
+        "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
+        "health",
+        Some("trust_level: untrusted\n"),
+        true,
+    );
+    let module = temp.path().join("module");
+    add_flow_rule(&module);
+    let registry = quire_rs::Registry::load_module(&module).expect("fixture module loads");
+    assert!(registry.failures().is_empty(), "{:?}", registry.failures());
+    assert_eq!(
+        registry.traceability().unwrap().flow_rules.len(),
+        1,
+        "fixture flow declaration is retained"
+    );
+
+    let output = run(&scope, &module, &["--flow", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = json(&output);
+    assert_eq!(report["schema"], "quire.flow-report/v1");
+    let repeated = run(&scope, &module, &["--flow", "--json"]);
+    assert_eq!(repeated.stdout, output.stdout);
+    assert_eq!(report["denials"].as_array().unwrap().len(), 1);
+    assert_eq!(report["denials"][0]["check"], "connection-present");
+    assert_eq!(report["denials"][0]["subject"]["id"], "CONN-1");
+    assert_eq!(
+        report["denials"][0]["matched"]["Connection"][0]["id"],
+        "CONN-1"
+    );
+    assert_eq!(report["denials"][0]["remediations"], json!([]));
+    assert_eq!(
+        report["denials"][0]["rationale"],
+        "Report the authored connection."
+    );
+
+    let strict = run(&scope, &module, &["--flow", "--strict", "--json"]);
+    assert_eq!(strict.status.code(), Some(1));
+    assert_eq!(json(&strict), report);
+
+    let manifest = fs::read_to_string(module.join("manifest.yaml")).unwrap();
+    write(
+        &module,
+        "manifest.yaml",
+        &manifest.replace(
+            "traceability:\n",
+            "grammar_severity:\n  trace:connection-present: error\ntraceability:\n",
+        ),
+    );
+    let promoted = run(&scope, &module, &["--flow", "--json"]);
+    assert_eq!(promoted.status.code(), Some(1));
+    assert_eq!(json(&promoted)["denials"][0]["severity"], "error");
+    write(&module, "manifest.yaml", &manifest);
+
+    let human = run(&scope, &module, &["--flow"]);
+    assert!(human.status.success());
+    let human = String::from_utf8_lossy(&human.stdout);
+    assert!(human.contains("connection-present: CONN-1 (warning)"));
+
+    let default_json = run(&scope, &module, &["--json"]);
+    assert!(default_json.status.success());
+    assert_eq!(json(&default_json)["flow"], report);
+    let default_human = run(&scope, &module, &[]);
+    assert!(default_human.status.success());
+    assert!(String::from_utf8_lossy(&default_human.stdout)
+        .contains("connection-present: CONN-1 (warning)"));
+
+    let (empty_temp, empty_scope) = world(
+        "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
+        "health",
+        None,
+        false,
+    );
+    let empty_module = empty_temp.path().join("module");
+    add_flow_rule(&empty_module);
+    fs::remove_file(empty_scope.join("spec/CONN-1.md")).unwrap();
+    let empty = run(
+        &empty_scope,
+        &empty_module,
+        &["--flow", "--strict", "--json"],
+    );
+    assert!(empty.status.success());
+    assert!(json(&empty)["denials"].as_array().unwrap().is_empty());
 }
 
 #[test]
@@ -863,4 +975,49 @@ fn health_mode_conflicts_exit_three_without_a_report() {
             "{stderr}"
         );
     }
+}
+
+#[test]
+#[trace("FR-044-AC-11")]
+fn flow_mode_rejects_missing_rules_and_relation_mode_conflicts() {
+    let (temp, scope) = world("", "health", None, false);
+    let module = temp.path().join("module");
+    for (flags, expected) in [
+        (vec!["--flow", "--json"], "traceability.flow_rules"),
+        (
+            vec!["--flow", "--relation", "connection-carries-classification"],
+            "--relation",
+        ),
+        (vec!["--flow", "--design"], "--design"),
+    ] {
+        let output = run(&scope, &module, &flags);
+        assert_eq!(output.status.code(), Some(3));
+        assert!(output.stdout.is_empty());
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(expected),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+#[test]
+#[trace("FR-044-AC-16")]
+fn flow_mode_does_not_require_required_relations() {
+    let (temp, scope) = world("", "health", None, false);
+    let module = temp.path().join("module");
+    add_flow_only_rule(&module);
+
+    let output = run(&scope, &module, &["--flow", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(json(&output)["denials"].as_array().unwrap().len(), 1);
+
+    let relations = run(&scope, &module, &["--json"]);
+    assert_eq!(relations.status.code(), Some(3));
+    assert!(relations.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&relations.stderr).contains("required_relations"));
 }
