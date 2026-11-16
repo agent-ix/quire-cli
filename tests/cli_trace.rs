@@ -864,6 +864,31 @@ fn forward_query_lists_the_declaration_under_formalizes_only() {
 }
 
 /// FR-045-AC-3: an id the corpus does not define never appears as a relation,
+/// FR-045-AC-10: a module without the QSL marker form keeps the existing trace
+/// JSON bytes even when the scope contains a `.native` file.
+#[trace("FR-045-AC-10")]
+#[test]
+fn an_undeclared_formalizes_form_preserves_existing_trace_json_bytes() {
+    let dir = TempDir::new().expect("tmp");
+    let module = module(&dir);
+    let scope = formalizes_tree(&dir);
+    fs::write(dir.path().join("rules/rules.native"), "language qsl\n").expect("write rules");
+
+    let out = run(&[
+        "trace", "--scope", &scope, "--module", &module, "--id", "FR-001", "--json",
+    ]);
+    assert_eq!(out.code, Some(0), "stderr: {}", out.stderr);
+
+    let engine = serde_json::to_string(&quire_cli::engine::Provenance::current()).expect("engine");
+    let expected = format!(
+        "{{\"query\":{{\"kind\":\"id\",\"id\":\"FR-001\",\"prefix\":false,\"matched_ids\":[]}},\"resolved\":false,\"claims\":{{\"verifies\":[],\"implements\":[]}},\"citations\":[],\"ambiguous_matches\":[],\"citations_excluded_by_path_filter\":0,\"engine\":{engine}}}\n"
+    );
+    assert_eq!(
+        out.stdout, expected,
+        "output must retain the existing byte shape"
+    );
+}
+
 /// in `trace` or in `symbols`.
 #[trace("FR-045-AC-3")]
 #[test]
@@ -874,14 +899,7 @@ fn an_id_absent_from_the_corpus_is_listed_by_neither_trace_nor_symbols() {
     let v = trace_json(&[
         "trace", "--scope", &scope, "--module", &module, "--id", "FR-999", "--json",
     ]);
-    assert_eq!(
-        v["claims"]["formalizes"]
-            .as_array()
-            .expect("formalizes")
-            .len(),
-        0,
-        "{v}"
-    );
+    assert!(v["claims"].get("formalizes").is_none(), "{v}");
     assert_eq!(v["resolved"], false);
 
     let r = run(&[
@@ -990,14 +1008,7 @@ fn a_scope_without_a_spec_directory_lists_no_formalizes_and_does_not_fail() {
         "rules/rules.native",
         "--json",
     ]);
-    assert_eq!(
-        v["claims"]["formalizes"]
-            .as_array()
-            .expect("formalizes")
-            .len(),
-        0,
-        "{v}"
-    );
+    assert!(v["claims"].get("formalizes").is_none(), "{v}");
 }
 
 /// FR-045-AC-2: the inverse file query lists each declaration with its

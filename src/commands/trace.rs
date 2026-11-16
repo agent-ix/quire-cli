@@ -224,6 +224,7 @@ struct FormalizesRecord {
 struct ClaimsSection {
     verifies: Vec<VerifiesRecord>,
     implements: Vec<ImplementsRecord>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     formalizes: Vec<FormalizesRecord>,
 }
 

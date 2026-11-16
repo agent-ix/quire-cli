@@ -20,6 +20,7 @@ The engine's `formalizes` relation ([quire-rs FR-094](ix://agent-ix/quire-rs/FR-
 names a requirement it formalizes. Each statement below carries one obligation.
 
 - `quire trace` SHALL carry the relation in its own `claims.formalizes` array beside `claims.verifies` and `claims.implements`.
+- `quire trace` SHALL omit `claims.formalizes` when no formalizes relation is present, preserving its existing JSON bytes for modules that do not declare a formalizes marker form.
 - `quire trace` SHALL print each relation in human output as `formalized by <path>::<label>`.
 - `quire trace` SHALL emit each relation as a `formalizes` record kind in TSV output.
 - `quire symbols` SHALL list a formalized id in the `formalizes` field of the declaring symbol.
@@ -40,6 +41,7 @@ names a requirement it formalizes. Each statement below carries one obligation.
 | FR-045-AC-7 | `quire trace --prefix` includes the `formalizes` relations whose id matches the prefix. | Test |
 | FR-045-AC-8 | `quire symbols --json` lists a formalized id, defined by the corpus, in the `formalizes` field of the declaring symbol. | Test |
 | FR-045-AC-9 | When the scope has no `spec/` directory, `quire symbols` succeeds and lists no formalized id, rather than failing on the missing document root. | Test |
+| FR-045-AC-10 | With a module that does not declare `trace_tags.formalizes` and a scope containing a `.native` file with no formalizes relation, `quire trace --id <ID> --json` omits `claims.formalizes` and emits the same bytes as the existing trace JSON contract. | Test |
 
 ## Dependencies
 
