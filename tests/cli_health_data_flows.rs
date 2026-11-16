@@ -250,9 +250,14 @@ traceability:
     );
 }
 
-fn assert_flow_load_failure_names_the_invalid_value(source: &str, invalid: &str, expected: &str) {
+fn assert_flow_load_failure_names_the_invalid_value(
+    module_directory: &str,
+    source: &str,
+    invalid: &str,
+    expected: &str,
+) {
     let (temp, scope) = world("", "health", None, false);
-    let module = temp.path().join("module");
+    let module = temp.path().join("modules").join(module_directory);
     add_flow_rule_with_remediation(&module);
 
     let manifest_path = module.join("manifest.yaml");
@@ -267,7 +272,11 @@ fn assert_flow_load_failure_names_the_invalid_value(source: &str, invalid: &str,
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("connection-present"), "{stderr}");
     assert!(stderr.contains(expected), "{stderr}");
-    assert!(stderr.contains("manifest.yaml"), "{stderr}");
+    assert!(
+        stderr.contains(&manifest_path.to_string_lossy().to_string()),
+        "expected originating manifest path {} in diagnostic: {stderr}",
+        manifest_path.display()
+    );
     assert!(!stderr.contains("no loaded module declares `traceability.flow_rules`"));
 }
 
@@ -1120,6 +1129,7 @@ fn flow_mode_rejects_missing_rules_and_relation_mode_conflicts() {
 #[trace("FR-044-AC-9")]
 fn flow_mode_reports_invalid_rule_values_in_the_module_load_failure() {
     assert_flow_load_failure_names_the_invalid_value(
+        "invalid-rule",
         "any_of: [bidirectional]",
         "any_of: [medical]",
         "medical",
@@ -1130,6 +1140,7 @@ fn flow_mode_reports_invalid_rule_values_in_the_module_load_failure() {
 #[trace("FR-044-AC-10")]
 fn flow_mode_reports_invalid_remediations_in_the_module_load_failure() {
     assert_flow_load_failure_names_the_invalid_value(
+        "invalid-remediation",
         "remediations: [set-flow-direction]",
         "remediations: [encrypt-in-transt]",
         "encrypt-in-transt",
