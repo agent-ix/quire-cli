@@ -25,10 +25,11 @@ the flow report of quire-rs [FR-096](ix://agent-ix/quire-rs/spec/functional/FR-0
 the facts they were evaluated over, keyed by the archetype names those rules declare, and one denial
 for each subject a rule denies. The rules, their
 evaluation, the facts, the denials, their order and the `quire.flow-report/v1` payload belong to
-quire-rs. The CLI is a pass-through: it resolves roots, applies path safety, calls the engine, and
-renders what the engine returns ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)).
-It holds no domain rule, and no archetype, edge verb, field, category, trust level, sink kind or
-remediation name: which rules exist comes from the loaded modules' `traceability.flow_rules`.
+quire-rs. Under `--flow`, the CLI is a pass-through: it resolves roots, applies path safety, calls the
+engine, and renders what the engine returns ([StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)).
+That mode holds no domain rule, and no archetype, edge verb, field, category, trust level, sink kind or
+remediation name: which rules exist comes from the loaded modules' `traceability.flow_rules`. The
+separate `--health-data-flows` projection does not change this pass-through contract.
 
 ```
 quire relations (--scope <DIR> | --repo <ORG/REPO>=<DIR>...) [--module <PATH>]... --flow [--json] [--strict]
@@ -104,7 +105,7 @@ produced.
 | FR-044-AC-12 | `--repo o/a=<A> --repo o/b=<B> --flow` over a fixture whose connection in `o/a` crosses a boundary in `o/b` reports the denial using the `o/b` boundary; with the `o/b` flag omitted the `crosses` edge has no target and contributes nothing, so the report holds no denial and both `--flow` and `--flow --strict` exit 0. | Test |
 | FR-044-AC-13 | With `--severity trace:health-across-untrusted-boundary=warning`, `quire validate` over the AC-1 fixture reports the denial as a warning and exits 0, while `quire relations --flow --json` over it still lists the denial. | Test |
 | FR-044-AC-14 | Over a fixture whose archetype, edge verb, field, category, trust-level and remediation names are unrelated to data flow, `--flow` renders the complete engine report in both output forms. | Test |
-| FR-044-AC-15 | The CLI source delegates evaluation to quire-rs: it holds no rule, edge-matching, condition, denial or sorting logic and no archetype, verb, field, category or remediation name. | Inspection |
+| FR-044-AC-15 | The `--flow` CLI path delegates evaluation to quire-rs: it holds no rule, edge-matching, condition, denial or sorting logic and no archetype, verb, field, category or remediation name. The separate `--health-data-flows` projection does not alter the `--flow` payload. | Inspection |
 | FR-044-AC-16 | A module set declaring `flow_rules` and no `required_relations` exits 0 under `--flow` and renders the report; the same module set without `--flow` follows FR-030. Default `quire relations --json` over a module set declaring `flow_rules` carries the engine's flow section unaltered, and its denials do not change the default run's exit status. | Test |
 
 ## Dependencies
