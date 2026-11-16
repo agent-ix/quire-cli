@@ -502,7 +502,6 @@ mod tests {
                 statement: "s".to_string(),
                 method: None,
                 binders: Vec::new(),
-                unbacked_claims: Vec::new(),
                 record_binders: None,
                 unbacked_claims: Vec::new(),
                 identity: None,
