@@ -49,3 +49,4 @@ description: "Index of artifacts in this directory."
 * [FR-042: Render Mermaid diagrams as images in exported documents](./FR-042-export-mermaid-diagrams.md)
 * [FR-043: quire matrix design column and design gate](./FR-043-matrix-design-column.md)
 * [FR-044: quire relations flow mode](./FR-044-relations-flow-mode.md)
+* [FR-045: quire trace and symbols report the formalizes relation](./FR-045-trace-formalizes-output.md)

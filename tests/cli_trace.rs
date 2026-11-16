@@ -11,6 +11,7 @@ mod common;
 
 use std::fs;
 
+use ix_trace_rs::trace;
 use tempfile::TempDir;
 
 use common::quire;
@@ -767,4 +768,293 @@ fn missing_traceability_model_fails_with_the_coverage_shaped_error() {
     let out = run(&["trace", "--scope", &scope, "--module", &m, "--id", "FR-900"]);
     assert_ne!(out.code, Some(0), "stdout: {}", out.stdout);
     assert!(out.stderr.contains("traceability"), "{}", out.stderr);
+}
+
+/// A module declaring the QSL `formalizes` marker form (quire-rs FR-094).
+fn formalizes_module(dir: &TempDir) -> String {
+    let m = dir.path().join("fm");
+    fs::create_dir_all(&m).expect("mkdir");
+    fs::write(
+        m.join("manifest.yaml"),
+        r#"name: fm
+manifest_version: 1.0.0
+version: 0.0.1
+artifact_types:
+- name: FR
+  grammar_ref: iso-spec-core
+traceability:
+  trace_targets: []
+  trace_tags:
+    markers:
+    - name: rust-trace-attribute
+      language: rust
+      pattern: '#\[trace\(((?:\s*"[^"]*"\s*,?)+)\)\]'
+      template: '#[trace({ids})]'
+    formalizes:
+    - name: qsl-formalizes-comment
+      language: qsl
+      syntax: comment
+      pattern: '^//\s*formalizes:\s*(.+)$'
+      template: '// formalizes: {ids}'
+"#,
+    )
+    .expect("write manifest");
+    m.to_string_lossy().into_owned()
+}
+
+/// A spec defining FR-001, plus `rules.native` whose `P1` formalizes it and
+/// whose `P2` names `FR-999`, which no document defines.
+fn formalizes_tree(dir: &TempDir) -> String {
+    let spec = dir.path().join("spec");
+    fs::create_dir_all(&spec).expect("mkdir spec");
+    fs::write(
+        spec.join("FR-001.md"),
+        "---\nid: FR-001\ntype: FR\n---\n\
+         ## Description\n\nThe system shall process the input.\n\n\
+         ## Acceptance Criteria\n\n\
+         | ID | Criteria | Verification |\n|----|----------|--------------|\n\
+         | FR-001-AC-1 | The system shall support pagination. | Test |\n",
+    )
+    .expect("write spec");
+    let rules = dir.path().join("rules");
+    fs::create_dir_all(&rules).expect("mkdir rules");
+    fs::write(
+        rules.join("rules.native"),
+        "language qsl\n\n// formalizes: FR-001\npre P1 using v on M::S::op {\n}\n\n\
+         // formalizes: FR-999\npre P2 using v on M::S::op {\n}\n",
+    )
+    .expect("write rules");
+    dir.path().to_string_lossy().into_owned()
+}
+
+fn trace_json(args: &[&str]) -> serde_json::Value {
+    let r = run(args);
+    assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
+    serde_json::from_str(&r.stdout).expect("json")
+}
+
+/// FR-045-AC-1: a forward query lists the QSL declaration under
+/// `claims.formalizes` only, with `verifies` and `implements` empty.
+#[trace("FR-045-AC-1")]
+#[test]
+fn forward_query_lists_the_declaration_under_formalizes_only() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    let v = trace_json(&[
+        "trace", "--scope", &scope, "--module", &module, "--id", "FR-001", "--json",
+    ]);
+    let claims = &v["claims"];
+    assert_eq!(
+        claims["verifies"].as_array().expect("verifies").len(),
+        0,
+        "{v}"
+    );
+    assert_eq!(
+        claims["implements"].as_array().expect("implements").len(),
+        0,
+        "{v}"
+    );
+    let f = claims["formalizes"].as_array().expect("formalizes");
+    assert_eq!(f.len(), 1, "{v}");
+    assert_eq!(f[0]["trace_id"], "FR-001");
+    assert_eq!(f[0]["symbol"], "P1");
+    assert_eq!(f[0]["path"], "rules/rules.native");
+    assert_eq!(v["resolved"], true);
+}
+
+/// FR-045-AC-3: an id the corpus does not define never appears as a relation,
+/// FR-045-AC-10: a module without the QSL marker form keeps the existing trace
+/// JSON bytes even when the scope contains a `.native` file.
+#[trace("FR-045-AC-10")]
+#[test]
+fn an_undeclared_formalizes_form_preserves_existing_trace_json_bytes() {
+    let dir = TempDir::new().expect("tmp");
+    let module = module(&dir);
+    let scope = formalizes_tree(&dir);
+    fs::write(dir.path().join("rules/rules.native"), "language qsl\n").expect("write rules");
+
+    let out = run(&[
+        "trace", "--scope", &scope, "--module", &module, "--id", "FR-001", "--json",
+    ]);
+    assert_eq!(out.code, Some(0), "stderr: {}", out.stderr);
+
+    let engine = serde_json::to_string(&quire_cli::engine::Provenance::current()).expect("engine");
+    let expected = format!(
+        "{{\"query\":{{\"kind\":\"id\",\"id\":\"FR-001\",\"prefix\":false,\"matched_ids\":[]}},\"resolved\":false,\"claims\":{{\"verifies\":[],\"implements\":[]}},\"citations\":[],\"ambiguous_matches\":[],\"citations_excluded_by_path_filter\":0,\"engine\":{engine}}}\n"
+    );
+    assert_eq!(
+        out.stdout, expected,
+        "output must retain the existing byte shape"
+    );
+}
+
+/// in `trace` or in `symbols`.
+#[trace("FR-045-AC-3")]
+#[test]
+fn an_id_absent_from_the_corpus_is_listed_by_neither_trace_nor_symbols() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    let v = trace_json(&[
+        "trace", "--scope", &scope, "--module", &module, "--id", "FR-999", "--json",
+    ]);
+    assert!(v["claims"].get("formalizes").is_none(), "{v}");
+    assert_eq!(v["resolved"], false);
+
+    let r = run(&[
+        "symbols", "--scope", &scope, "--module", &module, "--format", "json",
+    ]);
+    assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
+    assert!(!r.stdout.contains("FR-999"), "{}", r.stdout);
+}
+
+/// FR-045-AC-4: the TSV form carries one `formalizes` record per relation.
+#[trace("FR-045-AC-4")]
+#[test]
+fn tsv_output_carries_one_formalizes_record_per_relation() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    let r = run(&[
+        "trace", "--scope", &scope, "--module", &module, "--id", "FR-001", "--format", "tsv",
+    ]);
+    assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
+    let rows: Vec<&str> = r
+        .stdout
+        .lines()
+        .filter(|l| l.starts_with("formalizes\t"))
+        .collect();
+    assert_eq!(rows.len(), 1, "{}", r.stdout);
+    assert!(
+        rows[0].contains("FR-001") && rows[0].contains("rules/rules.native"),
+        "{}",
+        rows[0]
+    );
+}
+
+/// FR-045-AC-7: a `--prefix` query includes the relations whose id matches.
+#[trace("FR-045-AC-7")]
+#[test]
+fn prefix_query_includes_the_matching_formalizes_relations() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    let v = trace_json(&[
+        "trace", "--scope", &scope, "--module", &module, "--id", "FR", "--prefix", "--json",
+    ]);
+    let f = v["claims"]["formalizes"].as_array().expect("formalizes");
+    assert_eq!(f.len(), 1, "{v}");
+    assert_eq!(f[0]["trace_id"], "FR-001");
+    assert_eq!(f[0]["symbol"], "P1");
+}
+
+/// The `formalizes` ids the symbol table binds to the symbol named `name`.
+fn symbol_formalizes(scope: &str, module: &str, name: &str) -> Vec<String> {
+    let r = run(&[
+        "symbols", "--scope", scope, "--module", module, "--format", "json",
+    ]);
+    assert_eq!(r.code, Some(0), "stderr: {}", r.stderr);
+    let v: serde_json::Value = serde_json::from_str(&r.stdout).expect("json");
+    v["symbols"]
+        .as_array()
+        .expect("symbols")
+        .iter()
+        .filter(|s| s["symbol"] == name)
+        .flat_map(|s| s["formalizes"].as_array().cloned().unwrap_or_default())
+        .map(|id| id.as_str().expect("id").to_string())
+        .collect()
+}
+
+/// FR-045-AC-8: `symbols` lists a corpus-defined formalized id on the
+/// declaring symbol.
+#[trace("FR-045-AC-8")]
+#[test]
+fn symbols_lists_the_resolved_formalized_id_on_the_declaring_symbol() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    assert_eq!(symbol_formalizes(&scope, &module, "P1"), ["FR-001"]);
+    assert!(symbol_formalizes(&scope, &module, "P2").is_empty());
+}
+
+/// FR-045-AC-9: with no `spec/`, `symbols` succeeds and lists no formalized id.
+#[trace("FR-045-AC-9")]
+#[test]
+fn symbols_without_a_spec_directory_lists_no_formalized_id_and_does_not_fail() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    fs::remove_dir_all(dir.path().join("spec")).expect("rm spec");
+    assert!(symbol_formalizes(&scope, &module, "P1").is_empty());
+}
+
+/// FR-045-AC-5: with no `spec/` there is no corpus, so an unrelated query
+/// still succeeds and lists no relation.
+#[trace("FR-045-AC-5")]
+#[test]
+fn a_scope_without_a_spec_directory_lists_no_formalizes_and_does_not_fail() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    fs::remove_dir_all(dir.path().join("spec")).expect("rm spec");
+    let v = trace_json(&[
+        "trace",
+        "--scope",
+        &scope,
+        "--module",
+        &module,
+        "--file",
+        "rules/rules.native",
+        "--json",
+    ]);
+    assert!(v["claims"].get("formalizes").is_none(), "{v}");
+}
+
+/// FR-045-AC-2: the inverse file query lists each declaration with its
+/// resolved ids.
+#[trace("FR-045-AC-2")]
+#[test]
+fn inverse_file_query_lists_each_declaration_with_its_resolved_ids() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    let v = trace_json(&[
+        "trace",
+        "--scope",
+        &scope,
+        "--module",
+        &module,
+        "--file",
+        "rules/rules.native",
+        "--json",
+    ]);
+    let f = v["claims"]["formalizes"].as_array().expect("formalizes");
+    let pairs: Vec<(&str, &str)> = f
+        .iter()
+        .map(|r| {
+            (
+                r["symbol"].as_str().unwrap(),
+                r["trace_id"].as_str().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(pairs, [("P1", "FR-001")], "FR-999 must not reappear: {v}");
+}
+
+/// FR-045-AC-6: human output reads `formalized by <path>::<label>`.
+#[trace("FR-045-AC-6")]
+#[test]
+fn human_output_prints_formalized_by_path_and_label() {
+    let dir = TempDir::new().expect("tmp");
+    let module = formalizes_module(&dir);
+    let scope = formalizes_tree(&dir);
+    let r = run(&[
+        "trace", "--scope", &scope, "--module", &module, "--id", "FR-001",
+    ]);
+    assert!(
+        r.stdout.contains("formalized by rules/rules.native::P1"),
+        "{}",
+        r.stdout
+    );
 }

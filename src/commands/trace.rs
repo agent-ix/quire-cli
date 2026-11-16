@@ -57,7 +57,8 @@ use serde::Serialize;
 
 use quire_cli::safety;
 use quire_rs::symbols::trace::{
-    trace_id_segments, ImplementsRelation, Mention, SymbolGraph, VerifiesRelation,
+    trace_id_segments, FormalizesRelation, ImplementsRelation, Mention, SymbolGraph,
+    VerifiesRelation,
 };
 use quire_rs::symbols::trace_search::{self, language_confidence, symbol_language, Query};
 use quire_rs::symbols::SymbolExtraction;
@@ -201,14 +202,30 @@ struct ImplementsRecord {
     confidence: Option<&'static str>,
 }
 
-/// Both claim kinds under one JSON key (`claims`), each in its own typed
+/// A `formalizes` claim: a QSL declaration stating the queried id(s) as the
+/// requirement it formalizes (FR-094). Neither evidence nor scope, so it is
+/// never folded into `verifies` or `implements`.
+#[derive(Debug, Clone, Serialize)]
+struct FormalizesRecord {
+    trace_id: String,
+    symbol: String,
+    path: String,
+    line: usize,
+    form: String,
+    language: Option<String>,
+    confidence: Option<&'static str>,
+}
+
+/// The claim kinds under one JSON key (`claims`), each in its own typed
 /// array — mirrors the engine's own `SearchResult` shape rather than
-/// collapsing two differently-shaped records into one struct with optional
+/// collapsing differently-shaped records into one struct with optional
 /// fields.
 #[derive(Debug, Clone, Serialize, Default)]
 struct ClaimsSection {
     verifies: Vec<VerifiesRecord>,
     implements: Vec<ImplementsRecord>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    formalizes: Vec<FormalizesRecord>,
 }
 
 /// A non-claim citation — near-miss tag, orphaned legacy tag, or plain
@@ -285,7 +302,8 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         .emit(ctx.diagnostics);
     }
 
-    let graph = quire_rs::symbols::trace::bind(&extraction, model);
+    let mut graph = quire_rs::symbols::trace::bind(&extraction, model);
+    super::coverage::resolve_formalizes_in_scope(&mut graph, &scope, &registry)?;
 
     let (query_desc, mut result) = run_query(&args, &graph, &extraction)?;
 
@@ -303,6 +321,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // `trace_search::finish` uses (FR-077-AC-3) over the POST-filter state.
     let resolved = !(result.verifies.is_empty()
         && result.implements.is_empty()
+        && result.formalizes.is_empty()
         && result.citations.is_empty()
         && result.ambiguous_matches.is_empty());
 
@@ -319,6 +338,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
                 .implements
                 .iter()
                 .map(|i| implements_record(i, &extraction))
+                .collect(),
+            formalizes: result
+                .formalizes
+                .iter()
+                .map(|f| formalizes_record(f, &extraction))
                 .collect(),
         },
         citations: result.citations.iter().map(citation_record).collect(),
@@ -441,6 +465,7 @@ fn search_by_prefix(
     let mut ids: BTreeSet<&str> = BTreeSet::new();
     ids.extend(graph.verifies.iter().map(|v| v.trace_id.as_str()));
     ids.extend(graph.implements.iter().map(|i| i.trace_id.as_str()));
+    ids.extend(graph.formalizes.iter().map(|f| f.trace_id.as_str()));
     ids.extend(graph.mentions.iter().map(|m| m.trace_id.as_str()));
     let boundary_matched: Vec<String> = ids
         .into_iter()
@@ -450,6 +475,7 @@ fn search_by_prefix(
 
     let mut verifies = Vec::new();
     let mut implements = Vec::new();
+    let mut formalizes = Vec::new();
     let mut citations = Vec::new();
     let mut searched_normalized: BTreeSet<String> = BTreeSet::new();
     for id in &boundary_matched {
@@ -464,6 +490,7 @@ fn search_by_prefix(
         let r = trace_search::search(graph, extraction, &Query::Id(id.clone()))?;
         verifies.extend(r.verifies);
         implements.extend(r.implements);
+        formalizes.extend(r.formalizes);
         citations.extend(r.citations);
     }
     // `Query::Id` matches by the engine's fold, which discards separators, so
@@ -474,17 +501,21 @@ fn search_by_prefix(
         .map(String::as_str)
         .chain(verifies.iter().map(|v| v.trace_id.as_str()))
         .chain(implements.iter().map(|i| i.trace_id.as_str()))
+        .chain(formalizes.iter().map(|f| f.trace_id.as_str()))
         .chain(citations.iter().map(|m| m.trace_id.as_str()))
         .collect::<BTreeSet<&str>>()
         .into_iter()
         .map(String::from)
         .collect();
-    let resolved = !(verifies.is_empty() && implements.is_empty() && citations.is_empty());
+    let resolved = !(verifies.is_empty()
+        && implements.is_empty()
+        && formalizes.is_empty()
+        && citations.is_empty());
     let result = trace_search::SearchResult {
         query: Query::Id(prefix.to_string()),
         verifies,
         implements,
-        formalizes: Vec::new(),
+        formalizes,
         citations,
         ambiguous_matches: Vec::new(),
         resolved,
@@ -563,6 +594,20 @@ fn implements_record(i: &ImplementsRelation, extraction: &SymbolExtraction) -> I
     }
 }
 
+fn formalizes_record(f: &FormalizesRelation, extraction: &SymbolExtraction) -> FormalizesRecord {
+    let language = symbol_language(extraction, &f.symbol_id).map(str::to_string);
+    let confidence = language.as_deref().map(|l| language_confidence(l).as_str());
+    FormalizesRecord {
+        trace_id: f.trace_id.clone(),
+        symbol: f.symbol.clone(),
+        path: f.path.clone(),
+        line: f.line,
+        form: f.form.clone(),
+        language,
+        confidence,
+    }
+}
+
 fn citation_record(m: &Mention) -> CitationRecord {
     CitationRecord {
         trace_id: m.trace_id.clone(),
@@ -611,6 +656,11 @@ fn has_line_heuristic_record(report: &TraceReport) -> bool {
             .iter()
             .any(|i| i.confidence == Some(line_heuristic))
         || report
+            .claims
+            .formalizes
+            .iter()
+            .any(|f| f.confidence == Some(line_heuristic))
+        || report
             .citations
             .iter()
             .any(|c| c.confidence == line_heuristic)
@@ -652,7 +702,9 @@ fn emit_human(ctx: &Ctx, report: &TraceReport) -> anyhow::Result<()> {
         );
     }
 
-    let claim_count = report.claims.verifies.len() + report.claims.implements.len();
+    let claim_count = report.claims.verifies.len()
+        + report.claims.implements.len()
+        + report.claims.formalizes.len();
     primary_line!("{}", &format!("Claims ({claim_count})"));
     for v in &report.claims.verifies {
         primary_line!(
@@ -678,6 +730,19 @@ fn emit_human(ctx: &Ctx, report: &TraceReport) -> anyhow::Result<()> {
                 i.symbol,
                 i.form,
                 confidence_suffix(i.confidence)
+            )
+        );
+    }
+    for f in &report.claims.formalizes {
+        primary_line!(
+            "{}",
+            &format!(
+                "  formalizes  {} formalized by {}::{} [{}]{}",
+                f.trace_id,
+                f.path,
+                f.symbol,
+                f.form,
+                confidence_suffix(f.confidence)
             )
         );
     }
@@ -812,7 +877,7 @@ fn tsv_line(kind: &str, cells: [&str; 8]) -> String {
 }
 
 /// One record per line: `kind trace_id path line symbol form bucket language
-/// confidence`. `kind` is `verifies`/`implements`/`citation`/`ambiguous`.
+/// confidence`. `kind` is `verifies`/`implements`/`formalizes`/`citation`/`ambiguous`.
 ///
 /// `form` and `bucket` are two SEPARATE columns, deliberately — a claim's
 /// declared marker-form name (`form`) and a citation's classification
@@ -857,6 +922,21 @@ fn render_tsv(report: &TraceReport) -> String {
                 "",
                 i.language.as_deref().unwrap_or(""),
                 i.confidence.unwrap_or(""),
+            ],
+        ));
+    }
+    for f in &report.claims.formalizes {
+        out.push_str(&tsv_line(
+            "formalizes",
+            [
+                &f.trace_id,
+                &f.path,
+                &f.line.to_string(),
+                &f.symbol,
+                &f.form,
+                "",
+                f.language.as_deref().unwrap_or(""),
+                f.confidence.unwrap_or(""),
             ],
         ));
     }
@@ -1101,6 +1181,7 @@ mod tests {
                     confidence: Some("structural"),
                 }],
                 implements: Vec::new(),
+                formalizes: Vec::new(),
             },
             vec![citation("FR-1", "src/other.rs")],
         );

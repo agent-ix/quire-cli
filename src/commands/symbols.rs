@@ -115,7 +115,14 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         .emit(ctx.diagnostics);
     }
 
-    let graph = model.map(|m| quire_rs::symbols::trace::bind(&extraction, m));
+    let graph = match (model, registry.as_ref()) {
+        (Some(m), Some(registry)) => {
+            let mut graph = quire_rs::symbols::trace::bind(&extraction, m);
+            super::coverage::resolve_formalizes_in_scope(&mut graph, &scope, registry)?;
+            Some(graph)
+        }
+        _ => None,
+    };
     let mut report = quire_rs::build_symbol_table(&extraction, graph.as_ref());
 
     if let Some(language) = &args.language {
