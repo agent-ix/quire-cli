@@ -9,6 +9,13 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.46.0] — 2026-11-15
+
+Adopts quire-rs 0.61.0 (engine 0.61.0): `quire relations` now carries the engine's semantic record data.
+
+- **Record-aware `quire relations --json` (PLAT-1441, FR-030-AC-26).** The relation report passes through the engine's FR-084 record data, so semantic records and reverse rows appear in the JSON output instead of being dropped.
+- **`quire export --approval` accepts release-verify results (PLAT-1761, #208; FR-038, FR-040).** `--approval` takes an `engineering-assurance.release-verify-result/v1` document as well as an approval-verify result. An invalid release result is refused with exit 3 (previously not an accepted input).
+- **`quire export` output changes (#200; FR-038, FR-035).** Approval-table cells may carry U+200B break points after every 16 characters, so extracted PDF/DOCX text can differ from the raw cell text. Approval-table columns are sized from the longest unbreakable run. A bundle's front matter no longer ends in a page break.
 - PLAT-1418: `quire relations --design` renders the quire-rs design-element join (FR-041): per requirement the design elements that realize it, with their `realized_criteria`, and an explicit gap when there are none. It conflicts with `--relation` and `--strict`, and exits 3 when no loaded module declares `traceability.design_relations` or an entry names no declared relation.
 - **`quire matrix` design column (PLAT-1587, PLAT-1589; FR-043).** `matrix` calls quire-rs `design_matrix`: a `Design` column between `Statement` and `Binders` (and `design`, `design_state` in TSV), `Design gap:` lines, `--format human`, and `--repo <ORG/REPO>=<DIR>` for sibling-repository elements (`repo:` lines, a TSV `repo` column; conflicts with `--scope`). `--strict` also exits 1 for each live requirement with an uncovered design block, naming `design gap: [<repo>:]<document> <check>` on stderr. Output is unchanged when no module declares `design_relations`.
 
