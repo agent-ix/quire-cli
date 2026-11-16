@@ -126,6 +126,13 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             .traceability()
             .is_none_or(|model| model.flow_rules.is_empty())
         {
+            if let Some(failure) = registry.failures().first() {
+                invalid_request!(
+                    "module load failed: {} ({})",
+                    failure.reason,
+                    failure.path.display()
+                );
+            }
             invalid_request!(
                 "no loaded module declares `traceability.flow_rules`, so there is \
                  no flow report to render; install a module that declares one or pass --module"
