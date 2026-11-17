@@ -9,6 +9,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.51.0] — 2026-11-17
+
+- **Adopts quire-rs v0.62.2 (PLAT-1769).** Flow-rule `any_of` validation now follows
+  module-local schema references, checks referenced enum values, and reports the
+  resolved enum vocabulary.
+
 ## [0.50.0] — 2026-11-17
 
 - **Direct trace markers bind criteria without matrix rows (PLAT-1767).** A direct marker on a non-ignored test now tags its live criterion even when no declared matrix row cites it. Requires quire-rs v0.62.1.
