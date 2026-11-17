@@ -9,6 +9,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.50.0] — 2026-11-17
+
+- **Direct trace markers bind criteria without matrix rows (PLAT-1767).** A direct marker on a non-ignored test now tags its live criterion even when no declared matrix row cites it. Requires quire-rs v0.62.1.
+
 ## [0.49.0] — 2026-11-16
 
 - **Preserve flow-rule load diagnostics (PLAT-1770).** `quire relations --flow` now reports the module path and invalid rule value or remediation when a module's flow rules cannot be loaded.
