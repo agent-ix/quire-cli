@@ -40,12 +40,16 @@ quire extract <DOC|-> --module <PATH> [--archetype <NAME>]
 quire validate <DOC|GLOB|->... [--scope <DIR>] [--module <PATH>] [--archetype <NAME>]
 quire validate --okf <BUNDLE_DIR> [--scope <DIR>] [--module <PATH>]
 quire schema <ARCHETYPE> --module <PATH>
-quire clauses evaluate --module <PATH> --authority <ID> --set <ID> --version <VERSION> [--context KEY=VALUE]...
-quire clauses diff --module <PATH> --authority <ID> --set <ID> --before-version <VERSION> --after-version <VERSION>
+quire clauses evaluate --module <PATH> [--module <PATH>]... --authority <ID> --set <ID> --version <VERSION> [--context KEY=VALUE]...
+quire clauses diff --module <PATH> [--module <PATH>]... --authority <ID> --set <ID> --before-version <VERSION> --after-version <VERSION>
 quire matrix [--scope <DIR> | --repo <ORG/REPO>=<DIR>...] [--module <PATH>]... [--format human|markdown|json|tsv] [--strict]
 quire trace (--id <ID> [--prefix] | --symbol <PATH#NAME> | --file <PATH>) --module <PATH>... \
   [--scope <DIR>] [--exclude-path <GLOB>]... [--format human|json|tsv]
 ```
+
+The clause commands require one or more explicit module roots. They load only
+those roots as a closed set and merge the active vocabulary across them; they do
+not discover additional modules from the environment or default search paths.
 
 Global flags:
 

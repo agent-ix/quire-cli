@@ -17,25 +17,31 @@ The CLI SHALL expose the generic rights-aware clause-set model supplied by
 domain classification in the binary.
 
 ```text
-quire clauses evaluate --module <PATH> --authority <ID> --set <ID>
+quire clauses evaluate --module <PATH> [--module <PATH>]... --authority <ID> --set <ID>
   --version <VERSION> [--context KEY=VALUE]... [--format human|json|tsv]
 
-quire clauses diff --module <PATH> --authority <ID> --set <ID>
+quire clauses diff --module <PATH> [--module <PATH>]... --authority <ID> --set <ID>
   --before-version <VERSION> --after-version <VERSION>
   [--format human|json|tsv]
 ```
+
+Each command SHALL require one or more explicitly supplied `--module <PATH>`
+roots. It SHALL strictly load those roots as one closed module set, merging the
+active vocabulary across that set. It SHALL NOT discover or add modules from
+ambient search paths or environment configuration.
 
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
 |----|----------|--------------|
-| FR-021-AC-1 | Both commands path-check and strictly load one explicit module and select authority, id, and version exactly; a missing version or invalid referenced set is a user error, never a nearest-version guess. | Test |
+| FR-021-AC-1 | Both commands require one or more `--module <PATH>` occurrences, path-check every supplied root, and strictly load exactly those roots as a closed module set. A malformed or unloadable supplied module exits non-zero before writing a result; neither command discovers or adds a module from ambient search paths or environment configuration. Authority, set id, and version are selected exactly; a missing version or invalid referenced set is a user error, never a nearest-version guess. | Test |
 | FR-021-AC-2 | `evaluate` accepts repeatable `KEY=VALUE` context dimensions and delegates applicability to the engine. Duplicate or malformed context is rejected. | Test |
 | FR-021-AC-3 | Evaluation preserves `binding`, `not_binding`, and `unresolved`; missing context remains unresolved with its reason. | Test |
 | FR-021-AC-4 | `diff` delegates to the engine and reports added, removed, and changed clauses between two exact versions of the same authority and set id. | Test |
 | FR-021-AC-5 | Human results and deterministic TSV are emitted on stdout; TSV escapes structural characters so one clause remains one row. | Test |
 | FR-021-AC-6 | JSON carries tool provenance including the `clause_sets` capability and conforms to the pinned engine's published binding or diff schema. | Test |
 | FR-021-AC-7 | The CLI contains only transport and rendering policy. Clause content, rights validation, applicability, and comparison remain engine/module concerns. | Test, Review |
+| FR-021-AC-8 | Given two explicit module roots whose active clause-set vocabulary is split across the roots, both `evaluate` and `diff` resolve and process the requested authority and set using the merged vocabulary. Omitting the root that supplies required vocabulary fails without ambient discovery, even if that vocabulary is present in an ambient module root. | Test |
 
 ## Constraints
 
