@@ -125,6 +125,23 @@ fn module(dir: &TempDir) -> String {
     root.to_string_lossy().into_owned()
 }
 
+fn module_with_cross_module_verb(dir: &TempDir) -> (String, String) {
+    let owner = module(dir);
+    let owner_root = PathBuf::from(&owner);
+    let mut manifest = fs::read_to_string(owner_root.join("manifest.yaml")).unwrap();
+    manifest.push_str("object_types:\n- name: contract\n  allowed_links: [registered-verb]\n");
+    fs::write(owner_root.join("manifest.yaml"), manifest).unwrap();
+
+    let vocabulary = dir.path().join("vocabulary-module");
+    fs::create_dir_all(&vocabulary).unwrap();
+    fs::write(
+        vocabulary.join("manifest.yaml"),
+        "name: synthetic-vocabulary-module\nedge_types:\n  registered-verb:\n    description: A registered synthetic relationship\n    category: traceability\n",
+    )
+    .unwrap();
+    (owner, vocabulary.to_string_lossy().into_owned())
+}
+
 fn module_with_tsv_delimiter(dir: &TempDir) -> String {
     let root = dir.path().join("module");
     fs::create_dir_all(root.join("clauses")).expect("create clause directory");
@@ -479,6 +496,78 @@ fn it140_invalid_context_and_unknown_exact_version_fail_closed() {
     assert!(String::from_utf8_lossy(&traversal.stderr).contains("PathTraversal"));
 }
 
+#[trace("FR-021-AC-1", "FR-021-AC-8")]
+#[test]
+fn it141_clause_commands_use_only_the_explicit_closed_module_set() {
+    let dir = TempDir::new().unwrap();
+    let (owner, vocabulary) = module_with_cross_module_verb(&dir);
+    for command in ["evaluate", "diff"] {
+        let mut explicit = quire();
+        explicit.args([
+            "clauses",
+            command,
+            "--module",
+            &owner,
+            "--module",
+            &vocabulary,
+        ]);
+        explicit.args(["--authority", "example.test", "--set", "widget-assurance"]);
+        if command == "evaluate" {
+            explicit.args(["--version", "1.0.0", "--json"]);
+        } else {
+            explicit.args([
+                "--before-version",
+                "1.0.0",
+                "--after-version",
+                "2.0.0",
+                "--json",
+            ]);
+        }
+        let output = explicit
+            .output()
+            .expect("run with complete explicit module set");
+        assert!(
+            output.status.success(),
+            "{command} with both roots failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(!output.stdout.is_empty(), "{command} emitted no result");
+
+        let mut incomplete = quire();
+        incomplete.env("IX_FILAMENT_MODULES_PATH", dir.path());
+        incomplete.args(["clauses", command, "--module", &owner]);
+        incomplete.args(["--authority", "example.test", "--set", "widget-assurance"]);
+        if command == "evaluate" {
+            incomplete.args(["--version", "1.0.0", "--json"]);
+        } else {
+            incomplete.args([
+                "--before-version",
+                "1.0.0",
+                "--after-version",
+                "2.0.0",
+                "--json",
+            ]);
+        }
+        let output = incomplete
+            .output()
+            .expect("run with vocabulary module available only through ambient discovery");
+        assert_eq!(
+            output.status.code(),
+            Some(3),
+            "{command} should refuse the incomplete set"
+        );
+        assert!(
+            output.stdout.is_empty(),
+            "{command} wrote a result after refusal"
+        );
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("UnknownEdgeType") && stderr.contains("registered-verb"),
+            "{command} did not report the missing explicit vocabulary: {stderr}"
+        );
+    }
+}
+
 /// The CLI resolves caller inputs and renders the engine's result; clause
 /// applicability, rights validation, and comparison remain upstream.
 #[trace("FR-021-AC-7")]
@@ -494,8 +583,8 @@ fn clause_command_delegates_semantics_to_the_engine() {
         "comparison must use the engine's diff operation"
     );
     assert!(
-        source.contains("Registry::load_module_strict(&module)"),
-        "rights and module validation must come from strict engine loading"
+        source.contains("Registry::load_module_set_strict(&roots)"),
+        "rights and module validation must come from strict closed-set engine loading"
     );
     assert!(
         source.contains("registry.clause_set(authority, id, version)"),

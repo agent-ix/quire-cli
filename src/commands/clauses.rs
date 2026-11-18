@@ -32,9 +32,9 @@ enum ClauseCommand {
 
 #[derive(Debug, Parser)]
 struct EvaluateArgs {
-    /// Module directory containing manifest.yaml and the referenced set.
-    #[arg(long)]
-    module: String,
+    /// Explicit module directory containing a manifest.yaml. Repeat for the closed module set.
+    #[arg(long, required = true)]
+    module: Vec<String>,
     /// Clause-set authority.
     #[arg(long)]
     authority: String,
@@ -57,9 +57,9 @@ struct EvaluateArgs {
 
 #[derive(Debug, Parser)]
 struct DiffArgs {
-    /// Module directory containing manifest.yaml and both referenced sets.
-    #[arg(long)]
-    module: String,
+    /// Explicit module directory containing a manifest.yaml. Repeat for the closed module set.
+    #[arg(long, required = true)]
+    module: Vec<String>,
     /// Clause-set authority.
     #[arg(long)]
     authority: String,
@@ -137,12 +137,21 @@ fn diff(ctx: &Ctx, args: DiffArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn load_registry(ctx: &Ctx, raw: &str) -> anyhow::Result<Registry> {
-    let module = safety::validate_module_path(raw)
-        .with_context(|| format!("validating --module {raw:?}"))?;
-    let registry = Registry::load_module_strict(&module)
+fn load_registry(ctx: &Ctx, raw_modules: &[String]) -> anyhow::Result<Registry> {
+    let modules = raw_modules
+        .iter()
+        .map(|raw| {
+            safety::validate_module_path(raw)
+                .with_context(|| format!("validating --module {raw:?}"))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let roots = modules
+        .iter()
+        .map(std::path::PathBuf::as_path)
+        .collect::<Vec<_>>();
+    let registry = Registry::load_module_set_strict(&roots)
         .map_err(super::failure::invalid)
-        .context("loading clause-set module")?;
+        .context("loading clause-set module set")?;
     io::emit_quire_diagnostics(ctx.diagnostics, registry.diagnostics());
     if let Some(failure) = registry.failures().first() {
         invalid_request!(
