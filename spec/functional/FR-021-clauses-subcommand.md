@@ -6,6 +6,9 @@ relationships:
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-004"
     type: "implements"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-040"
+    type: "consumes"
+    cardinality: "1:1"
 ---
 
 # FR-021: Clause-set evaluation and comparison
@@ -41,7 +44,7 @@ ambient search paths or environment configuration.
 | FR-021-AC-5 | Human results and deterministic TSV are emitted on stdout; TSV escapes structural characters so one clause remains one row. | Test |
 | FR-021-AC-6 | JSON carries tool provenance including the `clause_sets` capability and conforms to the pinned engine's published binding or diff schema. | Test |
 | FR-021-AC-7 | The CLI contains only transport and rendering policy. Clause content, rights validation, applicability, and comparison remain engine/module concerns. | Test, Review |
-| FR-021-AC-8 | Given two explicit module roots whose active clause-set vocabulary is split across the roots, both `evaluate` and `diff` resolve and process the requested authority and set using the merged vocabulary. Omitting the root that supplies required vocabulary fails without ambient discovery, even if that vocabulary is present in an ambient module root. | Test |
+| FR-021-AC-8 | Given a clause-set-owning module with an exact authority/set and two versions, plus an archetype whose authored `allowed_links` uses `registered-verb`, and a second module that registers `registered-verb` in `edge_types`, explicitly supplying both module roots makes `evaluate` and `diff` each emit a successful result for that authority/set. Supplying only the clause-set-owning root makes both commands exit 3 with an `UnknownEdgeType` diagnostic naming `registered-verb` and empty stdout, even when the vocabulary module is available through ambient module discovery. | Test |
 
 ## Constraints
 
@@ -53,6 +56,9 @@ to exercise this interface.
 
 - **Upstream:** [quire-rs FR-073](ix://agent-ix/quire-rs/FR-073) owns the
   generic clause-set model, rights validation, applicability, and comparison.
+- **Upstream:** [quire-rs FR-040](ix://agent-ix/quire-rs/spec/functional/FR-040)
+  owns the merged `edge_types` and `roles` vocabularies used to strictly load
+  explicitly supplied module sets.
 - **Upstream:** [quire-rs FR-055](ix://agent-ix/quire-rs/FR-055) owns the
   published binding and diff output contracts.
 - **Local boundary:** [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md)
