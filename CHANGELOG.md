@@ -9,6 +9,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.52.0] — 2026-11-18
+
+- **Explicit closed module sets for clause commands (PLAT-1684, #221).**
+  `quire clauses evaluate` and `diff` accept repeated `--module` roots and load
+  their edge and role vocabulary only from those roots.
+
 ## [0.51.0] — 2026-11-17
 
 - **Adopts quire-rs v0.62.2 (PLAT-1769).** Flow-rule `any_of` validation now follows
