@@ -9,6 +9,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.52.1] — 2026-11-22
+
+### Fixed
+
+- `quire update --help` and `quire update -h` print the command help and exit 0 in an npm install. The npm launcher used to intercept them, print the npm update notice and exit 1.
+
 ## [0.52.0] — 2026-11-18
 
 - **Explicit closed module sets for clause commands (PLAT-1684, #221).**
