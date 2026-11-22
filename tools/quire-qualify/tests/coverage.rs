@@ -179,3 +179,32 @@ fn malformed_or_incomplete_coverage_inputs_fail_typed_deserialization() {
         quire_qualify::Error::DuplicateTargets { ids } if ids == [duplicate_id]
     ));
 }
+
+#[trace("FR-025-AC-2")]
+#[test]
+fn coverage_decoder_requires_one_complete_json_document() {
+    let valid = serde_json::to_vec(&complete_report()).expect("serialize report");
+    assert!(quire_qualify::coverage::check_bytes(&valid).is_ok());
+
+    let mut trailing_whitespace = valid.clone();
+    trailing_whitespace.extend_from_slice(b" \t\r\n");
+    assert!(
+        quire_qualify::coverage::check_bytes(&trailing_whitespace).is_ok(),
+        "JSON whitespace after the single report remains valid"
+    );
+
+    for (name, suffix) in [
+        ("trailing garbage", b" garbage".as_slice()),
+        ("concatenated JSON", valid.as_slice()),
+    ] {
+        let mut bytes = valid.clone();
+        bytes.extend_from_slice(suffix);
+        assert!(
+            matches!(
+                quire_qualify::coverage::check_bytes(&bytes),
+                Err(quire_qualify::Error::CoverageTrailingData { .. })
+            ),
+            "the decoder must refuse {name} after a valid report"
+        );
+    }
+}
