@@ -75,8 +75,15 @@ compatibility boundary for this command:
 
 | Producer | Consumer | Contract shape | Support |
 |---|---|---|---|
-| quire-rs 0.46.0 at `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f` | quire-cli 0.33.0 | Earlier `assurance-v1`: source premise, schema digests, locator digests, statement hashes, hashed symbol identities, and relation provenance | Historical fixture only; not accepted by current quire-cli |
+| quire-rs 0.46.0 at `a874fb641cb70da83c8c8b23f9fea0a44255b88a` | quire-cli 0.32.0 | Earlier `assurance-v1`: source premise, schema digests, locator digests, statement hashes, hashed symbol identities, and relation provenance | Historical fixture only; not accepted by current quire-cli |
+| quire-rs 0.47.1 at `92dbebc49f354f7a3d5050b94cd2d57d9084d99f` | quire-cli 0.33.0 | Earlier `assurance-v1` with the same schema and field meanings as the 0.46.0 pair | Historical fixture only; not accepted by current quire-cli |
 | quire-rs 0.62.2 (`v0.62.2`) | quire-cli 0.52.0 | Current `assurance-v1`: no source premise or digest fields, structured symbol identities, no relation provenance, and shell/entry-point symbol forms | Supported by the current release |
+
+These release identities come from the versioned CLI release manifests and
+lockfiles and the exact quire-rs schema at each pinned producer revision. The
+two historical producer revisions publish the same schema bytes; the current
+producer revision publishes a different schema while retaining the v1 format
+marker.
 
 The current CLI SHALL validate the entire payload against its linked
 engine's published schema and SHALL preserve the current schema's field
@@ -109,7 +116,7 @@ consumer-support decision before that producer/consumer pair is supported.
 | FR-020-AC-6 | The command delegates construction to `build_assurance_export`, validation to `read_assurance_export`, corpus loading to `Spec`, extraction to `extract_tree_scoped`, and binding to `trace::bind`; a static boundary audit rejects a second graph, schema, or direct parser in the CLI. | Inspection |
 | FR-020-AC-7 | The command opens no network socket and spawns no child process on success or refusal paths. | Test |
 | FR-020-AC-8 | A checked-in golden JSON fixture validates against the upstream schema in Rust, is consumed from the exact same bytes by required Node/TypeScript and Python compatibility probes without normalization, and pins every v1 field and state token. A missing probe runtime fails the gate. | Test |
-| FR-020-AC-9 | Independent fixtures captured from each declared supported release pair validate under that pair's published schema and preserve the full field-identity oracle for modules, artifacts, obligations, symbols, relations, locators, and observations; the current pair's fixture is accepted by the current CLI, while the earlier pair is explicitly refused by the current CLI before typed records are returned. The current CLI refuses a fixture when a shared capability or format-version string is present but required fields or identity meanings differ. | Test |
+| FR-020-AC-9 | Independent fixtures captured from the quire-cli 0.32.0 / quire-rs 0.46.0 pair, the quire-cli 0.33.0 / quire-rs 0.47.1 pair, and the current quire-cli 0.52.0 / quire-rs 0.62.2 pair validate under their respective published schemas and preserve the full field-identity oracle for modules, artifacts, obligations, symbols, relations, locators, and observations; the current pair's fixture is accepted by the current CLI, while each historical fixture is refused by the current CLI before typed records are returned. The current CLI refuses a fixture when a shared capability or format-version string is present but required fields or identity meanings differ. Verify with `tests/cli_assurance.rs` and `tests/assurance_cross_language.rs`. | Test |
 
 ## Dependencies
 
