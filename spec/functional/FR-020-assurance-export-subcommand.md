@@ -67,6 +67,27 @@ it does not disable schema checking.
    export may legitimately contain empty record arrays and still exits zero
    with a complete envelope.
 
+## Supported producer and consumer releases
+
+The assurance payload's `format_version` alone does not establish semantic
+compatibility. The following released producer/consumer pairs are the
+compatibility boundary for this command:
+
+| Producer | Consumer | Contract shape | Support |
+|---|---|---|---|
+| quire-rs 0.46.0 at `85dfe9d5a937c52af6456f2e6aa3a6bc4c82db9f` | quire-cli 0.33.0 | Earlier `assurance-v1`: source premise, schema digests, locator digests, statement hashes, hashed symbol identities, and relation provenance | Historical fixture only; not accepted by current quire-cli |
+| quire-rs 0.62.2 (`v0.62.2`) | quire-cli 0.52.0 | Current `assurance-v1`: no source premise or digest fields, structured symbol identities, no relation provenance, and shell/entry-point symbol forms | Supported by the current release |
+
+The current CLI SHALL validate the entire payload against its linked
+engine's published schema and SHALL preserve the current schema's field
+identities and meanings. It SHALL NOT infer compatibility from the shared
+`assurance_export.v1` capability or `format_version: 1` alone. A payload from a
+producer shape outside the current consumer's supported row SHALL be refused
+before any typed record is returned; the consumer SHALL NOT discard or
+reinterpret fields to make an unsupported shape fit. Adding or changing a
+field's meaning requires a new format version and a corresponding explicit
+consumer-support decision before that producer/consumer pair is supported.
+
 ## Constraints
 
 | ID | Constraint | Type | Validation |
@@ -74,6 +95,7 @@ it does not disable schema checking.
 | FR-020-CON-2 | The command SHALL execute no test, proof, solver, consumer, package-manager, Git, or network command. It performs parsing and static source extraction only. | Responsibility | Test |
 | FR-020-CON-3 | The CLI SHALL add no verdict, execution result, evidence freshness claim, generic evidence envelope, or tool-provenance field to the closed upstream payload. | Responsibility | Inspection |
 | FR-020-CON-4 | Unknown or malformed module versions, schema premises, and incomplete module loads SHALL fail closed before any stdout byte. | Integrity | Test |
+| FR-020-CON-5 | The CLI SHALL support a producer/consumer pair only when its complete fixture preserves every required field identity and semantic meaning; matching a capability string or `format_version` is insufficient, and unsupported shapes are refused without dropping or reinterpreting fields. | Compatibility | Test |
 
 ## Acceptance Criteria
 
@@ -87,6 +109,7 @@ it does not disable schema checking.
 | FR-020-AC-6 | The command delegates construction to `build_assurance_export`, validation to `read_assurance_export`, corpus loading to `Spec`, extraction to `extract_tree_scoped`, and binding to `trace::bind`; a static boundary audit rejects a second graph, schema, or direct parser in the CLI. | Inspection |
 | FR-020-AC-7 | The command opens no network socket and spawns no child process on success or refusal paths. | Test |
 | FR-020-AC-8 | A checked-in golden JSON fixture validates against the upstream schema in Rust, is consumed from the exact same bytes by required Node/TypeScript and Python compatibility probes without normalization, and pins every v1 field and state token. A missing probe runtime fails the gate. | Test |
+| FR-020-AC-9 | Independent fixtures captured from each declared supported release pair validate under that pair's published schema and preserve the full field-identity oracle for modules, artifacts, obligations, symbols, relations, locators, and observations; the current pair's fixture is accepted by the current CLI, while the earlier pair is explicitly refused by the current CLI before typed records are returned. The current CLI refuses a fixture when a shared capability or format-version string is present but required fields or identity meanings differ. | Test |
 
 ## Dependencies
 
