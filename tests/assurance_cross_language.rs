@@ -1,19 +1,18 @@
-//! Exact assurance golden bytes are consumable across languages.
+//! Exact assurance golden bytes preserve the Rust reader contract.
 
 use ix_trace_rs::trace;
-use std::fs;
-use std::process::Command;
+use std::collections::BTreeSet;
 
 use jsonschema::{Draft, JSONSchema};
 use quire_rs::assurance::ASSURANCE_V1_SCHEMA;
-use quire_rs::{read_assurance_export, AcceptedAssurancePremises, AssuranceExport};
+use quire_rs::{AcceptedAssurancePremises, AssuranceExport, read_assurance_export};
 use serde_json::Value;
 
 const GOLDEN: &[u8] = include_bytes!("fixtures/assurance/v1.json");
 
 #[trace("FR-020-AC-8")]
 #[test]
-fn it_144_rust_python_and_node_consume_the_exact_golden_bytes() {
+fn it_144_rust_golden_validates_and_pins_every_v1_field_and_state_token() {
     let payload: Value = serde_json::from_slice(GOLDEN).expect("golden JSON");
     let schema: Value = serde_json::from_str(ASSURANCE_V1_SCHEMA).expect("upstream schema");
     let compiled = JSONSchema::options()
@@ -25,52 +24,171 @@ fn it_144_rust_python_and_node_consume_the_exact_golden_bytes() {
         .map_err(|errors| errors.map(|error| error.to_string()).collect::<Vec<_>>())
         .expect("Rust validates the exact golden");
 
-    let temp = tempfile::tempdir().expect("tempdir");
-    let fixture_path = temp.path().join("v1.json");
-    let schema_path = temp.path().join("assurance-v1.schema.json");
-    fs::write(&fixture_path, GOLDEN).expect("fixture bytes");
-    fs::write(&schema_path, ASSURANCE_V1_SCHEMA).expect("schema bytes");
-
-    match Command::new("python3")
-        .arg("-c")
-        .arg("import json, jsonschema, pathlib, sys; p=pathlib.Path(sys.argv[1]).read_bytes(); s=pathlib.Path(sys.argv[2]).read_bytes(); v=json.loads(p); jsonschema.validate(v, json.loads(s)); assert v['format']=='quire-assurance'; assert b'\\n' not in p[:-1]")
-        .arg(&fixture_path)
-        .arg(&schema_path)
-        .output()
-    {
-        Ok(output) if output.status.success() => {}
-        Ok(output) => panic!("Python compatibility probe failed: {}", String::from_utf8_lossy(&output.stderr)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            panic!("cross-language check requires python3 and jsonschema: {error}");
+    assert_keys(
+        &payload,
+        &[
+            "format",
+            "format_version",
+            "modules",
+            "artifacts",
+            "obligations",
+            "symbols",
+            "relation_kinds",
+            "relations",
+            "relation_observations",
+        ],
+        "export",
+    );
+    assert_eq!(payload["format"], "quire-assurance");
+    assert_eq!(payload["format_version"], 1);
+    for module in payload["modules"].as_array().expect("modules") {
+        assert_keys(module, &["name", "version", "schemas"], "module");
+        for schema in module["schemas"].as_array().expect("module schemas") {
+            assert_keys(schema, &["archetype"], "module schema");
         }
-        Err(error) => panic!("Python compatibility probe: {error}"),
     }
-
-    match Command::new("node")
-        .arg("-e")
-        .arg("const fs=require('fs'); const b=fs.readFileSync(process.argv[1]); const v=JSON.parse(b); if(v.format!=='quire-assurance'||v.format_version!==1||!Array.isArray(v.relation_observations)) process.exit(2); if(b.subarray(0,b.length-1).includes(10)) process.exit(3);")
-        .arg(&fixture_path)
-        .output()
+    for artifact in payload["artifacts"].as_array().expect("artifacts") {
+        assert_keys(artifact, &["id", "artifact_type", "locator"], "artifact");
+        assert_locator_keys(&artifact["locator"]);
+    }
+    for obligation in payload["obligations"].as_array().expect("obligations") {
+        assert_keys(
+            obligation,
+            &[
+                "source",
+                "id",
+                "document",
+                "statement",
+                "method",
+                "target_ids",
+                "locator",
+            ],
+            "obligation",
+        );
+        assert_locator_keys(&obligation["locator"]);
+    }
+    for symbol in payload["symbols"].as_array().expect("symbols") {
+        assert_keys(
+            symbol,
+            &[
+                "id",
+                "language",
+                "kind",
+                "qualified_name",
+                "container",
+                "capabilities",
+                "locator",
+            ],
+            "symbol",
+        );
+        assert_locator_keys(&symbol["locator"]);
+    }
+    for relation_kind in payload["relation_kinds"]
+        .as_array()
+        .expect("relation kinds")
     {
-        Ok(output) if output.status.success() => {}
-        Ok(output) => panic!("Node compatibility probe failed: {}", String::from_utf8_lossy(&output.stderr)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            panic!("cross-language check requires Node: {error}");
-        }
-        Err(error) => panic!("Node compatibility probe: {error}"),
+        assert_keys(
+            relation_kind,
+            &["kind", "availability", "sources"],
+            "relation kind",
+        );
     }
+    for relation in payload["relations"].as_array().expect("relations") {
+        match relation["kind"].as_str().expect("relation kind") {
+            "corpus" => assert_keys(
+                relation,
+                &[
+                    "kind",
+                    "source",
+                    "target",
+                    "edge_type",
+                    "resolution",
+                    "locator",
+                    "freshness",
+                ],
+                "corpus relation",
+            ),
+            "verifies" | "implements" => assert_keys(
+                relation,
+                &["kind", "source", "target", "form", "locator", "freshness"],
+                "binding relation",
+            ),
+            other => panic!("unexpected relation kind in v1 golden: {other}"),
+        }
+        assert_locator_keys(&relation["locator"]);
+    }
+    for observation in payload["relation_observations"]
+        .as_array()
+        .expect("observations")
+    {
+        match (
+            observation.get("subject").is_some(),
+            observation.get("reason").is_some(),
+        ) {
+            (true, true) => assert_keys(
+                observation,
+                &[
+                    "declaration",
+                    "subject",
+                    "availability",
+                    "freshness",
+                    "reason",
+                ],
+                "observation with reason",
+            ),
+            (true, false) => assert_keys(
+                observation,
+                &["declaration", "subject", "availability", "freshness"],
+                "observation with subject",
+            ),
+            (false, false) => assert_keys(
+                observation,
+                &["declaration", "availability", "freshness"],
+                "observation without subject",
+            ),
+            (false, true) => panic!("observation reason requires a subject"),
+        }
+    }
+    assert_eq!(
+        collect_tokens(&payload, "availability"),
+        tokens(&["available", "missing", "not_applicable", "unknown"]),
+        "v1 availability state-token set",
+    );
+    assert_eq!(
+        collect_tokens(&payload, "freshness"),
+        tokens(&["not_applicable", "unknown"]),
+        "v1 freshness state-token set",
+    );
+    assert_eq!(
+        collect_tokens(&payload, "resolution"),
+        tokens(&["dangling", "resolved"]),
+        "v1 resolution state-token set",
+    );
+    assert_eq!(
+        enum_tokens(&schema["$defs"]["freshness"]["enum"]),
+        tokens(&["current", "not_applicable", "suspect", "unknown"]),
+        "v1 freshness enum",
+    );
+    assert_eq!(
+        enum_tokens(&schema["$defs"]["relationObservation"]["properties"]["availability"]["enum"]),
+        tokens(&["available", "missing", "not_applicable", "unknown"]),
+        "v1 availability enum",
+    );
+    assert_eq!(
+        enum_tokens(&schema["$defs"]["corpusRelation"]["properties"]["resolution"]["enum"]),
+        tokens(&["dangling", "resolved"]),
+        "v1 resolution enum",
+    );
 }
-
 #[trace("FR-020-AC-8")]
 #[test]
-fn it_144_languages_receive_one_acceptance_refusal_corpus() {
+fn it_144_rust_reader_accepts_and_refuses_golden_corpus_cases() {
     let mut valid: Value = serde_json::from_slice(GOLDEN).expect("golden JSON");
     let typed: AssuranceExport = serde_json::from_value(valid.clone()).expect("typed golden");
     let accepted = AcceptedAssurancePremises::from_export(&typed);
     let mut cases = vec![reader_case(
         "valid-v1",
         serde_json::to_vec(&valid).unwrap(),
-        true,
         true,
     )];
 
@@ -80,7 +198,6 @@ fn it_144_languages_receive_one_acceptance_refusal_corpus() {
         "unknown-format-version",
         serde_json::to_vec(&unsupported_version).unwrap(),
         false,
-        true,
     ));
 
     let mut duplicate_module = valid.clone();
@@ -93,7 +210,6 @@ fn it_144_languages_receive_one_acceptance_refusal_corpus() {
         "duplicate-module-identity",
         serde_json::to_vec(&duplicate_module).unwrap(),
         false,
-        true,
     ));
 
     let mut duplicate_schema = valid.clone();
@@ -106,7 +222,6 @@ fn it_144_languages_receive_one_acceptance_refusal_corpus() {
         "duplicate-schema-identity",
         serde_json::to_vec(&duplicate_schema).unwrap(),
         false,
-        true,
     ));
 
     let mut inconsistent_module = valid.clone();
@@ -115,7 +230,6 @@ fn it_144_languages_receive_one_acceptance_refusal_corpus() {
         "inconsistent-module-premise",
         serde_json::to_vec(&inconsistent_module).unwrap(),
         false,
-        true,
     ));
 
     let mut unknown_field = valid.clone();
@@ -124,21 +238,61 @@ fn it_144_languages_receive_one_acceptance_refusal_corpus() {
         "closed-envelope-refuses-unknown-field",
         serde_json::to_vec(&unknown_field).unwrap(),
         false,
-        true,
     ));
 
-    cases.push(reader_case("malformed-json", b"{".to_vec(), false, false));
+    cases.push(reader_case("malformed-json", b"{".to_vec(), false));
     let mut trailing_garbage = GOLDEN.to_vec();
     trailing_garbage.extend_from_slice(b" garbage");
-    cases.push(reader_case(
-        "trailing-garbage",
-        trailing_garbage,
-        false,
-        false,
-    ));
+    cases.push(reader_case("trailing-garbage", trailing_garbage, false));
     let mut concatenated = GOLDEN.to_vec();
     concatenated.extend_from_slice(GOLDEN);
-    cases.push(reader_case("concatenated-json", concatenated, false, false));
+    cases.push(reader_case("concatenated-json", concatenated, false));
+
+    let mut missing_required_field = valid.clone();
+    missing_required_field
+        .as_object_mut()
+        .unwrap()
+        .remove("format_version");
+    cases.push(reader_case(
+        "missing-required-format-version",
+        serde_json::to_vec(&missing_required_field).unwrap(),
+        false,
+    ));
+
+    let mut missing_nested_required_field = valid.clone();
+    missing_nested_required_field["artifacts"][0]["locator"]
+        .as_object_mut()
+        .unwrap()
+        .remove("path");
+    cases.push(reader_case(
+        "missing-required-locator-path",
+        serde_json::to_vec(&missing_nested_required_field).unwrap(),
+        false,
+    ));
+
+    let mut wrong_version_type = valid.clone();
+    wrong_version_type["format_version"] = "1".into();
+    cases.push(reader_case(
+        "wrong-format-version-type",
+        serde_json::to_vec(&wrong_version_type).unwrap(),
+        false,
+    ));
+
+    let mut wrong_array_type = valid.clone();
+    wrong_array_type["modules"] = serde_json::json!({});
+    cases.push(reader_case(
+        "wrong-modules-type",
+        serde_json::to_vec(&wrong_array_type).unwrap(),
+        false,
+    ));
+
+    let mut wrong_nested_type = valid.clone();
+    wrong_nested_type["artifacts"][0]["locator"]["line"] = "1".into();
+    cases.push(reader_case(
+        "wrong-locator-line-type",
+        serde_json::to_vec(&wrong_nested_type).unwrap(),
+        false,
+    ));
 
     let artifacts = valid["artifacts"].as_array_mut().expect("artifact array");
     for index in 0..512 {
@@ -152,7 +306,6 @@ fn it_144_languages_receive_one_acceptance_refusal_corpus() {
         "bounded-large-valid-export",
         serde_json::to_vec(&valid).unwrap(),
         true,
-        true,
     ));
 
     let mut deep = serde_json::json!(0);
@@ -165,7 +318,6 @@ fn it_144_languages_receive_one_acceptance_refusal_corpus() {
         "bounded-deep-unknown-value",
         serde_json::to_vec(&deeply_nested).unwrap(),
         false,
-        true,
     ));
 
     for case in &cases {
@@ -178,90 +330,65 @@ fn it_144_languages_receive_one_acceptance_refusal_corpus() {
             case["name"]
         );
     }
-
-    let temp = tempfile::tempdir().expect("tempdir");
-    let corpus_path = temp.path().join("reader-cases.json");
-    let schema_path = temp.path().join("assurance-v1.schema.json");
-    fs::write(&corpus_path, serde_json::to_vec(&cases).unwrap()).expect("shared case corpus");
-    fs::write(&schema_path, ASSURANCE_V1_SCHEMA).expect("schema bytes");
-
-    let python = r#"
-import json, pathlib, sys, jsonschema
-cases = json.loads(pathlib.Path(sys.argv[1]).read_bytes())
-schema = json.loads(pathlib.Path(sys.argv[2]).read_bytes())
-accepted = json.loads(pathlib.Path(sys.argv[3]).read_bytes())
-for case in cases:
-    actual = False
-    try:
-        value = json.loads(case['input'])
-        jsonschema.validate(value, schema)
-        if value['format_version'] != 1:
-            raise ValueError('unsupported version')
-        modules = value['modules']
-        names = [module['name'] for module in modules]
-        if len(names) != len(set(names)):
-            raise ValueError('duplicate module identity')
-        for module in modules:
-            archetypes = [item['archetype'] for item in module['schemas']]
-            if len(archetypes) != len(set(archetypes)):
-                raise ValueError('duplicate schema identity')
-        if modules != accepted['modules']:
-            raise ValueError('unaccepted module premise')
-        actual = True
-    except (ValueError, KeyError, TypeError, json.JSONDecodeError, jsonschema.ValidationError):
-        actual = False
-    if actual != case['accepted']:
-        raise AssertionError(f"Python reader {case['name']}: {actual} != {case['accepted']}")
-"#;
-    let accepted_path = temp.path().join("accepted-premises.json");
-    fs::write(
-        &accepted_path,
-        serde_json::to_vec(&serde_json::json!({"modules": typed.modules})).unwrap(),
-    )
-    .expect("accepted premises");
-    let output = Command::new("python3")
-        .arg("-c")
-        .arg(python)
-        .arg(&corpus_path)
-        .arg(&schema_path)
-        .arg(&accepted_path)
-        .output()
-        .expect("Python reader runtime is required");
-    assert!(
-        output.status.success(),
-        "Python acceptance/refusal corpus failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-
-    // Node is a JSON syntax/runtime probe only: quire-cli owns no Node assurance
-    // schema reader or schema-validation dependency on this supported path.
-    let node = r#"
-const fs = require('fs');
-const cases = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
-for (const testCase of cases) {
-  let parsed = true;
-  try { JSON.parse(testCase.input); } catch (_) { parsed = false; }
-  if (parsed !== testCase.json_syntax_valid) process.exit(2);
-}
-"#;
-    let output = Command::new("node")
-        .arg("-e")
-        .arg(node)
-        .arg(&corpus_path)
-        .output()
-        .expect("Node runtime is required");
-    assert!(
-        output.status.success(),
-        "Node JSON syntax probe failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
 }
 
-fn reader_case(name: &str, input: Vec<u8>, accepted: bool, json_syntax_valid: bool) -> Value {
+fn reader_case(name: &str, input: Vec<u8>, accepted: bool) -> Value {
     serde_json::json!({
         "name": name,
         "input": String::from_utf8(input).expect("assurance reader cases are UTF-8"),
-        "accepted": accepted,
-        "json_syntax_valid": json_syntax_valid
+        "accepted": accepted
     })
+}
+
+fn assert_locator_keys(locator: &Value) {
+    assert_keys(locator, &["path", "line"], "locator");
+}
+
+fn assert_keys(value: &Value, expected: &[&str], context: &str) {
+    let actual: BTreeSet<&str> = value
+        .as_object()
+        .unwrap_or_else(|| panic!("{context} must be an object"))
+        .keys()
+        .map(String::as_str)
+        .collect();
+    let expected: BTreeSet<&str> = expected.iter().copied().collect();
+    assert_eq!(actual, expected, "{context} v1 field set");
+}
+
+fn collect_tokens(payload: &Value, field: &str) -> BTreeSet<String> {
+    fn visit(value: &Value, field: &str, tokens: &mut BTreeSet<String>) {
+        match value {
+            Value::Object(object) => {
+                if let Some(token) = object.get(field).and_then(Value::as_str) {
+                    tokens.insert(token.to_owned());
+                }
+                for value in object.values() {
+                    visit(value, field, tokens);
+                }
+            }
+            Value::Array(values) => {
+                for value in values {
+                    visit(value, field, tokens);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut tokens = BTreeSet::new();
+    visit(payload, field, &mut tokens);
+    tokens
+}
+
+fn tokens(values: &[&str]) -> BTreeSet<String> {
+    values.iter().map(|value| (*value).to_owned()).collect()
+}
+
+fn enum_tokens(value: &Value) -> BTreeSet<String> {
+    value
+        .as_array()
+        .expect("schema enum array")
+        .iter()
+        .map(|token| token.as_str().expect("schema state token").to_owned())
+        .collect()
 }

@@ -9,6 +9,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **Pin the assurance v1 contract in Rust (PLAT-1795).** The golden export
+  test validates against the upstream schema, pins its field and state-token
+  sets, and exercises Rust reader refusal for missing required fields and wrong
+  JSON types. Cross-language runtime probes are removed because no named
+  consumer is in scope.
+
 ## [0.52.1] — 2026-11-22
 
 ### Fixed
