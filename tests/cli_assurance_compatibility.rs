@@ -32,9 +32,23 @@ fn relation_identities(value: &Value) -> Vec<String> {
         .expect("relations")
         .iter()
         .map(|relation| {
+            let source = relation["source"].as_str().unwrap_or("-");
+            let source = value["symbols"]
+                .as_array()
+                .expect("symbols")
+                .iter()
+                .find(|symbol| symbol["id"] == source)
+                .and_then(|symbol| symbol["qualified_name"].as_str())
+                .unwrap_or(source);
             ["kind", "source", "target", "edge_type", "resolution"]
                 .into_iter()
-                .map(|field| relation[field].as_str().unwrap_or("-"))
+                .map(|field| {
+                    if field == "source" {
+                        source
+                    } else {
+                        relation[field].as_str().unwrap_or("-")
+                    }
+                })
                 .collect::<Vec<_>>()
                 .join("|")
         })
@@ -163,9 +177,9 @@ fn assert_record_population(value: &Value) {
             "corpus|FR-001|StR-001|references|resolved",
             "corpus|FR-001|StR-001|satisfies|resolved",
             "corpus|FR-001|StR-999|references|dangling",
-            "verifies|0ebc7940c7d308a4e705773d389b3e9a386b173132faa2ae19c4248dc7f9ba76|FR-001-AC-1|-|-",
-            "verifies|0ebc7940c7d308a4e705773d389b3e9a386b173132faa2ae19c4248dc7f9ba76|TC-136|-|-",
-            "implements|a6912a41c300742ae2b687af3ad18dd589940ee5a6a5e4fb7395090ae4c805e4|FR-001|-|-"
+            "verifies|evidence_binding|FR-001-AC-1|-|-",
+            "verifies|evidence_binding|TC-136|-|-",
+            "implements|production_binding|FR-001|-|-"
         ]
     );
     assert_eq!(
