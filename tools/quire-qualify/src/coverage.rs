@@ -49,6 +49,9 @@ pub fn check_bytes(bytes: &[u8]) -> Result<String> {
     let mut deserializer = serde_json::Deserializer::from_slice(bytes);
     let report: CoverageReport = serde_path_to_error::deserialize(&mut deserializer)
         .map_err(|source| Error::CoverageJson { source })?;
+    deserializer
+        .end()
+        .map_err(|source| Error::CoverageTrailingData { source })?;
     let required = required_targets();
     let mut minted = BTreeMap::new();
     let mut duplicates = BTreeSet::new();

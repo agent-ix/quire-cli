@@ -83,6 +83,11 @@ pub enum Error {
         #[source]
         source: serde_path_to_error::Error<serde_json::Error>,
     },
+    #[error("parse typed coverage JSON: trailing content after the report: {source}")]
+    CoverageTrailingData {
+        #[source]
+        source: serde_json::Error,
+    },
     #[error("parse typed hyperfine JSON: {source}")]
     HyperfineJson {
         #[source]
