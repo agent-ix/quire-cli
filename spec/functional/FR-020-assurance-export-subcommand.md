@@ -70,20 +70,15 @@ it does not disable schema checking.
 ## Supported producer and consumer releases
 
 The assurance payload's `format_version` alone does not establish semantic
-compatibility. The following released producer/consumer pairs are the
-compatibility boundary for this command:
+compatibility.
 
-| Producer | Consumer | Contract shape | Support |
-|---|---|---|---|
-| quire-rs 0.46.0 at `a874fb641cb70da83c8c8b23f9fea0a44255b88a` | quire-cli 0.32.0 | Earlier `assurance-v1`: source premise, schema digests, locator digests, statement hashes, hashed symbol identities, and relation provenance | Historical fixture only; not accepted by current quire-cli |
-| quire-rs 0.47.1 at `92dbebc49f354f7a3d5050b94cd2d57d9084d99f` | quire-cli 0.33.0 | Earlier `assurance-v1` with the same schema and field meanings as the 0.46.0 pair | Historical fixture only; not accepted by current quire-cli |
-| quire-rs 0.62.2 (`v0.62.2`) | quire-cli 0.52.0 | Current `assurance-v1`: no source premise or digest fields, structured symbol identities, no relation provenance, and shell/entry-point symbol forms | Supported by the current release |
-
-These release identities come from the versioned CLI release manifests and
-lockfiles and the exact quire-rs schema at each pinned producer revision. The
-two historical producer revisions publish the same schema bytes; the current
-producer revision publishes a different schema while retaining the v1 format
-marker.
+Two earlier `assurance-v1` shapes exist as historical fixtures only and are not
+accepted by the current CLI. They carry a source premise, schema digests, locator
+digests, statement hashes, hashed symbol identities, and relation provenance. The
+current `assurance-v1` shape has no source premise or digest fields, uses
+structured symbol identities, has no relation provenance, and adds shell and
+entry-point symbol forms. The historical and current shapes share the v1 format
+marker but differ in their published schema.
 
 The current CLI SHALL validate the entire payload against its linked
 engine's published schema and SHALL preserve the current schema's field
