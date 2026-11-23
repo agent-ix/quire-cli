@@ -61,3 +61,23 @@ Checks that passed. The old "label only an `approved` entry as an approval" rule
 Owner question 1 (single dossier root vs per-input directory): keep per-input directory. quoin FR-191 writes every dossier document under one `<DIR>` (`dossier`, or `--out`), so for the dossier export the two rules give the same answer. A single root would need either a new quire flag or a hard-coded `dossier` name, which breaks `--out other` (FR-191-AC-10). Close the gaps instead: component-wise path matching with an AC, a defined rule for bundles that mix a root input with a non-root one, and a visible tag commit when it differs (FND-005).
 
 Owner question 2 (AC-6): FR-034-AC-6 stays as written. The first-parent walk and tree comparison can use the gix-odb / gix-object readers already linked (identity.rs already walks trees by hand), and the SHA-256 needs only an in-process pure-Rust digest crate. Neither starts a process or links a transport. If an implementer prefers `gix-diff`, `gix-traverse` or `gix-revwalk`, the crate list in FR-034 section B must name them. Hand-rolling needs no spec change.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-007 | high | The fix's new FR-038 bullet "If the result `status` is `not_released`, then the command SHALL take no Person, Signed at or Record value from the nested `approval`" covers every `not_released` result. The Release-verify table reads Person, Signed at and Record from the nested `approval` for every `not_released` result except one whose nested status is `approved`. The Verdict file row also shows ` tag object: ` when "the Record cell is read from the nested `approval` (not in the `claimed:` case)". For a `not_released` result with a nested `untrusted_signer` (FR-038-AC-11) the requirement contradicts itself. Limit the bullet to a nested `approval.status` of `approved`. | FR-038 Release-verify input bullet 1; FR-038 Release-verify table; FR-038-AC-11; FR-038-AC-20 |
+| FND-008 | low | FR-038-AC-11 and FR-038-AC-12 still end with "is not labelled an approval". The fix round removed every rule that defined labelling an entry as an approval, so the clause has no oracle. Replace it with the cell-content rule (the Verdict cell begins with `unverified claim: `), or drop it. | FR-038-AC-11; FR-038-AC-12 |
+| FND-009 | low | FR-034-AC-13 says "when a non-dossier input is edited after the tag, so the later commit shows in the Release field". The Release field shows the tag commit T, not the later commit; the source commit S shows in its own field. Reword to "so the Release field names the tag commit". | FR-034-AC-13 |
+| FND-010 | low | The Release field is now "shown as `<TAG> (tag commit <hash>)`" when T differs from S. FR-034 section C writes `release` to `in/metadata.yaml`, which organisation templates read (FR-036), and the spec does not say whether that value is the tag name alone or the shown text. State which, and add it to FR-034-AC-12 or FR-034-AC-13. | FR-034 Release row; FR-034 section C; FR-034-AC-12 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |
+| FND-005 | fixed | - |
+| FND-006 | fixed | - |

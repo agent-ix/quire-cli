@@ -39,3 +39,12 @@ scope:
 ## Verdict
 
 FND-001 blocks merge: a reused criterion id silently transfers test backing. FR-038 ids AC-19 to AC-21 are new and unique, and the FR-040 and US-010 edits keep their ids.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |

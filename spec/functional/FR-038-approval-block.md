@@ -91,11 +91,11 @@ A nested `status` that is not `approved` is therefore shown twice, once as a
 reason (EA FR-047) and once in the `nested:` segment, which also carries the nested
 `reason`. A nested `approved` status of a `not_released` result is not shown.
 
-- If the result `status` is `not_released`, then the command SHALL take no Person,
-  Signed at or Record value from the nested `approval`, including when the nested
-  `approval.status` is `approved` (for example with reason
-  `decision_owner_mismatch`), and the Verdict cell SHALL start with
-  `unverified claim: not_released`.
+- If the result `status` is `not_released` and the nested `approval.status` is
+  `approved` (for example with reason `decision_owner_mismatch`), then the command
+  SHALL take no Person, Signed at or Record value from the nested `approval`, as
+  the table states. For every `not_released` result the Verdict cell SHALL start
+  with `unverified claim: not_released`.
 - If the result `status` is `not_released`, then the command SHALL prefix a
   recorded Meaning with `claimed:`.
 - The command SHALL preserve every entry of `reasons` and SHALL NOT drop, reorder,
@@ -192,8 +192,8 @@ reason (EA FR-047) and once in the `nested:` segment, which also carries the nes
 | FR-038-AC-8 | The same verdict files exported from two different source repositories yield a byte-identical `in/approval.md`; the approval is built from the verdict files alone. | Test |
 | FR-038-AC-9 | An approval whose record digest is `sha256:` followed by 64 hexadecimal digits and an `untrusted_signer` entry whose meaning is a 73-character URL, and a `tag_object_id` of 40 hexadecimal digits, exports to PDF with every cell's content inside its own column, the Verdict file column included: no word of one column's text overlaps another column's in the page geometry. | Test |
 | FR-038-AC-10 | A static `released` release-verify result whose nested `approval` is `approved` with approver `Ada Example`, `signed_at` `2026-01-02T03:04:05Z` and meaning `reviewed and approved` exports successfully; its Verdict cell is exactly `unverified claim: approved`, and its Person, Signed at, Meaning and Record cells are byte-identical to the cells of the row of the nested verdict exported as a standalone file. | Test |
-| FR-038-AC-11 | A static `not_released` result with reasons `untrusted_signer` and `release_commit_record_not_added` and a nested `untrusted_signer` approval (meaning `reviewed and approved`, no `reason`) has the Verdict cell exactly `unverified claim: not_released; reasons: ["untrusted_signer", "release_commit_record_not_added"]; nested: untrusted_signer`, the Meaning `claimed: ` followed by the meaning, Signed at `not available`, and is not labelled an approval. With a nested `reason` of `x, y` the third segment is `nested: untrusted_signer (x, y)` after the same prefix. A reason `a, b` shows as the one array element `"a, b"`. | Test |
-| FR-038-AC-12 | A static `not_released` result with reasons `record_invalid` and no `approval` member has the Verdict cell exactly `unverified claim: not_released; reasons: ["record_invalid"]`, Person `not available`, Signed at `not available`, Meaning `not recorded`, Record `not available`, holds no signer, meaning or time, and is not labelled an approval. | Test |
+| FR-038-AC-11 | A static `not_released` result with reasons `untrusted_signer` and `release_commit_record_not_added` and a nested `untrusted_signer` approval (meaning `reviewed and approved`, no `reason`) has the Verdict cell exactly `unverified claim: not_released; reasons: ["untrusted_signer", "release_commit_record_not_added"]; nested: untrusted_signer`, the Meaning `claimed: ` followed by the meaning, Signed at `not available`, and its Verdict cell is not a bare status token. With a nested `reason` of `x, y` the third segment is `nested: untrusted_signer (x, y)` after the same prefix. A reason `a, b` shows as the one array element `"a, b"`. | Test |
+| FR-038-AC-12 | A static `not_released` result with reasons `record_invalid` and no `approval` member has the Verdict cell exactly `unverified claim: not_released; reasons: ["record_invalid"]`, Person `not available`, Signed at `not available`, Meaning `not recorded`, Record `not available`, and holds no signer, meaning or time. | Test |
 | FR-038-AC-13 | The `in/approval.md` of an export of a standalone approval-verify fixture A alone, of A with a release result R before it and of A with R after it holds the row of A, Verdict file cell included, byte-identical in all three; the exports with R hold exactly one more row than the export without it, the row of R; and the row of A carries the values FR-038-AC-1 specifies. | Test |
 | FR-038-AC-14 | Each of these exits 3 naming the file, with no converter started: a release result with `status` `unknown`; a release result with no `status`; a `released` result without `approval`; a `released` result whose nested status is `wrong_record`; a `released` result with `reasons` `["x"]`; a `not_released` result without `reasons`, one with `reasons` `[1]` and one with `reasons` `"x"`; a release result whose `approval` is a string; a release result whose `approval` has another `protocol`. | Test |
 | FR-038-AC-15 | A `not_released` release result whose reason holds `*x* \`#pagebreak()\`{=typst}` and a pipe, and whose nested non-approved verdict has a meaning and a `reason` holding the same, shows each as literal text in PDF and DOCX, adds no table row and applies no emphasis. | Test |

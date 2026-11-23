@@ -38,3 +38,19 @@ scope:
 ## Verdict
 
 The rule is implementable with the readers already linked (FR-034 section B) and testable with git fixtures. Close FND-001, FND-002 and FND-004 with ACs before coding. FND-003 and FND-005 are wording or AC additions.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | low | FR-034 section B now allows adding `gix-diff`. gix-diff 0.67's default features (`blob`) pull `gix-command`, which the same section bans and FR-034-AC-6 checks with `cargo tree -i`. Say that `gix-diff` is added with `default-features = false` (tree diff only), so the permission cannot be read as allowing the banned crate. | FR-034 section B; FR-034-AC-6 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |
+| FND-005 | fixed | - |
