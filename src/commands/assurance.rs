@@ -109,13 +109,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             .map(|traceability| &traceability.source_exclude)
             .unwrap_or(&empty_excludes),
     );
-    for diagnostic in &extraction.diagnostics {
-        ix_cli_kit::streams::Record::error(
-            "SymbolExtraction",
-            &format!("{}: {}", diagnostic.path, diagnostic.reason),
-        )
-        .emit(ctx.diagnostics);
-    }
+    super::emit_extraction_diagnostics(ctx, &extraction.diagnostics);
     let graph = model
         .map(|traceability| quire_rs::symbols::trace::bind(&extraction, traceability))
         .unwrap_or_else(SymbolGraph::default);

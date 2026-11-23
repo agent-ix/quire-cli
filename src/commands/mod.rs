@@ -138,6 +138,24 @@ pub fn spec_root_of(scope: &Path) -> anyhow::Result<PathBuf> {
     Ok(root.canonicalize().unwrap_or(root))
 }
 
+/// Print each extraction diagnostic on the diagnostics stream, a warning for
+/// warning severity and an error for error severity.
+pub fn emit_extraction_diagnostics(ctx: &Ctx, diagnostics: &[quire_rs::symbols::SymbolDiagnostic]) {
+    use quire_rs::symbols::DiagnosticSeverity;
+    for d in diagnostics {
+        let message = format!("{}: {}", d.path, d.reason);
+        match d.severity {
+            DiagnosticSeverity::Warning => {
+                ix_cli_kit::streams::Record::warning("SymbolExtraction", &message)
+            }
+            DiagnosticSeverity::Error => {
+                ix_cli_kit::streams::Record::error("SymbolExtraction", &message)
+            }
+        }
+        .emit(ctx.diagnostics);
+    }
+}
+
 /// Load a single module registry for a `--module <PATH>` argument and
 /// surface load problems eagerly (FR-004 CR note / upstream
 /// FR-013-AC-13).

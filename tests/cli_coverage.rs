@@ -1733,6 +1733,45 @@ fn it114_no_symbol_rows_render_in_the_human_census() {
     );
 }
 
+fn source_exclude_fixture(declare_glob: bool) -> TempDir {
+    let dir = TempDir::new().expect("tempdir");
+    let m = dir.path().join("m");
+    fs::create_dir_all(&m).expect("mkdir");
+    let glob = if declare_glob {
+        "  source_exclude: ['tests/fixtures/**']\n"
+    } else {
+        ""
+    };
+    fs::write(
+        m.join("manifest.yaml"),
+        format!(
+            "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
+             - name: TestMatrix\n\
+             traceability:\n{glob}  trace_targets:\n  - name: test-case\n\
+             \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
+             \x20   id_column: Test ID\n  status:\n    column: Status\n\
+             \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
+             \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
+             \x20 trace_tags:\n    markers:\n    - name: rust-marker\n\
+             \x20     language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({{ids}})]'\n"
+        ),
+    )
+    .expect("write manifest");
+    fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
+    fs::create_dir_all(dir.path().join("tests/fixtures")).expect("mkdir fixtures");
+    fs::write(
+        dir.path().join("spec/tests.md"),
+        matrix_doc("TM-001", "TC-001"),
+    )
+    .expect("write matrix");
+    fs::write(
+        dir.path().join("tests/fixtures/sample.rs"),
+        "#[trace(\"TC-999\")]\n#[test]\nfn tc999_covers_nothing() {}\n",
+    )
+    .expect("write fixture");
+    dir
+}
+
 // FR-017-AC-18 (#51, quire-rs #215): the `source_exclude`
 // subtraction is observable — the census counts what the globs removed — and
 // `SymbolExtraction` diagnostics reach stderr instead of being computed and
@@ -1742,44 +1781,7 @@ fn it114_no_symbol_rows_render_in_the_human_census() {
 #[trace("FR-017-AC-18")]
 #[test]
 fn it115_excluded_count_and_extraction_diagnostics_reach_stderr() {
-    let build = |declare_glob: bool| {
-        let dir = TempDir::new().expect("tempdir");
-        let m = dir.path().join("m");
-        fs::create_dir_all(&m).expect("mkdir");
-        let glob = if declare_glob {
-            "  source_exclude: ['tests/fixtures/**']\n"
-        } else {
-            ""
-        };
-        fs::write(
-            m.join("manifest.yaml"),
-            format!(
-                "name: m\nmanifest_version: 1.0.0\nversion: 0.0.1\nartifact_types:\n\
-                 - name: TestMatrix\n\
-                 traceability:\n{glob}  trace_targets:\n  - name: test-case\n\
-                 \x20   archetype: TestMatrix\n    section: Test Case Summary\n\
-                 \x20   id_column: Test ID\n  status:\n    column: Status\n\
-                 \x20   complete: [\"✅\"]\n    pending: [\"🚧\"]\n\
-                 \x20   failed: [\"❌\"]\n    retired: [\"⛔\"]\n\
-                 \x20 trace_tags:\n    markers:\n    - name: rust-marker\n\
-                 \x20     language: rust\n      pattern: '#\\[trace\\(\"([^\"]+)\"\\)\\]'\n      template: '#[trace({{ids}})]'\n"
-            ),
-        )
-        .expect("write manifest");
-        fs::create_dir_all(dir.path().join("spec")).expect("mkdir spec");
-        fs::create_dir_all(dir.path().join("tests/fixtures")).expect("mkdir fixtures");
-        fs::write(
-            dir.path().join("spec/tests.md"),
-            matrix_doc("TM-001", "TC-001"),
-        )
-        .expect("write matrix");
-        fs::write(
-            dir.path().join("tests/fixtures/sample.rs"),
-            "#[trace(\"TC-999\")]\n#[test]\nfn tc999_covers_nothing() {}\n",
-        )
-        .expect("write fixture");
-        dir
-    };
+    let build = source_exclude_fixture;
 
     let run = |dir: &TempDir| {
         let scope = dir.path().to_string_lossy().into_owned();
@@ -2013,4 +2015,54 @@ fn it147_help_states_the_module_resolution_order() {
         help.contains("order"),
         "--help must say the roots are used in the order given: {help}"
     );
+}
+
+// FR-017-AC-18: files pruned by the scope root's own `.gitignore` are counted
+// on the coverage and symbols human surfaces, and an absent ignore file prints
+// no line.
+#[trace("FR-017-AC-18")]
+#[test]
+fn it144_ignored_source_count_reaches_coverage_and_symbols_human_views() {
+    let run = |dir: &TempDir, args: &[&str]| {
+        let scope = dir.path().to_string_lossy().into_owned();
+        let m = dir.path().join("m").to_string_lossy().into_owned();
+        let mut command = quire();
+        command.args(args).args(["--scope", &scope]);
+        if args[0] == "coverage" {
+            command.args(["--module", &m]);
+        }
+        let out = command.output().expect("run");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        )
+    };
+    let dir = source_exclude_fixture(false);
+    fs::create_dir_all(dir.path().join("gen")).expect("mkdir gen");
+    fs::write(
+        dir.path().join("gen/out.rs"),
+        "#[trace(\"TC-998\")]\n#[test]\nfn tc998_generated() {}\n",
+    )
+    .expect("write generated source");
+    for command in ["coverage", "symbols"] {
+        let without = run(&dir, &[command]);
+        assert!(
+            !without.contains("pruned by the scope root's ignore files"),
+            "{command} without an ignore file: {without}"
+        );
+    }
+    fs::write(dir.path().join(".gitignore"), "gen/\n").expect("write .gitignore");
+    for command in ["coverage", "symbols"] {
+        let with = run(&dir, &[command]);
+        assert!(
+            with.contains("1 source file(s) pruned by the scope root's ignore files"),
+            "{command} with an ignore file: {with}"
+        );
+    }
 }
