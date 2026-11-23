@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 
 use jsonschema::{Draft, JSONSchema};
 use quire_rs::assurance::ASSURANCE_V1_SCHEMA;
-use quire_rs::{AcceptedAssurancePremises, AssuranceExport, read_assurance_export};
+use quire_rs::{read_assurance_export, AcceptedAssurancePremises, AssuranceExport};
 use serde_json::Value;
 
 const GOLDEN: &[u8] = include_bytes!("fixtures/assurance/v1.json");
@@ -23,6 +23,117 @@ fn it_144_rust_golden_validates_and_pins_every_v1_field_and_state_token() {
         .validate(&payload)
         .map_err(|errors| errors.map(|error| error.to_string()).collect::<Vec<_>>())
         .expect("Rust validates the exact golden");
+
+    assert_keys(
+        &schema["properties"],
+        &[
+            "format",
+            "format_version",
+            "modules",
+            "artifacts",
+            "obligations",
+            "symbols",
+            "relation_kinds",
+            "relations",
+            "relation_observations",
+        ],
+        "schema envelope properties",
+    );
+    let definitions = &schema["$defs"];
+    assert_keys(
+        definitions,
+        &[
+            "schemaPremise",
+            "modulePremise",
+            "locator",
+            "artifact",
+            "obligation",
+            "symbol",
+            "freshness",
+            "relationKind",
+            "corpusRelation",
+            "verifiesRelation",
+            "implementsRelation",
+            "relationObservation",
+        ],
+        "schema definitions",
+    );
+    assert_schema_properties(definitions, "schemaPremise", &["archetype"]);
+    assert_schema_properties(
+        definitions,
+        "modulePremise",
+        &["name", "version", "schemas"],
+    );
+    assert_schema_properties(definitions, "locator", &["path", "line"]);
+    assert_schema_properties(
+        definitions,
+        "artifact",
+        &["id", "uuid", "artifact_type", "locator"],
+    );
+    assert_schema_properties(
+        definitions,
+        "obligation",
+        &[
+            "source",
+            "id",
+            "document",
+            "statement",
+            "method",
+            "parameters",
+            "criticality",
+            "target_ids",
+            "locator",
+        ],
+    );
+    assert_schema_properties(
+        definitions,
+        "symbol",
+        &[
+            "id",
+            "language",
+            "kind",
+            "qualified_name",
+            "container",
+            "capabilities",
+            "locator",
+        ],
+    );
+    assert_schema_properties(
+        definitions,
+        "relationKind",
+        &["kind", "availability", "sources"],
+    );
+    assert_schema_properties(
+        definitions,
+        "corpusRelation",
+        &[
+            "kind",
+            "source",
+            "target",
+            "edge_type",
+            "resolution",
+            "locator",
+            "freshness",
+        ],
+    );
+    for relation in ["verifiesRelation", "implementsRelation"] {
+        assert_schema_properties(
+            definitions,
+            relation,
+            &["kind", "source", "target", "form", "locator", "freshness"],
+        );
+    }
+    assert_schema_properties(
+        definitions,
+        "relationObservation",
+        &[
+            "declaration",
+            "subject",
+            "availability",
+            "freshness",
+            "reason",
+        ],
+    );
 
     assert_keys(
         &payload,
@@ -320,24 +431,21 @@ fn it_144_rust_reader_accepts_and_refuses_golden_corpus_cases() {
         false,
     ));
 
-    for case in &cases {
-        let bytes = case["input"].as_str().unwrap().as_bytes();
-        let expected = case["accepted"].as_bool().unwrap();
+    for (name, bytes, expected) in &cases {
         assert_eq!(
             read_assurance_export(bytes, &accepted).is_ok(),
-            expected,
-            "Rust reader outcome for {}",
-            case["name"]
+            *expected,
+            "Rust reader outcome for {name}",
         );
     }
 }
 
-fn reader_case(name: &str, input: Vec<u8>, accepted: bool) -> Value {
-    serde_json::json!({
-        "name": name,
-        "input": String::from_utf8(input).expect("assurance reader cases are UTF-8"),
-        "accepted": accepted
-    })
+fn reader_case(
+    name: &'static str,
+    input: Vec<u8>,
+    accepted: bool,
+) -> (&'static str, Vec<u8>, bool) {
+    (name, input, accepted)
 }
 
 fn assert_locator_keys(locator: &Value) {
@@ -353,6 +461,14 @@ fn assert_keys(value: &Value, expected: &[&str], context: &str) {
         .collect();
     let expected: BTreeSet<&str> = expected.iter().copied().collect();
     assert_eq!(actual, expected, "{context} v1 field set");
+}
+
+fn assert_schema_properties(definitions: &Value, definition: &str, expected: &[&str]) {
+    assert_keys(
+        &definitions[definition]["properties"],
+        expected,
+        &format!("{definition} schema properties"),
+    );
 }
 
 fn collect_tokens(payload: &Value, field: &str) -> BTreeSet<String> {
