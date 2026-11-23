@@ -197,6 +197,16 @@ pub fn load_module_registry(ctx: &Ctx, module: &Path) -> anyhow::Result<Registry
     Ok(registry)
 }
 
+/// Refuse a registry whose model lost declarations at load, naming every one
+/// (quire-rs FR-058-AC-47). Checked before any emptiness test of the model, so
+/// a wholly dropped `traceability:` section is named rather than reported as an
+/// undeclared model.
+pub fn require_complete_model(registry: &Registry) -> anyhow::Result<()> {
+    registry
+        .require_complete_model()
+        .map_err(|dropped| invalid_error!("{dropped}"))
+}
+
 /// The `ModelUndeclared`-shaped refusal `coverage` and `trace` both need:
 /// neither has anything to reconcile without a declared `traceability:`
 /// model. Shared, not restated, so the two commands cannot independently
@@ -207,12 +217,7 @@ pub fn load_module_registry(ctx: &Ctx, module: &Path) -> anyhow::Result<Registry
 pub fn require_traceability_model(
     registry: &Registry,
 ) -> anyhow::Result<&quire_rs::traceability::TraceabilityModel> {
-    // FR-058-AC-47: a model with dropped declarations is never computed over,
-    // and checking it first names the drop even when the whole `traceability:`
-    // section was dropped and no model remains to be "undeclared".
-    registry
-        .require_complete_model()
-        .map_err(|dropped| invalid_error!("{dropped}"))?;
+    require_complete_model(registry)?;
     registry.traceability().ok_or_else(|| {
         invalid_error!(
             "no module in scope declares a `traceability:` model, so there is \

@@ -1,6 +1,6 @@
 //! A traceability declaration dropped at load is never computed over silently
-//! (PLAT-1854; upstream quire-rs FR-058-AC-47, PLAT-1804): `coverage` and
-//! `trace` refuse with the Invalid exit and name each dropped declaration on
+//! (PLAT-1854; upstream quire-rs FR-058-AC-47, PLAT-1804, which owns the
+//! behaviour): every command that computes over the merged model refuses with the Invalid exit and name each dropped declaration on
 //! stderr, including when the whole `traceability:` section was dropped and no
 //! model remains.
 
@@ -8,7 +8,6 @@ mod common;
 
 use std::fs;
 
-use ix_trace_rs::trace;
 use tempfile::TempDir;
 
 use common::quire;
@@ -35,9 +34,9 @@ fn scope_with_module(traceability: &str) -> (TempDir, String, String) {
     (dir, scope, module)
 }
 
-/// A readable model plus one flow rule naming an archetype nothing declares:
-/// the rule drops itself, the rest of the model loads.
-const ONE_RULE_DROPPED: &str = "traceability:
+/// A readable model plus two flow rules naming an archetype nothing declares:
+/// each rule drops itself, the rest of the model loads.
+const TWO_RULES_DROPPED: &str = "traceability:
   trace_targets: []
   flow_rules:
   - name: bad
@@ -45,70 +44,96 @@ const ONE_RULE_DROPPED: &str = "traceability:
     match: [{path: [], field: id, present: true}]
     check: bad-check
     rationale: Names an archetype nothing declares.
+  - name: worse
+    subject: [nowhere]
+    match: [{path: [], field: id, present: true}]
+    check: worse-check
+    rationale: Names an archetype nothing declares.
 ";
 
 /// A `traceability:` section that cannot be deserialized: the whole section
 /// drops and the module is left with no model at all.
 const WHOLE_SECTION_DROPPED: &str = "traceability: not-a-map\n";
 
-fn assert_refuses_naming(args: &[&str], names: &[&str]) {
-    let out = quire().args(args).output().expect("run");
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert_eq!(out.status.code(), Some(INVALID_EXIT), "stderr: {stderr}");
-    assert!(
-        out.stdout.is_empty(),
-        "no report is written: {}",
-        String::from_utf8_lossy(&out.stdout)
-    );
-    for name in names {
-        assert!(stderr.contains(name), "stderr must name {name}: {stderr}");
+fn assert_refuses_naming(traceability: &str, names: &[&str], label: &str, argv: &[&str]) {
+    let (_dir, scope, module) = scope_with_module(traceability);
+    {
+        let out = quire()
+            .args(argv)
+            .args(["--scope", &scope, "--module", &module])
+            .output()
+            .expect("run");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(
+            out.status.code(),
+            Some(INVALID_EXIT),
+            "{label}; stderr: {stderr}"
+        );
+        assert!(
+            out.stdout.is_empty(),
+            "{label}: no report is written: {}",
+            String::from_utf8_lossy(&out.stdout)
+        );
+        for name in names {
+            assert!(
+                stderr.contains(name),
+                "{label}: stderr must name {name}: {stderr}"
+            );
+        }
+        assert!(
+            !stderr.contains("declares a `traceability:` model")
+                && !stderr.contains("no loaded module declares"),
+            "{label}: the drop, not an absent-model refusal, is named: {stderr}"
+        );
     }
-    assert!(
-        !stderr.contains("declares a `traceability:` model"),
-        "the drop, not the absent-model refusal, is named: {stderr}"
-    );
 }
 
-#[trace("FR-058-AC-47")]
-#[test]
-fn coverage_refuses_a_dropped_declaration_and_names_it() {
-    let (_dir, scope, module) = scope_with_module(ONE_RULE_DROPPED);
-    assert_refuses_naming(
-        &["coverage", "--scope", &scope, "--module", &module, "--json"],
-        &["module 'm'", "flow_rule 'bad'"],
-    );
+/// One test pair per command, so each command is proven to refuse on its own.
+macro_rules! refuses {
+    ($name:ident, $label:literal, [$($arg:literal),*]) => {
+        mod $name {
+            use super::*;
+
+            #[test]
+            fn names_each_dropped_declaration() {
+                assert_refuses_naming(
+                    TWO_RULES_DROPPED,
+                    &["module 'm'", "flow_rule 'bad'", "flow_rule 'worse'"],
+                    $label,
+                    &[$($arg),*],
+                );
+            }
+
+            #[test]
+            fn names_a_wholly_dropped_traceability_section() {
+                assert_refuses_naming(
+                    WHOLE_SECTION_DROPPED,
+                    &["module 'm'", "traceability_section"],
+                    $label,
+                    &[$($arg),*],
+                );
+            }
+        }
+    };
 }
 
-#[trace("FR-058-AC-47")]
-#[test]
-fn trace_refuses_a_dropped_declaration_and_names_it() {
-    let (_dir, scope, module) = scope_with_module(ONE_RULE_DROPPED);
-    assert_refuses_naming(
-        &[
-            "trace", "--scope", &scope, "--module", &module, "--id", "FR-001", "--json",
-        ],
-        &["module 'm'", "flow_rule 'bad'"],
-    );
-}
-
-#[trace("FR-058-AC-47")]
-#[test]
-fn coverage_names_a_wholly_dropped_traceability_section() {
-    let (_dir, scope, module) = scope_with_module(WHOLE_SECTION_DROPPED);
-    assert_refuses_naming(
-        &["coverage", "--scope", &scope, "--module", &module, "--json"],
-        &["module 'm'", "traceability_section"],
-    );
-}
-
-#[trace("FR-058-AC-47")]
-#[test]
-fn trace_names_a_wholly_dropped_traceability_section() {
-    let (_dir, scope, module) = scope_with_module(WHOLE_SECTION_DROPPED);
-    assert_refuses_naming(
-        &[
-            "trace", "--scope", &scope, "--module", &module, "--id", "FR-001", "--json",
-        ],
-        &["module 'm'", "traceability_section"],
-    );
-}
+refuses!(coverage, "coverage", ["coverage", "--json"]);
+refuses!(trace, "trace", ["trace", "--id", "FR-001", "--json"]);
+refuses!(matrix, "matrix", ["matrix", "--format", "json"]);
+refuses!(relations, "relations", ["relations", "--json"]);
+refuses!(
+    relations_design,
+    "relations --design",
+    ["relations", "--design", "--json"]
+);
+refuses!(
+    relations_flow,
+    "relations --flow",
+    ["relations", "--flow", "--json"]
+);
+refuses!(symbols, "symbols", ["symbols", "--json"]);
+refuses!(
+    assurance,
+    "assurance",
+    ["assurance", "--expect-module", "m@0.0.1"]
+);
