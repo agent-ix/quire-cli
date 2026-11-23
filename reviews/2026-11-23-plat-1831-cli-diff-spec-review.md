@@ -63,3 +63,4 @@ Fix for FND-004: scope that sentence to TSV ("In TSV, a changed entry names whic
 | FND-001 | fixed | 7e50a89: rejection split into FR-021-AC-10, the schema clause dropped from AC-9 (AC-6 owns it), AC-4 kept and bound by it142 |
 | FND-002 | fixed | 7e50a89: AC-10 reads "a producers list that is empty, or that holds an empty, whitespace-padded, or duplicate producer kind, both `evaluate` and `diff` exit 3 with empty stdout and a diagnostic that names the output" |
 | FND-003 | fixed | 7e50a89: AC-9 defines the TSV `changed_fields` cell (kind, description, producers in that order, comma-separated) and the JSON-array producers cell |
+| FND-004 | fixed | 99e20a9: AC-9 now reads "A changed entry shows its before and after values in the human view, and the TSV `changed_fields` cell names which of `kind`, `description`, and `producers` changed", matching the code |

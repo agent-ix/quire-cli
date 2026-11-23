@@ -87,3 +87,14 @@ Fix for FND-006: add one shared `emit_extraction_diagnostics(ctx, &extraction)` 
 | FND-003 | fixed | 0595239: a `changed_fields` TSV column names kind/description/producers; it142 asserts a description-only row `desc\t\t\tdescription` |
 | FND-004 | fixed | 0595239: coverage.rs:725 and symbols.rs:219 print `ignored_source_files` when non-zero (no test covers it, recorded in the gap-analysis SR as FND-003) |
 | FND-005 | fixed | 0595239: it142 asserts the exact 8-column header, every row has 8 cells, and clause rows `added\tW-2...` and `changed\tW-1...` |
+| FND-006 | fixed | d739c4c: one `emit_extraction_diagnostics` helper in commands/mod.rs maps severity and is used by coverage, assurance, symbols and trace; CHANGELOG.md:21-24 names the four commands and the three warning kinds |
+
+## New findings (disposition pass 2)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-007 | low | `emit_extraction_diagnostics` was inserted between the 14-line doc comment of `spec_root_of` and its signature. Rustdoc now attaches the two-roots and canonicalization doc to the new helper, ahead of the helper's own two lines, and `spec_root_of` has no doc at all. | src/commands/mod.rs:116-145 |
+| FND-008 | low | The severity match uses `_ =>` over quire-rs's exhaustive two-variant `DiagnosticSeverity`. A future variant (for example `Info`) would print silently as an error, with no compile error to flag the mapping. | src/commands/mod.rs:136 |
+
+Fix for FND-007: move the helper above `spec_root_of`'s doc block, or below `spec_root_of`, so each function keeps its own doc.
+Fix for FND-008: match `DiagnosticSeverity::Error` explicitly instead of `_`.

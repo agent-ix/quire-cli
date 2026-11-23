@@ -127,22 +127,6 @@ impl std::error::Error for DocumentRootError {}
 /// canonicalized via `safety::validate_dir_path` while `coverage` did not,
 /// so the two commands resolved *different* document roots for the same
 /// repository (agent-ix/quire-rs#113).
-/// Print each extraction diagnostic on the diagnostics stream, a warning for
-/// warning severity and an error otherwise.
-pub fn emit_extraction_diagnostics(ctx: &Ctx, diagnostics: &[quire_rs::symbols::SymbolDiagnostic]) {
-    use quire_rs::symbols::DiagnosticSeverity;
-    for d in diagnostics {
-        let message = format!("{}: {}", d.path, d.reason);
-        match d.severity {
-            DiagnosticSeverity::Warning => {
-                ix_cli_kit::streams::Record::warning("SymbolExtraction", &message)
-            }
-            _ => ix_cli_kit::streams::Record::error("SymbolExtraction", &message),
-        }
-        .emit(ctx.diagnostics);
-    }
-}
-
 pub fn spec_root_of(scope: &Path) -> anyhow::Result<PathBuf> {
     let root = scope.join(DOCUMENT_ROOT_DIR);
     if !root.is_dir() {
@@ -152,6 +136,24 @@ pub fn spec_root_of(scope: &Path) -> anyhow::Result<PathBuf> {
     // rather than failing: the walk can still read it, and inventing a
     // failure here would be worse than the drift canonicalizing prevents.
     Ok(root.canonicalize().unwrap_or(root))
+}
+
+/// Print each extraction diagnostic on the diagnostics stream, a warning for
+/// warning severity and an error for error severity.
+pub fn emit_extraction_diagnostics(ctx: &Ctx, diagnostics: &[quire_rs::symbols::SymbolDiagnostic]) {
+    use quire_rs::symbols::DiagnosticSeverity;
+    for d in diagnostics {
+        let message = format!("{}: {}", d.path, d.reason);
+        match d.severity {
+            DiagnosticSeverity::Warning => {
+                ix_cli_kit::streams::Record::warning("SymbolExtraction", &message)
+            }
+            DiagnosticSeverity::Error => {
+                ix_cli_kit::streams::Record::error("SymbolExtraction", &message)
+            }
+        }
+        .emit(ctx.diagnostics);
+    }
 }
 
 /// Load a single module registry for a `--module <PATH>` argument and
