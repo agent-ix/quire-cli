@@ -81,3 +81,7 @@ Owner question 2 (AC-6): FR-034-AC-6 stays as written. The first-parent walk and
 | FND-004 | fixed | - |
 | FND-005 | fixed | - |
 | FND-006 | fixed | - |
+| FND-007 | fixed | - |
+| FND-008 | fixed | - |
+| FND-009 | fixed | - |
+| FND-010 | fixed | - |

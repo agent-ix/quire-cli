@@ -54,3 +54,4 @@ The rule is implementable with the readers already linked (FR-034 section B) and
 | FND-003 | fixed | - |
 | FND-004 | fixed | - |
 | FND-005 | fixed | - |
+| FND-006 | fixed | - |
