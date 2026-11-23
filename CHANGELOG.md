@@ -18,8 +18,10 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 - **Engine changes from the quire-rs move (PLAT-1831).** Ignore files now apply
   only from the scope root (parent, global and `.git/info/exclude` files no
   longer apply; a root `.gitignore` applies outside a git checkout).
-  Symbolic-link sources report `symlink-not-followed` diagnostics, printed as
-  warnings. Coverage JSON gains `ignored_source_files`, and the coverage and
+  Symbolic-link sources report `symlink-not-followed` diagnostics. Warning-severity
+  extraction diagnostics (including `symlink-not-followed`,
+  `symbol-id-collision` and `qsl-unbalanced-braces`) now print as warnings in
+  `coverage`, `assurance`, `symbols` and `trace`. Coverage JSON gains `ignored_source_files`, and the coverage and
   symbols human views print it. `verifies` tags accept qualified trace ids
   (`ix://` and prefixed) and report `unresolved-qualified-trace-id` when one
   does not bind. Overlapping `trace_id_qualifiers` fail module load. Assurance

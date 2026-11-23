@@ -69,3 +69,21 @@ Rust lane: clean apart from the findings. The new helpers are small, private and
 Dependency: nothing in quire-cli fails to compile or breaks the focused suite under 80d1f15. A rev pin on unreleased main is acceptable prerelease, and the CHANGELOG says the dependency returns to a tag at the next release.
 
 No program in the agent-ix repos under ~/dev parses `clauses diff` TSV. A git grep found only prose mentions: quoin docs/assurance-workflows.md:24, spec-clauses-us-health FR-003 and spec.md, filament-docs rust-api.md, and quire-cli's README and spec. TSV is outside the SemVer contract (CHANGELOG.md:7-8), and the CHANGELOG states the column addition honestly.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | low | The CHANGELOG says `symlink-not-followed` diagnostics are "printed as warnings". Only `symbols` and `trace` map severity: `coverage` and `assurance` still emit every SymbolExtraction diagnostic through `Record::error`. The new mapping also turns the existing `symbol-id-collision` and `qsl-unbalanced-braces` warnings from error to warning records in `symbols` and `trace`, which the CHANGELOG does not mention. Exit codes are unaffected, because `emit` only writes stderr. The same 7-line match is now duplicated in two files. | src/commands/coverage.rs:309, src/commands/assurance.rs:111, src/commands/symbols.rs:112, src/commands/trace.rs:299, CHANGELOG.md:21 |
+
+Fix for FND-006: add one shared `emit_extraction_diagnostics(ctx, &extraction)` helper that maps severity, use it at all four sites, and say in the CHANGELOG that warning-severity extraction diagnostics print as warnings.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 0595239: CHANGELOG.md:18-26 adds an engine-changes bullet covering the ignore-file scope, symlink diagnostics, `ignored_source_files`, qualified trace ids, overlapping qualifiers and duplicate assurance keys; symbols.rs and trace.rs map Warning to `Record::warning` (remaining gap recorded as FND-006) |
+| FND-002 | fixed | 0595239: `producers_json` emits the producer kinds as a JSON array in TSV and human views; it142 asserts `["a,b"]` vs `["a","b"]` stay distinct |
+| FND-003 | fixed | 0595239: a `changed_fields` TSV column names kind/description/producers; it142 asserts a description-only row `desc\t\t\tdescription` |
+| FND-004 | fixed | 0595239: coverage.rs:725 and symbols.rs:219 print `ignored_source_files` when non-zero (no test covers it, recorded in the gap-analysis SR as FND-003) |
+| FND-005 | fixed | 0595239: it142 asserts the exact 8-column header, every row has 8 cells, and clause rows `added\tW-2...` and `changed\tW-1...` |

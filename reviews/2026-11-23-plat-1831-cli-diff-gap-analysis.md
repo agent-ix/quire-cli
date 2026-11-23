@@ -47,3 +47,18 @@ scope:
 ## Verdict
 
 Changes requested on FND-001 (medium). No stubs or placeholder code, and no production code without an owning requirement: every render path added in `clauses.rs` serves FR-021-AC-9. The schema check reads `clause-diff-v1.schema.json` from the resolved quire-rs package, not a copy.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | low | The new `ignored_source_files` lines in the human views of `coverage` and `symbols` have no test and no owning AC. Reverting either line fails nothing. cli_coverage.rs:1738-1816 already has the twin test for `excluded_source_files`. | src/commands/coverage.rs:725, src/commands/symbols.rs:219 |
+
+Fix for FND-003: add one focused test that writes a scope-root `.gitignore` excluding a `.rs` file, then asserts the `pruned by the scope root's ignore files` line in `quire symbols` human stderr and in `quire coverage` human stdout (and its absence with no ignore file). Tag it with the FR-017 row that owns the `excluded_source_files` line, extended to cover this count.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | 0595239: it143 runs both `evaluate` and `diff` over empty-list, padded, empty and duplicate kinds, asserting exit 3, empty stdout and stderr naming `bad-output`; now tagged FR-021-AC-10 |
+| FND-002 | fixed | 0595239: it142 is tagged `FR-021-AC-4`, `FR-021-AC-9`, and its `after` set now also changes clauses, so the AC-4 binding sees both clause and catalog changes |

@@ -306,13 +306,7 @@ pub(super) fn compute_report_over(
     // file used to be computed and dropped here — a walk that silently read
     // less than the operator declared. Stderr on every format: diagnostics
     // are the progress/finding stream, never part of the stdout payload.
-    for d in &extraction.diagnostics {
-        ix_cli_kit::streams::Record::error(
-            "SymbolExtraction",
-            &format!("{}: {}", d.path, d.reason),
-        )
-        .emit(ctx.diagnostics);
-    }
+    super::emit_extraction_diagnostics(ctx, &extraction.diagnostics);
     let graph = quire_rs::symbols::trace::bind(&extraction, model);
 
     compute_coverage(spec, registry, &graph, scope).map_err(|e| invalid_error!("{e}"))

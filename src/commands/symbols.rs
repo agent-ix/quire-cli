@@ -107,16 +107,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // Diagnostics on stderr in every format. A file the extractor could not
     // read is exactly the thing a symbol-table consumer must not silently miss:
     // it looks identical to a file with no declarations in it.
-    for d in &extraction.diagnostics {
-        let message = format!("{}: {}", d.path, d.reason);
-        match d.severity {
-            quire_rs::symbols::DiagnosticSeverity::Warning => {
-                ix_cli_kit::streams::Record::warning("SymbolExtraction", &message)
-            }
-            _ => ix_cli_kit::streams::Record::error("SymbolExtraction", &message),
-        }
-        .emit(ctx.diagnostics);
-    }
+    super::emit_extraction_diagnostics(ctx, &extraction.diagnostics);
 
     let graph = match (model, registry.as_ref()) {
         (Some(m), Some(registry)) => {

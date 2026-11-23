@@ -294,16 +294,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         &[Path::new(super::DOCUMENT_ROOT_DIR)],
         &model.source_exclude,
     );
-    for d in &extraction.diagnostics {
-        let message = format!("{}: {}", d.path, d.reason);
-        match d.severity {
-            quire_rs::symbols::DiagnosticSeverity::Warning => {
-                ix_cli_kit::streams::Record::warning("SymbolExtraction", &message)
-            }
-            _ => ix_cli_kit::streams::Record::error("SymbolExtraction", &message),
-        }
-        .emit(ctx.diagnostics);
-    }
+    super::emit_extraction_diagnostics(ctx, &extraction.diagnostics);
 
     let mut graph = quire_rs::symbols::trace::bind(&extraction, model);
     super::coverage::resolve_formalizes_in_scope(&mut graph, &scope, &registry)?;
