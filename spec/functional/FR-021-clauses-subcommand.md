@@ -40,11 +40,12 @@ ambient search paths or environment configuration.
 | FR-021-AC-1 | Both commands require one or more `--module <PATH>` occurrences, path-check every supplied root, and strictly load exactly those roots as a closed module set. A malformed or unloadable supplied module exits non-zero before writing a result; neither command discovers or adds a module from ambient search paths or environment configuration. Authority, set id, and version are selected exactly; a missing version or invalid referenced set is a user error, never a nearest-version guess. | Test |
 | FR-021-AC-2 | `evaluate` accepts repeatable `KEY=VALUE` context dimensions and delegates applicability to the engine. Duplicate or malformed context is rejected. | Test |
 | FR-021-AC-3 | Evaluation preserves `binding`, `not_binding`, and `unresolved`; missing context remains unresolved with its reason. | Test |
-| FR-021-AC-4 | `diff` delegates to the engine and reports added, removed, and changed clauses between two exact versions of the same authority and set id. | Test |
+| FR-021-AC-4 | `diff` delegates to the engine and reports added, removed, and changed clauses between two exact versions of the same authority and set id, and the output-catalog entries added, removed, and changed between them. | Test |
 | FR-021-AC-5 | Human results and deterministic TSV are emitted on stdout; TSV escapes structural characters so one clause remains one row. | Test |
 | FR-021-AC-6 | JSON carries tool provenance including the `clause_sets` capability and conforms to the pinned engine's published binding or diff schema. | Test |
 | FR-021-AC-7 | The CLI contains only transport and rendering policy. Clause content, rights validation, applicability, and comparison remain engine/module concerns. | Test, Review |
 | FR-021-AC-8 | Given a clause-set-owning module with an exact authority/set and two versions, plus an archetype whose authored `allowed_links` uses `registered-verb`, and a second module that registers `registered-verb` in `edge_types`, explicitly supplying both module roots makes `evaluate` and `diff` each emit a successful result for that authority/set. Supplying only the clause-set-owning root makes both commands exit 3 with an `UnknownEdgeType` diagnostic naming `registered-verb` and empty stdout, even when the vocabulary module is available through ambient module discovery. | Test |
+| FR-021-AC-9 | Human, TSV, and JSON `diff` views show each added, removed, and changed `outputCatalog` entry; an entry's producers are shown when present. JSON conforms to the engine's published diff schema. `diff` and `evaluate` reject a clause set whose catalog producers are invalid (empty list or a padded kind) with a diagnostic naming the output. | Test |
 
 ## Constraints
 
