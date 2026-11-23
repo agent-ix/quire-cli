@@ -831,13 +831,16 @@ pub(super) fn load_registry_for(
     modules: &[String],
     scope: &Path,
 ) -> anyhow::Result<Registry> {
-    if !modules.is_empty() {
-        return super::load_module_set_registry(ctx, modules);
-    }
-    if scope.join("manifest.yaml").is_file() {
-        return super::load_module_registry(ctx, scope);
-    }
-    super::validate::load_scoped_with_defaults(ctx, scope)
+    let registry = if !modules.is_empty() {
+        super::load_module_set_registry(ctx, modules)?
+    } else if scope.join("manifest.yaml").is_file() {
+        super::load_module_registry(ctx, scope)?
+    } else {
+        super::validate::load_scoped_with_defaults(ctx, scope)?
+    };
+    // Every caller computes over the merged model (FR-058-AC-47).
+    super::require_complete_model(&registry)?;
+    Ok(registry)
 }
 
 #[cfg(test)]

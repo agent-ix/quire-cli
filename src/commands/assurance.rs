@@ -92,6 +92,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let module = safety::validate_module_path(&args.module)
         .with_context(|| format!("validating --module '{}'", args.module))?;
     let registry = super::load_module_registry(ctx, &module)?;
+    super::require_complete_model(&registry)?;
 
     let spec_root = super::spec_root_of(&scope)?;
     let spec_root = safety::validate_dir_path("document root", &spec_root.display().to_string())
