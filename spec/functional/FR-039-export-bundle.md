@@ -62,7 +62,7 @@ document; the command therefore generates the structure:
   separators and document list.
 - Headers and footers use the bundle id and the bundle's commit prefix, and page
   numbers run across the bundle.
-- `--approval` verdicts apply to the bundle as a whole and appear once, after the
+- `--approval` verdicts are shown once for the bundle, after the
   last document.
 - The sources SHALL reach the converter as `in/document-1.md` through
   `in/document-<n>.md`; with one input the name stays `in/document.md`

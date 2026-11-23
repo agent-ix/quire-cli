@@ -64,7 +64,7 @@ locally; Quire ships only a default.
 
 - **Given** the verdict file of a signed approval tag,
 - **When** the approver exports with `--approval <verdict>`,
-- **Then** the document shows the approver, the time the signer claimed, the meaning and the verdict,
+- **Then** the document shows the approver, the time the signer claimed, the meaning and the verdict as an unverified claim,
   as specified by
   [FR-038-AC-1](../functional/FR-038-approval-block.md#acceptance-criteria).
 
