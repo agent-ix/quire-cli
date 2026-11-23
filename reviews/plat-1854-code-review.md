@@ -80,3 +80,19 @@ scope:
 ## Verdict
 
 Not mergeable as is. FND-001 turns the repo's `make spec` gate red. Fix FND-001 in this PR. FND-002 and FND-003 are real misses of FR-058-AC-47's "every consumer" clause, and each is a few lines plus a test, so they belong in this PR too. The rust-review lane found no idiom, safety or error-handling defects. The change reuses the repo's `invalid_error!` mapping, adds no shim, and the tests drive the real binary with an exact exit code and a stderr assertion.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-006 | low | The `//!` header of the new test file still names `FR-058-AC-47`. `quire coverage --scope . --json` reports this as an advisory diagnostic: "`FR-058-AC-47` is written in a comment or docstring on `common` … a container binds no trace id". It does not gate, and `assurance-traceability` passes. The edited header line also runs past the line width of the lines around it and reads "refuses … and name each". To clear the diagnostic, refer to the upstream behaviour without the AC id, for example "quire-rs PLAT-1804". | tests/cli_declaration_drop.rs:1-5 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | 7445147 removes every `#[trace]` tag from tests/cli_declaration_drop.rs. At this head, `quire coverage --scope . --json` reports 0 untracked_symbols and `quire-qualify assurance-traceability` prints "ok: 21/21 required targets backed" (exit 0). The residual comment diagnostic is FND-006. |
+| FND-002 | fixed | `load_registry_for` now calls `require_complete_model` before returning, so `relations` refuses before its emptiness prechecks. The relations, relations --design and relations --flow tests assert exit 3 and name both dropped rules and the whole section. They fail when that call is removed. |
+| FND-003 | fixed | `symbols --module` goes through `load_registry_for` and now refuses. Its two tests fail when the call is removed. |
+| FND-004 | fixed | `assurance` calls `super::require_complete_model(&registry)?` right after loading, and its test asserts that both `flow_rule 'bad'` and `flow_rule 'worse'` are named. |
+| FND-005 | fixed | 16 real-CLI tests now cover coverage, trace, matrix, relations (default, --design, --flow), symbols and assurance, each with two dropped rules and with a whole dropped section. |

@@ -43,3 +43,10 @@ scope:
 ## Verdict
 
 The tests are real behavioural tests: all four fail when `src/commands/mod.rs` is reverted. They bind to no local criterion, though, and two consumers are uncovered. Spec work for a local AC is deferred, as the brief says. The untracked-symbol gate break and the two uncovered consumers belong in this PR.
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | deferred | quire-cli has no local AC for the declaration-drop refusal. The brief deferred the spec change to a follow-up rather than this PR, and the code lead recorded it as accepted-deferred. The tests no longer carry a dangling tag. |
+| FND-002 | fixed | 7445147 routes `relations` and `symbols --module` through `require_complete_model` (via `load_registry_for`) and adds tests for both. Those tests fail when the call is removed. |

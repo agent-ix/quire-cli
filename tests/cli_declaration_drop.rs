@@ -1,8 +1,8 @@
 //! A traceability declaration dropped at load is never computed over silently
-//! (PLAT-1854; upstream quire-rs FR-058-AC-47, PLAT-1804, which owns the
-//! behaviour): every command that computes over the merged model refuses with the Invalid exit and name each dropped declaration on
-//! stderr, including when the whole `traceability:` section was dropped and no
-//! model remains.
+//! (PLAT-1854; quire-rs, PLAT-1804, owns the behaviour). Every command that
+//! computes over the merged model refuses with the Invalid exit and names each
+//! dropped declaration on stderr, including when the whole `traceability:`
+//! section was dropped and no model remains.
 
 mod common;
 
