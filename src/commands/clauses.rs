@@ -9,8 +9,8 @@ use std::collections::BTreeMap;
 use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use quire_rs::{
-    diff_clause_sets, BindingOutcome, Clause, ClauseBindingReport, ClauseForce, ClauseSetDiff,
-    Registry,
+    clauses::ExpectedOutput, diff_clause_sets, BindingOutcome, Clause, ClauseBindingReport,
+    ClauseForce, ClauseSetDiff, Registry,
 };
 
 use crate::commands::Ctx;
@@ -280,6 +280,13 @@ fn render_diff_human(report: &ClauseSetDiff) -> String {
         report.removed.len(),
         report.changed.len()
     );
+    let catalog = &report.output_catalog;
+    out.push_str(&format!(
+        "Output catalog added: {}  Removed: {}  Changed: {}\n",
+        catalog.added.len(),
+        catalog.removed.len(),
+        catalog.changed.len()
+    ));
     for clause in &report.added {
         out.push_str(&format!("added\t{}\n", clause.id));
     }
@@ -289,11 +296,55 @@ fn render_diff_human(report: &ClauseSetDiff) -> String {
     for clause in &report.changed {
         out.push_str(&format!("changed\t{}\n", clause.clause_id));
     }
+    for entry in &catalog.added {
+        out.push_str(&format!(
+            "output added\t{}{}\n",
+            entry.name,
+            producers_suffix(&entry.output)
+        ));
+    }
+    for entry in &catalog.removed {
+        out.push_str(&format!(
+            "output removed\t{}{}\n",
+            entry.name,
+            producers_suffix(&entry.output)
+        ));
+    }
+    for entry in &catalog.changed {
+        out.push_str(&format!(
+            "output changed\t{}\t{} -> {}\n",
+            entry.name,
+            describe_output(&entry.before),
+            describe_output(&entry.after)
+        ));
+    }
     out
 }
 
+fn producers_suffix(output: &ExpectedOutput) -> String {
+    output
+        .producers
+        .as_ref()
+        .map(|producers| format!("\tproducers: {}", producers.join(", ")))
+        .unwrap_or_default()
+}
+
+fn describe_output(output: &ExpectedOutput) -> String {
+    let producers = output
+        .producers
+        .as_ref()
+        .map(|producers| producers.join(", "))
+        .unwrap_or_else(|| "none".into());
+    format!(
+        "kind: {}; producers: {}; description: {}",
+        output.kind, producers, output.description
+    )
+}
+
 fn render_diff_tsv(report: &ClauseSetDiff) -> String {
-    let mut out = String::from("change\tclause_id\tbefore_force\tafter_force\n");
+    let mut out = String::from(
+        "change\tclause_id\tbefore_force\tafter_force\toutput\tbefore_producers\tafter_producers\n",
+    );
     for clause in &report.added {
         push_diff_row(&mut out, "added", clause, None, Some(&clause.force));
     }
@@ -309,7 +360,56 @@ fn render_diff_tsv(report: &ClauseSetDiff) -> String {
             Some(&clause.after.force),
         );
     }
+    let catalog = &report.output_catalog;
+    for entry in &catalog.added {
+        push_output_row(
+            &mut out,
+            "output_added",
+            &entry.name,
+            None,
+            Some(&entry.output),
+        );
+    }
+    for entry in &catalog.removed {
+        push_output_row(
+            &mut out,
+            "output_removed",
+            &entry.name,
+            Some(&entry.output),
+            None,
+        );
+    }
+    for entry in &catalog.changed {
+        push_output_row(
+            &mut out,
+            "output_changed",
+            &entry.name,
+            Some(&entry.before),
+            Some(&entry.after),
+        );
+    }
     out
+}
+
+fn push_output_row(
+    out: &mut String,
+    change: &str,
+    name: &str,
+    before: Option<&ExpectedOutput>,
+    after: Option<&ExpectedOutput>,
+) {
+    let producers = |output: Option<&ExpectedOutput>| {
+        output
+            .and_then(|output| output.producers.as_ref())
+            .map(|producers| tsv_cell(&producers.join(",")))
+            .unwrap_or_default()
+    };
+    out.push_str(&format!(
+        "{change}\t\t\t\t{}\t{}\t{}\n",
+        tsv_cell(name),
+        producers(before),
+        producers(after)
+    ));
 }
 
 fn push_diff_row(
@@ -320,7 +420,7 @@ fn push_diff_row(
     after: Option<&ClauseForce>,
 ) {
     out.push_str(&format!(
-        "{change}\t{}\t{}\t{}\n",
+        "{change}\t{}\t{}\t{}\t\t\t\n",
         tsv_cell(&clause.id),
         before.map(force_name).unwrap_or(""),
         after.map(force_name).unwrap_or("")

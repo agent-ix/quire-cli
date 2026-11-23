@@ -9,6 +9,11 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **Show outputCatalog changes in clause diffs (PLAT-1831).** `quire clauses diff`
+  human, TSV and JSON views list added, removed and changed output-catalog
+  entries with their producers. TSV gains `output`, `before_producers` and
+  `after_producers` columns. Depends on quire-rs at the PR #714 commit until
+  the next release tag.
 - **Pin the assurance v1 contract in Rust (PLAT-1795).** The golden export
   test validates against the upstream schema, pins its field and state-token
   sets, and exercises Rust reader refusal for missing required fields and wrong

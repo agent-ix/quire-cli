@@ -597,3 +597,172 @@ fn clause_command_delegates_semantics_to_the_engine() {
         "the CLI must not implement clause semantics or rights policy"
     );
 }
+
+fn catalog_entry(kind: &str, producers: Option<Vec<&str>>) -> ExpectedOutput {
+    ExpectedOutput {
+        kind: kind.into(),
+        description: format!("A synthetic {kind} output"),
+        producers: producers.map(|kinds| kinds.into_iter().map(String::from).collect()),
+    }
+}
+
+/// A synthetic set whose clauses reference no catalog output, so each test
+/// controls the catalog alone.
+fn catalog_set(version: &str, catalog: BTreeMap<String, ExpectedOutput>) -> ClauseSet {
+    let mut set = set(version, false);
+    set.output_catalog = catalog;
+    for clause in &mut set.clauses {
+        clause.expected_outputs.clear();
+    }
+    set
+}
+
+fn module_with_sets(dir: &TempDir, first: &ClauseSet, second: &ClauseSet) -> String {
+    let root = dir.path().join("module");
+    fs::create_dir_all(root.join("clauses")).expect("create clause directory");
+    fs::write(
+        root.join("manifest.yaml"),
+        "name: synthetic-clause-module\nclause_sets:\n  - clauses/v1.json\n  - clauses/v2.json\n",
+    )
+    .expect("write manifest");
+    fs::write(
+        root.join("clauses/v1.json"),
+        serde_json::to_vec_pretty(first).unwrap(),
+    )
+    .expect("write v1");
+    fs::write(
+        root.join("clauses/v2.json"),
+        serde_json::to_vec_pretty(second).unwrap(),
+    )
+    .expect("write v2");
+    root.to_string_lossy().into_owned()
+}
+
+fn run_diff(module: &str, format: &str) -> std::process::Output {
+    quire()
+        .args([
+            "clauses",
+            "diff",
+            "--module",
+            module,
+            "--authority",
+            "example.test",
+            "--set",
+            "widget-assurance",
+            "--before-version",
+            "1.0.0",
+            "--after-version",
+            "2.0.0",
+            "--format",
+            format,
+        ])
+        .output()
+        .expect("run diff")
+}
+
+// FR-021-AC-9.
+#[trace("FR-021-AC-9")]
+#[test]
+fn it142_diff_shows_output_catalog_changes_in_every_view() {
+    let first = catalog_set(
+        "1.0.0",
+        BTreeMap::from([
+            ("kept".into(), catalog_entry("record", Some(vec!["run"]))),
+            ("dropped".into(), catalog_entry("report", None)),
+        ]),
+    );
+    let second = catalog_set(
+        "2.0.0",
+        BTreeMap::from([
+            (
+                "kept".into(),
+                catalog_entry("record", Some(vec!["run", "scan"])),
+            ),
+            ("fresh".into(), catalog_entry("log", Some(vec!["audit"]))),
+        ]),
+    );
+    let dir = TempDir::new().unwrap();
+    let module = module_with_sets(&dir, &first, &second);
+
+    let json = run_diff(&module, "json");
+    assert!(
+        json.status.success(),
+        "{}",
+        String::from_utf8_lossy(&json.stderr)
+    );
+    let payload: Value = serde_json::from_slice(&json.stdout).expect("diff JSON");
+    let catalog = &payload["outputCatalog"];
+    assert_eq!(catalog["added"][0]["name"], "fresh");
+    assert_eq!(catalog["added"][0]["producers"][0], "audit");
+    assert_eq!(catalog["removed"][0]["name"], "dropped");
+    assert_eq!(catalog["changed"][0]["name"], "kept");
+    assert_eq!(catalog["changed"][0]["after"]["producers"][1], "scan");
+    assert_conforms(&payload, "clause-diff-v1.schema.json");
+
+    let human = run_diff(&module, "human");
+    assert!(human.status.success());
+    let body = String::from_utf8(human.stdout).unwrap();
+    assert!(
+        body.contains("Output catalog added: 1  Removed: 1  Changed: 1"),
+        "{body}"
+    );
+    assert!(
+        body.contains("output added\tfresh\tproducers: audit"),
+        "{body}"
+    );
+    assert!(body.contains("output removed\tdropped\n"), "{body}");
+    assert!(
+        body.contains("output changed\tkept\tkind: record; producers: run; description:"),
+        "{body}"
+    );
+    assert!(
+        body.contains("-> kind: record; producers: run, scan;"),
+        "{body}"
+    );
+
+    let tsv = run_diff(&module, "tsv");
+    assert!(tsv.status.success());
+    let body = String::from_utf8(tsv.stdout).unwrap();
+    let rows = body
+        .lines()
+        .map(|line| line.split('\t').collect::<Vec<_>>());
+    for row in rows {
+        assert_eq!(row.len(), 7, "{body:?}");
+    }
+    assert!(
+        body.contains("output_added\t\t\t\tfresh\t\taudit\n"),
+        "{body:?}"
+    );
+    assert!(
+        body.contains("output_removed\t\t\t\tdropped\t\t\n"),
+        "{body:?}"
+    );
+    assert!(
+        body.contains("output_changed\t\t\t\tkept\trun\trun,scan\n"),
+        "{body:?}"
+    );
+}
+
+// FR-021-AC-9.
+#[trace("FR-021-AC-9")]
+#[test]
+fn it143_invalid_catalog_producers_are_rejected_naming_the_output() {
+    for (label, producers) in [("empty", vec![]), ("padded", vec![" run"])] {
+        let bad = catalog_set(
+            "2.0.0",
+            BTreeMap::from([(
+                "bad-output".into(),
+                catalog_entry("record", Some(producers)),
+            )]),
+        );
+        let good = catalog_set("1.0.0", BTreeMap::new());
+        let dir = TempDir::new().unwrap();
+        let module = module_with_sets(&dir, &good, &bad);
+        let output = run_diff(&module, "json");
+        assert_eq!(output.status.code(), Some(3), "{label}");
+        assert!(output.stdout.is_empty(), "{label}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("bad-output"), "{label}: {stderr}");
+        assert!(stderr.contains("producers"), "{label}: {stderr}");
+    }
+}
