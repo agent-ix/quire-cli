@@ -12,10 +12,9 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 - **Show outputCatalog changes in clause diffs (PLAT-1831).** `quire clauses diff`
   human, TSV and JSON views list added, removed and changed output-catalog
   entries with their producers. TSV gains `output`, `before_producers` and
-  `after_producers` columns. Depends on quire-rs at the PR #714 commit until
-  the next release tag. A TSV producers cell is a JSON array and a
+  `after_producers` columns. A TSV producers cell is a JSON array and a
   `changed_fields` column names what changed in an entry.
-- **Engine changes from the quire-rs move (PLAT-1831).** Ignore files now apply
+- **Engine changes from the current quire-rs pin.** Ignore files now apply
   only from the scope root (parent, global and `.git/info/exclude` files no
   longer apply; a root `.gitignore` applies outside a git checkout).
   Symbolic-link sources report `symlink-not-followed` diagnostics. Warning-severity
