@@ -321,19 +321,25 @@ fn render_diff_human(report: &ClauseSetDiff) -> String {
     out
 }
 
+/// Producer kinds as a JSON array, so a kind containing a separator stays
+/// distinct from several kinds.
+fn producers_json(producers: &[String]) -> String {
+    serde_json::to_string(producers).unwrap_or_default()
+}
+
 fn producers_suffix(output: &ExpectedOutput) -> String {
     output
         .producers
-        .as_ref()
-        .map(|producers| format!("\tproducers: {}", producers.join(", ")))
+        .as_deref()
+        .map(|producers| format!("\tproducers: {}", producers_json(producers)))
         .unwrap_or_default()
 }
 
 fn describe_output(output: &ExpectedOutput) -> String {
     let producers = output
         .producers
-        .as_ref()
-        .map(|producers| producers.join(", "))
+        .as_deref()
+        .map(producers_json)
         .unwrap_or_else(|| "none".into());
     format!(
         "kind: {}; producers: {}; description: {}",
@@ -341,9 +347,21 @@ fn describe_output(output: &ExpectedOutput) -> String {
     )
 }
 
+fn changed_fields(before: &ExpectedOutput, after: &ExpectedOutput) -> String {
+    [
+        ("kind", before.kind != after.kind),
+        ("description", before.description != after.description),
+        ("producers", before.producers != after.producers),
+    ]
+    .into_iter()
+    .filter_map(|(field, differs)| differs.then_some(field))
+    .collect::<Vec<_>>()
+    .join(",")
+}
+
 fn render_diff_tsv(report: &ClauseSetDiff) -> String {
     let mut out = String::from(
-        "change\tclause_id\tbefore_force\tafter_force\toutput\tbefore_producers\tafter_producers\n",
+        "change\tclause_id\tbefore_force\tafter_force\toutput\tbefore_producers\tafter_producers\tchanged_fields\n",
     );
     for clause in &report.added {
         push_diff_row(&mut out, "added", clause, None, Some(&clause.force));
@@ -400,12 +418,16 @@ fn push_output_row(
 ) {
     let producers = |output: Option<&ExpectedOutput>| {
         output
-            .and_then(|output| output.producers.as_ref())
-            .map(|producers| tsv_cell(&producers.join(",")))
+            .and_then(|output| output.producers.as_deref())
+            .map(|producers| tsv_cell(&producers_json(producers)))
             .unwrap_or_default()
     };
+    let fields = match (before, after) {
+        (Some(before), Some(after)) => changed_fields(before, after),
+        _ => String::new(),
+    };
     out.push_str(&format!(
-        "{change}\t\t\t\t{}\t{}\t{}\n",
+        "{change}\t\t\t\t{}\t{}\t{}\t{fields}\n",
         tsv_cell(name),
         producers(before),
         producers(after)
@@ -420,7 +442,7 @@ fn push_diff_row(
     after: Option<&ClauseForce>,
 ) {
     out.push_str(&format!(
-        "{change}\t{}\t{}\t{}\t\t\t\n",
+        "{change}\t{}\t{}\t{}\t\t\t\t\n",
         tsv_cell(&clause.id),
         before.map(force_name).unwrap_or(""),
         after.map(force_name).unwrap_or("")

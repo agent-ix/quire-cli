@@ -108,10 +108,13 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // read is exactly the thing a symbol-table consumer must not silently miss:
     // it looks identical to a file with no declarations in it.
     for d in &extraction.diagnostics {
-        ix_cli_kit::streams::Record::error(
-            "SymbolExtraction",
-            &format!("{}: {}", d.path, d.reason),
-        )
+        let message = format!("{}: {}", d.path, d.reason);
+        match d.severity {
+            quire_rs::symbols::DiagnosticSeverity::Warning => {
+                ix_cli_kit::streams::Record::warning("SymbolExtraction", &message)
+            }
+            _ => ix_cli_kit::streams::Record::error("SymbolExtraction", &message),
+        }
         .emit(ctx.diagnostics);
     }
 
@@ -141,7 +144,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             ix_cli_kit::json::encode(&quire_cli::engine::attach(&report), ctx.pretty)?
         ),
         OutputFormat::Tsv => primary!("{}", render_tsv(&report)),
-        OutputFormat::Human => emit_human(ctx, &report, model.is_some()),
+        OutputFormat::Human => emit_human(
+            ctx,
+            &report,
+            model.is_some(),
+            extraction.ignored_source_files,
+        ),
     }
     Ok(())
 }
@@ -164,7 +172,12 @@ fn render_tsv(report: &quire_rs::SymbolTableReport) -> String {
     out
 }
 
-fn emit_human(ctx: &Ctx, report: &quire_rs::SymbolTableReport, bound: bool) {
+fn emit_human(
+    ctx: &Ctx,
+    report: &quire_rs::SymbolTableReport,
+    bound: bool,
+    ignored_source_files: usize,
+) {
     let mut lines = vec![format!(
         "{} symbol(s) over {} file(s)",
         report.symbols.len(),
@@ -201,6 +214,12 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::SymbolTableReport, bound: bool) {
         lines.push(format!(
             "  {} source file(s) removed by a declared `source_exclude` glob",
             report.excluded_source_files
+        ));
+    }
+    if ignored_source_files > 0 {
+        lines.push(format!(
+            "  {} source file(s) pruned by the scope root's ignore files",
+            ignored_source_files
         ));
     }
     ix_cli_kit::streams::Record::error("SymbolTable", &lines.join("\n")).emit(ctx.diagnostics);

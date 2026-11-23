@@ -722,6 +722,15 @@ fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()
             )
         );
     }
+    if report.ignored_source_files > 0 {
+        primary_line!(
+            "{}",
+            &format!(
+                "{} source file(s) pruned by the scope root's ignore files",
+                report.ignored_source_files
+            )
+        );
+    }
     for line in metric_lines(report) {
         primary_line!("{}", &line);
     }

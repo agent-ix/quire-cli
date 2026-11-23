@@ -608,8 +608,12 @@ fn catalog_entry(kind: &str, producers: Option<Vec<&str>>) -> ExpectedOutput {
 
 /// A synthetic set whose clauses reference no catalog output, so each test
 /// controls the catalog alone.
-fn catalog_set(version: &str, catalog: BTreeMap<String, ExpectedOutput>) -> ClauseSet {
-    let mut set = set(version, false);
+fn catalog_set(
+    version: &str,
+    changed: bool,
+    catalog: BTreeMap<String, ExpectedOutput>,
+) -> ClauseSet {
+    let mut set = set(version, changed);
     set.output_catalog = catalog;
     for clause in &mut set.clauses {
         clause.expected_outputs.clear();
@@ -660,25 +664,33 @@ fn run_diff(module: &str, format: &str) -> std::process::Output {
         .expect("run diff")
 }
 
-// FR-021-AC-9.
-#[trace("FR-021-AC-9")]
+// FR-021-AC-4, AC-9.
+#[trace("FR-021-AC-4", "FR-021-AC-9")]
 #[test]
 fn it142_diff_shows_output_catalog_changes_in_every_view() {
+    let mut described = catalog_entry("record", None);
     let first = catalog_set(
         "1.0.0",
+        false,
         BTreeMap::from([
             ("kept".into(), catalog_entry("record", Some(vec!["run"]))),
             ("dropped".into(), catalog_entry("report", None)),
+            ("csv".into(), catalog_entry("record", Some(vec!["a,b"]))),
+            ("desc".into(), described.clone()),
         ]),
     );
+    described.description = "A reworded description".into();
     let second = catalog_set(
         "2.0.0",
+        true,
         BTreeMap::from([
             (
                 "kept".into(),
                 catalog_entry("record", Some(vec!["run", "scan"])),
             ),
             ("fresh".into(), catalog_entry("log", Some(vec!["audit"]))),
+            ("csv".into(), catalog_entry("record", Some(vec!["a", "b"]))),
+            ("desc".into(), described),
         ]),
     );
     let dir = TempDir::new().unwrap();
@@ -695,74 +707,121 @@ fn it142_diff_shows_output_catalog_changes_in_every_view() {
     assert_eq!(catalog["added"][0]["name"], "fresh");
     assert_eq!(catalog["added"][0]["producers"][0], "audit");
     assert_eq!(catalog["removed"][0]["name"], "dropped");
-    assert_eq!(catalog["changed"][0]["name"], "kept");
-    assert_eq!(catalog["changed"][0]["after"]["producers"][1], "scan");
+    assert_eq!(catalog["changed"][2]["name"], "kept");
+    assert_eq!(catalog["changed"][2]["after"]["producers"][1], "scan");
     assert_conforms(&payload, "clause-diff-v1.schema.json");
 
     let human = run_diff(&module, "human");
     assert!(human.status.success());
     let body = String::from_utf8(human.stdout).unwrap();
     assert!(
-        body.contains("Output catalog added: 1  Removed: 1  Changed: 1"),
+        body.contains("Output catalog added: 1  Removed: 1  Changed: 3"),
         "{body}"
     );
     assert!(
-        body.contains("output added\tfresh\tproducers: audit"),
+        body.contains("output added\tfresh\tproducers: [\"audit\"]\n"),
         "{body}"
     );
     assert!(body.contains("output removed\tdropped\n"), "{body}");
     assert!(
-        body.contains("output changed\tkept\tkind: record; producers: run; description:"),
+        body.contains("output changed\tkept\tkind: record; producers: [\"run\"]; description:"),
         "{body}"
     );
     assert!(
-        body.contains("-> kind: record; producers: run, scan;"),
+        body.contains("-> kind: record; producers: [\"run\",\"scan\"];"),
+        "{body}"
+    );
+    assert!(
+        body.contains("output changed\tcsv\tkind: record; producers: [\"a,b\"];"),
         "{body}"
     );
 
     let tsv = run_diff(&module, "tsv");
     assert!(tsv.status.success());
     let body = String::from_utf8(tsv.stdout).unwrap();
-    let rows = body
-        .lines()
-        .map(|line| line.split('\t').collect::<Vec<_>>());
-    for row in rows {
-        assert_eq!(row.len(), 7, "{body:?}");
+    assert_eq!(
+        body.lines().next(),
+        Some(
+            "change\tclause_id\tbefore_force\tafter_force\toutput\tbefore_producers\tafter_producers\tchanged_fields"
+        ),
+        "{body:?}"
+    );
+    for line in body.lines() {
+        assert_eq!(line.split('\t').count(), 8, "{line:?}");
     }
     assert!(
-        body.contains("output_added\t\t\t\tfresh\t\taudit\n"),
+        body.contains("\nadded\tW-2\t\tpermitted\t\t\t\t\n"),
         "{body:?}"
     );
     assert!(
-        body.contains("output_removed\t\t\t\tdropped\t\t\n"),
+        body.contains("\nchanged\tW-1\tmandatory\trecommended\t\t\t\t\n"),
         "{body:?}"
     );
     assert!(
-        body.contains("output_changed\t\t\t\tkept\trun\trun,scan\n"),
+        body.contains("\noutput_added\t\t\t\tfresh\t\t[\"audit\"]\t\n"),
+        "{body:?}"
+    );
+    assert!(
+        body.contains("\noutput_removed\t\t\t\tdropped\t\t\t\n"),
+        "{body:?}"
+    );
+    assert!(
+        body.contains("\noutput_changed\t\t\t\tkept\t[\"run\"]\t[\"run\",\"scan\"]\tproducers\n"),
+        "{body:?}"
+    );
+    assert!(
+        body.contains("\noutput_changed\t\t\t\tcsv\t[\"a,b\"]\t[\"a\",\"b\"]\tproducers\n"),
+        "{body:?}"
+    );
+    assert!(
+        body.contains("\noutput_changed\t\t\t\tdesc\t\t\tdescription\n"),
         "{body:?}"
     );
 }
 
-// FR-021-AC-9.
-#[trace("FR-021-AC-9")]
+// FR-021-AC-10.
+#[trace("FR-021-AC-10")]
 #[test]
 fn it143_invalid_catalog_producers_are_rejected_naming_the_output() {
-    for (label, producers) in [("empty", vec![]), ("padded", vec![" run"])] {
+    let invalid = [
+        ("empty list", vec![]),
+        ("padded kind", vec![" run"]),
+        ("empty kind", vec![""]),
+        ("duplicate kind", vec!["run", "run"]),
+    ];
+    for (label, producers) in invalid {
         let bad = catalog_set(
             "2.0.0",
+            false,
             BTreeMap::from([(
                 "bad-output".into(),
                 catalog_entry("record", Some(producers)),
             )]),
         );
-        let good = catalog_set("1.0.0", BTreeMap::new());
+        let good = catalog_set("1.0.0", false, BTreeMap::new());
         let dir = TempDir::new().unwrap();
         let module = module_with_sets(&dir, &good, &bad);
-        let output = run_diff(&module, "json");
-        assert_eq!(output.status.code(), Some(3), "{label}");
-        assert!(output.stdout.is_empty(), "{label}");
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("bad-output"), "{label}: {stderr}");
-        assert!(stderr.contains("producers"), "{label}: {stderr}");
+        for command in ["evaluate", "diff"] {
+            let mut run = quire();
+            run.args(["clauses", command, "--module", &module]);
+            run.args(["--authority", "example.test", "--set", "widget-assurance"]);
+            if command == "evaluate" {
+                run.args(["--version", "2.0.0", "--json"]);
+            } else {
+                run.args([
+                    "--before-version",
+                    "1.0.0",
+                    "--after-version",
+                    "2.0.0",
+                    "--json",
+                ]);
+            }
+            let output = run.output().expect("run clause command");
+            assert_eq!(output.status.code(), Some(3), "{command} {label}");
+            assert!(output.stdout.is_empty(), "{command} {label}");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert!(stderr.contains("bad-output"), "{command} {label}: {stderr}");
+            assert!(stderr.contains("producers"), "{command} {label}: {stderr}");
+        }
     }
 }

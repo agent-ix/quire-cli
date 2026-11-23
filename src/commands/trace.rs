@@ -295,10 +295,13 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         &model.source_exclude,
     );
     for d in &extraction.diagnostics {
-        ix_cli_kit::streams::Record::error(
-            "SymbolExtraction",
-            &format!("{}: {}", d.path, d.reason),
-        )
+        let message = format!("{}: {}", d.path, d.reason);
+        match d.severity {
+            quire_rs::symbols::DiagnosticSeverity::Warning => {
+                ix_cli_kit::streams::Record::warning("SymbolExtraction", &message)
+            }
+            _ => ix_cli_kit::streams::Record::error("SymbolExtraction", &message),
+        }
         .emit(ctx.diagnostics);
     }
 
