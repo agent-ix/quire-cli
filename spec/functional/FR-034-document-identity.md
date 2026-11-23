@@ -40,7 +40,7 @@ quire export <INPUT>... --to pdf|docx --output <PATH>
 | Title | The `title` frontmatter member of the input. |
 | Document id | The `id` frontmatter member of the input. |
 | Version | The `version` frontmatter member of the input; optional. |
-| Release | `--release <TAG>`: a tag of the source repository that resolves to the source commit; optional. |
+| Release | `--release <TAG>`: a tag of the source repository whose commit is the source commit or a release ancestor of it (section A); optional. |
 | Source commit hash | The full hash of the commit selected by `--source-rev` (default `HEAD`) in the source repository. `--source-rev` is a full 40-digit object hash or a reference name (branch, tag or `HEAD`); abbreviated hashes and revision expressions such as `HEAD~1` are refused, and the diagnostic says so. |
 | Date | The committer date of that commit, in UTC, as `YYYY-MM-DD`. |
 
@@ -57,6 +57,8 @@ are present. The `title`, `id` and `version` members are strings or numbers; any
 - The command SHALL read the commit, its date, the tag, the blob and the
   attributes of the input path in process from the repository's object store,
   with read-only access: no index or worktree write, no ref update, no fetch.
+- The command SHALL resolve `--release <TAG>` to a commit, peeling an annotated tag, and SHALL accept it when that commit is the source commit, or is reached from the source commit by following first parents only and every commit on that chain after the tag commit, up to and including the source commit, satisfies all of: it has exactly one parent; its change against that parent only adds or modifies files; and each added or modified path lies under the directory of an input. The directory of an input is the repository-relative directory that contains the input file, and a path lies under it when it is in that directory or any directory below it. An input in the repository root has no such directory, so for it only a tag on the source commit is accepted. This lets a dossier be committed after the release tag it names; a tag on a commit off that chain (another branch, or history rewritten after the tag), a merge commit, a deletion, a rename and a path outside every input directory are each refused. The commit graph and trees are read in process under the read-only rule above.
+- The command SHALL NOT change the Source commit hash or the Date for `--release`: they remain those of the source commit, and the Release field shows the tag name.
 - The command SHALL use the blob committed at the source commit for the input
   path as the content to validate and convert, so the identity and the content
   come from one revision.
@@ -114,6 +116,9 @@ are present. The `title`, `id` and `version` members are strings or numbers; any
 | --- | --- | --- |
 | FR-034-AC-1 | Exporting a fixture committed with an `id`, a `title` and a `version` to `docx` yields extracted text holding all six fields as stated: the title, the id, the version, the full source commit hash and the committer date as `YYYY-MM-DD`, and no Release line. | Test |
 | FR-034-AC-2 | With `--release v1.2` naming a tag on the source commit, the Release field reads `v1.2`; a fixture with no `version` member and no `--release` is refused ([FR-040](./FR-040-export-template-and-identity-errors.md)). | Test |
+| FR-034-AC-12 | A fixture whose tag `v1.2` names commit T, with the source commit S a child of T that adds and modifies files only under the input's directory, exports with the Release field `v1.2`, the Source commit hash equal to S and the Date equal to the committer date of S; the same holds when S is two such commits after T. A tag on S itself is accepted as in FR-034-AC-2. | Test |
+| FR-034-AC-13 | With `--release` naming T, an export is refused naming the tag, the source commit and the offending path or commit when a commit after T up to S: modifies a file outside every input's directory, deletes a file (even under the input's directory), renames a file, is a merge commit, or, for an input in the repository root, exists at all. | Test |
+| FR-034-AC-14 | With `--release` naming a commit that is not on the first-parent chain of the source commit (a tag on another branch, and a tag on a commit that history rewriting removed from that chain) the export is refused naming the tag, the source commit and the cause. | Test |
 | FR-034-AC-3 | A fixture committed with a committer date of `2001-02-03T23:30:00-05:00` yields the Date `2001-02-04` (UTC), and the date is the same when the test process runs under a different `TZ`. The command reads no clock, so no test varies one. | Test |
 | FR-034-AC-4 | With `--source-rev` naming an older commit at which the input equals the working file, the identity holds that commit's hash and date; naming a commit at which the input differs from the working file is refused. | Test |
 | FR-034-AC-5 | An input with uncommitted changes, an untracked input, and an input outside any repository each exit 3 naming the file and writing no output; a fixture whose working file is the committed blob with CRLF line endings throughout exports without error and yields the text of the committed blob. | Test |
