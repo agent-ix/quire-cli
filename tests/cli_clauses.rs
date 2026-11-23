@@ -56,6 +56,7 @@ fn set(version: &str, changed: bool) -> ClauseSet {
             ExpectedOutput {
                 kind: "record".into(),
                 description: "A synthetic test result".into(),
+                producers: None,
             },
         )]),
         clauses: vec![Clause {
@@ -158,6 +159,7 @@ fn module_with_tsv_delimiter(dir: &TempDir) -> String {
         ExpectedOutput {
             kind: "record".into(),
             description: "A synthetic test result".into(),
+            producers: None,
         },
     )]);
     first.clauses[0].expected_outputs = vec![expected_output.into()];

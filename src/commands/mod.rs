@@ -207,6 +207,12 @@ pub fn load_module_registry(ctx: &Ctx, module: &Path) -> anyhow::Result<Registry
 pub fn require_traceability_model(
     registry: &Registry,
 ) -> anyhow::Result<&quire_rs::traceability::TraceabilityModel> {
+    // FR-058-AC-47: a model with dropped declarations is never computed over,
+    // and checking it first names the drop even when the whole `traceability:`
+    // section was dropped and no model remains to be "undeclared".
+    registry
+        .require_complete_model()
+        .map_err(|dropped| invalid_error!("{dropped}"))?;
     registry.traceability().ok_or_else(|| {
         invalid_error!(
             "no module in scope declares a `traceability:` model, so there is \

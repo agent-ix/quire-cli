@@ -5,7 +5,7 @@ version = 4
 [[package]]
 name = "agent-ix-semantic-schema"
 version = "0.3.0"
-source = "git+https://github.com/agent-ix/filament-core-data?branch=main#327a49ca9d7ab2c12269a8db65b75f1331e165bd"
+source = "git+https://github.com/agent-ix/filament-core-data?tag=semantic-schema-v0.6.0#327a49ca9d7ab2c12269a8db65b75f1331e165bd"
 
 [[package]]
 name = "ahash"
@@ -1672,15 +1672,15 @@ dependencies = [
 [[package]]
 name = "quire-code-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?tag=v0.62.2#335be94e8490b1d186a4d168eb5b2e7bab9a4f68"
+source = "git+https://github.com/agent-ix/quire-rs?rev=b6beef4df8326fdd4323dfeb803075563ccdc350#b6beef4df8326fdd4323dfeb803075563ccdc350"
 dependencies = [
  "quire-code-parse",
 ]
 
 [[package]]
 name = "quire-code-parse"
-version = "0.2.2"
-source = "git+https://github.com/agent-ix/quire-code-rs?rev=108ddda6bdeab1dd97e5c638d41b6df8167b1fa1#108ddda6bdeab1dd97e5c638d41b6df8167b1fa1"
+version = "0.2.3"
+source = "git+https://github.com/agent-ix/quire-code-rs?tag=v0.2.3#d3bd07dde49e02d13262c523c2f8c506dbbb6dac"
 dependencies = [
  "thiserror",
  "tree-sitter",
@@ -1718,8 +1718,8 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.62.2"
-source = "git+https://github.com/agent-ix/quire-rs?tag=v0.62.2#335be94e8490b1d186a4d168eb5b2e7bab9a4f68"
+version = "0.62.3"
+source = "git+https://github.com/agent-ix/quire-rs?rev=b6beef4df8326fdd4323dfeb803075563ccdc350#b6beef4df8326fdd4323dfeb803075563ccdc350"
 dependencies = [
  "agent-ix-semantic-schema",
  "globset",
