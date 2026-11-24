@@ -33,4 +33,3 @@ The shared Anomaly contract is used rather than redefined locally. `AN-001` has 
 - `quire validate --scope . 'spec/anomalies/*.md'` — exit 0.
 - `git diff --check` — exit 0.
 - No applicable AssuranceProfile was found under `spec/`.
-

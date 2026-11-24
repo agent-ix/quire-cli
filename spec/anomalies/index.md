@@ -7,4 +7,4 @@ description: "First-party anomalies recorded for quire-cli."
 
 ## Contents
 
-* [AN-001: CI and release verification are dispatch-only](./AN-001-dispatch-only-verification.md)
+* [AN-001: Main CI is dispatch-only; publication is manual](./AN-001-dispatch-only-verification.md)

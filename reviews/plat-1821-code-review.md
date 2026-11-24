@@ -31,3 +31,8 @@ Ticket PLAT-1821 adds one first-party Anomaly record for quire-cli's dispatch-on
 - The anomaly index links the record. Focused `quoin anomaly report spec/anomalies --json` read it with `unreadable: []` and reported `AN-001` as unassessed.
 - The diff contains no production source or tests, so gap-analysis and language-specific reviews were not applicable. I checked for duplicate local records; neither the type nor workflow behavior is copied into a second implementation.
 
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | still-open | The anomaly record now distinguishes main-push CI, manual publication, and `v*` tag attestation, but `spec/anomalies/index.md:10` still labels it “CI and release verification are dispatch-only,” preserving the overbroad claim in the public index. Update the index label before merge. |
