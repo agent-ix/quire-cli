@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "bindings": [
+    {
+      "obligation": "FR-031-AC-1",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_keep_the_fixture_headings_and_code"
+      ]
+    },
+    {
+      "obligation": "FR-031-AC-11",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_keep_every_report_row_id"
+      ]
+    },
+    {
+      "obligation": "FR-031-AC-4",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_keep_every_report_row_id"
+      ]
+    },
+    {
+      "obligation": "FR-031-AC-9",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_keep_every_report_row_id"
+      ]
+    },
+    {
+      "obligation": "FR-032-AC-7",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_keep_the_fixture_headings_and_code"
+      ]
+    },
+    {
+      "obligation": "FR-034-AC-1",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_docx_has_a_title_page_toc_field_and_a_page_furniture",
+        "cli_export::real_pdf_has_a_title_page_contents_header_footer_and_page_numbers"
+      ]
+    },
+    {
+      "obligation": "FR-034-AC-10",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_show_hostile_identity_values_as_literal_text"
+      ]
+    },
+    {
+      "obligation": "FR-034-AC-3",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_pdf_has_a_title_page_contents_header_footer_and_page_numbers"
+      ]
+    },
+    {
+      "obligation": "FR-035-AC-1",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_pdf_has_a_title_page_contents_header_footer_and_page_numbers"
+      ]
+    },
+    {
+      "obligation": "FR-035-AC-2",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_docx_has_a_title_page_toc_field_and_a_page_furniture"
+      ]
+    },
+    {
+      "obligation": "FR-035-AC-3",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_docx_has_a_title_page_toc_field_and_a_page_furniture",
+        "cli_export::real_pdf_has_a_title_page_contents_header_footer_and_page_numbers"
+      ]
+    },
+    {
+      "obligation": "FR-035-AC-4",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_pdf_has_a_title_page_contents_header_footer_and_page_numbers"
+      ]
+    },
+    {
+      "obligation": "FR-035-AC-5",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_docx_has_a_title_page_toc_field_and_a_page_furniture"
+      ]
+    },
+    {
+      "obligation": "FR-035-AC-7",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_pdf_without_headings_exports_with_the_same_title_page"
+      ]
+    },
+    {
+      "obligation": "FR-036-AC-1",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_docx_uses_the_organisation_reference_footer_and_keeps_the_title_page",
+        "cli_export::real_pdf_uses_the_organisation_template_header_and_keeps_the_title_page"
+      ]
+    },
+    {
+      "obligation": "FR-037-AC-2",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_document_dates_do_not_change_when_the_clock_moves_between_exports",
+        "cli_export::real_documents_hold_the_commit_time_or_none_and_no_host_content"
+      ]
+    },
+    {
+      "obligation": "FR-037-AC-3",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_documents_hold_the_commit_time_or_none_and_no_host_content",
+        "cli_export::real_json_report_documents_hold_the_unix_epoch_or_none_and_no_host_content"
+      ]
+    },
+    {
+      "obligation": "FR-037-AC-5",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_json_report_documents_hold_the_unix_epoch_or_none_and_no_host_content"
+      ]
+    },
+    {
+      "obligation": "FR-038-AC-1",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_show_the_approval_block_after_the_document"
+      ]
+    },
+    {
+      "obligation": "FR-038-AC-15",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::release_approval_text_reaches_real_converters"
+      ]
+    },
+    {
+      "obligation": "FR-038-AC-2",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_show_the_approval_block_after_the_document"
+      ]
+    },
+    {
+      "obligation": "FR-038-AC-5",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_show_the_approval_block_after_the_document"
+      ]
+    },
+    {
+      "obligation": "FR-038-AC-9",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_show_the_approval_block_after_the_document"
+      ]
+    },
+    {
+      "obligation": "FR-039-AC-1",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_docx_bundle_holds_the_separators_in_order_each_after_a_page_break",
+        "cli_export::real_pdf_bundle_holds_the_title_page_list_contents_and_documents_in_order"
+      ]
+    },
+    {
+      "obligation": "FR-039-AC-2",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_pdf_bundle_holds_the_title_page_list_contents_and_documents_in_order"
+      ]
+    },
+    {
+      "obligation": "FR-039-AC-5",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_pdf_bundle_holds_the_title_page_list_contents_and_documents_in_order"
+      ]
+    },
+    {
+      "obligation": "FR-042-AC-1",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_embed_the_diagrams_as_images_in_both_formats",
+        "cli_export::real_converters_export_a_diagram_that_contains_a_tab"
+      ]
+    },
+    {
+      "obligation": "FR-042-AC-10",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_docx_scales_a_wide_diagram_to_the_text_area_and_keeps_a_narrow_one"
+      ]
+    },
+    {
+      "obligation": "FR-042-AC-14",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_pandoc_fails_the_generated_filter_on_a_missing_image_or_a_changed_source"
+      ]
+    },
+    {
+      "obligation": "FR-042-AC-15",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_pandoc_blocks_that_quire_rs_does_not_find_fail_the_export"
+      ]
+    },
+    {
+      "obligation": "FR-042-AC-3",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_converters_export_a_diagram_that_contains_a_tab"
+      ]
+    },
+    {
+      "obligation": "FR-042-AC-5",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_mmdr_rejects_a_block_without_a_diagram_header_and_the_export_names_it"
+      ]
+    },
+    {
+      "obligation": "FR-042-AC-7",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_pandoc_blocks_that_quire_rs_does_not_find_fail_the_export"
+      ]
+    },
+    {
+      "obligation": "NFR-011-AC-1",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_document_dates_do_not_change_when_the_clock_moves_between_exports",
+        "cli_export::real_exports_give_equal_text_and_structure_across_directories_and_zones"
+      ]
+    },
+    {
+      "obligation": "NFR-011-AC-2",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_exports_give_equal_text_and_structure_across_directories_and_zones"
+      ]
+    },
+    {
+      "obligation": "NFR-011-AC-3",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_exports_give_equal_text_and_structure_across_directories_and_zones"
+      ]
+    },
+    {
+      "obligation": "NFR-011-AC-4",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_exports_give_equal_text_and_structure_across_directories_and_zones"
+      ]
+    },
+    {
+      "obligation": "NFR-011-AC-5",
+      "suite": "SUITE-004",
+      "symbols": [
+        "cli_export::real_diagrams_are_byte_equal_across_time_zones_and_clock"
+      ]
+    }
+  ]
+}
