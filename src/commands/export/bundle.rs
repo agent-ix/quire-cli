@@ -115,13 +115,12 @@ fn resolve_sources(ctx: &Ctx, args: &Args) -> anyhow::Result<Vec<Source>> {
     let options = SourceOptions {
         repo: args.source_repo.as_deref(),
         rev: args.source_rev.as_deref(),
-        release: args.release.as_deref(),
     };
     let mut sources: Vec<Source> = Vec::with_capacity(args.input.len());
     let mut first: Option<(&PathBuf, PathBuf)> = None;
     for input in &args.input {
         let text = read_utf8(input)?;
-        let source = identity::resolve(input, &text, &options)?;
+        let source = identity::resolve(input, &text, &options, args.release.is_some())?;
         match &first {
             None => first = Some((input, source.repository.clone())),
             Some((first_input, repository)) if *repository != source.repository => {

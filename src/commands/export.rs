@@ -289,8 +289,8 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
         &identity::SourceOptions {
             repo: args.source_repo.as_deref(),
             rev: args.source_rev.as_deref(),
-            release: args.release.as_deref(),
         },
+        args.release.is_some(),
     )?;
     if let Some(tag) = args.release.as_deref() {
         identity::attach_release(std::slice::from_mut(&mut source), tag)?;

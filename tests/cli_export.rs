@@ -1076,6 +1076,13 @@ fn unresolvable_sources_are_refused_naming_the_cause() {
             stderr(&result)
         );
     }
+    // An unknown tag names the tag, the source commit and the cause.
+    let mut command = rig.export(&rig.fixture(), "docx", &output);
+    command.args(["--release", "no-such-tag"]);
+    let message = stderr(&run(command));
+    for needle in ["no-such-tag", rig.head().as_str(), "does not resolve"] {
+        assert!(message.contains(needle), "{needle} missing from {message}");
+    }
     // A tag on a different commit is not the source commit.
     git(&rig.repo(), &["tag", "old"], None);
     let text = fs::read_to_string(rig.fixture()).expect("fixture");
@@ -1359,6 +1366,17 @@ fn a_document_without_headings_keeps_the_title_page_and_the_contents_block() {
 #[test]
 fn quire_starts_no_process_but_the_executor() {
     let rig = Rig::new();
+    // Approval files make quire digest them: that must start no process either.
+    let standalone = verdict_file(
+        &rig,
+        "a.json",
+        &approved("A", "2026-01-02T03:04:05Z", &["m"]),
+    );
+    let release = verdict_file(
+        &rig,
+        "r.json",
+        &released("R", "2026-01-02T03:04:05Z", &["m"]),
+    );
     let trace = rig.work("execve.trace");
     let mut command = Command::new("strace");
     command
@@ -1375,7 +1393,11 @@ fn quire_starts_no_process_but_the_executor() {
         .arg("--pandoc")
         .arg(rig.bin("pandoc"))
         .arg("--engineering-assurance")
-        .arg(rig.bin("engineering-assurance"));
+        .arg(rig.bin("engineering-assurance"))
+        .arg("--approval")
+        .arg(&standalone)
+        .arg("--approval")
+        .arg(&release);
     let result = command.output().expect("strace is needed for this test");
     assert!(
         result.status.success(),
@@ -5606,14 +5628,15 @@ fn a_tag_before_later_dossier_commits_is_the_release_and_names_its_commit() {
 #[trace("FR-034-AC-13")]
 #[test]
 fn a_bundle_accepts_a_later_commit_under_any_input_directory() {
-    let (rig, tag_commit) = dossier_rig();
+    let (rig, _) = dossier_rig();
     let text = fs::read_to_string(export_fixture()).expect("fixture");
     let other = rig.commit(
         "other/second.md",
         &text.replace("FR-001", "FR-002"),
         COMMIT_DATE,
     );
-    git(&rig.repo(), &["tag", "v1.1", &rig.head()], None);
+    let tag_commit = rig.head();
+    git(&rig.repo(), &["tag", "v1.1", &tag_commit], None);
     let first = rig.repo().join(DOSSIER_DOCUMENT);
     // The input outside `dossier` is edited after the tag.
     rig.commit(
@@ -5626,20 +5649,21 @@ fn a_bundle_accepts_a_later_commit_under_any_input_directory() {
     let result = run(command);
     assert!(result.status.success(), "{}", stderr(&result));
     assert_eq!(exported_identity(&rig)["release"], "v1\\.1");
-    assert!(
-        release_line(&rig).contains("tag commit"),
-        "{}",
-        release_line(&rig)
+    assert_eq!(
+        release_line(&rig),
+        format!("Release: v1\\.1 \\(tag commit {tag_commit}\\)")
     );
-    let _ = tag_commit;
 }
 
-/// Adds the commit that `change` makes after the tag and exports.
-fn export_after(change: impl FnOnce(&Rig)) -> (Rig, Output) {
+/// Adds the commit that `change` makes after the tag, then an allowed commit,
+/// and exports. Returns the hash of the commit that `change` made.
+fn export_after(change: impl FnOnce(&Rig)) -> (Rig, String, Output) {
     let (rig, _) = dossier_rig();
     change(&rig);
+    let offending = rig.head();
+    rig.commit("dossier/allowed.txt", "fine\n", COMMIT_DATE);
     let result = dossier_export(&rig, "v1.2");
-    (rig, result)
+    (rig, offending, result)
 }
 
 fn commit_all(rig: &Rig, message: &str) {
@@ -5745,11 +5769,11 @@ fn a_later_commit_that_is_not_an_allowed_change_refuses_the_tag() {
         ),
     ];
     for (name, path, change) in scenarios {
-        let (rig, result) = export_after(change);
+        let (rig, offending, result) = export_after(change);
         assert_eq!(result.status.code(), Some(3), "{name}");
         let message = stderr(&result);
         // The tag, the source commit, the offending commit and the path.
-        for needle in ["v1.2", rig.head().as_str(), path] {
+        for needle in ["v1.2", rig.head().as_str(), offending.as_str(), path] {
             assert!(
                 message.contains(needle),
                 "{name}: {needle} missing from {message}"
@@ -5774,11 +5798,13 @@ fn a_merge_commit_after_the_tag_refuses_it_naming_the_commit() {
         &["merge", "-q", "--no-ff", "-m", "merge", "side"],
         Some(COMMIT_DATE),
     );
+    let merge = rig.head();
+    rig.commit("dossier/allowed.txt", "fine\n", COMMIT_DATE);
     let result = dossier_export(&rig, "v1.2");
     assert_eq!(result.status.code(), Some(3));
     let message = stderr(&result);
     assert!(message.contains("merge commit"), "{message}");
-    assert!(message.contains(&rig.head()), "{message}");
+    assert!(message.contains(&merge), "{message}");
 }
 
 #[trace("FR-034-AC-14")]
@@ -5910,7 +5936,7 @@ fn a_tag_off_the_first_parent_chain_or_not_on_a_commit_is_refused() {
 #[trace("FR-034-AC-17", "FR-040-AC-3")]
 #[test]
 fn a_shallow_history_never_accepts_the_tag() {
-    let (rig, tag_commit) = dossier_rig();
+    let (rig, _) = dossier_rig();
     rig.commit("dossier/extra.txt", "a\n", COMMIT_DATE);
     let middle = rig.head();
     rig.commit("dossier/extra.txt", "b\n", COMMIT_DATE);
@@ -5948,7 +5974,6 @@ fn a_shallow_history_never_accepts_the_tag() {
     ] {
         assert!(message.contains(needle), "{needle} missing from {message}");
     }
-    let _ = tag_commit;
 }
 
 // ---- Mermaid diagrams (FR-042) ----------------------------------------------

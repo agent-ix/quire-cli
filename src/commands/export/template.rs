@@ -6,7 +6,7 @@
 use anyhow::Context;
 use serde_json::{Map, Value};
 
-use super::identity::Identity;
+use super::identity::{Identity, Release};
 use super::Format;
 
 /// Backslash-escapes each ASCII punctuation character and replaces each line
@@ -58,7 +58,7 @@ pub(super) fn metadata_yaml(identity: &Identity) -> anyhow::Result<String> {
         put("version", version);
     }
     if let Some(release) = &identity.release {
-        put("release", &release.tag);
+        put("release", release.tag());
     }
     put("commit", &identity.commit);
     put("date", &identity.date);
@@ -160,10 +160,7 @@ fn revision(identity: &Identity) -> &str {
     identity
         .version
         .as_deref()
-        .or(identity
-            .release
-            .as_ref()
-            .map(|release| release.tag.as_str()))
+        .or(identity.release.as_ref().map(Release::tag))
         .unwrap_or_default()
 }
 

@@ -21,12 +21,17 @@ use crate::commands::failure;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Release {
     /// The tag name, which is the `release` member of `in/metadata.yaml`.
-    pub(super) tag: String,
+    tag: String,
     /// The full hash of the tag commit when it is not the source commit.
-    pub(super) tag_commit: Option<String>,
+    tag_commit: Option<String>,
 }
 
 impl Release {
+    /// The tag name alone.
+    pub(super) fn tag(&self) -> &str {
+        &self.tag
+    }
+
     /// The text shown on the title page: `<TAG>` or `<TAG> (tag commit <hash>)`.
     pub(super) fn shown(&self) -> String {
         match &self.tag_commit {
@@ -40,8 +45,6 @@ impl Release {
 pub(super) struct SourceOptions<'a> {
     pub(super) repo: Option<&'a Path>,
     pub(super) rev: Option<&'a str>,
-    /// `--release`, accepted by `check_release` once every input is known.
-    pub(super) release: Option<&'a str>,
 }
 
 /// The six identity fields of FR-034.
@@ -77,6 +80,7 @@ pub(super) fn resolve(
     input: &Path,
     working: &str,
     options: &SourceOptions<'_>,
+    release_given: bool,
 ) -> anyhow::Result<Source> {
     let repo = Repo::open(input, options.repo)?;
     let commit = repo.resolve_commit(options.rev.unwrap_or("HEAD"))?;
@@ -104,14 +108,10 @@ pub(super) fn resolve(
     let title = text_member(frontmatter, "title");
     let document_id = text_member(frontmatter, "id");
     let version = text_member(frontmatter, "version");
-    let release = options.release.map(|tag| Release {
-        tag: tag.to_string(),
-        tag_commit: None,
-    });
     let (Some(title), Some(document_id), true) = (
         title.clone(),
         document_id.clone(),
-        version.is_some() || release.is_some(),
+        version.is_some() || release_given,
     ) else {
         let mut missing = Vec::new();
         if title.is_none() {
@@ -120,7 +120,7 @@ pub(super) fn resolve(
         if document_id.is_none() {
             missing.push("id");
         }
-        if version.is_none() && release.is_none() {
+        if version.is_none() && !release_given {
             missing.push("version (or pass --release)");
         }
         return Err(failure::invalid(anyhow::anyhow!(
@@ -133,7 +133,7 @@ pub(super) fn resolve(
             title,
             document_id,
             version,
-            release,
+            release: None,
             commit: commit.id.to_string(),
             date: utc_date(commit.seconds),
             epoch: commit.seconds,
@@ -166,9 +166,10 @@ pub(super) fn attach_release(sources: &mut [Source], tag: &str) -> anyhow::Resul
         .check_release(tag, &source, &directories)?
         .map(|id| id.to_string());
     for source in sources {
-        if let Some(release) = &mut source.identity.release {
-            release.tag_commit.clone_from(&tag_commit);
-        }
+        source.identity.release = Some(Release {
+            tag: tag.to_string(),
+            tag_commit: tag_commit.clone(),
+        });
     }
     Ok(())
 }
