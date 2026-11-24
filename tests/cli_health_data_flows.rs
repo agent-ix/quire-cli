@@ -250,7 +250,7 @@ traceability:
     );
 }
 
-fn assert_flow_load_failure_names_the_invalid_value(
+fn assert_flow_load_failure_includes_engine_detail(
     module_directory: &str,
     source: &str,
     invalid: &str,
@@ -264,13 +264,20 @@ fn assert_flow_load_failure_names_the_invalid_value(
     let manifest = fs::read_to_string(&manifest_path).unwrap();
     let invalid_manifest = manifest.replace(source, invalid);
     assert_ne!(manifest, invalid_manifest, "fixture contains source text");
+    assert!(
+        invalid_manifest.contains(invalid),
+        "fixture contains invalid text"
+    );
     fs::write(&manifest_path, invalid_manifest).unwrap();
 
     let output = run(&scope, &module, &["--flow", "--json"]);
     assert_eq!(output.status.code(), Some(3));
     assert!(output.stdout.is_empty());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("connection-present"), "{stderr}");
+    assert!(
+        stderr.contains("module 'health-flow-fixture' flow_rule 'connection-present'"),
+        "expected the dropped flow rule to be named: {stderr}"
+    );
     assert!(stderr.contains(expected), "{stderr}");
     assert!(
         stderr.contains(&manifest_path.to_string_lossy().to_string()),
@@ -498,6 +505,80 @@ fn emits_the_canonical_health_flow_envelope_from_generic_relation_facts() {
     );
     assert!(second.status.success());
     assert_eq!(output.stdout, second.stdout);
+}
+
+#[test]
+#[trace("FR-046-AC-1", "FR-030-AC-28")]
+fn health_flow_projection_keeps_valid_flow_and_reports_dropped_relation() {
+    let (temp, scope) = world(
+        "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
+        "health",
+        Some("trust_level: untrusted\n"),
+        true,
+    );
+    let module = temp.path().join("module");
+    let manifest = fs::read_to_string(module.join("manifest.yaml")).unwrap();
+    fs::write(
+        module.join("manifest.yaml"),
+        manifest.replace("record_keys: [trust_level]", "record_keys: [missing-key]"),
+    )
+    .unwrap();
+
+    let output = run(&scope, &module, &["--health-data-flows", "--json"]);
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "stdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = json(&output);
+    assert_eq!(report["schema"], "quire.health-data-flows/v1");
+    assert_eq!(report["flows"].as_array().unwrap().len(), 1);
+    assert_eq!(report["flows"][0]["connection"]["id"], "CONN-1");
+    assert_eq!(report["flows"][0]["classifications"][0]["id"], "CLS-1");
+    assert!(report["flows"][0]["crossings"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    assert!(report.get("errors").is_none(), "keep the projection schema");
+
+    let diagnostic = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        diagnostic.contains(
+            "error: dropped relation connection-crosses-trust-boundary from module health-flow-fixture:"
+        ),
+        "{diagnostic}"
+    );
+    assert!(diagnostic.contains("missing-key"), "{diagnostic}");
+    assert_eq!(
+        diagnostic
+            .matches("error: dropped relation connection-crosses-trust-boundary")
+            .count(),
+        1,
+        "{diagnostic}"
+    );
+
+    let strict = run(
+        &scope,
+        &module,
+        &["--health-data-flows", "--json", "--strict"],
+    );
+    assert_eq!(
+        strict.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&strict.stderr)
+    );
+    assert_eq!(json(&strict)["flows"], report["flows"]);
+    assert_eq!(
+        String::from_utf8_lossy(&strict.stderr)
+            .matches("error: dropped relation connection-crosses-trust-boundary")
+            .count(),
+        1,
+        "{}",
+        String::from_utf8_lossy(&strict.stderr)
+    );
 }
 
 #[test]
@@ -1128,7 +1209,7 @@ fn flow_mode_rejects_missing_rules_and_relation_mode_conflicts() {
 #[test]
 #[trace("FR-044-AC-9")]
 fn flow_mode_reports_invalid_rule_values_in_the_module_load_failure() {
-    assert_flow_load_failure_names_the_invalid_value(
+    assert_flow_load_failure_includes_engine_detail(
         "invalid-rule",
         "any_of: [bidirectional]",
         "any_of: [medical]",
@@ -1139,11 +1220,11 @@ fn flow_mode_reports_invalid_rule_values_in_the_module_load_failure() {
 #[test]
 #[trace("FR-044-AC-10")]
 fn flow_mode_reports_invalid_remediations_in_the_module_load_failure() {
-    assert_flow_load_failure_names_the_invalid_value(
+    assert_flow_load_failure_includes_engine_detail(
         "invalid-remediation",
         "remediations: [set-flow-direction]",
         "remediations: [encrypt-in-transt]",
-        "encrypt-in-transt",
+        "connection-present",
     );
 }
 

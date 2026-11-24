@@ -282,6 +282,38 @@ pub(super) fn compute_report_over(
     spec: &Spec,
 ) -> anyhow::Result<quire_rs::CoverageReport> {
     let model = super::require_traceability_model(registry)?;
+    compute_report_over_model(ctx, scope, registry, spec, model)
+}
+
+/// Matrix is the one view that can report required-relation load errors while
+/// still rendering coverage for valid sibling declarations. Other incomplete
+/// declaration kinds have already been refused by its relation-aware loader.
+pub(super) fn compute_report_over_for_matrix(
+    ctx: &Ctx,
+    scope: &Path,
+    registry: &Registry,
+    spec: &Spec,
+) -> anyhow::Result<quire_rs::CoverageReport> {
+    let has_dropped_relation = registry.dropped_declarations().any(|(_, declaration)| {
+        declaration.kind == quire_rs::traceability::DeclarationKind::RequiredRelation
+    });
+    let model = if has_dropped_relation {
+        registry
+            .traceability()
+            .ok_or_else(|| invalid_error!("no module in scope declares a `traceability:` model"))?
+    } else {
+        super::require_traceability_model(registry)?
+    };
+    compute_report_over_model(ctx, scope, registry, spec, model)
+}
+
+fn compute_report_over_model(
+    ctx: &Ctx,
+    scope: &Path,
+    registry: &Registry,
+    spec: &Spec,
+    model: &quire_rs::traceability::TraceabilityModel,
+) -> anyhow::Result<quire_rs::CoverageReport> {
     // The exclusion is derived from the same constant the root is, rather
     // than a second literal `"spec"` that can drift from it
     // (agent-ix/quire-rs#113). The engine compares by canonicalized
@@ -834,6 +866,38 @@ pub(super) fn load_registry_for(
     modules: &[String],
     scope: &Path,
 ) -> anyhow::Result<Registry> {
+    let registry = load_registry_for_unchecked(ctx, modules, scope)?;
+    // Every caller computes over the merged model (FR-058-AC-47).
+    super::require_complete_model(&registry)?;
+    Ok(registry)
+}
+
+/// Module resolution for `relations`, whose upstream report carries dropped
+/// required relations as report errors. Other dropped declaration kinds still
+/// refuse the command before any coverage work is attempted.
+pub(super) fn load_registry_for_relations(
+    ctx: &Ctx,
+    modules: &[String],
+    scope: &Path,
+) -> anyhow::Result<Registry> {
+    let registry = if modules.is_empty() {
+        load_registry_for_unchecked(ctx, modules, scope)?
+    } else {
+        super::load_relation_module_set_registry(ctx, modules)?
+    };
+    if registry.dropped_declarations().any(|(_, declaration)| {
+        declaration.kind != quire_rs::traceability::DeclarationKind::RequiredRelation
+    }) {
+        super::require_complete_model(&registry)?;
+    }
+    Ok(registry)
+}
+
+fn load_registry_for_unchecked(
+    ctx: &Ctx,
+    modules: &[String],
+    scope: &Path,
+) -> anyhow::Result<Registry> {
     let registry = if !modules.is_empty() {
         super::load_module_set_registry(ctx, modules)?
     } else if scope.join("manifest.yaml").is_file() {
@@ -841,8 +905,6 @@ pub(super) fn load_registry_for(
     } else {
         super::validate::load_scoped_with_defaults(ctx, scope)?
     };
-    // Every caller computes over the merged model (FR-058-AC-47).
-    super::require_complete_model(&registry)?;
     Ok(registry)
 }
 

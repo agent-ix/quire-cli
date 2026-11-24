@@ -19,7 +19,7 @@ path = "src/main.rs"
 
 [dependencies]
 ix-cli-kit = { git = "https://github.com/agent-ix/ix-cli-kit", branch = "main", features = ["self-update"] }
-quire-rs = { git = "https://github.com/agent-ix/quire-rs", rev = "b6beef4df8326fdd4323dfeb803075563ccdc350" }
+quire-rs = { git = "https://github.com/agent-ix/quire-rs", rev = "87e9429677bbab95bc4247a64e83e11ed5f2f7d0" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use quire_cli::safety;
-use quire_rs::traceability::RelationDirection;
+use quire_rs::traceability::{DeclarationKind, RelationDirection};
 use quire_rs::{
     design_join, relation_report, LinkedEntry, RelationReport, RelationReportMember, RelationRow,
     RowDocument, RowState, Verification,
@@ -38,9 +38,10 @@ pub struct Args {
 
     /// Module directory supplying `traceability.required_relations`,
     /// `design_relations` with `--design`, or `flow_rules` with `--flow`.
-    /// Repeatable; the roots REPLACE ambient discovery (see `quire coverage`).
-    /// Without it, ambient discovery is bounded by the first `--repo` member
-    /// only, so `--repo` order decides which modules load.
+    /// Repeatable; explicit roots replace ambient discovery, with only exact
+    /// installed providers from their `semantic.imports` added as dependencies.
+    /// Without it, ambient discovery is bounded by the first `--repo` member,
+    /// so `--repo` order decides which modules load.
     #[arg(long, value_name = "PATH")]
     pub module: Vec<String>,
 
@@ -120,7 +121,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     };
 
     let discovery: PathBuf = corpus.members[0].root.clone();
-    let registry = super::coverage::load_registry_for(ctx, &args.module, &discovery)?;
+    let registry = super::coverage::load_registry_for_relations(ctx, &args.module, &discovery)?;
     if args.flow {
         if registry
             .traceability()
@@ -151,6 +152,9 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     } else if registry
         .traceability()
         .is_none_or(|model| model.required_relations.is_empty())
+        && !registry
+            .dropped_declarations()
+            .any(|(_, declaration)| declaration.kind == DeclarationKind::RequiredRelation)
     {
         invalid_request!(
             "no loaded module declares `traceability.required_relations`, so there is \
@@ -162,26 +166,44 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         !registry
             .traceability()
             .is_some_and(|model| model.required_relations.iter().any(|r| &r.name == *name))
+            && !registry.dropped_declarations().any(|(_, declaration)| {
+                declaration.kind == DeclarationKind::RequiredRelation
+                    && declaration.item == name.as_str()
+            })
     }) {
         invalid_request!("unknown --relation '{unknown}': no loaded module declares it");
     }
 
-    let mut coverages = Vec::with_capacity(corpus.members.len());
+    let dropped_relations = registry
+        .dropped_declarations()
+        .any(|(_, declaration)| declaration.kind == DeclarationKind::RequiredRelation);
+    let mut matrices = Vec::with_capacity(corpus.members.len());
     for member in &corpus.members {
-        coverages.push(super::coverage::compute_report_over(
-            ctx,
-            &member.root,
-            &registry,
-            &Corpus::member_spec(member),
-        )?);
+        if dropped_relations {
+            // Coverage computation rejects any incomplete model, including a
+            // dropped relation that the relation report can safely isolate.
+            // Keep valid relation rows visible and mark their unavailable
+            // verification data as not-tracked.
+            matrices.push(Vec::new());
+        } else {
+            matrices.push(
+                super::coverage::compute_report_over(
+                    ctx,
+                    &member.root,
+                    &registry,
+                    &Corpus::member_spec(member),
+                )?
+                .coverage_matrix,
+            );
+        }
     }
     let inputs: Vec<RelationReportMember<'_>> = corpus
         .members
         .iter()
-        .zip(&coverages)
-        .map(|(member, coverage)| RelationReportMember {
+        .zip(&matrices)
+        .map(|(member, matrix)| RelationReportMember {
             root: &member.root,
-            matrix: &coverage.coverage_matrix,
+            matrix,
         })
         .collect();
     let report = if args.design {
@@ -199,6 +221,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             primary_line!("{}", ix_cli_kit::json::encode(flow, ctx.pretty)?);
         } else {
             primary!("{}", render_flow_human(flow));
+        }
+        if !report.errors.is_empty() {
+            emit_dropped_relation_errors(ctx, &report);
+            partial_report!("{} dropped required relation(s)", report.errors.len());
         }
         if args.strict {
             if !flow.denials.is_empty() {
@@ -224,6 +250,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         } else {
             primary!("{}", render_health_human(&projected));
         }
+        if !report.errors.is_empty() {
+            emit_dropped_relation_errors(ctx, &report);
+            partial_report!("{} dropped required relation(s)", report.errors.len());
+        }
         if args.strict && !projected.gaps.is_empty() {
             partial_report!(
                 "{} health-data-flow gap(s) (--strict)",
@@ -239,6 +269,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         primary!("{}", render_human(&report, args.design));
     }
 
+    if !report.errors.is_empty() {
+        emit_dropped_relation_errors(ctx, &report);
+        partial_report!("{} dropped required relation(s)", report.errors.len());
+    }
+
     if args.strict {
         let problems = strict_problems(&report);
         if !problems.is_empty() {
@@ -246,6 +281,16 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+fn emit_dropped_relation_errors(ctx: &Ctx, report: &RelationReport) {
+    for error in &report.errors {
+        let message = format!(
+            "error: dropped relation {} from module {}: {}",
+            error.item, error.module, error.reason
+        );
+        ix_cli_kit::streams::Record::error("DroppedRelation", &message).emit(ctx.diagnostics);
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -742,6 +787,12 @@ fn design_element(document: &RowDocument, realized: Option<&[String]>) -> String
 /// entries beneath, and the relation's summary last.
 fn render_human(report: &RelationReport, design: bool) -> String {
     let mut out = String::new();
+    for error in &report.errors {
+        out.push_str(&format!(
+            "error: dropped relation {} from module {}: {}\n",
+            error.item, error.module, error.reason
+        ));
+    }
     for section in &report.relations {
         out.push_str(&format!(
             "relation {} ({}, check {})\n",

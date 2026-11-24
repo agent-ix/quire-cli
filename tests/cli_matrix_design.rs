@@ -295,7 +295,9 @@ fn json_carries_the_engines_design_key_and_omits_it_out_of_scope() {
     let second = f.matrix(&r, &["--format", "json"]);
     assert_eq!(first.stdout, second.stdout, "two runs are byte-identical");
     let value = json(&first);
-    let entries = value["coverage_matrix"].as_array().expect("array");
+    let entries = value["coverage_matrix"]["entries"]
+        .as_array()
+        .expect("entries");
     let covered = &entries[0];
     assert_eq!(covered["design"][0]["state"], "covered");
     assert_eq!(covered["design"][0]["elements"][0]["kind"], "Lantern");
@@ -324,7 +326,9 @@ fn json_carries_the_engines_design_key_and_omits_it_out_of_scope() {
         &["chk-a"],
     );
     let value = json(&f.matrix(&r, &["--format", "json"]));
-    assert!(value["coverage_matrix"][0].get("design").is_none());
+    assert!(value["coverage_matrix"]["entries"][0]
+        .get("design")
+        .is_none());
 }
 
 #[trace("FR-043-AC-4", "FR-043-AC-20")]
@@ -525,7 +529,7 @@ fn without_design_relations_the_output_is_the_matrix_without_design() {
         "{tsv}"
     );
     assert!(
-        json(&f.matrix(&r, &["--format", "json"]))["coverage_matrix"][0]
+        json(&f.matrix(&r, &["--format", "json"]))["coverage_matrix"]["entries"][0]
             .get("design")
             .is_none()
     );
@@ -602,9 +606,9 @@ fn a_sibling_repository_realizes_a_requirement_and_repos_stay_distinct() {
         "{tsv}"
     );
     let value = json(&f.matrix_repos(&[("o/a", &a), ("o/b", &b)], &["--format", "json"]));
-    assert_eq!(value["coverage_matrix"][0]["repo"], "o/a");
+    assert_eq!(value["coverage_matrix"]["entries"][0]["repo"], "o/a");
     assert_eq!(
-        value["coverage_matrix"][0]["design"][0]["elements"][0]["repo"],
+        value["coverage_matrix"]["entries"][0]["design"][0]["elements"][0]["repo"],
         "o/b"
     );
 
@@ -912,4 +916,105 @@ fn a_retired_requirement_keeps_its_gap_without_failing_strict() {
         design_lines(&stderr(&out)),
         ["design gap: spec/GLY-001.md glyph-dark"]
     );
+}
+
+#[trace("FR-026-AC-17", "FR-043-AC-27")]
+#[test]
+fn dropped_required_relation_errors_preserve_matrix_entries_in_every_format() {
+    let dropped = "  - name: dropped-relation\n    from: Glyph\n    edges: [kindles]\n    to: [Lantern]\n    direction: incoming\n    check: dropped-check\n    record_keys: [missing_key]\n";
+    let f = Fixture::new(&manifest(
+        &format!("{LIT}{dropped}"),
+        "  design_relations: [glyph-has-lantern]\n",
+    ));
+    let r = f.repo(
+        "r",
+        &[glyph("GLY-001", &[], &[("chk-a", "A criterion.")])],
+        &["chk-a"],
+    );
+
+    let json_out = f.matrix(&r, &["--format", "json"]);
+    assert_eq!(code(&json_out), 1, "{}", stderr(&json_out));
+    let payload = json(&json_out);
+    let matrix = &payload["coverage_matrix"];
+    let entries = matrix["entries"].as_array().expect("entries");
+    let errors = matrix["errors"].as_array().expect("errors");
+    assert_eq!(
+        entries.len(),
+        1,
+        "valid sibling entry must survive: {matrix}"
+    );
+    assert_eq!(entries[0]["document"], "spec/GLY-001.md");
+    assert_eq!(entries[0]["criteria"][0]["id"], "chk-a");
+    assert_eq!(errors.len(), 1, "{matrix}");
+    let expected_reason = "merged selected traceability model: required_relations entry 'dropped-relation' selects `record_keys` entry 'missing_key', which no endpoint archetype (Glyph, Lantern) declares in its resolved data_schema";
+    assert_eq!(
+        errors,
+        &[serde_json::json!({
+            "item": "dropped-relation",
+            "module": f.module(),
+            "reason": expected_reason,
+        })]
+    );
+    let expected_human = format!(
+        "error: dropped relation {} from module {}: {}",
+        "dropped-relation",
+        f.module(),
+        expected_reason
+    );
+    let expected_tsv = format!(
+        "error\tdropped relation\tdropped-relation\t{}\t{}",
+        f.module(),
+        expected_reason
+    );
+
+    let human = f.matrix(&r, &["--format", "human"]);
+    assert_eq!(code(&human), 1, "{}", stderr(&human));
+    let human_text = stdout(&human);
+    assert!(
+        human_text.starts_with(&format!("{expected_human}\n")),
+        "{human_text}"
+    );
+    assert!(human_text.contains("spec/GLY-001.md"), "{human_text}");
+    assert!(human_text.contains("chk-a  tagged"), "{human_text}");
+
+    let markdown = f.matrix(&r, &["--format", "markdown"]);
+    assert_eq!(code(&markdown), 1, "{}", stderr(&markdown));
+    assert!(stdout(&markdown).contains("| chk-a | A criterion. |"));
+    assert!(
+        stderr(&markdown).contains(&expected_human),
+        "{}",
+        stderr(&markdown)
+    );
+
+    let tsv = f.matrix(&r, &["--format", "tsv"]);
+    assert_eq!(code(&tsv), 1, "{}", stderr(&tsv));
+    assert!(stdout(&tsv).starts_with("document\tcriterion\tdesign\tdesign_state\t"));
+    assert!(stdout(&tsv).contains("spec/GLY-001.md\tchk-a\t\tuncovered\ttagged\t"));
+    assert!(stderr(&tsv).contains(&expected_tsv), "{}", stderr(&tsv));
+
+    for format in ["json", "human", "markdown", "tsv"] {
+        let strict = f.matrix(&r, &["--format", format, "--strict"]);
+        assert_eq!(code(&strict), 1, "{format}: {}", stderr(&strict));
+        assert!(
+            stderr(&strict).contains("design gap: spec/GLY-001.md glyph-dark"),
+            "{format}: {}",
+            stderr(&strict)
+        );
+        match format {
+            "json" => assert_eq!(json(&strict)["coverage_matrix"], matrix.clone()),
+            "human" => {
+                assert!(stdout(&strict).starts_with(&format!("{expected_human}\n")));
+                assert!(stdout(&strict).contains("spec/GLY-001.md"));
+            }
+            "markdown" => {
+                assert!(stdout(&strict).contains("| chk-a | A criterion. |"));
+                assert!(stderr(&strict).contains(&expected_human));
+            }
+            "tsv" => {
+                assert!(stdout(&strict).contains("spec/GLY-001.md\tchk-a\t"));
+                assert!(stderr(&strict).contains(&expected_tsv));
+            }
+            _ => unreachable!(),
+        }
+    }
 }

@@ -47,14 +47,24 @@ mitigated hazard lives elsewhere, is reachable from `validate` and not only from
 `--repo`, `validate --okf` validates every member's documents against the one corpus and each
 finding names the member identity. `--repo` together with `--scope`, or with the positional bundle `<DIR>` of FR-014's `--okf` form, is an error, and `--repo` without `--okf` is an error on `validate`.
 
-`--scope` names one repository, loaded as a corpus of one member with no identity. `--module` and
-its closed, ordered semantics are those of FR-017. Without `--module`, ambient module discovery is
-bounded by the first `--repo` member only (the member's own `manifest.yaml` or repo-local modules are
-used when it is listed first and ignored otherwise), so `--repo` order decides which modules load. `--relation` is repeatable and restricts the
-report to the named declarations.
+`--scope` names one repository, loaded as a corpus of one member with no identity. `--module` keeps
+FR-017's explicit roots and their order. For `relations` only, the CLI also loads the installed
+providers named by each explicit module's `semantic.imports`, matching both the provider's
+`semantic.package` and top-level manifest `version` exactly; it follows those imports transitively.
+It searches the installed module roots (`IX_FILAMENT_MODULES_PATH`, `IX_SCHEMA_PATH`, then the
+default install root), adds only exact matches after the explicit roots, and leaves missing-provider
+diagnostics to quire-rs. Unrelated installed modules do not load, and the CLI adds no vocabulary or
+fallback provider of its own. Without `--module`, ambient module discovery is bounded by the first
+`--repo` member only (the member's own `manifest.yaml` or repo-local modules are used when it is
+listed first and ignored otherwise), so `--repo` order decides which modules load. `--relation` is
+repeatable and restricts the report to the named declarations.
 
-An error in this section exits 3 ([FR-007](./FR-007-exit-codes.md)) with a diagnostic naming the
-cause; a run that emits a complete report and then fails `--strict` exits 1.
+Invalid requests in this section exit 3 ([FR-007](./FR-007-exit-codes.md)) with a diagnostic naming
+the cause and nothing on stdout; a run that emits a complete report and then fails `--strict` exits
+1. When quire-rs drops a `required_relations` declaration, the CLI retains and emits the complete
+report for valid sibling declarations, reports each dropped relation, and exits 1 regardless of
+`--strict`. A drop of any non-`required_relations` declaration remains an invalid request and exits 3
+with nothing on stdout.
 
 ## Behavior
 
@@ -66,6 +76,12 @@ cause; a run that emits a complete report and then fails `--strict` exits 1.
 - `--json` writes the quire-rs report on stdout and nothing else, with rows carrying document id,
   linked ids and per-document verification as the engine produced them. It honours `--pretty`
   ([FR-008](./FR-008-json-output-encoding.md)).
+- A dropped `required_relations` declaration remains in the engine-owned `RelationReport.errors`
+  array for default and `--design` JSON output. Human output prints each error before report entries
+  as `error: dropped relation <item> from module <module>: <reason>`. `--flow` and
+  `--health-data-flows` retain their own stdout schemas and write the same error line per drop to
+  stderr. These completed reports exit 1 regardless of `--strict`; a dropped non-relation
+  declaration exits 3 with nothing on stdout.
 - Each document entry of a `--json` row (the row's `document` and each resolved `linked` entry)
   carries, unchanged, whatever selected `record` fields quire-rs
   [FR-084](ix://agent-ix/quire-rs/FR-084) supplies for it; when FR-084 omits `record` the entry has
@@ -114,6 +130,8 @@ cause; a run that emits a complete report and then fails `--strict` exits 1.
 | FR-030-AC-24 | `quire validate --okf --repo o/a=<A> --repo o/b=<B> --module $M` over a fixture where the module declares an `exclude: ['spec/fixtures/**']` glob on a trace target, with a broken fixture under `spec/fixtures/` in both members: the glob excludes the fixture in `o/a` and in `o/b` when it resolves against each member's own `<DIR>`, and without the glob each member reports its own finding, so each member's declarations resolve against its own `<DIR>`, not `<DIR>/spec`. | Test |
 | FR-030-AC-25 | `quire relations --repo o/a=<A> --repo o/b=<B>` without `--module`, where `<A>` and `<B>` each hold a `manifest.yaml` declaring a differently named relation, reports only the relation of the first `--repo` member, in either order. | Test |
 | FR-030-AC-26 | `quire relations --scope <DIR> --module $M --json` over a fixture module declaring two relation declarations over the same verb, each setting `record_keys` to a key that at least one document entry and at least one resolved `linked` entry of that declaration's rows state, so the quire-rs FR-084 report holds a non-empty `record` on such an entry in both declarations, emits for the rows of both declarations the `document` and `linked` records unchanged from that report, and emits no `record` and no `regulatedCategories` key on an entry for which FR-084 omits it. A CLI that drops `record` therefore fails this criterion. | Test |
+| FR-030-AC-27 | With only a security module explicit, whose `semantic.imports` pins process `0.3.0`, architecture `0.5.0` and ISO `0.3.0`, `quire relations` loads only the installed providers matching those package/version pairs and retains the security module's relations using each provider's edge vocabulary; unrelated installed modules are absent, and no `semantic.import-unresolved` diagnostic is emitted. | Test |
+| FR-030-AC-28 | With one `required_relations` declaration dropped for an undeclared `record_keys` kind beside a valid sibling, default and `--design` JSON preserve the engine's `RelationReport.errors` objects unchanged and the complete valid report; default and `--design` human output print each error before entries exactly as `error: dropped relation <item> from module <module>: <reason>`. Default, `--design`, `--flow` and `--health-data-flows` retain their complete valid report (with the latter two preserving their own stdout schema), write one such error line per dropped relation to stderr, and exit 1 regardless of `--strict`; a dropped non-`required_relations` declaration instead exits 3 with nothing on stdout. | Test |
 
 ## Dependencies
 

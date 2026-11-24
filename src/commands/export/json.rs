@@ -235,8 +235,20 @@ fn member_table(out: &mut Markdown, heading: &str, rows: &[&Map<String, Value>],
 
 fn matrix(document: &Map<String, Value>, out: &mut Markdown) -> Shape {
     let entries = match document.get("coverage_matrix") {
-        None => Vec::new(),
-        Some(value) => array_of_objects(value, "coverage_matrix")?,
+        None => return Err("'coverage_matrix' member is missing".to_string()),
+        Some(Value::Object(matrix)) => {
+            let errors = array_of_objects(required(matrix, "errors")?, "coverage_matrix.errors")?;
+            if let Some(error) = errors.first() {
+                let item = cell_text(required(error, "item")?);
+                let module = cell_text(required(error, "module")?);
+                let reason = cell_text(required(error, "reason")?);
+                return Err(format!(
+                    "coverage_matrix.errors contains dropped relation {item} from module {module}: {reason}"
+                ));
+            }
+            array_of_objects(required(matrix, "entries")?, "coverage_matrix.entries")?
+        }
+        Some(_) => return Err("'coverage_matrix' must be a DesignMatrix object".to_string()),
     };
     if entries.is_empty() {
         out.line(MATRIX_EMPTY);

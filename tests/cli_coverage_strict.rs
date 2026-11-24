@@ -314,7 +314,7 @@ fn matrix_retains_retired_status_without_hiding_a_live_gap() {
         match format {
             "json" => {
                 let payload: Value = serde_json::from_slice(&out.stdout).unwrap();
-                let criterion = &payload["coverage_matrix"][0]["criteria"][0];
+                let criterion = &payload["coverage_matrix"]["entries"][0]["criteria"][0];
                 assert_eq!(criterion["id"], "FR-038-AC-92");
                 assert_eq!(criterion["statement"], WITHDRAWAL_REASON);
                 assert_eq!(criterion["status"], "retired");
@@ -344,7 +344,7 @@ fn matrix_retains_retired_status_without_hiding_a_live_gap() {
     assert_eq!(out.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&out.stderr).contains("1 untagged criterion(s)"));
     let payload: Value = serde_json::from_slice(&out.stdout).unwrap();
-    let criteria = payload["coverage_matrix"][0]["criteria"]
+    let criteria = payload["coverage_matrix"]["entries"][0]["criteria"]
         .as_array()
         .unwrap();
     assert_eq!(criteria.len(), 2);

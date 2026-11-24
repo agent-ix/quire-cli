@@ -9,6 +9,10 @@ relationships:
   - target: "ix://agent-ix/quire-cli/spec/functional/FR-017"
     type: "extends"
     cardinality: "1:1"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-084"
+    type: "references"
+  - target: "ix://agent-ix/quire-rs/spec/functional/FR-092"
+    type: "references"
 ---
 
 ## Description
@@ -61,6 +65,17 @@ its trace tags, on demand, every time. The rendered result goes on **stdout**;
 refusal diagnostics go on **stderr** — the same split every other subcommand
 uses (FR-006).
 
+When quire-rs `design_matrix` supplies errors for dropped relation declarations, `matrix` SHALL
+preserve the returned `DesignMatrix` object in the JSON output envelope. Its `entries` and `errors`
+fields are arrays, and each error is the engine's `{module, item, reason}` object. Human output
+SHALL render each error before the matrix entries as exactly
+`error: dropped relation <item> from module <module>: <reason>`. Markdown keeps its fixed stdout
+shape and writes that same human-readable line to stderr. TSV keeps its fixed stdout schema and
+writes one five-field stderr record per error, with no header:
+`error\tdropped relation\t<item>\t<module>\t<reason>`. Each field's tabs, CRs and LFs are replaced
+with spaces so the record is exactly one line. `matrix` SHALL emit all valid entries and exit 1 for
+any such error, with or without `--strict`; it does not construct or rewrite engine error objects.
+
 ```
 quire matrix [--scope <DIR>] [--module <PATH>]...
              [--format markdown|json|tsv] [--strict]
@@ -107,14 +122,14 @@ reconstruct a statement from any other field or any other surface.
 
 ### §B — Zero population is zero criteria, and has one shape
 
-`coverage_matrix` is a JSON array of requirement entries (the
-`requirements[]` of FR-050-AC-47/48 is the array itself), and the engine omits
-the key whenever that array would be empty (FR-050-AC-51: `Vec` with
-`skip_serializing_if = "Vec::is_empty"` at quire-rs). The
-zero-population state — **zero criteria** — therefore has exactly one shape:
-the key is absent. Markdown renders it as the single empty-state line (§C),
-TSV as the header alone (§F), `--strict` fails it (§G, AC-10), and
-`--format json` omits the key exactly as the engine does (§E).
+The engine's `DesignMatrix.entries` is the ordered array of requirement entries
+(the `requirements[]` of FR-050-AC-47/48); `DesignMatrix.errors` is the array of
+dropped relation declarations, empty when there are none. The JSON envelope
+always carries the `DesignMatrix` object as `coverage_matrix`, including when
+`entries` is empty. The zero-population state — **zero criteria** — is therefore
+`coverage_matrix.entries: []` and `coverage_matrix.errors: []`. Markdown renders it as
+the single empty-state line (§C), TSV as the header alone (§F), and `--strict`
+fails it (§G, AC-10).
 
 ### §C — Markdown: one table per requirement, in the report's own order
 
@@ -193,13 +208,11 @@ rule or a wire contract (AC-6, AC-8).
 
 ### §E — JSON: the computed field verbatim, plus provenance
 
-`--format json` emits, on stdout, `{"coverage_matrix": <value>, "engine":
-{...}}` — the engine's own `coverage_matrix` value exactly as `CoverageReport`
-carries it: a bare array of `{document, criteria}` requirement entries, never
-re-wrapped by this CLI in an object of its own. The key is **absent** when the
-engine omits it (zero population, §B) and is never emitted present-but-empty.
-The CLI adds no shape of its own: whatever the engine serializes for the
-field is what this surface emits, verbatim. The envelope adds the
+`--format json` emits, on stdout, `{"coverage_matrix": {"entries": [...], "errors":
+[...]}, "engine": {...}}`. The value is quire-rs's serialized `DesignMatrix` object: `entries` is
+the array of `{document, criteria}` requirement entries and `errors` is the array of
+`{module, item, reason}` objects (empty when there are no errors). The CLI passes both fields
+through unchanged; it does not project the entries or reconstruct the errors. The envelope adds the
 FR-008-CR-104 provenance block every JSON payload in this CLI carries, and
 nothing else — the same `engine::attach` call every other JSON surface uses
 (AC-7).
@@ -245,6 +258,10 @@ from any other part of the same `CoverageReport`.
 - the **FR-007** invalid-request exits: 3 for a load/resolution failure
   (`MissingDocumentRoot`, no `traceability:` model, a corrupt module), 2 for
   an argv parse error — identically to every other subcommand.
+- A non-empty `DesignMatrix.errors` exits 1 after the complete report is
+  emitted, independently of `--strict`; human and JSON output carry each error
+  as specified above, Markdown emits the exact human-readable line on stderr,
+  and TSV emits the five-field error record specified above on stderr.
 
 `matrix` deliberately does **not** inherit `coverage`'s FR-017-AC-22 unread-
 measurement gate (`status-column-matches-nothing` / `hollow-denominator`):
@@ -274,9 +291,9 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 | FR-026-AC-4 | Each requirement renders as the exact heading `## <document>` with the requirement's own `document` value verbatim (no link, no backticks), followed by one table with header `Criterion \| Statement \| Binders \| Status`, rows in the engine's own per-document criteria order | Test |
 | FR-026-AC-5 | A criterion's `Binders` cell lists each `(path, line, column)` binder as `path:line:column`, separated by `, `, in the engine's own binder order — never collapsing two same-line binders that differ only by column; a binder the engine marks `ignored` carries a trailing ` (ignored)`; a criterion with zero binders renders the literal `(none)` | Test |
 | FR-026-AC-6 | A `Statement` cell is the criterion's own `statement` field (never re-derived) with every tab/newline/CR replaced by a space, truncated first — left intact at ≤80 Unicode scalar values or cut to 77 scalar values plus a trailing `...` above that — and only then pipe-escaped (`\|`), so escaping never splits the cut and never counts toward the 80-character budget; `--format json`/`--format tsv` carry the untruncated, unescaped text for the identical criterion | Test |
-| FR-026-AC-7 | `--format json` emits `{"coverage_matrix": <value>, "engine": {cli, engine, capabilities}}` on stdout; the `coverage_matrix` key carries the engine's own value unmodified — a bare array of requirement entries, never re-wrapped in an object — and is absent when the engine omits it (zero population), never present-but-empty; two runs over identical inputs are byte-identical | Test |
+| FR-026-AC-7 | `--format json` emits `{"coverage_matrix": <DesignMatrix>, "engine": {cli, engine, capabilities}}` on stdout; `coverage_matrix.entries` and any non-empty `coverage_matrix.errors` carry the engine's own object fields unchanged, and two runs over identical inputs are byte-identical | Test |
 | FR-026-AC-8 | `--format tsv` emits header `document\tcriterion\tstatus\tbinders\tstatement`, one untruncated, unescaped record per criterion in the JSON/markdown order, `binders` comma-separated as `path:line:column` with the same `(ignored)` marker and empty (not `(none)`) at zero; a zero-criteria report (§B) emits the header alone | Test |
-| FR-026-AC-9 | The zero-population state — `coverage_matrix` absent, whether the module declares no `obligations:` source or declares one that derives nothing — renders in markdown as the single line `No obligations matched this scope.` (no heading, no table) and in TSV as the header alone; `--format json` omits the key, as the engine does | Test |
+| FR-026-AC-9 | The zero-population state — `coverage_matrix.entries` empty, whether the module declares no `obligations:` source or declares one that derives nothing — renders in markdown as the single line `No obligations matched this scope.` (no heading, no table) and in TSV as the header alone; JSON retains the `DesignMatrix` object with empty `entries` and no `errors` | Test |
 | FR-026-AC-10 | `--strict`'s pass condition requires **at least one** criterion, all `qualified-record`/`tagged`/`retired`/`method-without-symbol`: it exits 1 on the zero-population state (§B) exactly as it exits 1 on an `untagged`/`tagged-by-ignored-test` criterion — a report measuring nothing must not exit 0 (FR-050-AC-14/CR-035 argument, applied to the derived-obligation population) | Test |
 | FR-026-AC-11 | A criterion computing `method-without-symbol` never fails `--strict` on its own, regardless of its binder count, and renders in every format exactly like any other criterion — its own `Status`/`status` cell/field states `method-without-symbol` verbatim | Test |
 | FR-026-AC-12 | `matrix` does not accept `--severity` (an attempt is an ordinary clap argv error, exit 3, FR-007-AC-5) and runs none of the `unbacked-row`/`status-lie`/`untracked-symbol`/`undeclared-status` checks; a module's `grammar_severity` promotion of any of those checks has no effect on `matrix`'s exit code, because `coverage_matrix` carries none of their record kinds. `matrix` also does not inherit `coverage`'s FR-017-AC-22 unread-measurement gate (`status-column-matches-nothing`/`hollow-denominator`): `matrix` consumes the engine's computed status, including locus-scoped retirement metadata, without independently evaluating a status column | Test |
@@ -284,6 +301,7 @@ non-strict zero-population and fully-tagged cases), 1 for every refusal above
 | FR-026-AC-14 | `matrix` never opens a file for writing: no flag names an output path, and running it in every format against a fixture repository leaves every file anywhere under `<scope>` — not only under `<scope>/spec` — byte-identical before and after the run | Test |
 | FR-026-AC-15 | An engine-supplied `qualified-record` criterion renders that exact status in Markdown, JSON and TSV without fabricating a source binder; its nonempty population passes `--strict` by itself, while a mixed population containing an `untagged` or `tagged-by-ignored-test` criterion still exits 1. The CLI does not construct qualification records or add an evidence-input surface. | Test |
 | FR-026-AC-16 | In every output format, `matrix` SHALL emit engine coverage diagnostics and unmatched annotation IDs on stderr with the authored file and line when available. A forbidden source-tag range retains its `range-in-trace-tag` explanation; an ID not read by the module's declared trace grammar is named with the symbol and guidance to write it in the declared marker form. These advisories do not alter the engine's bindings, stdout matrix payload, or strict verdict. Correct marker controls emit neither range nor unmatched-tag warnings. | Test |
+| FR-026-AC-17 | When `design_matrix` returns a dropped-relation error beside valid entries, JSON preserves the engine's `DesignMatrix` with unchanged `entries` and `errors` arrays; human prints `error: dropped relation <item> from module <module>: <reason>` before entries; Markdown preserves stdout shape and writes that exact human-readable line to stderr; TSV preserves stdout schema and writes `error\tdropped relation\t<item>\t<module>\t<reason>` on stderr with tabs, CRs and LFs in fields replaced by spaces; every format retains all valid entries and exits 1 with and without `--strict`. | Test |
 
 > **PLAT-1150 change note (2026-10-05):** At quire-driver `e7f6e89`, the
 > engine already records source ranges and IDs dropped after `and`, but matrix

@@ -53,7 +53,8 @@ whether or not any module declares `design_relations`; the criteria rows then ar
 ## Behavior
 
 - **Computation.** `matrix` calls quire-rs `design_matrix` in place of `coverage_matrix` and renders the
-  entries. When no loaded module declares `design_relations`, nothing below about design applies and, for a
+  returned `DesignMatrix.entries`. It also preserves the object's `errors`, which identify dropped
+  relation declarations. When no loaded module declares `design_relations`, nothing below about design applies and, for a
   single `--scope`, output is FR-026's unchanged.
 - **Design cell.** A criterion's design cell is its `design_elements`, each resolved to the entry's
   element and printed as FR-041 prints it (`id (kind)`, with its repo when present as `<repo>/<id> (kind)`; `id` alone when the
@@ -70,12 +71,17 @@ whether or not any module declares `design_relations`; the criteria rows then ar
 - **Markdown.** `Design` is inserted between `Statement` and `Binders`:
   `Criterion | Statement | Design | Binders | Status | Requirement Criticality`. The `Statement` cell follows
   [FR-026](./FR-026-matrix-subcommand.md) §C and §D. The `Design` cell is never truncated, so no marker is
-  cut; only the `|` escaping applies to it.
-- **Human.** Plain text, one block per requirement: the `document` path, the gap lines above, then
+  cut; only the `|` escaping applies to it. A dropped-relation error leaves the Markdown stdout shape
+  unchanged and writes FR-026's human-readable error line to stderr.
+- **Human.** Before the requirement blocks, print each dropped-relation error as
+  `error: dropped relation <item> from module <module>: <reason>`, in engine order. Then print plain
+  text, one block per requirement: the `document` path, the gap lines above, then
   `  design: <union of the entry's elements, then the design cell's markers | n/a | (none)>`, with `n/a` for an entry with no `design` key and `(none)` when the union is empty and nothing is appended, then one line per criterion
   `  <criterion>  <status>  design: <cell>  tests: <binders or (none)>`. The format has no truncation.
-- **JSON.** The engine's entries verbatim, each with its `design` key as the engine carries it, in
-  FR-026's envelope. Element kind is `kind`. The key is absent for an entry out of scope.
+- **JSON.** The serialized `DesignMatrix` object in FR-026's envelope passes through unchanged:
+  `entries` retains each engine entry and its `design` key, and `errors` is the engine's array of
+  `{module, item, reason}` objects, empty when there are no dropped relations. Element kind is
+  `kind`. The `design` key is absent for an entry out of scope.
 - **TSV.** `design` and `design_state` are inserted after `criterion`:
   `document criterion design design_state status binders statement requirement_criticality`. `design` is
   the comma-separated `[kind:]<id>` of the criterion's elements, `[kind:]<repo>/<id>` for an element with
@@ -83,6 +89,9 @@ whether or not any module declares `design_relations`; the criteria rows then ar
   block is `uncovered`, otherwise `covered`, and empty for an entry with no `design` key. With `--repo` the
   first column `repo` precedes `document` (empty when a member has no identity). An entry with `criteria: []` emits one record with `document`,
   `design` and `design_state` set and every other field empty.
+  Dropped-relation errors do not change TSV stdout; each is written to stderr as one five-field
+  record, with no header: `error\tdropped relation\t<item>\t<module>\t<reason>`. Tabs, CRs and LFs
+  within each field are replaced by spaces so the record is exactly one line.
 - **Zero population.** FR-026 §B's zero criteria means no criterion in any entry. When entries exist
   but all have `criteria: []`, Markdown and human print each entry's heading and gap and no empty-state
   line, TSV prints one record per entry, and `--strict` fails on the zero-criteria rule as well as the
@@ -104,7 +113,10 @@ fails the gate, so a module narrows the gate with `where` and holds the rule in 
 
 A `design_relations` entry naming no declared relation is the quire-rs FR-086 error: exit 3
 ([FR-007](./FR-007-exit-codes.md)) naming the entry, with nothing on stdout. `--repo` with `--scope`
-is exit 3 as in FR-030.
+is exit 3 as in FR-030. A non-empty `DesignMatrix.errors` emits all valid entries and exits 1,
+independently of `--strict`. JSON retains the error objects, human prints the specified error lines
+before entries, Markdown writes the same human-readable line to stderr while preserving stdout shape,
+and TSV writes the five-field record above to stderr while preserving its stdout schema.
 
 ## Acceptance Criteria
 
@@ -136,6 +148,7 @@ is exit 3 as in FR-030.
 | FR-043-AC-24 | Under `--repo`, Markdown and human print `repo: <repo>` under the heading before the `Design gap:` lines, TSV has a leading `repo` column, an element in another repo prints `[kind:]<repo>/<id>`, and two members with the same document path are distinguishable on stdout and in the strict stderr line. | Test |
 | FR-043-AC-25 | In `--format human`, the `design:` line of an `uncovered` entry with no elements shows `no design element (<check>)`, of an entry with no `design` key shows `n/a`, and of a `covered` entry with no elements shows `(none)`. | Test |
 | FR-043-AC-26 | A requirement with two `uncovered` design relations fails `--strict` with two stderr lines, one per `<check>`, in block order. | Test |
+| FR-043-AC-27 | When `design_matrix` returns dropped-relation errors beside valid entries, JSON preserves the engine's `DesignMatrix` object and errors array; human prints `error: dropped relation <item> from module <module>: <reason>` before entries; Markdown preserves stdout shape and writes that exact human-readable line to stderr; TSV preserves its stdout schema and writes `error\tdropped relation\t<item>\t<module>\t<reason>` to stderr, replacing tabs, CRs and LFs within fields with spaces; all formats retain valid entries and exit 1, with and without `--strict` (FR-026-AC-17). | Test |
 
 ## Dependencies
 

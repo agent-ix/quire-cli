@@ -471,6 +471,181 @@ fn module_discovery_without_module_is_bounded_by_the_first_repo_member() {
     assert!(text.contains("concern-is-handled") && !text.contains("concern-is-addressed"));
 }
 
+#[trace("FR-030-AC-28")]
+#[test]
+fn dropped_relation_is_reported_while_valid_siblings_render_and_fail() {
+    let world = World::new();
+    let module = manifest(true, false)
+        .replace(
+            "  required_relations:\n",
+            "  design_relations: [gold-rule-addresses]\n  required_relations:\n",
+        )
+        .replace(
+            "check: unaddressed-concern\n",
+            "check: unaddressed-concern\n    record_keys: [missing-key]\n",
+        );
+    // Keep a valid relation to prove that a dropped declaration does not
+    // suppress its siblings.
+    fs::write(world.module_dir().join("manifest.yaml"), &module).unwrap();
+    let scope = world.repo(
+        "repo",
+        &[
+            ("CON-001", concern("CON-001")),
+            ("RULE-001", rule("RULE-001", Some("gold"), &[], &[])),
+        ],
+        &[],
+    );
+
+    let json = relations(&world, &scope, &["--json"]);
+    assert_eq!(json.status.code(), Some(1), "{}", stderr(&json));
+    let report = json_of(&json);
+    assert_eq!(report["errors"][0]["item"], "concern-is-addressed");
+    assert_eq!(report["errors"][0]["module"], "relations-fixture");
+    assert!(report["errors"][0]["reason"]
+        .as_str()
+        .unwrap()
+        .contains("missing-key"));
+    assert_eq!(report["relations"].as_array().unwrap().len(), 1);
+    assert_eq!(report["relations"][0]["name"], "gold-rule-addresses");
+    let error_line = format!(
+        "error: dropped relation {} from module {}: {}",
+        report["errors"][0]["item"].as_str().unwrap(),
+        report["errors"][0]["module"].as_str().unwrap(),
+        report["errors"][0]["reason"].as_str().unwrap()
+    );
+    assert_eq!(
+        stderr(&json).matches(&error_line).count(),
+        1,
+        "{}",
+        stderr(&json)
+    );
+
+    let design = relations(&world, &scope, &["--design", "--json"]);
+    assert_eq!(design.status.code(), Some(1), "{}", stderr(&design));
+    let design_report = json_of(&design);
+    assert_eq!(design_report["errors"], report["errors"]);
+    assert_eq!(design_report["relations"][0]["name"], "gold-rule-addresses");
+    assert_eq!(
+        stderr(&design).matches(&error_line).count(),
+        1,
+        "{}",
+        stderr(&design)
+    );
+
+    let human = relations(&world, &scope, &[]);
+    assert_eq!(human.status.code(), Some(1), "{}", stderr(&human));
+    let text = stdout(&human);
+    assert!(text.contains(&error_line), "{text}");
+    assert_eq!(
+        stderr(&human).matches(&error_line).count(),
+        1,
+        "{}",
+        stderr(&human)
+    );
+    assert!(text.contains("missing-key"), "{text}");
+    assert!(text.contains("relation gold-rule-addresses"), "{text}");
+
+    let strict = relations(&world, &scope, &["--json", "--strict"]);
+    assert_eq!(strict.status.code(), Some(1), "{}", stderr(&strict));
+    assert_eq!(json_of(&strict)["errors"], report["errors"]);
+}
+
+#[trace("FR-030-AC-28")]
+#[test]
+fn all_dropped_relations_still_produce_an_error_report() {
+    let world = World::new();
+    let module = manifest(true, false)
+        .replace(
+            "check: unaddressed-concern\n",
+            "check: unaddressed-concern\n    record_keys: [missing-key]\n",
+        )
+        .replace(
+            "check: gold-rule-idle\n",
+            "check: gold-rule-idle\n    record_keys: [missing-key]\n",
+        );
+    fs::write(world.module_dir().join("manifest.yaml"), module).unwrap();
+    let scope = world.repo("repo", &[("CON-001", concern("CON-001"))], &[]);
+
+    let json = relations(&world, &scope, &["--json"]);
+    assert_eq!(json.status.code(), Some(1), "{}", stderr(&json));
+    let report = json_of(&json);
+    assert_eq!(report["relations"].as_array().unwrap().len(), 0);
+    assert_eq!(report["errors"].as_array().unwrap().len(), 2);
+    let errors = report["errors"].as_array().unwrap();
+    for error in errors {
+        let line = format!(
+            "error: dropped relation {} from module {}: {}",
+            error["item"].as_str().unwrap(),
+            error["module"].as_str().unwrap(),
+            error["reason"].as_str().unwrap()
+        );
+        assert_eq!(stderr(&json).matches(&line).count(), 1, "{}", stderr(&json));
+    }
+    assert!(stdout(&relations(&world, &scope, &[])).contains("error: dropped relation"));
+}
+
+#[trace("FR-030-AC-28")]
+#[test]
+fn flow_mode_keeps_its_report_and_surfaces_dropped_relations() {
+    let world = World::new();
+    let module = manifest(true, false)
+        .replace(
+            "  required_relations:\n",
+            "  flow_rules:\n  - name: rule-present\n    subject: [Rule]\n    match: [{path: [], field: id, present: true}]\n    check: rule-present\n    rationale: Report authored rules.\n  required_relations:\n",
+        )
+        .replace(
+            "check: unaddressed-concern\n",
+            "check: unaddressed-concern\n    record_keys: [missing-key]\n",
+        );
+    fs::write(world.module_dir().join("manifest.yaml"), module).unwrap();
+    let scope = worked_example(&world);
+
+    for extra in [
+        vec!["--flow", "--json"],
+        vec!["--flow", "--json", "--strict"],
+    ] {
+        let output = relations(&world, &scope, &extra);
+        assert_eq!(output.status.code(), Some(1), "{}", stderr(&output));
+        let flow = json_of(&output);
+        assert_eq!(flow["schema"], "quire.flow-report/v1");
+        assert_eq!(flow["rules"][0]["name"], "rule-present");
+        let diagnostic = stderr(&output);
+        assert!(
+            diagnostic.contains(
+                "error: dropped relation concern-is-addressed from module relations-fixture:"
+            ),
+            "{diagnostic}"
+        );
+        assert!(diagnostic.contains("missing-key"), "{diagnostic}");
+        assert_eq!(
+            diagnostic
+                .matches("error: dropped relation concern-is-addressed")
+                .count(),
+            1,
+            "{diagnostic}"
+        );
+    }
+}
+
+#[trace("FR-030-AC-28")]
+#[test]
+fn an_unrelated_dropped_declaration_is_not_a_partial_relation_report() {
+    let world = World::new();
+    let module = manifest(true, false).replace(
+        "  required_relations:\n",
+        "  flow_rules:\n  - name: bad\n    subject: [MissingKind]\n    match: [{path: [], field: id, present: true}]\n    check: bad-check\n    rationale: Invalid.\n  required_relations:\n",
+    );
+    fs::write(world.module_dir().join("manifest.yaml"), module).unwrap();
+    let scope = worked_example(&world);
+
+    let output = relations(&world, &scope, &["--json"]);
+    assert_eq!(output.status.code(), Some(3), "{}", stderr(&output));
+    assert!(
+        output.stdout.is_empty(),
+        "no partial report for non-relation drops"
+    );
+}
+
 /// One concern per rule, each addressed by its rule; `criteria`/`tagged`
 /// describe the rule's table and tests.
 fn verdict_repo(world: &World, rules: &[(&str, &[&str], &[&str])]) -> PathBuf {
