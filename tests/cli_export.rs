@@ -1746,10 +1746,33 @@ fn a_matrix_report_yields_one_table_per_document_with_every_criterion() {
 
 #[trace("FR-031-AC-4")]
 #[test]
-fn a_matrix_report_without_coverage_matrix_yields_the_zero_population_line() {
+fn a_zero_population_matrix_object_yields_the_zero_population_line() {
     let rig = Rig::new();
     let markdown = rig.json_markdown("matrix-empty.json", "matrix", "pdf");
     assert_eq!(markdown, "No obligations matched this scope.\n\n");
+}
+
+#[trace("FR-031-AC-4", "FR-033-AC-6")]
+#[test]
+fn a_matrix_with_dropped_relation_errors_is_refused_before_conversion() {
+    let rig = Rig::new();
+    let input = rig.work("matrix-errors.json");
+    fs::write(
+        &input,
+        r#"{"coverage_matrix":{"entries":[{"document":"spec/FR-901.md","criteria":[]}],"errors":[{"item":"glyph-link","module":"modules/demo","reason":"unknown edge"}]}}"#,
+    )
+    .expect("input");
+    let output = rig.work("out.docx");
+    let result = run(rig.export_json(&input, "matrix", "docx", &output));
+    assert_eq!(result.status.code(), Some(3), "{}", stderr(&result));
+    for field in ["glyph-link", "modules/demo", "unknown edge"] {
+        assert!(stderr(&result).contains(field), "{}", stderr(&result));
+    }
+    assert!(rig.requests().is_empty(), "converter must not start");
+    assert!(
+        !output.exists(),
+        "invalid input must not produce an output file"
+    );
 }
 
 #[trace("FR-031-AC-5")]
@@ -1978,6 +2001,7 @@ fn json_that_does_not_match_its_kind_exits_3_without_a_converter() {
                 "matrices": [{"schemaVersion": "requirements-mapping-v1"}]}"#,
         ),
         ("matrix", r#"{"coverage_matrix": 5}"#),
+        ("matrix", r#"{"engine": "0.0.0"}"#),
         ("matrix", r#"{"coverage_matrix": [{"document": "d"}]}"#),
         ("matrix", "[]"),
         ("matrix", "{not json"),

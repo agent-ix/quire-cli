@@ -176,7 +176,11 @@ fn populated() -> Fixture {
 /// what the engine computed.
 fn engine_matrix(f: &Fixture) -> Option<Value> {
     let out = f.quire("coverage", &["--json"]);
-    json(&out).get("coverage_matrix").cloned()
+    let entries = json(&out)
+        .get("coverage_matrix")
+        .cloned()
+        .unwrap_or_else(|| Value::Array(Vec::new()));
+    Some(serde_json::json!({"entries": entries, "errors": []}))
 }
 
 #[trace("FR-026-AC-1")]
@@ -193,9 +197,9 @@ fn it166_a_populated_scope_renders_every_criterion_in_every_format() {
     assert_eq!(code(&json_out), 0, "{}", stderr(&json_out));
 
     let (markdown, tsv, payload) = (stdout(&markdown), stdout(&tsv), json(&json_out));
-    let json_ids: Vec<&str> = payload["coverage_matrix"]
+    let json_ids: Vec<&str> = payload["coverage_matrix"]["entries"]
         .as_array()
-        .expect("coverage_matrix array")
+        .expect("coverage_matrix.entries array")
         .iter()
         .flat_map(|r| r["criteria"].as_array().expect("criteria"))
         .map(|c| c["id"].as_str().expect("id"))
@@ -326,7 +330,12 @@ fn it168_markdown_renders_one_table_per_requirement_in_engine_order() {
 
     let engine = engine_matrix(&f).expect("engine emits coverage_matrix");
     let mut expected = String::new();
-    for (i, requirement) in engine.as_array().expect("array").iter().enumerate() {
+    for (i, requirement) in engine["entries"]
+        .as_array()
+        .expect("entries")
+        .iter()
+        .enumerate()
+    {
         if i > 0 {
             expected.push('\n');
         }
@@ -417,7 +426,7 @@ fn it169_binders_render_path_line_column_with_ignored_and_none_markers() {
 
     let engine = engine_matrix(&f).expect("coverage_matrix");
     let binders = |id: &str| -> Vec<(String, u64, u64, bool)> {
-        engine[0]["criteria"]
+        engine["entries"][0]["criteria"]
             .as_array()
             .expect("criteria")
             .iter()
@@ -510,7 +519,7 @@ fn it170_structural_characters_become_spaces_before_truncation() {
     );
     let engine = engine_matrix(&f).expect("coverage_matrix");
     assert_eq!(
-        engine[0]["criteria"][0]["statement"],
+        engine["entries"][0]["criteria"][0]["statement"],
         tabbed.as_str(),
         "the engine carries the tab verbatim"
     );
@@ -549,7 +558,7 @@ fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
         ),
     );
     let engine = engine_matrix(&f).expect("coverage_matrix");
-    let statements: Vec<String> = engine[0]["criteria"]
+    let statements: Vec<String> = engine["entries"][0]["criteria"]
         .as_array()
         .expect("criteria")
         .iter()
@@ -578,7 +587,7 @@ fn it170_statements_truncate_to_eighty_scalar_values_before_escaping() {
 
     let payload = json(&f.matrix(&["--format", "json"]));
     assert_eq!(
-        payload["coverage_matrix"][0]["criteria"][2]["statement"],
+        payload["coverage_matrix"]["entries"][0]["criteria"][2]["statement"],
         piped.as_str()
     );
     let tsv = stdout(&f.matrix(&["--format", "tsv"]));
@@ -606,10 +615,12 @@ fn it171_json_wraps_the_engine_value_verbatim_with_provenance() {
         engine_matrix(&f),
         "the engine's own value, unmodified"
     );
+    assert!(payload["coverage_matrix"].is_object(), "{payload}");
     assert!(
-        payload["coverage_matrix"].is_array(),
-        "a bare array of requirement entries: {payload}"
+        payload["coverage_matrix"]["entries"].is_array(),
+        "{payload}"
     );
+    assert_eq!(payload["coverage_matrix"]["errors"], serde_json::json!([]));
     for key in ["cli", "engine", "capabilities"] {
         assert!(
             payload["engine"].get(key).is_some(),
@@ -617,17 +628,21 @@ fn it171_json_wraps_the_engine_value_verbatim_with_provenance() {
         );
     }
 
-    // The engine omits the field when no `obligations:` source is declared,
-    // and so does this surface.
+    // Zero population keeps the object shape with empty arrays.
     let none = Fixture::new(&manifest(false, "", ""));
     none.write(
         "spec/FR-001.md",
         &fr_doc("FR-001", &[("FR-001-AC-1", "A criterion.", "Test")]),
     );
-    assert_eq!(engine_matrix(&none), None);
+    assert_eq!(
+        engine_matrix(&none).unwrap()["entries"],
+        serde_json::json!([])
+    );
     let payload = json(&none.matrix(&["--format", "json"]));
     let keys: Vec<&String> = payload.as_object().expect("object").keys().collect();
-    assert_eq!(keys, ["engine"]);
+    assert_eq!(keys, ["coverage_matrix", "engine"]);
+    assert_eq!(payload["coverage_matrix"]["entries"], serde_json::json!([]));
+    assert_eq!(payload["coverage_matrix"]["errors"], serde_json::json!([]));
 }
 
 #[trace("FR-026-AC-8")]
@@ -657,7 +672,7 @@ fn it172_tsv_emits_one_untruncated_record_per_criterion() {
     let engine = engine_matrix(&f).expect("coverage_matrix");
     let mut expected =
         String::from("document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n");
-    for requirement in engine.as_array().expect("array") {
+    for requirement in engine["entries"].as_array().expect("entries") {
         for c in requirement["criteria"].as_array().expect("criteria") {
             let binders: Vec<String> = c["binders"]
                 .as_array()
@@ -739,11 +754,11 @@ fn it173_both_zero_population_shapes_render_identically() {
             "document\tcriterion\tstatus\tbinders\tstatement\trequirement_criticality\n"
         );
 
-        // Zero population has one shape: the engine omits the key, and so
-        // does this surface.
-        assert_eq!(engine_matrix(&f), None);
+        // Zero population still carries the object and its empty arrays.
+        assert_eq!(engine_matrix(&f).unwrap()["entries"], serde_json::json!([]));
         let payload = json(&f.matrix(&["--format", "json"]));
-        assert_eq!(payload.get("coverage_matrix"), None, "{payload}");
+        assert_eq!(payload["coverage_matrix"]["entries"], serde_json::json!([]));
+        assert_eq!(payload["coverage_matrix"]["errors"], serde_json::json!([]));
     }
 }
 
@@ -841,7 +856,7 @@ fn it175_method_without_symbol_never_fails_strict() {
     let tsv = stdout(&f.matrix(&["--format", "tsv"]));
     assert_eq!(tsv.matches("\tmethod-without-symbol\t").count(), 2, "{tsv}");
     let payload = json(&f.matrix(&["--format", "json"]));
-    for c in payload["coverage_matrix"][0]["criteria"]
+    for c in payload["coverage_matrix"]["entries"][0]["criteria"]
         .as_array()
         .expect("criteria")
     {
@@ -1037,7 +1052,9 @@ fn matrix_explains_ranges_and_partially_read_trace_lists_in_every_format() {
             assert!(unmatched.contains("partial"), "{language}/{format}: symbol missing: {unmatched}");
             if format == "json" {
                 let report = json(&out);
-                let criteria = report["coverage_matrix"][0]["criteria"].as_array().unwrap();
+                let criteria = report["coverage_matrix"]["entries"][0]["criteria"]
+                    .as_array()
+                    .unwrap();
                 assert_eq!(criteria[0]["status"], "tagged");
                 for row in &criteria[1..] { assert_eq!(row["status"], "untagged"); }
             }
@@ -1133,7 +1150,9 @@ fn fr028_each_requirement_shows_only_its_own_criticality() {
 fn fr028_json_passes_requirements_through_unmodified() {
     let f = criticality_fixture(&[("FR-001", "criticality: unassigned\n"), ("FR-002", "")]);
     let payload = json(&f.matrix(&["--format", "json"]));
-    let requirements = payload["coverage_matrix"].as_array().expect("array");
+    let requirements = payload["coverage_matrix"]["entries"]
+        .as_array()
+        .expect("entries");
     let by_doc = |doc: &str| {
         requirements
             .iter()

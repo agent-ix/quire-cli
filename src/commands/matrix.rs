@@ -13,12 +13,13 @@
 use anyhow::Context;
 use clap::Parser;
 use quire_cli::safety;
+use quire_rs::corpus::{DesignMatrix, DroppedRelation};
 use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixStatus};
 use quire_rs::{design_matrix, CoverageReport, DesignMatrixEntry, RelationReportMember};
 use serde::Serialize;
 
 use crate::commands::corpus_input::{parse_repo, Corpus, RepoArg};
-use crate::commands::coverage::{compute_report_over, load_registry_for, tsv_cell, Target};
+use crate::commands::coverage::{tsv_cell, Target};
 use crate::commands::matrix_design as design;
 use crate::commands::Ctx;
 
@@ -81,13 +82,11 @@ struct View {
     repo: bool,
 }
 
-/// The JSON payload before provenance is attached. The key follows the
-/// engine's own rule — absent when there is no population — so the field
-/// reads here exactly as it does in `coverage --json`.
+/// The JSON payload before provenance is attached. `coverage_matrix` carries
+/// the engine's `DesignMatrix` object, including empty `entries` and `errors`.
 #[derive(Serialize)]
 struct Payload {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    coverage_matrix: Vec<DesignMatrixEntry>,
+    coverage_matrix: DesignMatrix,
 }
 
 /// The corpus the flags name: the `--repo` members in flag order, or the one
@@ -148,11 +147,16 @@ fn compute_matrix(
     ctx: &Ctx,
     corpus: &Corpus,
     registry: &quire_rs::Registry,
-) -> anyhow::Result<Vec<DesignMatrixEntry>> {
+) -> anyhow::Result<DesignMatrix> {
     let mut reports = Vec::with_capacity(corpus.members.len());
     for member in &corpus.members {
-        let report = compute_report_over(ctx, &member.root, registry, &Corpus::member_spec(member))
-            .with_context(|| format!("member at {}", member.root.display()))?;
+        let report = super::coverage::compute_report_over_for_matrix(
+            ctx,
+            &member.root,
+            registry,
+            &Corpus::member_spec(member),
+        )
+        .with_context(|| format!("member at {}", member.root.display()))?;
         emit_report_diagnostics(ctx, &report);
         reports.push(report);
     }
@@ -170,7 +174,11 @@ fn compute_matrix(
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let corpus = resolve_corpus(&args)?;
-    let registry = load_registry_for(ctx, &args.target.module, &corpus.members[0].root)?;
+    let registry = super::coverage::load_registry_for_relations(
+        ctx,
+        &args.target.module,
+        &corpus.members[0].root,
+    )?;
     let matrix = compute_matrix(ctx, &corpus, &registry)?;
     let view = View {
         design: registry
@@ -178,29 +186,41 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             .is_some_and(|model| !model.design_relations.is_empty()),
         repo: !args.repo.is_empty(),
     };
-    let verdict = strict_verdict(&matrix);
-    let gaps = design::gate_failures(&matrix);
+    let verdict = strict_verdict(&matrix.entries);
+    let gaps = design::gate_failures(&matrix.entries);
 
     match args.format {
-        Format::Markdown => primary!("{}", render_markdown(&matrix, view)),
-        Format::Human => primary!("{}", render_human(&matrix, view)),
-        Format::Tsv => primary!("{}", render_tsv(&matrix, view)),
+        Format::Markdown => {
+            emit_matrix_errors(ctx, &matrix.errors, ErrorFormat::Human);
+            primary!("{}", render_markdown(&matrix.entries, view));
+        }
+        Format::Human => primary!("{}", render_human(&matrix.entries, view, &matrix.errors)),
+        Format::Tsv => {
+            emit_matrix_errors(ctx, &matrix.errors, ErrorFormat::Tsv);
+            primary!("{}", render_tsv(&matrix.entries, view));
+        }
         Format::Json => primary_line!(
             "{}",
             ix_cli_kit::json::encode(
                 &quire_cli::engine::attach(Payload {
-                    coverage_matrix: matrix
+                    coverage_matrix: matrix.clone()
                 }),
                 ctx.pretty
             )?
         ),
     }
 
+    let mut reasons = Vec::new();
+    if !matrix.errors.is_empty() {
+        reasons.push(format!(
+            "{} dropped required relation(s)",
+            matrix.errors.len()
+        ));
+    }
     if args.strict {
         for gap in &gaps {
             ix_cli_kit::streams::Record::error("DesignGap", gap).emit(ctx.diagnostics);
         }
-        let mut reasons = Vec::new();
         match verdict {
             Verdict::Pass => {}
             Verdict::Empty => reasons.push(
@@ -216,11 +236,42 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         if !gaps.is_empty() {
             reasons.push(format!("{} design gap(s)", gaps.len()));
         }
-        if !reasons.is_empty() {
+    }
+    if !reasons.is_empty() {
+        if args.strict {
             partial_report!("{} (--strict)", reasons.join("; "));
         }
+        partial_report!("{}", reasons.join("; "));
     }
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum ErrorFormat {
+    Human,
+    Tsv,
+}
+
+fn emit_matrix_errors(ctx: &Ctx, errors: &[DroppedRelation], format: ErrorFormat) {
+    for error in errors {
+        let message = matrix_error_line(error, format);
+        ix_cli_kit::streams::Record::error("DroppedRelation", &message).emit(ctx.diagnostics);
+    }
+}
+
+fn matrix_error_line(error: &DroppedRelation, format: ErrorFormat) -> String {
+    match format {
+        ErrorFormat::Human => format!(
+            "error: dropped relation {} from module {}: {}",
+            error.item, error.module, error.reason
+        ),
+        ErrorFormat::Tsv => format!(
+            "error\tdropped relation\t{}\t{}\t{}",
+            tsv_cell(&error.item),
+            tsv_cell(&error.module),
+            tsv_cell(&error.reason)
+        ),
+    }
 }
 
 /// What `--strict` concludes from the criteria alone; the design gate is
@@ -394,10 +445,18 @@ fn render_markdown(matrix: &[DesignMatrixEntry], view: View) -> String {
     tables.join("\n")
 }
 
-fn render_human(matrix: &[DesignMatrixEntry], view: View) -> String {
+fn render_human(matrix: &[DesignMatrixEntry], view: View, errors: &[DroppedRelation]) -> String {
+    let mut output = String::new();
+    for error in errors {
+        output.push_str(&format!(
+            "error: dropped relation {} from module {}: {}\n",
+            error.item, error.module, error.reason
+        ));
+    }
     let entries = shown(matrix);
     if entries.is_empty() {
-        return format!("{EMPTY_MARKDOWN}\n");
+        output.push_str(&format!("{EMPTY_MARKDOWN}\n"));
+        return output;
     }
     let blocks: Vec<String> = entries
         .into_iter()
@@ -426,7 +485,8 @@ fn render_human(matrix: &[DesignMatrixEntry], view: View) -> String {
             block
         })
         .collect();
-    blocks.join("\n")
+    output.push_str(&blocks.join("\n"));
+    output
 }
 
 fn render_tsv(matrix: &[DesignMatrixEntry], view: View) -> String {
@@ -560,10 +620,13 @@ mod tests {
              spec/FR-001.md\tFR-001-AC-1\tqualified-record\t\ts\tunassigned\n"
         );
         let payload = serde_json::to_value(Payload {
-            coverage_matrix: matrix,
+            coverage_matrix: DesignMatrix {
+                entries: matrix,
+                errors: Vec::new(),
+            },
         })
         .expect("matrix payload serializes");
-        let row = &payload["coverage_matrix"][0]["criteria"][0];
+        let row = &payload["coverage_matrix"]["entries"][0]["criteria"][0];
         assert_eq!(row["status"], "qualified-record");
         assert_eq!(row["binders"], serde_json::json!([]));
     }
@@ -642,6 +705,20 @@ mod tests {
                 untagged: 1,
                 ignored_only: 1
             }
+        );
+    }
+
+    #[trace("FR-043-AC-27")]
+    #[test]
+    fn tsv_dropped_relation_error_scrubs_structural_characters() {
+        let error = DroppedRelation {
+            module: "mod\tule".to_string(),
+            item: "rel\nation".to_string(),
+            reason: "bad\r\nedge\ttype".to_string(),
+        };
+        assert_eq!(
+            matrix_error_line(&error, ErrorFormat::Tsv),
+            "error\tdropped relation\trel ation\tmod ule\tbad  edge type"
         );
     }
 }
