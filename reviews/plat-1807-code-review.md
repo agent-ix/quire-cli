@@ -61,3 +61,15 @@ Mergeable after the fix round for FND-001 (medium); FND-002 to FND-005 are low a
 Correctness checks that passed. The first-parent walk stops at a root commit with "not on the first-parent chain", refuses any chain commit whose parent list is not exactly one (merge and octopus), and reports a missing commit object as "history incomplete" naming it; a missing subtree surfaces as a refusal from `gix_diff::tree`. Peeling uses `peel_to_id`, which follows nested annotated tags; a tag that peels to a tree or blob is refused. Lightweight and annotated tags behave the same. The tree difference skips tree-entry additions and tree-to-tree modifications only, so every file below an added directory is checked on its own; deletions, symlinks, gitlinks and mode changes are refused, and the path test is component-wise, exact-byte and case-sensitive, as FR-034 section A states. The directory comes from the canonicalised repository path, so a symlinked input path cannot widen it. The SHA-256 is computed once over the bytes `read_bounded` returned (capped at 16 MiB) and the same buffer becomes the parsed text, so the digest matches the bytes shown. `gix-diff` with `default-features = false` keeps `gix-command` out, and no network crate is linked.
 
 The default PDF template's `#show table: set text(size: 9pt)` is acceptable without a new requirement: FR-035 section C makes fonts a fixed property of the generated template, no AC states a table text size, and FR-038-AC-9's geometry test (which passes) is the requirement it serves. It applies to every table of the document body, not only the approval block; the CHANGELOG says so.
+
+## Dispositions
+
+Disposition pass 1, against fix commit 84d4148. Re-run on that head: the focused export tests (28 passed), `cargo fmt --check`, and `cargo clippy --locked --all-features -- -D warnings`, all clean. Both mutations that survived the review pass are now killed: a spawned `sha256sum` digest fails `quire_starts_no_process_but_the_executor`, and dropping `commit {commit}` from the refusal fails `a_later_commit_that_is_not_an_allowed_change_refuses_the_tag`. The fix commit adds no new defect.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
+| FND-002 | fixed | - |
+| FND-003 | fixed | - |
+| FND-004 | fixed | - |
+| FND-005 | fixed | - |

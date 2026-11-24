@@ -49,3 +49,11 @@ scope:
 ## Verdict
 
 One medium spec gap (FND-001), to be fixed in this PR by dropping the `..` example as stated; no code change is needed for it. Every other in-scope criterion is implemented and backed by a tagged CLI test. The quoin composed-chain test (quoin FR-191-AC-27/28) is a follow-up and was not assessed.
+
+## Dispositions
+
+Disposition pass 1, against fix commit 84d4148. FR-034 section A and FR-034-AC-14 carry the wording this review recommended, and `quire validate` on the amended FR-034 exits 0.
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
