@@ -4,6 +4,7 @@
 
 CARGO ?= cargo
 LOCKED_BUILD ?= locked-build.sh
+QUOIN ?= quoin
 
 .PHONY: help
 help:
@@ -47,7 +48,7 @@ test:
 # Records SUITE-004 outcomes, including unavailable-tool errors.
 .PHONY: test-export-real
 test-export-real:
-	LOCKED_BUILD="$(LOCKED_BUILD)" LOCKED_BUILD_DEFAULT="$(if $(filter file,$(origin LOCKED_BUILD)),1,0)" CARGO="$(CARGO)" python3 scripts/real_tool_test.py
+	LOCKED_BUILD="$(LOCKED_BUILD)" LOCKED_BUILD_DEFAULT="$(if $(filter file,$(origin LOCKED_BUILD)),1,0)" CARGO="$(CARGO)" QUOIN="$(QUOIN)" python3 scripts/real_tool_test.py
 
 .PHONY: docs
 docs:

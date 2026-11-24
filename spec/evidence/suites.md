@@ -14,3 +14,7 @@ and support tools, and the source commit used by the run. If a required tool
 or the locked build wrapper is unavailable, affected tests are recorded as
 `outcome: error` with `config.execution_state: not-executed`; the target exits
 nonzero and does not claim a passing live-tool run.
+
+The lane uses `quoin` from `PATH` by default. Set the `QUOIN` Make variable to
+select another Quoin executable when validating against a different installed
+evidence-record schema.

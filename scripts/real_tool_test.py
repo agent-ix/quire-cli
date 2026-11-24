@@ -158,7 +158,13 @@ def main() -> int:
     tool_versions: dict[str, str] = {}
     missing: list[str] = []
     for tool in REQUIRED_TOOLS:
-        configured_executable = os.environ.get("CARGO", "cargo") if tool == "cargo" else tool
+        configured_executable = (
+            os.environ.get("CARGO", "cargo")
+            if tool == "cargo"
+            else os.environ.get("QUOIN", "quoin")
+            if tool == "quoin"
+            else tool
+        )
         executable = shutil.which(configured_executable)
         if executable is None:
             tool_versions[tool] = "unavailable"
@@ -175,8 +181,8 @@ def main() -> int:
     if locked_build is None:
         missing.append("LOCKED_BUILD does not resolve to the locked-build.sh wrapper")
 
-    base_config: dict[str, object] = {
-        "tool_versions": tool_versions,
+    base_config: dict[str, str] = {
+        "tool_versions": json.dumps(tool_versions, sort_keys=True),
         "source_commit": source_commit(),
         "test_source": "tests/cli_export.rs",
         "fixtures": "tests/fixtures/export",
@@ -233,7 +239,7 @@ def main() -> int:
         json.dump({"entries": entries}, results, sort_keys=True)
         results.write("\n")
 
-    quoin = shutil.which("quoin")
+    quoin = shutil.which(os.environ.get("QUOIN", "quoin"))
     if quoin is None:
         print("cannot record SUITE-004: quoin is unavailable on PATH", file=sys.stderr)
         return 2
