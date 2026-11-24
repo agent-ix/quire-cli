@@ -36,3 +36,20 @@ Ticket PLAT-1821 adds one first-party Anomaly record for quire-cli's dispatch-on
 | FND | Outcome | Reason |
 | --- | --- | --- |
 | FND-001 | still-open | The anomaly record now distinguishes main-push CI, manual publication, and `v*` tag attestation, but `spec/anomalies/index.md:10` still labels it “CI and release verification are dispatch-only,” preserving the overbroad claim in the public index. Update the index label before merge. |
+| FND-001 | fixed | The record and index now describe main CI as dispatch-only and publication as manual, while explicitly stating that tag attestation runs on `v*` pushes. |
+
+FND-001 after_excerpt (spec/anomalies/AN-001-dispatch-only-verification.md:12-22):
+
+```text
+The 2026-11-23 regulated-standards review found that this repository does not
+run its CI validation automatically for changes on `main`. The exact workflow
+triggers are:
+
+- `.github/workflows/ci.yml` runs only on `workflow_dispatch`; it does not run
+  on pushes or pull requests.
+- `.github/workflows/release.yml` runs only on `workflow_dispatch`; publication
+  is manually started, as specified by FR-022-AC-5.
+- `.github/workflows/tag-attestation.yml` runs on pushes of tags matching
+  `v*`. This tag-triggered attestation is separate from CI validation of
+  changes on `main`.
+```
