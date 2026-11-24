@@ -324,9 +324,29 @@ pub fn load_module_registry(ctx: &Ctx, module: &Path) -> anyhow::Result<Registry
 /// a wholly dropped `traceability:` section is named rather than reported as an
 /// undeclared model.
 pub fn require_complete_model(registry: &Registry) -> anyhow::Result<()> {
-    registry
-        .require_complete_model()
-        .map_err(|dropped| invalid_error!("{dropped}"))
+    let Err(dropped) = registry.require_complete_model() else {
+        return Ok(());
+    };
+    let details: Vec<String> = registry
+        .failures()
+        .iter()
+        .filter(|failure| {
+            failure.declaration.as_deref().is_some_and(|declaration| {
+                dropped.0.iter().any(|dropped| {
+                    dropped.module == failure.module
+                        && dropped.kind == declaration.kind
+                        && dropped.item == declaration.item
+                })
+            })
+        })
+        .map(|failure| format!("{}: {}", failure.path.display(), failure.reason))
+        .collect();
+    let message = if details.is_empty() {
+        dropped.to_string()
+    } else {
+        format!("{dropped}; load details: {}", details.join("; "))
+    };
+    Err(invalid_error!("{message}"))
 }
 
 /// The `ModelUndeclared`-shaped refusal `coverage` and `trace` both need:

@@ -250,7 +250,7 @@ traceability:
     );
 }
 
-fn assert_flow_load_failure_names_the_invalid_value(
+fn assert_flow_load_failure_includes_engine_detail(
     module_directory: &str,
     source: &str,
     invalid: &str,
@@ -264,13 +264,20 @@ fn assert_flow_load_failure_names_the_invalid_value(
     let manifest = fs::read_to_string(&manifest_path).unwrap();
     let invalid_manifest = manifest.replace(source, invalid);
     assert_ne!(manifest, invalid_manifest, "fixture contains source text");
+    assert!(
+        invalid_manifest.contains(invalid),
+        "fixture contains invalid text"
+    );
     fs::write(&manifest_path, invalid_manifest).unwrap();
 
     let output = run(&scope, &module, &["--flow", "--json"]);
     assert_eq!(output.status.code(), Some(3));
     assert!(output.stdout.is_empty());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("connection-present"), "{stderr}");
+    assert!(
+        stderr.contains("module 'health-flow-fixture' flow_rule 'connection-present'"),
+        "expected the dropped flow rule to be named: {stderr}"
+    );
     assert!(stderr.contains(expected), "{stderr}");
     assert!(
         stderr.contains(&manifest_path.to_string_lossy().to_string()),
@@ -1202,7 +1209,7 @@ fn flow_mode_rejects_missing_rules_and_relation_mode_conflicts() {
 #[test]
 #[trace("FR-044-AC-9")]
 fn flow_mode_reports_invalid_rule_values_in_the_module_load_failure() {
-    assert_flow_load_failure_names_the_invalid_value(
+    assert_flow_load_failure_includes_engine_detail(
         "invalid-rule",
         "any_of: [bidirectional]",
         "any_of: [medical]",
@@ -1213,11 +1220,11 @@ fn flow_mode_reports_invalid_rule_values_in_the_module_load_failure() {
 #[test]
 #[trace("FR-044-AC-10")]
 fn flow_mode_reports_invalid_remediations_in_the_module_load_failure() {
-    assert_flow_load_failure_names_the_invalid_value(
+    assert_flow_load_failure_includes_engine_detail(
         "invalid-remediation",
         "remediations: [set-flow-direction]",
         "remediations: [encrypt-in-transt]",
-        "encrypt-in-transt",
+        "connection-present",
     );
 }
 
