@@ -9,6 +9,15 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+- **Approval block shows every verdict as an unverified claim (PLAT-1807).**
+  Every Verdict cell of `quire export` starts `unverified claim: `, a new
+  `Verdict file` column shows the SHA-256 of the file (and its tag object), and a
+  fixed statement under `Approval` says the verdicts are not re-verified. The
+  default PDF template sets table text to 9pt.
+- **`--release` accepts a tag before the dossier commit (PLAT-1811).** The tag may
+  be on the source commit or a first-parent ancestor whose later commits only add
+  or modify files under an input's directory; the title page names the tag commit
+  when it differs from the source commit.
 - **Show outputCatalog changes in clause diffs (PLAT-1831).** `quire clauses diff`
   human, TSV and JSON views list added, removed and changed output-catalog
   entries with their producers. TSV gains `output`, `before_producers` and

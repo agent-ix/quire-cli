@@ -160,6 +160,7 @@ impl Rig {
     fn commit(&self, name: &str, text: &str, date: &str) -> PathBuf {
         let repo = self.repo();
         let path = repo.join(name);
+        fs::create_dir_all(path.parent().expect("parent")).expect("directory");
         fs::write(&path, text).expect("write");
         git(&repo, &["add", name], None);
         git(&repo, &["commit", "-q", "-m", name], Some(date));
@@ -1075,6 +1076,13 @@ fn unresolvable_sources_are_refused_naming_the_cause() {
             stderr(&result)
         );
     }
+    // An unknown tag names the tag, the source commit and the cause.
+    let mut command = rig.export(&rig.fixture(), "docx", &output);
+    command.args(["--release", "no-such-tag"]);
+    let message = stderr(&run(command));
+    for needle in ["no-such-tag", rig.head().as_str(), "does not resolve"] {
+        assert!(message.contains(needle), "{needle} missing from {message}");
+    }
     // A tag on a different commit is not the source commit.
     git(&rig.repo(), &["tag", "old"], None);
     let text = fs::read_to_string(rig.fixture()).expect("fixture");
@@ -1084,7 +1092,7 @@ fn unresolvable_sources_are_refused_naming_the_cause() {
     let result = run(command);
     assert_eq!(result.status.code(), Some(3));
     assert!(
-        stderr(&result).contains("not the source commit"),
+        stderr(&result).contains("only a tag on the source commit"),
         "{}",
         stderr(&result)
     );
@@ -1358,6 +1366,17 @@ fn a_document_without_headings_keeps_the_title_page_and_the_contents_block() {
 #[test]
 fn quire_starts_no_process_but_the_executor() {
     let rig = Rig::new();
+    // Approval files make quire digest them: that must start no process either.
+    let standalone = verdict_file(
+        &rig,
+        "a.json",
+        &approved("A", "2026-01-02T03:04:05Z", &["m"]),
+    );
+    let release = verdict_file(
+        &rig,
+        "r.json",
+        &released("R", "2026-01-02T03:04:05Z", &["m"]),
+    );
     let trace = rig.work("execve.trace");
     let mut command = Command::new("strace");
     command
@@ -1374,7 +1393,11 @@ fn quire_starts_no_process_but_the_executor() {
         .arg("--pandoc")
         .arg(rig.bin("pandoc"))
         .arg("--engineering-assurance")
-        .arg(rig.bin("engineering-assurance"));
+        .arg(rig.bin("engineering-assurance"))
+        .arg("--approval")
+        .arg(&standalone)
+        .arg("--approval")
+        .arg(&release);
     let result = command.output().expect("strace is needed for this test");
     assert!(
         result.status.success(),
@@ -4041,6 +4064,40 @@ fn rows(markdown: &str) -> Vec<Vec<String>> {
         .collect()
 }
 
+/// A table cell as the reader sees it: the escapes and break points removed.
+fn plain(cell: &str) -> String {
+    let mut out = String::new();
+    let mut chars = cell.chars().filter(|ch| *ch != '\u{200b}').peekable();
+    while let Some(ch) = chars.next() {
+        match (ch, chars.peek()) {
+            ('\\', Some(next)) if next.is_ascii_punctuation() => {}
+            _ => out.push(ch),
+        }
+    }
+    out
+}
+
+/// The fixed statement under the `Approval` heading (FR-038).
+const APPROVAL_STATEMENT: &str = "The verdicts below were computed elsewhere and are not \
+re-verified by this export. An approval covers the record named in its Record column, not this \
+document.";
+
+/// Person, Signed at, Meaning, Verdict, Verdict file and Record of each row.
+const VERDICT_COLUMN: usize = 3;
+const FILE_COLUMN: usize = 4;
+const RECORD_COLUMN: usize = 5;
+
+/// The SHA-256 of `path` as `sha256sum` computes it, independently of quire.
+fn sha256_of(path: &Path) -> String {
+    let output = Command::new("sha256sum")
+        .arg(path)
+        .output()
+        .expect("sha256sum runs");
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).expect("utf-8");
+    format!("sha256:{}", text.split_whitespace().next().expect("digest"))
+}
+
 #[trace("FR-038-AC-1", "FR-038-AC-3", "FR-032-AC-3")]
 #[test]
 fn two_approvals_show_person_time_and_meaning_after_the_document() {
@@ -4076,13 +4133,17 @@ fn two_approvals_show_person_time_and_meaning_after_the_document() {
         ["in/front.md", "in/document.md", "in/approval.md"]
     );
     let block = rig.converter_input("approval.md");
-    assert!(block.starts_with("# Approval\n\n| Person | Signed at \\(signer\\'s claim\\) |"));
+    assert!(block.starts_with(&format!("# Approval\n\n{APPROVAL_STATEMENT}\n\n| Person |")));
+    assert!(block.contains("| Signed at \\(signer\\'s claim\\) |"));
     let table = rows(&block);
     assert_eq!(table.len(), 2, "{block}");
     assert_eq!(table[0][0], "Ada Example");
     assert_eq!(table[0][1], "2026\\-01\\-02 03\\:04\\:05 UTC");
     assert_eq!(table[0][2], "\\\"reviewed and approved\\\"");
-    assert_eq!(table[0][3], "approved");
+    assert_eq!(
+        plain(&table[0][VERDICT_COLUMN]),
+        "unverified claim: approved"
+    );
     assert_eq!(table[1][0], "Bo Example");
     assert_eq!(table[1][2], "\\\"released\\\"\\, \\\"second line\\\"");
     // The block is built from the verdict files alone: they sit outside the
@@ -4156,7 +4217,10 @@ fn a_verdict_that_is_not_approved_is_never_shown_as_signed() {
 
     let table = rows(&rig.converter_input("approval.md"));
     assert_eq!(table.len(), 7);
-    assert_eq!(table[0][3], "approved");
+    assert_eq!(
+        plain(&table[0][VERDICT_COLUMN]),
+        "unverified claim: approved"
+    );
     for (index, status, person) in [
         (1, "untrusted_signer", "unmapped"),
         (2, "wrong_record", "Wren Mapped"),
@@ -4165,22 +4229,39 @@ fn a_verdict_that_is_not_approved_is_never_shown_as_signed() {
         assert_eq!(table[index][1], "not available");
         assert_eq!(table[index][2], "claimed\\: \\\"reviewed and approved\\\"");
         assert_eq!(
-            table[index][3].replace('\u{200b}', ""),
-            status.replace('_', "\\_")
+            plain(&table[index][VERDICT_COLUMN]),
+            format!("unverified claim: {status}")
         );
     }
     assert_eq!(table[3][0], "Maya Mapped");
     assert_eq!(table[3][2], "not recorded");
     assert_eq!(table[4][1], "not available");
     assert_eq!(table[4][2], "not recorded");
-    assert!(table[4][3].starts_with("unverifiable"), "{:?}", table[4]);
-    assert!(table[4][4].contains("not available"), "{:?}", table[4]);
-    assert_eq!(table[5][3], "unsigned");
+    assert!(
+        plain(&table[4][VERDICT_COLUMN]).starts_with("unverified claim: unverifiable"),
+        "{:?}",
+        table[4]
+    );
+    assert!(
+        table[4][RECORD_COLUMN].contains("not available"),
+        "{:?}",
+        table[4]
+    );
+    assert_eq!(
+        plain(&table[5][VERDICT_COLUMN]),
+        "unverified claim: unsigned"
+    );
     assert_eq!(table[6][1], "not available");
-    assert_eq!(table[6][3], "approved");
-    // Only the first and last entries are approvals.
-    let approvals = table.iter().filter(|row| row[3] == "approved").count();
-    assert_eq!(approvals, 2);
+    assert_eq!(
+        plain(&table[6][VERDICT_COLUMN]),
+        "unverified claim: approved"
+    );
+    // Every Verdict cell is a claim; none is a bare status token.
+    for row in &table {
+        let cell = plain(&row[VERDICT_COLUMN]);
+        assert!(cell.starts_with("unverified claim: "), "{cell}");
+        assert_ne!(cell, "approved");
+    }
 }
 
 #[trace("FR-038-AC-4")]
@@ -4457,14 +4538,12 @@ fn real_converters_show_the_approval_block_after_the_document() {
             &["reviewed and approved"],
         ),
     );
-    let second = verdict_file(
-        &rig,
-        "b.json",
-        &claimed(
-            "untrusted_signer",
-            &["https://reviews.example.org/approvals/2026/11/signoff/index.html?id=12345"],
-        ),
+    let mut long_claim = claimed(
+        "untrusted_signer",
+        &["https://reviews.example.org/approvals/2026/11/signoff/index.html?id=12345"],
     );
+    long_claim["tag_object_id"] = serde_json::json!("0123456789abcdef0123456789abcdef01234567");
+    let second = verdict_file(&rig, "b.json", &long_claim);
     let third = verdict_file(
         &rig,
         "c.json",
@@ -4488,7 +4567,9 @@ fn real_converters_show_the_approval_block_after_the_document() {
     assert_no_overlapping_words(&pdf);
     let text = pdf_text(&pdf);
     let visible = strip_tags(&docx_text(&docx));
-    for text in [text.as_str(), visible.as_str()] {
+    // The DOCX text keeps each cell whole. The PDF text interleaves the lines of
+    // cells that wrap in neighbouring columns, so each word is looked for alone.
+    for (text, whole_cells) in [(text.as_str(), false), (visible.as_str(), true)] {
         let approval = text.rfind("Approval").expect("Approval heading");
         // Cells wrap, so compare with whitespace removed.
         let block: String = text[approval..]
@@ -4500,15 +4581,23 @@ fn real_converters_show_the_approval_block_after_the_document() {
             "Ada Example",
             "2026-01-02 03:04:05 UTC",
             "claimed: \"https://reviews.example.org/approvals/2026/11/signoff/index.html?id=12345\"",
+            "unverified claim: approved",
             "untrusted_signer",
             "not available",
             "Pipe | Person",
             hostile,
         ] {
-            let expected: String = expected.split_whitespace().collect();
-            assert!(block.contains(&expected), "{expected}: {block}");
+            let pieces: Vec<&str> = if whole_cells {
+                vec![expected]
+            } else {
+                expected.split_whitespace().collect()
+            };
+            for piece in pieces {
+                let piece: String = piece.split_whitespace().collect();
+                assert!(block.contains(&piece), "{piece}: {block}");
+            }
         }
-        assert!(block.contains("claim"), "{block}");
+        assert!(block.contains("Verdictfile"), "{block}");
     }
 }
 
@@ -4549,9 +4638,12 @@ fn a_released_result_with_approved_nested_verdict_shows_as_an_approval() {
     assert_eq!(table[0][0], "Ada Example");
     assert_eq!(table[0][1], "2026\\-01\\-02 03\\:04\\:05 UTC");
     assert_eq!(table[0][2], "\\\"reviewed and approved\\\"");
-    assert_eq!(table[0][3], "approved");
+    assert_eq!(
+        plain(&table[0][VERDICT_COLUMN]),
+        "unverified claim: approved"
+    );
 
-    // Verify the cells match standalone verdict exactly (FR-038-AC-13)
+    // Person, Signed at, Meaning and Record match the standalone verdict exactly
     let result_standalone = run(with_approvals(
         rig.export(&rig.fixture(), "docx", &output),
         &[&standalone],
@@ -4561,7 +4653,7 @@ fn a_released_result_with_approved_nested_verdict_shows_as_an_approval() {
     let table_standalone = rows(&block_standalone);
 
     // Person, Signed at, Meaning, Record cells must be byte-identical
-    for col in [0, 1, 2, 4] {
+    for col in [0, 1, 2, RECORD_COLUMN] {
         assert_eq!(table[0][col], table_standalone[0][col], "column {col}");
     }
 }
@@ -4592,10 +4684,8 @@ fn a_not_released_result_shows_reasons_and_nested_verdict() {
     let table = rows(&block_no_breaks);
     assert_eq!(table.len(), 1, "{block}");
     assert_eq!(
-        table[0][3],
-        "not\\_released\\; reasons\\: \\[\\\"untrusted\\_signer\\\"\\, \\\"release\\_commit\\_record\\_not\\_added\\\"\\]\\; nested\\: untrusted\\_signer",
-        "{}",
-        table[0][3]
+        plain(&table[0][VERDICT_COLUMN]),
+        "unverified claim: not_released; reasons: [\"untrusted_signer\", \"release_commit_record_not_added\"]; nested: untrusted_signer"
     );
     assert_eq!(table[0][2], "claimed\\: \\\"reviewed and approved\\\"");
     assert_eq!(table[0][1], "not available");
@@ -4630,9 +4720,9 @@ fn a_not_released_result_shows_reasons_and_nested_verdict() {
     let block2_no_breaks = block2.replace('\u{200b}', "");
     let table2 = rows(&block2_no_breaks);
     assert!(
-        table2[0][3].contains("nested\\: untrusted\\_signer \\(x\\, y\\)"),
+        plain(&table2[0][VERDICT_COLUMN]).ends_with("; nested: untrusted_signer (x, y)"),
         "{}",
-        table2[0][3]
+        table2[0][VERDICT_COLUMN]
     );
 
     // Reason with comma shows as one array element
@@ -4650,9 +4740,9 @@ fn a_not_released_result_shows_reasons_and_nested_verdict() {
     let block3_no_breaks = block3.replace('\u{200b}', "");
     let table3 = rows(&block3_no_breaks);
     assert!(
-        table3[0][3].contains("reasons\\: \\[\\\"a\\, b\\\"\\]"),
+        plain(&table3[0][VERDICT_COLUMN]).contains("reasons: [\"a, b\"]"),
         "{}",
-        table3[0][3]
+        table3[0][VERDICT_COLUMN]
     );
 }
 
@@ -4677,13 +4767,13 @@ fn a_not_released_result_without_approval_shows_not_available() {
     let table = rows(&block_no_breaks);
     assert_eq!(table.len(), 1, "{block}");
     assert_eq!(
-        table[0][3],
-        "not\\_released\\; reasons\\: \\[\\\"record\\_invalid\\\"\\]"
+        plain(&table[0][VERDICT_COLUMN]),
+        "unverified claim: not_released; reasons: [\"record_invalid\"]"
     );
     assert_eq!(table[0][0], "not available", "Person");
     assert_eq!(table[0][1], "not available", "Signed at");
     assert_eq!(table[0][2], "not recorded", "Meaning");
-    assert_eq!(table[0][4], "not available", "Record");
+    assert_eq!(table[0][RECORD_COLUMN], "not available", "Record");
 }
 
 #[trace("FR-038-AC-13", "FR-038-AC-18")]
@@ -4765,8 +4855,17 @@ fn release_and_standalone_verdicts_preserve_order_and_standalone_content() {
         "Meaning: {}",
         a_row[2]
     );
-    assert_eq!(a_row[3], "approved", "Verdict");
-    assert!(a_row[4].contains("REC\\-1"), "Record: {}", a_row[4]);
+    assert_eq!(
+        plain(&a_row[VERDICT_COLUMN]),
+        "unverified claim: approved",
+        "Verdict"
+    );
+    assert!(
+        a_row[RECORD_COLUMN].contains("REC\\-1"),
+        "Record: {}",
+        a_row[RECORD_COLUMN]
+    );
+    assert_eq!(plain(&a_row[FILE_COLUMN]), sha256_of(&standalone));
 }
 
 #[trace("FR-038-AC-14", "FR-040-AC-8")]
@@ -5154,12 +5253,15 @@ fn not_released_with_approved_nested_shows_claimed_meaning_and_not_available() {
     let table = rows(&block_no_breaks);
     assert_eq!(table.len(), 1);
     assert_eq!(
-        table[0][3], "not\\_released\\; reasons\\: \\[\\\"decision\\_owner\\_mismatch\\\"\\]",
+        plain(&table[0][VERDICT_COLUMN]),
+        "unverified claim: not_released; reasons: [\"decision_owner_mismatch\"]",
         "Verdict"
     );
     assert_eq!(table[0][0], "not available", "Person");
     assert_eq!(table[0][1], "not available", "Signed at");
-    assert_eq!(table[0][4], "not available", "Record");
+    assert_eq!(table[0][RECORD_COLUMN], "not available", "Record");
+    // The cell holds the digest alone: nothing is taken from the nested approval.
+    assert_eq!(plain(&table[0][FILE_COLUMN]), sha256_of(&file));
     assert_eq!(
         table[0][2], "claimed\\: \\\"reviewed and approved\\\"",
         "Meaning"
@@ -5305,6 +5407,572 @@ fn release_approval_text_reaches_real_converters() {
             block.contains("nested:untrusted_signer"),
             "{format}: nested segment missing: {block}"
         );
+    }
+}
+
+#[trace("FR-038-AC-19")]
+#[test]
+fn a_fabricated_approved_verdict_is_still_only_a_claim() {
+    let rig = Rig::new();
+    // No signed tag stands behind either file: every member is invented.
+    let fabricated = verdict_file(
+        &rig,
+        "fabricated.json",
+        &approved("Mallory Invented", "2026-01-02T03:04:05Z", &["I approve"]),
+    );
+    let release = verdict_file(
+        &rig,
+        "fabricated-release.json",
+        &released("Mallory Invented", "2026-01-02T03:04:05Z", &["I approve"]),
+    );
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &rig.work("out.docx")),
+        &[&fabricated, &release],
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let table = rows(&rig.converter_input("approval.md"));
+    assert_eq!(table.len(), 2);
+    for row in &table {
+        assert_eq!(plain(&row[VERDICT_COLUMN]), "unverified claim: approved");
+    }
+}
+
+#[trace("FR-038-AC-20")]
+#[test]
+fn the_verdict_file_cell_is_the_digest_of_the_file_and_its_tag_object() {
+    let rig = Rig::new();
+    let tag_object = "0123456789abcdef0123456789abcdef01234567";
+    let with_tag = verdict_file(
+        &rig,
+        "with-tag.json",
+        &verdict(
+            "wrong_record",
+            serde_json::json!({"tag_object_id": tag_object}),
+        ),
+    );
+    let without_tag = verdict_file(
+        &rig,
+        "no-tag.json",
+        &approved("A", "2026-01-02T03:04:05Z", &["m"]),
+    );
+    let nested_tag = verdict_file(
+        &rig,
+        "release.json",
+        &release_result(
+            "released",
+            None,
+            Some(verdict(
+                "approved",
+                serde_json::json!({
+                    "approver": "A",
+                    "meaning": ["m"],
+                    "signed_at": "2026-01-02T03:04:05Z",
+                    "tag_object_id": tag_object,
+                }),
+            )),
+        ),
+    );
+    // A `not_released` result whose nested approval is approved: digest alone.
+    let unreleased = verdict_file(
+        &rig,
+        "unreleased.json",
+        &not_released(
+            vec!["decision_owner_mismatch"],
+            Some(verdict(
+                "approved",
+                serde_json::json!({"approver": "A", "tag_object_id": tag_object}),
+            )),
+        ),
+    );
+    let files = [&with_tag, &without_tag, &nested_tag, &unreleased];
+    let refs: Vec<&Path> = files.iter().map(|path| path.as_path()).collect();
+    let result = run(with_approvals(
+        rig.export(&rig.fixture(), "docx", &rig.work("out.docx")),
+        &refs,
+    ));
+    assert!(result.status.success(), "{}", stderr(&result));
+    let table = rows(&rig.converter_input("approval.md"));
+    let cell = |row: usize| plain(&table[row][FILE_COLUMN]);
+    assert_eq!(
+        cell(0),
+        format!("{} tag object: {tag_object}", sha256_of(&with_tag))
+    );
+    assert_eq!(cell(1), sha256_of(&without_tag));
+    assert_eq!(
+        cell(2),
+        format!("{} tag object: {tag_object}", sha256_of(&nested_tag))
+    );
+    assert_eq!(cell(3), sha256_of(&unreleased));
+}
+
+#[trace("FR-038-AC-21")]
+#[test]
+fn the_statement_under_the_heading_is_fixed_and_appears_once() {
+    let rig = Rig::new();
+    let approved_file = verdict_file(
+        &rig,
+        "a.json",
+        &approved("A", "2026-01-02T03:04:05Z", &["m"]),
+    );
+    let wrong = verdict_file(&rig, "w.json", &mapped("wrong_record", "W", Some(&["m"])));
+    let release = verdict_file(
+        &rig,
+        "r.json",
+        &released("R", "2026-01-02T03:04:05Z", &["m"]),
+    );
+    let statement_of = |files: &[&Path]| {
+        let result = run(with_approvals(
+            rig.export(&rig.fixture(), "docx", &rig.work("out.docx")),
+            files,
+        ));
+        assert!(result.status.success(), "{}", stderr(&result));
+        let block = rig.converter_input("approval.md");
+        let table_start = block.find("\n| Person").expect("table");
+        let before = block[..table_start].to_string();
+        assert_eq!(block.matches("The verdicts below").count(), 1, "{block}");
+        before
+    };
+    let expected = format!("# Approval\n\n{APPROVAL_STATEMENT}\n");
+    assert_eq!(statement_of(&[&approved_file]), expected);
+    assert_eq!(statement_of(&[&wrong]), expected);
+    assert_eq!(statement_of(&[&approved_file, &wrong, &release]), expected);
+    assert!(!expected.contains("sha256"));
+}
+
+// ---- Release ancestor (FR-034 section A, PLAT-1811) --------------------------
+
+const DOSSIER_DOCUMENT: &str = "dossier/doc.md";
+
+/// A rig whose repository holds the dossier document and one more file under
+/// `dossier`, with the tag `v1.2` on that commit; returns the tag commit.
+fn dossier_rig() -> (Rig, String) {
+    let rig = Rig::new();
+    let text = fs::read_to_string(export_fixture()).expect("fixture");
+    rig.commit(DOSSIER_DOCUMENT, &text, "2001-02-04T10:00:00+00:00");
+    rig.commit("dossier/extra.txt", "one\n", "2001-02-04T10:00:00+00:00");
+    git(&rig.repo(), &["tag", "v1.2"], None);
+    let tag_commit = rig.head();
+    (rig, tag_commit)
+}
+
+fn dossier_export(rig: &Rig, release: &str) -> Output {
+    let mut command = rig.export(
+        &rig.repo().join(DOSSIER_DOCUMENT),
+        "docx",
+        &rig.work("out.docx"),
+    );
+    command.args(["--release", release]);
+    run(command)
+}
+
+/// The `Release:` line of the title page.
+fn release_line(rig: &Rig) -> String {
+    rig.converter_input("front.md")
+        .lines()
+        .find(|line| line.starts_with("Release: "))
+        .expect("Release line")
+        .to_string()
+}
+
+#[trace("FR-034-AC-13", "FR-040-AC-3")]
+#[test]
+fn a_tag_before_later_dossier_commits_is_the_release_and_names_its_commit() {
+    let (rig, tag_commit) = dossier_rig();
+    let text = fs::read_to_string(rig.repo().join(DOSSIER_DOCUMENT)).expect("document");
+    // One commit after the tag that adds and modifies files under the directory.
+    rig.commit(
+        DOSSIER_DOCUMENT,
+        &format!("{text}\nmore\n"),
+        "2002-03-04T05:06:07+00:00",
+    );
+    rig.commit("dossier/extra.txt", "two\n", "2002-03-05T05:06:07+00:00");
+    rig.commit("dossier/sub/new.txt", "new\n", "2002-03-06T05:06:07+00:00");
+    let result = dossier_export(&rig, "v1.2");
+    assert!(result.status.success(), "{}", stderr(&result));
+    let identity = exported_identity(&rig);
+    assert_eq!(identity["commit"], rig.head());
+    assert_eq!(identity["date"], "2002\\-03\\-06");
+    // The tag name alone is the metadata member; the title page names the commit.
+    assert_eq!(identity["release"], "v1\\.2");
+    assert_eq!(
+        release_line(&rig),
+        format!("Release: v1\\.2 \\(tag commit {tag_commit}\\)")
+    );
+
+    // A tag on the source commit shows the tag alone.
+    git(&rig.repo(), &["tag", "v1.3"], None);
+    let result = dossier_export(&rig, "v1.3");
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(release_line(&rig), "Release: v1\\.3");
+
+    // A nested annotated tag that peels to the tag commit is accepted.
+    git(
+        &rig.repo(),
+        &["tag", "-a", "-m", "inner", "inner", &tag_commit],
+        None,
+    );
+    git(
+        &rig.repo(),
+        &["tag", "-a", "-m", "outer", "outer", "inner"],
+        None,
+    );
+    let result = dossier_export(&rig, "outer");
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(exported_identity(&rig)["release"], "outer");
+    assert_eq!(
+        release_line(&rig),
+        format!("Release: outer \\(tag commit {tag_commit}\\)")
+    );
+}
+
+#[trace("FR-034-AC-13")]
+#[test]
+fn a_bundle_accepts_a_later_commit_under_any_input_directory() {
+    let (rig, _) = dossier_rig();
+    let text = fs::read_to_string(export_fixture()).expect("fixture");
+    let other = rig.commit(
+        "other/second.md",
+        &text.replace("FR-001", "FR-002"),
+        COMMIT_DATE,
+    );
+    let tag_commit = rig.head();
+    git(&rig.repo(), &["tag", "v1.1", &tag_commit], None);
+    let first = rig.repo().join(DOSSIER_DOCUMENT);
+    // The input outside `dossier` is edited after the tag.
+    rig.commit(
+        "other/second.md",
+        &format!("{}\nedit\n", text.replace("FR-001", "FR-002")),
+        COMMIT_DATE,
+    );
+    let mut command = bundle_command(&rig, &[&first, &other], "docx", &rig.work("out.docx"));
+    command.args(["--release", "v1.1"]);
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(exported_identity(&rig)["release"], "v1\\.1");
+    assert_eq!(
+        release_line(&rig),
+        format!("Release: v1\\.1 \\(tag commit {tag_commit}\\)")
+    );
+}
+
+/// Adds the commit that `change` makes after the tag, then an allowed commit,
+/// and exports. Returns the hash of the commit that `change` made.
+fn export_after(change: impl FnOnce(&Rig)) -> (Rig, String, Output) {
+    let (rig, _) = dossier_rig();
+    change(&rig);
+    let offending = rig.head();
+    rig.commit("dossier/allowed.txt", "fine\n", COMMIT_DATE);
+    let result = dossier_export(&rig, "v1.2");
+    (rig, offending, result)
+}
+
+fn commit_all(rig: &Rig, message: &str) {
+    git(&rig.repo(), &["add", "-A"], None);
+    git(
+        &rig.repo(),
+        &["commit", "-q", "-m", message],
+        Some("2002-03-04T05:06:07+00:00"),
+    );
+}
+
+#[trace("FR-034-AC-14", "FR-040-AC-3", "FR-040-AC-6")]
+#[test]
+fn a_later_commit_that_is_not_an_allowed_change_refuses_the_tag() {
+    type Change = Box<dyn FnOnce(&Rig)>;
+    let scenarios: Vec<(&str, &str, Change)> = vec![
+        (
+            "outside every input directory",
+            "outside.txt",
+            Box::new(|rig| {
+                rig.commit("outside.txt", "x\n", COMMIT_DATE);
+            }),
+        ),
+        (
+            "sibling directory with the same prefix",
+            "dossier-old/x.txt",
+            Box::new(|rig| {
+                rig.commit("dossier-old/x.txt", "x\n", COMMIT_DATE);
+            }),
+        ),
+        (
+            "path differing only in letter case",
+            "Dossier/x.txt",
+            Box::new(|rig| {
+                rig.commit("Dossier/x.txt", "x\n", COMMIT_DATE);
+            }),
+        ),
+        (
+            "deletion",
+            "dossier/extra.txt",
+            Box::new(|rig| {
+                git(&rig.repo(), &["rm", "-q", "dossier/extra.txt"], None);
+                commit_all(rig, "delete");
+            }),
+        ),
+        (
+            "rename",
+            "dossier/extra.txt",
+            Box::new(|rig| {
+                git(
+                    &rig.repo(),
+                    &["mv", "dossier/extra.txt", "dossier/renamed.txt"],
+                    None,
+                );
+                commit_all(rig, "rename");
+            }),
+        ),
+        (
+            "mode change",
+            "dossier/extra.txt",
+            Box::new(|rig| {
+                git(
+                    &rig.repo(),
+                    &["update-index", "--chmod=+x", "dossier/extra.txt"],
+                    None,
+                );
+                git(
+                    &rig.repo(),
+                    &["commit", "-q", "-m", "mode"],
+                    Some(COMMIT_DATE),
+                );
+            }),
+        ),
+        (
+            "added symbolic link",
+            "dossier/link",
+            Box::new(|rig| {
+                symlink("extra.txt", rig.repo().join("dossier/link")).expect("symlink");
+                commit_all(rig, "link");
+            }),
+        ),
+        (
+            "added submodule entry",
+            "dossier/sub",
+            Box::new(|rig| {
+                let head = rig.head();
+                git(
+                    &rig.repo(),
+                    &[
+                        "update-index",
+                        "--add",
+                        "--cacheinfo",
+                        &format!("160000,{head},dossier/sub"),
+                    ],
+                    None,
+                );
+                git(
+                    &rig.repo(),
+                    &["commit", "-q", "-m", "submodule"],
+                    Some(COMMIT_DATE),
+                );
+            }),
+        ),
+    ];
+    for (name, path, change) in scenarios {
+        let (rig, offending, result) = export_after(change);
+        assert_eq!(result.status.code(), Some(3), "{name}");
+        let message = stderr(&result);
+        // The tag, the source commit, the offending commit and the path.
+        for needle in ["v1.2", rig.head().as_str(), offending.as_str(), path] {
+            assert!(
+                message.contains(needle),
+                "{name}: {needle} missing from {message}"
+            );
+        }
+        assert!(rig.requests().is_empty(), "{name}");
+        assert!(!rig.work("out.docx").exists(), "{name}");
+    }
+}
+
+#[trace("FR-034-AC-14")]
+#[test]
+fn a_merge_commit_after_the_tag_refuses_it_naming_the_commit() {
+    let (rig, _) = dossier_rig();
+    let repo = rig.repo();
+    git(&repo, &["checkout", "-q", "-b", "side"], None);
+    rig.commit("dossier/side.txt", "side\n", COMMIT_DATE);
+    git(&repo, &["checkout", "-q", "main"], None);
+    rig.commit("dossier/main.txt", "main\n", COMMIT_DATE);
+    git(
+        &repo,
+        &["merge", "-q", "--no-ff", "-m", "merge", "side"],
+        Some(COMMIT_DATE),
+    );
+    let merge = rig.head();
+    rig.commit("dossier/allowed.txt", "fine\n", COMMIT_DATE);
+    let result = dossier_export(&rig, "v1.2");
+    assert_eq!(result.status.code(), Some(3));
+    let message = stderr(&result);
+    assert!(message.contains("merge commit"), "{message}");
+    assert!(message.contains(&merge), "{message}");
+}
+
+#[trace("FR-034-AC-14")]
+#[test]
+fn the_input_directory_comes_from_its_repository_path() {
+    let (rig, _) = dossier_rig();
+    rig.commit("dossier/extra.txt", "later\n", COMMIT_DATE);
+    // A symbolic link in the typed path does not change the directory: the
+    // input is `dossier/doc.md`.
+    symlink("dossier", rig.repo().join("alias")).expect("symlink");
+    let aliased = rig.repo().join("alias/doc.md");
+    let mut command = rig.export(&aliased, "docx", &rig.work("out.docx"));
+    command.args(["--release", "v1.2"]);
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+    // A commit outside `dossier` is refused through the alias too.
+    rig.commit("outside.txt", "x\n", COMMIT_DATE);
+    let mut command = rig.export(&aliased, "docx", &rig.work("out.docx"));
+    command.args(["--release", "v1.2"]);
+    let result = run(command);
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("outside.txt"),
+        "{}",
+        stderr(&result)
+    );
+}
+
+#[trace("FR-034-AC-15")]
+#[test]
+fn a_root_input_accepts_only_a_tag_on_the_source_commit() {
+    let rig = Rig::new();
+    git(&rig.repo(), &["tag", "v1.2"], None);
+    rig.commit("dossier/x.txt", "x\n", COMMIT_DATE);
+    let mut command = rig.export(&rig.fixture(), "docx", &rig.work("out.docx"));
+    command.args(["--release", "v1.2"]);
+    let result = run(command);
+    assert_eq!(result.status.code(), Some(3));
+    assert!(stderr(&result).contains("v1.2"), "{}", stderr(&result));
+    assert!(
+        stderr(&result).contains("repository root"),
+        "{}",
+        stderr(&result)
+    );
+
+    // A bundle of one root input and one dossier input is refused too.
+    let text = fs::read_to_string(export_fixture()).expect("fixture");
+    let document = rig.commit(
+        "dossier/doc.md",
+        &text.replace("FR-001", "FR-003"),
+        COMMIT_DATE,
+    );
+    git(&rig.repo(), &["tag", "v1.3", "HEAD~1"], None);
+    let mut command = bundle_command(
+        &rig,
+        &[&rig.fixture(), &document],
+        "docx",
+        &rig.work("b.docx"),
+    );
+    command.args(["--release", "v1.3"]);
+    let result = run(command);
+    assert_eq!(result.status.code(), Some(3));
+    assert!(
+        stderr(&result).contains("repository root"),
+        "{}",
+        stderr(&result)
+    );
+
+    // A tag on the source commit is accepted.
+    git(&rig.repo(), &["tag", "v1.4"], None);
+    let mut command = rig.export(&rig.fixture(), "docx", &rig.work("out.docx"));
+    command.args(["--release", "v1.4"]);
+    let result = run(command);
+    assert!(result.status.success(), "{}", stderr(&result));
+}
+
+#[trace("FR-034-AC-16", "FR-040-AC-3")]
+#[test]
+fn a_tag_off_the_first_parent_chain_or_not_on_a_commit_is_refused() {
+    let (rig, _) = dossier_rig();
+    let repo = rig.repo();
+    let first = rig.head();
+    rig.commit("dossier/extra.txt", "later\n", COMMIT_DATE);
+    // Another branch.
+    git(&repo, &["checkout", "-q", "-b", "side", &first], None);
+    rig.commit("dossier/side.txt", "side\n", COMMIT_DATE);
+    git(&repo, &["tag", "on-side"], None);
+    git(&repo, &["checkout", "-q", "main"], None);
+    // History rewritten after the tag.
+    git(&repo, &["checkout", "-q", "-b", "rewrite", "HEAD~1"], None);
+    rig.commit("dossier/extra.txt", "rewritten\n", COMMIT_DATE);
+    git(&repo, &["tag", "rewritten"], None);
+    git(&repo, &["checkout", "-q", "main"], None);
+    // A tag on a commit later than the source commit.
+    let source = rig.head();
+    rig.commit("dossier/extra.txt", "latest\n", COMMIT_DATE);
+    git(&repo, &["tag", "later"], None);
+    for tag in ["on-side", "rewritten", "later"] {
+        let mut command = rig.export(&repo.join(DOSSIER_DOCUMENT), "docx", &rig.work("out.docx"));
+        command.args(["--release", tag, "--source-rev", &source]);
+        let result = run(command);
+        assert_eq!(result.status.code(), Some(3), "{tag}");
+        let message = stderr(&result);
+        for needle in [tag, source.as_str(), "not on the first-parent chain"] {
+            assert!(
+                message.contains(needle),
+                "{tag}: {needle} missing from {message}"
+            );
+        }
+    }
+    // A tag of a tree and of a blob.
+    git(&repo, &["tag", "tree-tag", "HEAD^{tree}"], None);
+    git(
+        &repo,
+        &["tag", "blob-tag", &format!("HEAD:{DOSSIER_DOCUMENT}")],
+        None,
+    );
+    for tag in ["tree-tag", "blob-tag"] {
+        let result = dossier_export(&rig, tag);
+        assert_eq!(result.status.code(), Some(3), "{tag}");
+        assert!(
+            stderr(&result).contains("tag does not name a commit"),
+            "{tag}: {}",
+            stderr(&result)
+        );
+    }
+}
+
+#[trace("FR-034-AC-17", "FR-040-AC-3")]
+#[test]
+fn a_shallow_history_never_accepts_the_tag() {
+    let (rig, _) = dossier_rig();
+    rig.commit("dossier/extra.txt", "a\n", COMMIT_DATE);
+    let middle = rig.head();
+    rig.commit("dossier/extra.txt", "b\n", COMMIT_DATE);
+    let source = rig.head();
+    let clone = rig.root().join("shallow");
+    let origin = format!("file://{}", rig.repo().display());
+    git(
+        &rig.root(),
+        &[
+            "clone",
+            "-q",
+            "--depth",
+            "1",
+            "--no-local",
+            &origin,
+            clone.to_str().expect("path"),
+        ],
+        None,
+    );
+    git(
+        &clone,
+        &["fetch", "-q", "--depth", "1", "origin", "tag", "v1.2"],
+        None,
+    );
+    let mut command = rig.export(&clone.join(DOSSIER_DOCUMENT), "docx", &rig.work("out.docx"));
+    command.args(["--release", "v1.2"]);
+    let result = run(command);
+    assert_eq!(result.status.code(), Some(3), "{}", stderr(&result));
+    let message = stderr(&result);
+    for needle in [
+        "v1.2",
+        source.as_str(),
+        "history incomplete",
+        middle.as_str(),
+    ] {
+        assert!(message.contains(needle), "{needle} missing from {message}");
     }
 }
 

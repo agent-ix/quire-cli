@@ -6,7 +6,7 @@
 use anyhow::Context;
 use serde_json::{Map, Value};
 
-use super::identity::Identity;
+use super::identity::{Identity, Release};
 use super::Format;
 
 /// Backslash-escapes each ASCII punctuation character and replaces each line
@@ -58,7 +58,7 @@ pub(super) fn metadata_yaml(identity: &Identity) -> anyhow::Result<String> {
         put("version", version);
     }
     if let Some(release) = &identity.release {
-        put("release", release);
+        put("release", release.tag());
     }
     put("commit", &identity.commit);
     put("date", &identity.date);
@@ -123,7 +123,7 @@ fn compose_front(identity: &Identity, to: Format, id_label: &str, list: Option<&
         line("Version", version);
     }
     if let Some(release) = &identity.release {
-        line("Release", release);
+        line("Release", &release.shown());
     }
     line("Source commit", &identity.commit);
     line("Date", &identity.date);
@@ -160,7 +160,7 @@ fn revision(identity: &Identity) -> &str {
     identity
         .version
         .as_deref()
-        .or(identity.release.as_deref())
+        .or(identity.release.as_ref().map(Release::tag))
         .unwrap_or_default()
 }
 
@@ -193,6 +193,7 @@ pub(super) fn typst_template(identity: &Identity) -> String {
 #set text(font: "Libertinus Serif", size: 11pt, lang: "en")
 #set par(justify: false, leading: 0.65em)
 #show raw: set text(font: "DejaVu Sans Mono", size: 9pt)
+#show table: set text(size: 9pt)
 #show heading.where(level: 1): set text(size: 18pt)
 #show heading.where(level: 2): set text(size: 14pt)
 #show heading.where(level: 3): set text(size: 12pt)

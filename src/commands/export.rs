@@ -81,8 +81,10 @@ pub struct Args {
     #[arg(long, value_name = "REV")]
     pub source_rev: Option<String>,
 
-    /// Tag of the source repository that names the source commit, shown as
-    /// the release of the document. Refused for a JSON input.
+    /// Tag of the source repository shown as the release of the document: a tag
+    /// on the source commit, or on an ancestor reached by first parents only
+    /// when every later commit adds or modifies files under an input's
+    /// directory. Refused for a JSON input.
     #[arg(long, value_name = "TAG")]
     pub release: Option<String>,
 
@@ -281,15 +283,18 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
         .map(|path| custom::load(path, args.to))
         .transpose()?;
     let approval = approval::load(&args.approval)?;
-    let source = identity::resolve(
+    let mut source = identity::resolve(
         &args.input[0],
         text,
         &identity::SourceOptions {
             repo: args.source_repo.as_deref(),
             rev: args.source_rev.as_deref(),
-            release: args.release.as_deref(),
         },
+        args.release.is_some(),
     )?;
+    if let Some(tag) = args.release.as_deref() {
+        identity::attach_release(std::slice::from_mut(&mut source), tag)?;
+    }
     // The committed text is what is validated, under the input's own path.
     validate::run_with(
         ctx,

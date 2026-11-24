@@ -38,6 +38,11 @@ gix-object = "0.66"
 gix-hash = { version = "0.28", features = ["sha1"] }
 gix-attributes = "0.37"
 gix-glob = "0.29"
+# FR-034 section A: the tree difference of the release-ancestor rule. The
+# default `blob` feature depends on `gix-command`, which NFR-004 bans.
+gix-diff = { version = "0.69", default-features = false, features = ["sha1"] }
+# FR-038: the SHA-256 of a verdict file, computed in process.
+sha2 = "0.10"
 bstr = { version = "1", default-features = false, features = ["std"] }
 crc32fast = "1"
 

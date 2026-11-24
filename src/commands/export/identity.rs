@@ -16,11 +16,35 @@ use serde_json::{Map, Value};
 
 use crate::commands::failure;
 
+/// The release tag of an export and, when it names another commit than the
+/// source commit, that commit (FR-034, Identity fields).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Release {
+    /// The tag name, which is the `release` member of `in/metadata.yaml`.
+    tag: String,
+    /// The full hash of the tag commit when it is not the source commit.
+    tag_commit: Option<String>,
+}
+
+impl Release {
+    /// The tag name alone.
+    pub(super) fn tag(&self) -> &str {
+        &self.tag
+    }
+
+    /// The text shown on the title page: `<TAG>` or `<TAG> (tag commit <hash>)`.
+    pub(super) fn shown(&self) -> String {
+        match &self.tag_commit {
+            Some(commit) => format!("{} (tag commit {commit})", self.tag),
+            None => self.tag.clone(),
+        }
+    }
+}
+
 /// The source-selection flags of FR-034.
 pub(super) struct SourceOptions<'a> {
     pub(super) repo: Option<&'a Path>,
     pub(super) rev: Option<&'a str>,
-    pub(super) release: Option<&'a str>,
 }
 
 /// The six identity fields of FR-034.
@@ -29,7 +53,7 @@ pub(super) struct Identity {
     pub(super) title: String,
     pub(super) document_id: String,
     pub(super) version: Option<String>,
-    pub(super) release: Option<String>,
+    pub(super) release: Option<Release>,
     pub(super) commit: String,
     pub(super) date: String,
     /// The committer time as seconds since the Unix epoch.
@@ -45,6 +69,9 @@ pub(super) struct Source {
     pub(super) committed: String,
     /// The shared git directory of the source repository.
     pub(super) repository: PathBuf,
+    /// The repository-relative directory of the input's repository path, or
+    /// `None` for an input in the repository root.
+    directory: Option<String>,
 }
 
 /// Reads the committed revision of `input` and assembles its identity.
@@ -53,12 +80,10 @@ pub(super) fn resolve(
     input: &Path,
     working: &str,
     options: &SourceOptions<'_>,
+    release_given: bool,
 ) -> anyhow::Result<Source> {
     let repo = Repo::open(input, options.repo)?;
     let commit = repo.resolve_commit(options.rev.unwrap_or("HEAD"))?;
-    if let Some(tag) = options.release {
-        repo.check_release(tag, &commit.id)?;
-    }
     let blob = repo.blob_at(&commit, input)?;
     let name = input.display();
     if let Some(filter) = repo.filter_attribute(&commit, &repo.relative)? {
@@ -83,11 +108,10 @@ pub(super) fn resolve(
     let title = text_member(frontmatter, "title");
     let document_id = text_member(frontmatter, "id");
     let version = text_member(frontmatter, "version");
-    let release = options.release.map(str::to_string);
     let (Some(title), Some(document_id), true) = (
         title.clone(),
         document_id.clone(),
-        version.is_some() || release.is_some(),
+        version.is_some() || release_given,
     ) else {
         let mut missing = Vec::new();
         if title.is_none() {
@@ -96,7 +120,7 @@ pub(super) fn resolve(
         if document_id.is_none() {
             missing.push("id");
         }
-        if version.is_none() && release.is_none() {
+        if version.is_none() && !release_given {
             missing.push("version (or pass --release)");
         }
         return Err(failure::invalid(anyhow::anyhow!(
@@ -109,7 +133,7 @@ pub(super) fn resolve(
             title,
             document_id,
             version,
-            release,
+            release: None,
             commit: commit.id.to_string(),
             date: utc_date(commit.seconds),
             epoch: commit.seconds,
@@ -117,7 +141,37 @@ pub(super) fn resolve(
         body: parsed.body.to_string(),
         committed,
         repository: repo.common.clone(),
+        directory: repo
+            .relative
+            .rsplit_once('/')
+            .map(|(directory, _)| directory.to_string()),
     })
+}
+
+/// Checks `tag` against the sources of an export, which share one repository
+/// and one source commit, and records on each identity the tag commit when it
+/// is not the source commit (FR-034 section A, release ancestor).
+pub(super) fn attach_release(sources: &mut [Source], tag: &str) -> anyhow::Result<()> {
+    let Some(first) = sources.first() else {
+        return Ok(());
+    };
+    let repo = Repo::at_common(&first.repository)?;
+    let source = ObjectId::from_hex(first.identity.commit.as_bytes())
+        .map_err(|error| repo.unavailable(tag, error))?;
+    let directories: Vec<Option<&str>> = sources
+        .iter()
+        .map(|source| source.directory.as_deref())
+        .collect();
+    let tag_commit = repo
+        .check_release(tag, &source, &directories)?
+        .map(|id| id.to_string());
+    for source in sources {
+        source.identity.release = Some(Release {
+            tag: tag.to_string(),
+            tag_commit: tag_commit.clone(),
+        });
+    }
+    Ok(())
 }
 
 /// A non-empty frontmatter member written as a string or a number.
@@ -239,6 +293,23 @@ impl Repo {
         })
     }
 
+    /// The object store and tags of a repository whose shared directory is `common`.
+    fn at_common(common: &Path) -> anyhow::Result<Self> {
+        let odb = gix_odb::at(common.join("objects"), gix_hash::Kind::Sha1).map_err(|error| {
+            failure::invalid(anyhow::anyhow!(
+                "source commit unavailable: the object store of '{}' is unreadable (objects: {error})",
+                common.display()
+            ))
+        })?;
+        Ok(Self {
+            dir: common.to_path_buf(),
+            odb,
+            refs: gix_ref::file::Store::at(common.to_path_buf(), gix_hash::Kind::Sha1),
+            relative: String::new(),
+            common: common.to_path_buf(),
+        })
+    }
+
     fn unavailable(&self, what: &str, cause: impl std::fmt::Display) -> anyhow::Error {
         failure::invalid(anyhow::anyhow!(
             "source commit unavailable in '{}': {what}: {cause}",
@@ -292,28 +363,125 @@ impl Repo {
             .map_err(|error| self.unavailable(rev, error))
     }
 
-    /// `--release` must be a tag that resolves to the source commit.
-    fn check_release(&self, tag: &str, commit: &ObjectId) -> anyhow::Result<()> {
+    /// `--release` must be a tag whose commit is `source` or a release ancestor
+    /// of it (FR-034 section A). Returns the tag commit when it is not `source`.
+    /// Every refusal names the tag, the source commit and the cause.
+    fn check_release(
+        &self,
+        tag: &str,
+        source: &ObjectId,
+        directories: &[Option<&str>],
+    ) -> anyhow::Result<Option<ObjectId>> {
+        let refuse = |cause: String| {
+            self.unavailable(
+                tag,
+                format!("--release is refused for source commit {source}: {cause}"),
+            )
+        };
         let name = format!("refs/tags/{tag}");
         let mut reference = self
             .refs
             .try_find(name.as_str())
-            .map_err(|error| self.unavailable(tag, error))?
-            .ok_or_else(|| self.unavailable(tag, "the release tag does not resolve"))?;
-        let id = reference
+            .map_err(|error| refuse(error.to_string()))?
+            .ok_or_else(|| refuse("the release tag does not resolve".to_string()))?;
+        let tagged = reference
             .peel_to_id(&self.refs, &self.odb)
-            .map_err(|error| self.unavailable(tag, error))?;
-        let tagged = self.resolve_commit(&id.to_string())?;
-        if tagged.id != *commit {
-            return Err(self.unavailable(
-                tag,
-                format!(
-                    "the release tag names {}, not the source commit {commit}",
-                    tagged.id
-                ),
+            .map_err(|error| refuse(error.to_string()))?;
+        let mut buffer = Vec::new();
+        let peeled = self
+            .odb
+            .try_find(&tagged, &mut buffer)
+            .map_err(|error| refuse(error.to_string()))?
+            .ok_or_else(|| refuse(format!("history incomplete: commit {tagged} is missing")))?;
+        if peeled.kind != gix_object::Kind::Commit {
+            return Err(refuse("tag does not name a commit".to_string()));
+        }
+        if tagged == *source {
+            return Ok(None);
+        }
+        if directories.iter().any(Option::is_none) {
+            return Err(refuse(
+                "an input is in the repository root, so only a tag on the source commit is \
+                 accepted"
+                    .to_string(),
             ));
         }
-        Ok(())
+        // The first-parent chain from the source commit down to the tag commit,
+        // each entry with its parents.
+        let mut chain: Vec<(ObjectId, Vec<ObjectId>)> = Vec::new();
+        let mut current = *source;
+        loop {
+            let mut buffer = Vec::new();
+            let data = self
+                .odb
+                .try_find(&current, &mut buffer)
+                .map_err(|error| refuse(error.to_string()))?
+                .ok_or_else(|| {
+                    refuse(format!("history incomplete: commit {current} is missing"))
+                })?;
+            let ObjectRef::Commit(commit) =
+                data.decode().map_err(|error| refuse(error.to_string()))?
+            else {
+                return Err(refuse(format!("{current} is not a commit")));
+            };
+            let parents: Vec<ObjectId> = commit.parents().collect();
+            let first = parents.first().copied();
+            chain.push((current, parents));
+            match first {
+                Some(parent) if parent == tagged => break,
+                Some(parent) => current = parent,
+                None => {
+                    return Err(refuse(format!(
+                        "tag commit {tagged} is not on the first-parent chain of the source commit"
+                    )))
+                }
+            }
+        }
+        let mut state = gix_diff::tree::State::default();
+        for (commit, parents) in &chain {
+            let [parent] = parents.as_slice() else {
+                return Err(refuse(format!("merge commit {commit}")));
+            };
+            let mut recorder = gix_diff::tree::Recorder::default();
+            let (before, after) = (
+                self.tree_bytes(parent).map_err(&refuse)?,
+                self.tree_bytes(commit).map_err(&refuse)?,
+            );
+            gix_diff::tree(
+                gix_object::TreeRefIter::from_bytes(&before, gix_hash::Kind::Sha1),
+                gix_object::TreeRefIter::from_bytes(&after, gix_hash::Kind::Sha1),
+                &mut state,
+                &self.odb,
+                &mut recorder,
+            )
+            .map_err(|error| refuse(format!("commit {commit}: {error}")))?;
+            for change in &recorder.records {
+                if let Some(what) = disallowed(change, directories) {
+                    return Err(refuse(format!("commit {commit} {what}")));
+                }
+            }
+        }
+        Ok(Some(tagged))
+    }
+    /// The bytes of the root tree of `commit`; the error is the cause text.
+    fn tree_bytes(&self, commit: &ObjectId) -> Result<Vec<u8>, String> {
+        let mut buffer = Vec::new();
+        let data = self
+            .odb
+            .try_find(commit, &mut buffer)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| format!("history incomplete: commit {commit} is missing"))?;
+        let ObjectRef::Commit(parsed) = data.decode().map_err(|error| error.to_string())? else {
+            return Err(format!("{commit} is not a commit"));
+        };
+        let tree = parsed.tree();
+        let mut buffer = Vec::new();
+        let data = self
+            .odb
+            .try_find(&tree, &mut buffer)
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| format!("tree {tree} of commit {commit} is missing"))?;
+        Ok(data.data.to_vec())
     }
 
     /// The tree entry for `path` below `tree`, as its blob id.
@@ -419,6 +587,51 @@ impl Repo {
             state.apply(bytes, relative);
         }
         Ok(state.filter)
+    }
+}
+
+/// What a change of a commit between the tag commit and the source commit does
+/// that FR-034 refuses: anything but the addition of a regular file, or the
+/// modification of a regular file with its mode unchanged, under the directory
+/// of an input. `None` when the change is allowed. Changes to a directory entry
+/// itself are skipped: its files are reported on their own.
+fn disallowed(
+    change: &gix_diff::tree::recorder::Change,
+    directories: &[Option<&str>],
+) -> Option<String> {
+    use gix_diff::tree::recorder::Change;
+    let (path, what) = match change {
+        Change::Addition { entry_mode, .. } if entry_mode.is_tree() => return None,
+        Change::Addition {
+            entry_mode, path, ..
+        } if entry_mode.is_blob() => (path, None),
+        Change::Addition { path, .. } => (path, Some("adds a symbolic link or submodule at")),
+        Change::Deletion { path, .. } => (path, Some("deletes")),
+        Change::Modification {
+            previous_entry_mode,
+            entry_mode,
+            ..
+        } if previous_entry_mode.is_tree() && entry_mode.is_tree() => return None,
+        Change::Modification {
+            previous_entry_mode,
+            entry_mode,
+            path,
+            ..
+        } if previous_entry_mode == entry_mode && entry_mode.is_blob() => (path, None),
+        Change::Modification { path, .. } => {
+            (path, Some("changes the mode, type, link or submodule of"))
+        }
+    };
+    let inside = directories.iter().flatten().any(|directory| {
+        let mut parts = path.split(|byte| *byte == b'/');
+        directory
+            .split('/')
+            .all(|part| parts.next() == Some(part.as_bytes()))
+    });
+    match (what, inside) {
+        (Some(what), _) => Some(format!("{what} '{path}'")),
+        (None, false) => Some(format!("changes '{path}' outside every input's directory")),
+        (None, true) => None,
     }
 }
 
