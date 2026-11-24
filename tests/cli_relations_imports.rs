@@ -1,14 +1,20 @@
 //! Explicit relation modules load their declared semantic import providers.
 mod common;
 
-use std::fs;
 use ix_trace_rs::trace;
 use serde_json::Value;
+use std::fs;
 use tempfile::TempDir;
 
-fn provider_manifest(name: &str, version: &str, package: &str, edge: &str) -> String {
+fn provider_manifest(
+    name: &str,
+    version: &str,
+    package: &str,
+    edge: &str,
+    imports: &str,
+) -> String {
     format!(
-        "name: {name}\nversion: {version}\nartifact_types: []\nsemantic:\n  contract_version: 1.0.0\n  package: {package}\n  exports: []\n  imports: {{}}\n  targets: [json-schema, markdown]\n  mappings: []\n  compatibility_posture: additive\n  legacy_forms: warning\nedge_types:\n  {edge}: {{description: '{edge} edge', category: traceability}}\n"
+        "name: {name}\nversion: {version}\nartifact_types: []\nsemantic:\n  contract_version: 1.0.0\n  package: {package}\n  exports: []\n  imports: {{{imports}}}\n  targets: [json-schema, markdown]\n  mappings: []\n  compatibility_posture: additive\n  legacy_forms: warning\nedge_types:\n  {edge}: {{description: '{edge} edge', category: traceability}}\n"
     )
 }
 
@@ -68,6 +74,12 @@ traceability:
       to: [SecurityItem]
       direction: outgoing
       check: iso-edge
+    - name: uses-transitive-edge
+      from: SecurityItem
+      edges: [transitive_edge]
+      to: [SecurityItem]
+      direction: outgoing
+      check: transitive-edge
 "#,
     )
     .expect("security manifest");
@@ -80,6 +92,7 @@ traceability:
             "0.3.0",
             "agent-ix/spec-artifacts-process",
             "process_edge",
+            "agent-ix/process-common: 1.0.0",
         ),
     );
     write_module(
@@ -90,6 +103,7 @@ traceability:
             "0.5.0",
             "agent-ix/spec-objects-architecture",
             "architecture_edge",
+            "",
         ),
     );
     write_module(
@@ -100,8 +114,43 @@ traceability:
             "0.3.0",
             "agent-ix/spec-artifacts-iso",
             "iso_edge",
+            "",
         ),
     );
+
+    let mut wrong_version = provider_manifest(
+        "spec-artifacts-process-wrong-version",
+        "0.3.1",
+        "agent-ix/spec-artifacts-process",
+        "wrong_process_edge",
+        "",
+    );
+    wrong_version.push_str(
+        "traceability:\n  required_relations:\n  - name: wrong-version-provider-relation\n    from: SecurityItem\n    edges: [wrong_process_edge]\n    to: [SecurityItem]\n    direction: outgoing\n    check: wrong-version-provider\n",
+    );
+    write_module(&installed, "00-process-wrong-version", &wrong_version);
+    write_module(
+        &installed,
+        "process-common",
+        &provider_manifest(
+            "process-common",
+            "1.0.0",
+            "agent-ix/process-common",
+            "transitive_edge",
+            "",
+        ),
+    );
+    let mut unrelated = provider_manifest(
+        "unrelated-module",
+        "1.0.0",
+        "agent-ix/unrelated-module",
+        "unrelated_edge",
+        "",
+    );
+    unrelated.push_str(
+        "traceability:\n  required_relations:\n  - name: unrelated-provider-relation\n    from: SecurityItem\n    edges: [unrelated_edge]\n    to: [SecurityItem]\n    direction: outgoing\n    check: unrelated-provider\n",
+    );
+    write_module(&installed, "zzz-unrelated", &unrelated);
 
     let mut command = common::quire();
     let output = command
@@ -134,8 +183,15 @@ traceability:
         .collect();
     assert_eq!(
         names,
-        ["uses-process-edge", "uses-architecture-edge", "uses-iso-edge"]
+        [
+            "uses-process-edge",
+            "uses-architecture-edge",
+            "uses-iso-edge",
+            "uses-transitive-edge"
+        ]
     );
+    assert!(!names.contains(&"unrelated-provider-relation"));
+    assert!(!names.contains(&"wrong-version-provider-relation"));
     assert!(
         !String::from_utf8_lossy(&output.stderr).contains("semantic.import-unresolved"),
         "all exact semantic import providers loaded: {}",

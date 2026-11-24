@@ -60,7 +60,7 @@ pub mod trace;
 pub mod update;
 pub mod validate;
 
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
@@ -259,7 +259,11 @@ fn add_semantic_import_providers(roots: &mut Vec<PathBuf>) {
             .filter(|path| path.is_dir() && path.join("manifest.yaml").is_file())
             .collect();
         paths.sort();
-        candidates.extend(paths.into_iter().filter_map(|path| semantic_metadata(&path)));
+        candidates.extend(
+            paths
+                .into_iter()
+                .filter_map(|path| semantic_metadata(&path)),
+        );
     }
 
     let mut resolved = BTreeSet::new();
@@ -267,17 +271,21 @@ fn add_semantic_import_providers(roots: &mut Vec<PathBuf>) {
         if !resolved.insert(dependency.clone()) || available.contains(&dependency) {
             continue;
         }
-        let Some(provider) = candidates
-            .iter()
-            .find(|module| (module.package.as_str(), module.version.as_str()) == (&dependency.0, &dependency.1))
-        else {
+        let Some(provider) = candidates.iter().find(|module| {
+            (module.package.as_str(), module.version.as_str()) == (&dependency.0, &dependency.1)
+        }) else {
             continue;
         };
         if !roots.iter().any(|root| root == &provider.root) {
             roots.push(provider.root.clone());
         }
         available.insert(dependency);
-        pending.extend(provider.imports.iter().cloned());
+        pending.extend(
+            provider
+                .imports
+                .iter()
+                .map(|(package, version)| (package.clone(), version.clone())),
+        );
     }
 }
 
@@ -288,10 +296,8 @@ fn semantic_metadata(module_root: &Path) -> Option<ModuleSemanticMetadata> {
     let manifest = quire_rs::loader::manifest::load_manifest(module_root).ok()?;
     let semantic = serde_json::to_value(manifest.semantic?).ok()?;
     let package = semantic.get("package")?.as_str()?.to_owned();
-    let imports: BTreeMap<String, String> = serde_json::from_value(
-        semantic.get("imports")?.clone(),
-    )
-    .ok()?;
+    let imports: BTreeMap<String, String> =
+        serde_json::from_value(semantic.get("imports")?.clone()).ok()?;
     Some(ModuleSemanticMetadata {
         root: module_root.to_path_buf(),
         package,

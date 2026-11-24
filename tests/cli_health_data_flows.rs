@@ -501,6 +501,80 @@ fn emits_the_canonical_health_flow_envelope_from_generic_relation_facts() {
 }
 
 #[test]
+#[trace("FR-046-AC-1", "FR-030-AC-28")]
+fn health_flow_projection_keeps_valid_flow_and_reports_dropped_relation() {
+    let (temp, scope) = world(
+        "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
+        "health",
+        Some("trust_level: untrusted\n"),
+        true,
+    );
+    let module = temp.path().join("module");
+    let manifest = fs::read_to_string(module.join("manifest.yaml")).unwrap();
+    fs::write(
+        module.join("manifest.yaml"),
+        manifest.replace("record_keys: [trust_level]", "record_keys: [missing-key]"),
+    )
+    .unwrap();
+
+    let output = run(&scope, &module, &["--health-data-flows", "--json"]);
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "stdout: {}\nstderr: {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = json(&output);
+    assert_eq!(report["schema"], "quire.health-data-flows/v1");
+    assert_eq!(report["flows"].as_array().unwrap().len(), 1);
+    assert_eq!(report["flows"][0]["connection"]["id"], "CONN-1");
+    assert_eq!(report["flows"][0]["classifications"][0]["id"], "CLS-1");
+    assert!(report["flows"][0]["crossings"]
+        .as_array()
+        .unwrap()
+        .is_empty());
+    assert!(report.get("errors").is_none(), "keep the projection schema");
+
+    let diagnostic = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        diagnostic.contains(
+            "error: dropped relation connection-crosses-trust-boundary from module health-flow-fixture:"
+        ),
+        "{diagnostic}"
+    );
+    assert!(diagnostic.contains("missing-key"), "{diagnostic}");
+    assert_eq!(
+        diagnostic
+            .matches("error: dropped relation connection-crosses-trust-boundary")
+            .count(),
+        1,
+        "{diagnostic}"
+    );
+
+    let strict = run(
+        &scope,
+        &module,
+        &["--health-data-flows", "--json", "--strict"],
+    );
+    assert_eq!(
+        strict.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&strict.stderr)
+    );
+    assert_eq!(json(&strict)["flows"], report["flows"]);
+    assert_eq!(
+        String::from_utf8_lossy(&strict.stderr)
+            .matches("error: dropped relation connection-crosses-trust-boundary")
+            .count(),
+        1,
+        "{}",
+        String::from_utf8_lossy(&strict.stderr)
+    );
+}
+
+#[test]
 #[trace("FR-044-AC-5", "FR-044-AC-7")]
 fn flow_mode_passes_through_generic_engine_report_and_applies_strict_exit() {
     let (temp, scope) = world(

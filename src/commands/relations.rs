@@ -222,6 +222,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         } else {
             primary!("{}", render_flow_human(flow));
         }
+        if !report.errors.is_empty() {
+            emit_dropped_relation_errors(ctx, &report);
+            partial_report!("{} dropped required relation(s)", report.errors.len());
+        }
         if args.strict {
             if !flow.denials.is_empty() {
                 partial_report!("{} flow denial(s) (--strict)", flow.denials.len());
@@ -246,6 +250,10 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         } else {
             primary!("{}", render_health_human(&projected));
         }
+        if !report.errors.is_empty() {
+            emit_dropped_relation_errors(ctx, &report);
+            partial_report!("{} dropped required relation(s)", report.errors.len());
+        }
         if args.strict && !projected.gaps.is_empty() {
             partial_report!(
                 "{} health-data-flow gap(s) (--strict)",
@@ -262,6 +270,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     }
 
     if !report.errors.is_empty() {
+        emit_dropped_relation_errors(ctx, &report);
         partial_report!("{} dropped required relation(s)", report.errors.len());
     }
 
@@ -272,6 +281,16 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+fn emit_dropped_relation_errors(ctx: &Ctx, report: &RelationReport) {
+    for error in &report.errors {
+        let message = format!(
+            "error: dropped relation {} from module {}: {}",
+            error.item, error.module, error.reason
+        );
+        ix_cli_kit::streams::Record::error("DroppedRelation", &message).emit(ctx.diagnostics);
+    }
 }
 
 #[derive(Debug, Serialize)]
