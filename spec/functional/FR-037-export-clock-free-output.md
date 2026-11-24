@@ -20,12 +20,14 @@ relationships:
 ## Description
 
 `quire export` SHALL make the conversion independent of the moment, the host and
-the process environment, so that the stability property of
-[NFR-011](../non-functional/NFR-011-export-reproducibility.md) holds. The date of
-a document is the source commit date of [FR-034](./FR-034-document-identity.md)
-and nothing else (a DOCX property that the pandoc sandbox stamps with the Unix
-epoch is allowed below); a JSON report has no source commit, and its date is the Unix
-epoch, 1970-01-01.
+the process environment, so that the byte-reproducibility property of
+[NFR-011](../non-functional/NFR-011-export-reproducibility.md) holds. Document
+dates come only from committed source revisions. An input's optional
+`generation_time` from [FR-034](./FR-034-document-identity.md) is source-derived
+metadata copied from committed frontmatter; it is not the time this export runs.
+A DOCX property that the pandoc sandbox stamps with the Unix epoch is allowed
+below. A JSON report has no source commit, and its date is the Unix epoch,
+1970-01-01.
 
 ## Behavior
 
@@ -45,8 +47,10 @@ epoch, 1970-01-01.
 - Where a converter would record a path or a random identifier in the extracted
   text or structure of the file, the command SHALL set the option or metadata
   that suppresses it.
-- The command SHALL NOT add a generation timestamp, a page of "exported on", or
-  a random document identifier to any output.
+- The command SHALL NOT add a per-export wall-clock generation timestamp, a page
+  of "exported on", or a random document identifier to any output. It SHALL
+  preserve the optional source-derived `generation_time` value from committed
+  input frontmatter without alteration and SHALL NOT synthesize one when absent.
 - Dates inside the body are the author's text and are not rewritten.
 
 ## Acceptance Criteria
@@ -58,6 +62,7 @@ epoch, 1970-01-01.
 | FR-037-AC-3 | The extracted text of both formats holds no host name, user name, capability-root path or repository path of the test run. | Test |
 | FR-037-AC-4 | A search of the export code finds no read of the wall clock, local time zone or file modification time on the path from input to request. | Inspection |
 | FR-037-AC-5 | With real pandoc and typst, the DOCX `docProps/core.xml` `created` and `modified` values and the PDF creation and modification dates of a JSON report export each equal the Unix epoch or are absent. | Test |
+| FR-037-AC-6 | With `generation_time` present in committed input frontmatter, both PDF and DOCX title pages and metadata carry the exact source-derived timestamp and `basis: source_commit`; changing the export process clock does not change that value or any output byte. With the member absent, no generation-time line is emitted. | Test |
 
 ## Dependencies
 
