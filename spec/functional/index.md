@@ -52,3 +52,4 @@ description: "Index of artifacts in this directory."
 * [FR-045: quire trace and symbols report the formalizes relation](./FR-045-trace-formalizes-output.md)
 * [FR-046: quire relations health-data-flows mode](./FR-046-health-data-flows-subcommand.md)
 * [FR-047: Run quire self-tests against the installed binary](./FR-047-quire-selftest.md)
+* [FR-048: Document private vulnerability reporting for quire-cli](./FR-048-vulnerability-reporting-policy.md)
