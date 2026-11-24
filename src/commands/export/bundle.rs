@@ -31,7 +31,7 @@ pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
         title: title.to_string(),
         document_id: id.to_string(),
         version: None,
-        release: args.release.clone(),
+        release: first.identity.release.clone(),
         commit: first.identity.commit.clone(),
         date: first.identity.date.clone(),
         epoch: first.identity.epoch,
@@ -148,6 +148,9 @@ fn resolve_sources(ctx: &Ctx, args: &Args) -> anyhow::Result<Vec<Source>> {
             );
         }
         sources.push(source);
+    }
+    if let Some(tag) = args.release.as_deref() {
+        identity::attach_release(&mut sources, tag)?;
     }
     for (input, source) in args.input.iter().zip(&sources) {
         validate::run_with(

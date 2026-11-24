@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 use super::custom::{invalid, read_bounded};
 use super::template::escape_markdown;
@@ -18,16 +19,26 @@ const NOT_RELEASED: &str = "not_released";
 const NOT_AVAILABLE: &str = "not available";
 const NOT_RECORDED: &str = "not recorded";
 const UNMAPPED: &str = "unmapped";
-const COLUMNS: [&str; 5] = [
+const COLUMNS: [&str; 6] = [
     "Person",
     "Signed at (signer's claim)",
     "Meaning",
     "Verdict",
+    "Verdict file",
     "Record",
 ];
+/// The start of every Verdict cell: the export verifies nothing, so no entry is
+/// shown as a verified approval, whatever its status.
+const UNVERIFIED: &str = "unverified claim: ";
+/// The fixed statement under the `Approval` heading.
+const STATEMENT: &str = "The verdicts below were computed elsewhere and are not re-verified by \
+this export. An approval covers the record named in its Record column, not this document.";
+
+/// The cells of one entry, unescaped.
+type Row = [String; 6];
 /// The narrowest and widest relative width a column asks for, in characters.
 const MIN_COLUMN_WIDTH: usize = 3;
-const MAX_COLUMN_WIDTH: usize = 40;
+const MAX_COLUMN_WIDTH: usize = 28;
 
 /// The members of a verdict file that the block shows. The verifier may add
 /// others; they are not consulted.
@@ -41,6 +52,7 @@ struct Verdict {
     approver: Option<String>,
     meaning: Option<Vec<String>>,
     signed_at: Option<String>,
+    tag_object_id: Option<String>,
     signature: Option<Signature>,
 }
 
@@ -85,9 +97,11 @@ pub(super) fn load(paths: &[PathBuf]) -> anyhow::Result<Option<String>> {
     let mut rows = Vec::with_capacity(paths.len());
     for path in paths {
         let bytes = read_bounded("--approval", path)?;
+        // The digest is of the bytes as read, computed in process.
+        let digest = format!("sha256:{:x}", Sha256::digest(&bytes));
         let text =
             String::from_utf8(bytes).map_err(|_| invalid("--approval", path, "not valid UTF-8"))?;
-        rows.push(row(&parse(path, &text)?, path)?);
+        rows.push(row(&parse(path, &text)?, &digest, path)?);
     }
     Ok(Some(markdown(&rows)))
 }
@@ -207,11 +221,14 @@ fn parse(path: &Path, text: &str) -> anyhow::Result<Entry> {
     }
 }
 
-/// The five cell texts of one entry, unescaped.
-fn row(entry: &Entry, path: &Path) -> anyhow::Result<[String; 5]> {
+/// The cells of one entry. `digest` is the `sha256:<hex>` of the file's bytes.
+fn row(entry: &Entry, digest: &str, path: &Path) -> anyhow::Result<Row> {
     match entry {
-        Entry::Approval(verdict) => row_approval(verdict, path),
-        Entry::Release(result, nested) => row_release(result, nested.as_deref(), path),
+        Entry::Approval(verdict) => {
+            let cells = StandaloneCells::read(verdict, path)?;
+            Ok(cells.row(UNVERIFIED.to_string() + &cells.verdict, digest))
+        }
+        Entry::Release(result, nested) => row_release(result, nested.as_deref(), digest, path),
     }
 }
 
@@ -231,105 +248,153 @@ fn extract_meaning(verdict: &Verdict) -> Option<&[String]> {
         .filter(|values| !values.is_empty())
 }
 
-/// Generates a row for a standalone approval-verify verdict.
-fn row_approval(verdict: &Verdict, path: &Path) -> anyhow::Result<[String; 5]> {
-    let approved = verdict.status == APPROVED;
-    let signer = verdict.signature.as_ref().and_then(|s| s.signer.as_ref());
-    let person = verdict
-        .approver
-        .as_deref()
-        .or_else(|| signer.and_then(|s| s.principal.as_deref()))
-        .unwrap_or(UNMAPPED);
-    // A time beside a signature the verifier did not accept as an approval
-    // would read as attested, so only an `approved` entry shows one.
-    let signed_at = match verdict.signed_at.as_deref().filter(|_| approved) {
-        Some(instant) => format_instant(instant).ok_or_else(|| {
-            invalid_error!(
-                "--approval '{}': signed_at '{instant}' is not a UTC instant YYYY-MM-DDTHH:MM:SSZ",
-                path.display()
-            )
-        })?,
-        None => NOT_AVAILABLE.to_string(),
-    };
-    let meaning = match extract_meaning(verdict) {
-        Some(values) if approved => quoted(values),
-        Some(values) => format!("claimed: {}", quoted(values)),
-        None => NOT_RECORDED.to_string(),
-    };
-    let verdict_text = match &verdict.reason {
-        Some(reason) => format!("{} ({reason})", verdict.status),
-        None => verdict.status.clone(),
-    };
-    let member = |value: &Option<String>| value.as_deref().unwrap_or(NOT_AVAILABLE).to_string();
-    let record = format!(
-        "id: {}; digest: {}; tag: {}",
-        member(&verdict.record_id),
-        member(&verdict.record_digest),
-        member(&verdict.tag)
-    );
-    Ok([person.to_string(), signed_at, meaning, verdict_text, record])
+/// The members of a verdict (a standalone file or the `approval` of a release
+/// result) as the entry fields of FR-038 read them.
+struct StandaloneCells {
+    person: String,
+    signed_at: String,
+    /// `claimed: ` prefixed unless the verdict is `approved`.
+    meaning: String,
+    /// The status text with the `reason` when present.
+    verdict: String,
+    record: String,
+    tag_object_id: Option<String>,
 }
 
-/// Generates a row for a release-verify result, optionally with a nested approval verdict.
+impl StandaloneCells {
+    fn read(verdict: &Verdict, path: &Path) -> anyhow::Result<Self> {
+        let approved = verdict.status == APPROVED;
+        let signer = verdict.signature.as_ref().and_then(|s| s.signer.as_ref());
+        let person = verdict
+            .approver
+            .as_deref()
+            .or_else(|| signer.and_then(|s| s.principal.as_deref()))
+            .unwrap_or(UNMAPPED);
+        // A time beside a signature the verifier did not accept as an approval
+        // would read as attested, so only an `approved` entry shows one.
+        let signed_at = match verdict.signed_at.as_deref().filter(|_| approved) {
+            Some(instant) => format_instant(instant).ok_or_else(|| {
+                invalid_error!(
+                    "--approval '{}': signed_at '{instant}' is not a UTC instant YYYY-MM-DDTHH:MM:SSZ",
+                    path.display()
+                )
+            })?,
+            None => NOT_AVAILABLE.to_string(),
+        };
+        let meaning = match extract_meaning(verdict) {
+            Some(values) if approved => quoted(values),
+            Some(values) => format!("claimed: {}", quoted(values)),
+            None => NOT_RECORDED.to_string(),
+        };
+        let member = |value: &Option<String>| value.as_deref().unwrap_or(NOT_AVAILABLE).to_string();
+        let record = format!(
+            "id: {}; digest: {}; tag: {}",
+            member(&verdict.record_id),
+            member(&verdict.record_digest),
+            member(&verdict.tag)
+        );
+        Ok(Self {
+            person: person.to_string(),
+            signed_at,
+            meaning,
+            verdict: status_text(verdict),
+            record,
+            tag_object_id: verdict.tag_object_id.clone(),
+        })
+    }
+
+    /// The row of these cells, whose Record is read from the verdict and so
+    /// carries the tag object the verdict names.
+    fn row(&self, verdict: String, digest: &str) -> Row {
+        [
+            self.person.clone(),
+            self.signed_at.clone(),
+            self.meaning.clone(),
+            verdict,
+            verdict_file(digest, self.tag_object_id.as_deref()),
+            self.record.clone(),
+        ]
+    }
+}
+
+/// `status`, or `status (reason)` when the verdict holds a `reason`.
+fn status_text(verdict: &Verdict) -> String {
+    match &verdict.reason {
+        Some(reason) => format!("{} ({reason})", verdict.status),
+        None => verdict.status.clone(),
+    }
+}
+
+/// The Verdict file cell: the digest and, when known, ` tag object: <id>`.
+fn verdict_file(digest: &str, tag_object_id: Option<&str>) -> String {
+    match tag_object_id {
+        Some(id) => format!("{digest} tag object: {id}"),
+        None => digest.to_string(),
+    }
+}
+
+/// The row of a release-verify result (FR-038, Release-verify input). Only the
+/// nested approval of a result that is not a `not_released` with an `approved`
+/// approval is a source of Person, Signed at, Meaning and Record.
 fn row_release(
     result: &ReleaseResult,
     nested: Option<&Verdict>,
+    digest: &str,
     path: &Path,
-) -> anyhow::Result<[String; 5]> {
-    // For released with approved nested verdict: use row_approval directly (validation
-    // guarantees the nested verdict is approved when status is released).
+) -> anyhow::Result<Row> {
+    let not_available = || NOT_AVAILABLE.to_string();
     if result.status == RELEASED {
-        if let Some(verdict) = nested {
-            return row_approval(verdict, path);
-        }
+        // Validation guarantees an `approved` nested verdict.
+        let Some(verdict) = nested else {
+            invalid_request!(
+                "--approval '{}': 'released' result has no 'approval'",
+                path.display()
+            );
+        };
+        let cells = StandaloneCells::read(verdict, path)?;
+        return Ok(cells.row(UNVERIFIED.to_string() + &cells.verdict, digest));
     }
 
-    // For not_released: show "not available" / "claimed:" regardless of nested content
-    let (person, signed_at, record) = (
-        NOT_AVAILABLE.to_string(),
-        NOT_AVAILABLE.to_string(),
-        NOT_AVAILABLE.to_string(),
-    );
+    let mut segments = vec![NOT_RELEASED.to_string()];
+    if let Some(Value::Array(reasons)) = &result.reasons {
+        let reasons: Vec<String> = reasons
+            .iter()
+            .filter_map(Value::as_str)
+            .map(|reason| Value::String(flatten(reason)).to_string())
+            .collect();
+        segments.push(format!("reasons: [{}]", reasons.join(", ")));
+    }
+    let verdict_cell = |segments: &[String]| format!("{UNVERIFIED}{}", segments.join("; "));
 
-    // Meaning: from nested approval when present, with "claimed:" prefix for not_released
-    let meaning = if let Some(verdict) = nested {
-        match extract_meaning(verdict) {
+    let Some(verdict) = nested else {
+        return Ok([
+            not_available(),
+            not_available(),
+            NOT_RECORDED.to_string(),
+            verdict_cell(&segments),
+            verdict_file(digest, None),
+            not_available(),
+        ]);
+    };
+    if verdict.status == APPROVED {
+        // Nothing is taken from an `approved` approval that the result does not
+        // release, except the recorded meaning, which is a claim.
+        let meaning = match extract_meaning(verdict) {
             Some(values) => format!("claimed: {}", quoted(values)),
             None => NOT_RECORDED.to_string(),
-        }
-    } else {
-        NOT_RECORDED.to_string()
-    };
-
-    // Verdict: build the multi-segment verdict for not_released
-    let mut segments = vec![NOT_RELEASED.to_string()];
-
-    // Add reasons segment
-    if let Some(Value::Array(reasons)) = &result.reasons {
-        let reasons_json: Vec<String> = reasons
-            .iter()
-            .filter_map(|v| v.as_str())
-            .map(|s| Value::String(flatten(s)).to_string())
-            .collect();
-        if !reasons_json.is_empty() {
-            segments.push(format!("reasons: [{}]", reasons_json.join(", ")));
-        }
+        };
+        return Ok([
+            not_available(),
+            not_available(),
+            meaning,
+            verdict_cell(&segments),
+            verdict_file(digest, None),
+            not_available(),
+        ]);
     }
-
-    // Add nested segment if present and not approved
-    if let Some(verdict) = nested {
-        if verdict.status != APPROVED {
-            let nested_text = match &verdict.reason {
-                Some(reason) => format!("{} ({})", verdict.status, flatten(reason)),
-                None => verdict.status.clone(),
-            };
-            segments.push(format!("nested: {nested_text}"));
-        }
-    }
-
-    let verdict_text = segments.join("; ");
-
-    Ok([person, signed_at, meaning, verdict_text, record])
+    segments.push(format!("nested: {}", status_text(verdict)));
+    let cells = StandaloneCells::read(verdict, path)?;
+    Ok(cells.row(verdict_cell(&segments), digest))
 }
 
 /// Each value as a JSON string, joined by `, `, so the boundary between two
@@ -437,7 +502,7 @@ fn breakable(text: &str) -> String {
 /// can exceed its character count. The counts are relative, so this keeps a
 /// run from overflowing only because every run is short, which `breakable`
 /// ensures for the Record cell.
-fn column_widths(rows: &[[String; 5]]) -> Vec<usize> {
+fn column_widths(rows: &[Row]) -> Vec<usize> {
     (0..COLUMNS.len())
         .map(|index| {
             let cells = || {
@@ -464,14 +529,14 @@ fn column_widths(rows: &[[String; 5]]) -> Vec<usize> {
 }
 
 /// The level-1 heading `Approval` and the pipe table, one row per entry.
-fn markdown(rows: &[[String; 5]]) -> String {
-    let rows: Vec<[String; 5]> = rows
+fn markdown(rows: &[Row]) -> String {
+    let rows: Vec<Row> = rows
         .iter()
         .map(|row| row.each_ref().map(|text| cell(text)))
         .collect();
     let widths = column_widths(&rows);
     let line = |cells: Vec<String>| format!("| {} |\n", cells.join(" | "));
-    let mut out = String::from("# Approval\n\n");
+    let mut out = format!("# Approval\n\n{STATEMENT}\n\n");
     out.push_str(&line(COLUMNS.iter().map(|title| cell(title)).collect()));
     out.push_str(&line(
         widths.iter().map(|width| "-".repeat(*width)).collect(),
@@ -536,13 +601,14 @@ mod tests {
                 "n/a".to_string(),
                 cell(meaning),
                 verdict.to_string(),
+                cell(&format!("sha256:{}", "cd".repeat(32))),
                 cell(&record),
             ]
         };
         let widths = column_widths(&[row(url, "untrusted_signer"), row("ok", "approved")]);
         assert!(widths[3] >= "untrusted_signer".len() * 3 / 2, "{widths:?}");
         assert!(widths[2] <= MAX_COLUMN_WIDTH, "{widths:?}");
-        assert!(widths[4] < widths.iter().sum::<usize>() / 2, "{widths:?}");
+        assert!(widths[5] < widths.iter().sum::<usize>() / 2, "{widths:?}");
     }
 
     #[test]
