@@ -15,6 +15,11 @@ or the locked build wrapper is unavailable, affected tests are recorded as
 `outcome: error` with `config.execution_state: not-executed`; the target exits
 nonzero and does not claim a passing live-tool run.
 
+The lane generates `spec/evidence/bindings.json` from the `#[trace]`
+attributes on the ignored tests in `tests/cli_export.rs`; those annotations
+are the authoritative test-to-criterion mapping. Do not maintain a separate
+hand-authored mapping.
+
 The lane uses `quoin` from `PATH` by default. Set the `QUOIN` Make variable to
 select another Quoin executable when validating against a different installed
 evidence-record schema.

@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "bindings": [
     {
       "obligation": "FR-031-AC-1",
@@ -274,6 +275,5 @@
         "cli_export::real_diagrams_are_byte_equal_across_time_zones_and_clock"
       ]
     }
-  ],
-  "schemaVersion": 1
+  ]
 }

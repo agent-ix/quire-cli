@@ -94,19 +94,35 @@ def ignored_tests() -> list[dict[str, object]]:
     return tests
 
 
-def validate_bindings(tests: list[dict[str, object]]) -> None:
+def write_bindings(tests: list[dict[str, object]]) -> None:
+    """Generate Quoin's registry from the tests' authoritative `#[trace]` attributes."""
     path = ROOT / "spec/evidence/bindings.json"
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    registered: dict[str, set[str]] = {}
-    for binding in payload.get("bindings", []):
-        if binding.get("suite") != SUITE:
-            continue
-        registered.setdefault(binding["obligation"], set()).update(binding.get("symbols", []))
+    other_suite_bindings: list[dict[str, object]] = []
+    if path.exists():
+        existing = json.loads(path.read_text(encoding="utf-8"))
+        if (
+            not isinstance(existing, dict)
+            or not isinstance(existing.get("bindings"), list)
+            or not all(isinstance(binding, dict) for binding in existing["bindings"])
+        ):
+            raise ValueError(f"invalid binding registry: {path}")
+        other_suite_bindings = [
+            binding for binding in existing["bindings"] if binding.get("suite") != SUITE
+        ]
+    symbols_by_criterion: dict[str, set[str]] = {}
     for test in tests:
         symbol = str(test["symbol"])
         for criterion in test["trace_ids"]:  # type: ignore[union-attr]
-            if symbol not in registered.get(str(criterion), set()):
-                raise ValueError(f"missing SUITE-004 binding: {criterion} -> {symbol}")
+            symbols_by_criterion.setdefault(str(criterion), set()).add(symbol)
+    payload = {
+        "schemaVersion": 1,
+        "bindings": [
+            {"obligation": criterion, "suite": SUITE, "symbols": sorted(symbols)}
+            for criterion, symbols in sorted(symbols_by_criterion.items())
+        ] + other_suite_bindings,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
 def resolve_locked_build() -> str | None:
@@ -150,8 +166,8 @@ def entry(test: dict[str, object], outcome: str, config: dict[str, object]) -> d
 def main() -> int:
     try:
         tests = ignored_tests()
-        validate_bindings(tests)
-    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+        write_bindings(tests)
+    except (OSError, ValueError) as error:
         print(f"real-tool-test configuration error: {error}", file=sys.stderr)
         return 2
 
