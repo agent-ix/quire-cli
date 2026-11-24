@@ -60,6 +60,7 @@ pub mod trace;
 pub mod update;
 pub mod validate;
 
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
@@ -165,16 +166,11 @@ pub fn emit_extraction_diagnostics(ctx: &Ctx, diagnostics: &[quire_rs::symbols::
 /// EMPTY registry; commands that ignored `failures()` then died later
 /// with a misleading `UnknownArchetype`. When the load produced zero
 /// modules and at least one failure, fail fast with the real reason.
-/// Load a **closed** registry for a repeatable `--module <PATH>` argument
-/// (upstream FR-013 closed module set, agent-ix/quire-rs#405).
+/// Load a closed registry for repeatable `--module <PATH>` arguments
+/// (upstream FR-013, agent-ix/quire-rs#405).
 ///
-/// The roots are used in the order given and REPLACE ambient discovery rather
-/// than adding to it: neither `IX_FILAMENT_MODULES_PATH` nor the default
-/// `~/.ix/filament/modules/` is consulted. That is the whole point of naming
-/// them. Both are additive in the engine's other constructors, so a module
-/// materialized at a pinned revision and also installed in the ambient root
-/// was loaded twice, resolved first-wins, and the report could not say which
-/// copy answered — a rate attributable to nothing in particular.
+/// The explicit roots replace ambient discovery: neither the module-path
+/// environment variables nor the default install root is consulted.
 ///
 /// Load problems surface eagerly for the same reason as
 /// [`load_module_registry`]: the tolerant engine load reports an unloadable
@@ -182,13 +178,32 @@ pub fn emit_extraction_diagnostics(ctx: &Ctx, diagnostics: &[quire_rs::symbols::
 /// and a caller that ignored `failures()` then died later with a misleading
 /// `UnknownArchetype`.
 pub fn load_module_set_registry(ctx: &Ctx, modules: &[String]) -> anyhow::Result<Registry> {
-    let roots: Vec<PathBuf> = modules
+    let roots = validate_module_roots(modules)?;
+    load_module_set_roots(ctx, &roots)
+}
+
+/// Load explicit relation modules and only the installed semantic providers
+/// their imports declare, preserving the explicit roots first.
+pub fn load_relation_module_set_registry(
+    ctx: &Ctx,
+    modules: &[String],
+) -> anyhow::Result<Registry> {
+    let mut roots = validate_module_roots(modules)?;
+    add_semantic_import_providers(&mut roots);
+    load_module_set_roots(ctx, &roots)
+}
+
+fn validate_module_roots(modules: &[String]) -> anyhow::Result<Vec<PathBuf>> {
+    modules
         .iter()
         .map(|raw| {
             quire_cli::safety::validate_module_path(raw)
                 .with_context(|| format!("validating --module '{raw}'"))
         })
-        .collect::<anyhow::Result<_>>()?;
+        .collect()
+}
+
+fn load_module_set_roots(ctx: &Ctx, roots: &[PathBuf]) -> anyhow::Result<Registry> {
     let refs: Vec<&Path> = roots.iter().map(|p| p.as_path()).collect();
     let registry = Registry::load_module_set(&refs)
         .map_err(failure::invalid)
@@ -200,6 +215,89 @@ pub fn load_module_set_registry(ctx: &Ctx, modules: &[String]) -> anyhow::Result
         }
     }
     Ok(registry)
+}
+
+#[derive(Debug)]
+struct ModuleSemanticMetadata {
+    root: PathBuf,
+    package: String,
+    version: String,
+    imports: BTreeMap<String, String>,
+}
+
+/// Resolve the transitive `semantic.imports` closure from installed modules.
+/// The engine must see explicit roots and providers in one load so imported
+/// vocabularies participate in its ordinary merge and diagnostic behavior.
+fn add_semantic_import_providers(roots: &mut Vec<PathBuf>) {
+    let mut available = BTreeSet::new();
+    let mut pending = BTreeSet::new();
+    for root in roots.iter() {
+        if let Some(module) = semantic_metadata(root) {
+            available.insert((module.package, module.version));
+            pending.extend(module.imports);
+        }
+    }
+    if pending.is_empty() {
+        return;
+    }
+
+    let mut candidates = Vec::new();
+    let module_path_env = quire_rs::loader::paths::module_path_env(
+        std::env::var_os("IX_FILAMENT_MODULES_PATH"),
+        std::env::var_os("IX_SCHEMA_PATH"),
+    );
+    for search in quire_rs::loader::paths::resolve_search_paths(&[], module_path_env) {
+        let quire_rs::loader::paths::PathDiagnostic::Ok(search_root) = search else {
+            continue;
+        };
+        let Ok(entries) = std::fs::read_dir(search_root) else {
+            continue;
+        };
+        let mut paths: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| path.is_dir() && path.join("manifest.yaml").is_file())
+            .collect();
+        paths.sort();
+        candidates.extend(paths.into_iter().filter_map(|path| semantic_metadata(&path)));
+    }
+
+    let mut resolved = BTreeSet::new();
+    while let Some(dependency) = pending.pop_first() {
+        if !resolved.insert(dependency.clone()) || available.contains(&dependency) {
+            continue;
+        }
+        let Some(provider) = candidates
+            .iter()
+            .find(|module| (module.package.as_str(), module.version.as_str()) == (&dependency.0, &dependency.1))
+        else {
+            continue;
+        };
+        if !roots.iter().any(|root| root == &provider.root) {
+            roots.push(provider.root.clone());
+        }
+        available.insert(dependency);
+        pending.extend(provider.imports.iter().cloned());
+    }
+}
+
+/// Read only the manifest identity and semantic dependency map needed to
+/// select a provider. Invalid manifests are left for the final engine load to
+/// diagnose with its normal, complete error context.
+fn semantic_metadata(module_root: &Path) -> Option<ModuleSemanticMetadata> {
+    let manifest = quire_rs::loader::manifest::load_manifest(module_root).ok()?;
+    let semantic = serde_json::to_value(manifest.semantic?).ok()?;
+    let package = semantic.get("package")?.as_str()?.to_owned();
+    let imports: BTreeMap<String, String> = serde_json::from_value(
+        semantic.get("imports")?.clone(),
+    )
+    .ok()?;
+    Some(ModuleSemanticMetadata {
+        root: module_root.to_path_buf(),
+        package,
+        version: manifest.version?,
+        imports,
+    })
 }
 
 pub fn load_module_registry(ctx: &Ctx, module: &Path) -> anyhow::Result<Registry> {

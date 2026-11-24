@@ -834,6 +834,38 @@ pub(super) fn load_registry_for(
     modules: &[String],
     scope: &Path,
 ) -> anyhow::Result<Registry> {
+    let registry = load_registry_for_unchecked(ctx, modules, scope)?;
+    // Every caller computes over the merged model (FR-058-AC-47).
+    super::require_complete_model(&registry)?;
+    Ok(registry)
+}
+
+/// Module resolution for `relations`, whose upstream report carries dropped
+/// required relations as report errors. Other dropped declaration kinds still
+/// refuse the command before any coverage work is attempted.
+pub(super) fn load_registry_for_relations(
+    ctx: &Ctx,
+    modules: &[String],
+    scope: &Path,
+) -> anyhow::Result<Registry> {
+    let registry = if modules.is_empty() {
+        load_registry_for_unchecked(ctx, modules, scope)?
+    } else {
+        super::load_relation_module_set_registry(ctx, modules)?
+    };
+    if registry.dropped_declarations().any(|(_, declaration)| {
+        declaration.kind != quire_rs::traceability::DeclarationKind::RequiredRelation
+    }) {
+        super::require_complete_model(&registry)?;
+    }
+    Ok(registry)
+}
+
+fn load_registry_for_unchecked(
+    ctx: &Ctx,
+    modules: &[String],
+    scope: &Path,
+) -> anyhow::Result<Registry> {
     let registry = if !modules.is_empty() {
         super::load_module_set_registry(ctx, modules)?
     } else if scope.join("manifest.yaml").is_file() {
@@ -841,8 +873,6 @@ pub(super) fn load_registry_for(
     } else {
         super::validate::load_scoped_with_defaults(ctx, scope)?
     };
-    // Every caller computes over the merged model (FR-058-AC-47).
-    super::require_complete_model(&registry)?;
     Ok(registry)
 }
 
