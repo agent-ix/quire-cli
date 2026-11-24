@@ -62,6 +62,18 @@ fn export_fixture() -> PathBuf {
     fixture_root().join("export/export-fr.md")
 }
 
+/// Commits the fixture with the optional producer identity supplied by a
+/// dossier producer.
+fn commit_with_producer_identity(rig: &Rig) -> PathBuf {
+    let fixture = fs::read_to_string(rig.fixture()).expect("fixture");
+    let with_identity = fixture.replace(
+        "version: \"1.0\"\n",
+        "version: \"1.0\"\nproducer_identity:\n  name: quoin dossier\n  version: 0.36.10\n",
+    );
+    assert_ne!(fixture, with_identity, "the producer identity was inserted");
+    rig.commit("export-fr.md", &with_identity, COMMIT_DATE)
+}
+
 /// The body of a document after its frontmatter block.
 fn body_of(text: &str) -> &str {
     let after_open = &text["---\n".len()..];
@@ -951,6 +963,15 @@ fn the_identity_comes_from_the_frontmatter_and_the_source_commit() {
     assert_eq!(identity["commit"], rig.head());
     assert_eq!(identity["date"], "2001\\-02\\-04");
     assert!(identity.get("release").is_none());
+    assert!(identity.get("producer_identity").is_none());
+    assert_eq!(
+        identity["exporter-provenance"]["cli"]["version"],
+        quire_cli::engine::CLI_VERSION
+    );
+    assert_eq!(
+        identity["exporter-provenance"]["engine"]["version"],
+        quire_cli::engine::ENGINE_VERSION
+    );
     assert_eq!(
         fs::read_to_string(rig.root().join("log/epoch")).expect("epoch"),
         "981261000\n"
@@ -963,10 +984,16 @@ fn the_identity_comes_from_the_frontmatter_and_the_source_commit() {
         "Version: 1\\.0\n",
         &format!("Source commit: {}\n", rig.head()),
         "Date: 2001\\-02\\-04\n",
+        &format!("Quire CLI version: {}\n", quire_cli::engine::CLI_VERSION),
+        &format!(
+            "Quire engine version: {}\n",
+            quire_cli::engine::ENGINE_VERSION
+        ),
     ] {
         assert!(front.contains(line), "{line:?} missing from {front}");
     }
     assert!(!front.contains("Release:"));
+    assert!(!front.contains("Producer:"));
     // The page breaks and the contents are raw blocks of the output format only.
     assert_eq!(front.matches("```{=openxml}").count(), 3);
     assert!(!front.contains("typst"));
@@ -981,6 +1008,59 @@ fn the_identity_comes_from_the_frontmatter_and_the_source_commit() {
     assert!(!arguments.contains("--table-of-contents"));
 }
 
+#[trace("FR-034-AC-18", "FR-035-AC-1", "FR-035-AC-2", "FR-036-AC-3")]
+#[test]
+fn committed_producer_identity_is_preserved_in_metadata_and_title_page() {
+    let rig = Rig::new();
+    let input = commit_with_producer_identity(&rig);
+    let result = run(rig.export(&input, "docx", &rig.work("out.docx")));
+    assert!(result.status.success(), "{}", stderr(&result));
+
+    let exported = exported_identity(&rig);
+    assert_eq!(
+        exported["producer_identity"],
+        serde_json::json!({"name": "quoin dossier", "version": "0.36.10"})
+    );
+    assert_eq!(
+        exported["exporter-provenance"]["cli"]["version"],
+        quire_cli::engine::CLI_VERSION
+    );
+    assert_eq!(
+        exported["exporter-provenance"]["engine"]["version"],
+        quire_cli::engine::ENGINE_VERSION
+    );
+    assert!(exported.get("source_revision").is_none());
+    assert!(exported.get("toolchain_provenance").is_none());
+    assert!(exported.get("generation_time").is_none());
+
+    let front = rig.converter_input("front.md");
+    assert!(front.contains("Producer: quoin dossier\n"), "{front}");
+    assert!(front.contains("Producer version: 0\\.36\\.10\n"), "{front}");
+    assert!(front.contains(&format!(
+        "Quire CLI version: {}\n",
+        quire_cli::engine::CLI_VERSION
+    )));
+    assert!(front.contains(&format!(
+        "Quire engine version: {}\n",
+        quire_cli::engine::ENGINE_VERSION
+    )));
+}
+
+#[trace("FR-034-AC-18")]
+#[test]
+fn malformed_producer_identity_is_refused_before_running_the_converter() {
+    let rig = Rig::new();
+    let fixture = fs::read_to_string(rig.fixture()).expect("fixture").replace(
+        "version: \"1.0\"\n",
+        "version: \"1.0\"\nproducer_identity: quoin dossier\n",
+    );
+    let input = rig.commit("export-fr.md", &fixture, COMMIT_DATE);
+    let result = run(rig.export(&input, "docx", &rig.work("out.docx")));
+    assert_eq!(result.status.code(), Some(3));
+    assert!(stderr(&result).contains("producer_identity"));
+    assert!(rig.calls().is_empty());
+}
+
 #[trace("FR-035-AC-6", "FR-035-AC-5")]
 #[test]
 fn the_default_template_is_generated_into_the_capability_root() {
@@ -991,6 +1071,8 @@ fn the_default_template_is_generated_into_the_capability_root() {
     assert!(template.contains("paper: \"a4\""));
     assert!(template.contains("Page #counter(page).display() of #counter(page).final()"));
     assert!(template.contains(&rig.head()[..12]));
+    assert!(template.contains(quire_cli::engine::CLI_VERSION));
+    assert!(template.contains(quire_cli::engine::ENGINE_VERSION));
     assert!(!template.contains(&rig.head()[..13]));
     assert!(template.contains("$quire-export.document-id$"));
 
@@ -2269,8 +2351,9 @@ fn docx_parts(path: &Path, prefix: &str) -> String {
 #[ignore = "needs real pandoc, typst and pdftotext on PATH"]
 fn real_pdf_has_a_title_page_contents_header_footer_and_page_numbers() {
     let rig = Rig::new();
+    let input = commit_with_producer_identity(&rig);
     let pdf = rig.work("out.pdf");
-    let result = real_export(&rig, &rig.fixture(), "pdf", &pdf);
+    let result = real_export(&rig, &input, "pdf", &pdf);
     assert!(result.status.success(), "{}", stderr(&result));
 
     let first = pdf_page(&pdf, 1);
@@ -2280,6 +2363,13 @@ fn real_pdf_has_a_title_page_contents_header_footer_and_page_numbers() {
         "1.0",
         &rig.head(),
         "2001-02-04",
+        "Producer: quoin dossier",
+        "Producer version: 0.36.10",
+        &format!("Quire CLI version: {}", quire_cli::engine::CLI_VERSION),
+        &format!(
+            "Quire engine version: {}",
+            quire_cli::engine::ENGINE_VERSION
+        ),
     ] {
         assert!(
             first.contains(needle),
@@ -2310,6 +2400,14 @@ fn real_pdf_has_a_title_page_contents_header_footer_and_page_numbers() {
     assert!(third.contains("1.0"), "header version: {third}");
     assert!(third.contains(&rig.head()[..12]), "footer commit: {third}");
     assert!(
+        third.contains(quire_cli::engine::CLI_VERSION),
+        "footer CLI version: {third}"
+    );
+    assert!(
+        third.contains(quire_cli::engine::ENGINE_VERSION),
+        "footer engine version: {third}"
+    );
+    assert!(
         third.contains(&format!("Page 3 of {total}")),
         "footer: {third}"
     );
@@ -2320,8 +2418,9 @@ fn real_pdf_has_a_title_page_contents_header_footer_and_page_numbers() {
 #[ignore = "needs real pandoc, unzip and pdftotext on PATH"]
 fn real_docx_has_a_title_page_toc_field_and_a_page_furniture() {
     let rig = Rig::new();
+    let input = commit_with_producer_identity(&rig);
     let docx = rig.work("out.docx");
-    let result = real_export(&rig, &rig.fixture(), "docx", &docx);
+    let result = real_export(&rig, &input, "docx", &docx);
     assert!(result.status.success(), "{}", stderr(&result));
 
     let document = docx_part(&docx, "word/document.xml");
@@ -2333,6 +2432,10 @@ fn real_docx_has_a_title_page_toc_field_and_a_page_furniture() {
         "1.0",
         rig.head().as_str(),
         "2001-02-04",
+        "Producer: quoin dossier",
+        "Producer version: 0.36.10",
+        quire_cli::engine::CLI_VERSION,
+        quire_cli::engine::ENGINE_VERSION,
     ] {
         assert!(before.contains(needle), "{needle:?} not on the title page");
     }
@@ -2350,6 +2453,8 @@ fn real_docx_has_a_title_page_toc_field_and_a_page_furniture() {
         "{footers}"
     );
     assert!(footers.contains(&rig.head()[..12]));
+    assert!(footers.contains(quire_cli::engine::CLI_VERSION));
+    assert!(footers.contains(quire_cli::engine::ENGINE_VERSION));
 }
 
 #[trace("FR-034-AC-10")]
@@ -3693,6 +3798,7 @@ fn pandoc_reference_docx(rig: &Rig) -> PathBuf {
 fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
     let rig = Rig::new();
     let [one, two, three] = bundle_documents(&rig);
+    let producer_input = commit_with_producer_identity(&rig);
     let pdf_template = org_template(&rig, "org.typ", TYPST_ORG_TEMPLATE.as_bytes());
     let docx_template = pandoc_reference_docx(&rig);
     let changed = fs::read_to_string(export_fixture())
@@ -3706,7 +3812,7 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
             &docx_template
         };
         let scenarios: Vec<(&str, Scenario)> = vec![
-            ("default", Box::new(|| real_command(&[&rig.fixture()], to))),
+            ("default", Box::new(|| real_command(&[&producer_input], to))),
             (
                 "bundle",
                 Box::new(|| {
@@ -3717,7 +3823,7 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
             ),
             (
                 "template",
-                Box::new(|| with_template(real_command(&[&rig.fixture()], to), template)),
+                Box::new(|| with_template(real_command(&[&producer_input], to), template)),
             ),
         ];
         for (name, build) in &scenarios {
@@ -3732,6 +3838,11 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
                 nfr_structure(&first, to),
                 nfr_structure(&second, to),
                 "{name} {to} structure"
+            );
+            assert_eq!(
+                fs::read(&first).expect("first export"),
+                fs::read(&second).expect("second export"),
+                "{name} {to} output bytes"
             );
         }
         // A one-word change must show in the extracted text.

@@ -51,10 +51,9 @@ whatever the template:
   [FR-034](./FR-034-document-identity.md) as labelled lines (Document id, Version
   when present, Release when present, Source commit, Date), followed by the
   running exporter's Quire CLI and engine versions. When present in committed
-  input frontmatter, it SHALL also show the direct producer identity, source
-  toolchain provenance, subject source revision and source-derived generation
-  time as separate labelled lines. It SHALL NOT invent values for absent
-  provenance, and SHALL show no text of the document.
+  input frontmatter, it SHALL also show the direct producer name and version as
+  separate labelled lines. It SHALL NOT invent values for absent provenance,
+  and SHALL show no text of the document.
 - The table of contents SHALL list the headings of level 1 to 3 of the document
   and the generated headings, with page numbers in PDF.
 - The command SHALL write each page break as a raw block of the output format,
@@ -93,8 +92,8 @@ whatever the template:
 
 | ID | Criteria | Verification |
 | --- | --- | --- |
-| FR-035-AC-1 | A PDF export of a committed fixture with no `--template` yields page 1 text with the title, six identity fields, running Quire CLI/engine versions and all present producer/toolchain provenance from FR-034, with absent optional provenance omitted and no document text; page 2 onward holds the document. Extracted with `pdftotext` per page. | Test |
-| FR-035-AC-2 | The same DOCX export yields `word/document.xml` text in which the title, identity and provenance lines precede the first page-break element and no document text precedes that break. The exporter provenance and all present source producer provenance appear as their distinct values. | Test |
+| FR-035-AC-1 | A PDF export of a committed fixture with no `--template` yields page 1 text with the title, six identity fields, running Quire CLI/engine versions and the present producer name/version from FR-034, with absent optional identity omitted and no document text; page 2 onward holds the document. Extracted with `pdftotext` per page. | Test |
+| FR-035-AC-2 | The same DOCX export yields `word/document.xml` text in which the title, identity and producer lines precede the first page-break element and no document text precedes that break. The exporter versions and producer name/version appear as their distinct values. | Test |
 | FR-035-AC-3 | The PDF holds a table of contents whose entries equal the fixture's level 1 to 3 headings in order, and the DOCX holds a TOC field. | Test |
 | FR-035-AC-4 | PDF pages after the first hold a header with the document id and version, and a footer with the 12-character commit prefix, running Quire CLI and engine versions, and `Page N of M` for the page's own N and the total M; page 1 holds no `Page 1 of`. | Test |
 | FR-035-AC-5 | The DOCX has a `word/header*.xml` part holding the document id and version and a `word/footer*.xml` part holding the `PAGE` and `NUMPAGES` fields, the 12-character commit prefix, and running Quire CLI and engine versions; it also has a first-page-different setting in `word/document.xml` and no header or footer text on that first page. | Test |

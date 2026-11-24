@@ -51,32 +51,23 @@ At least one of Version and Release SHALL be present; both are shown when both
 are present. The `title`, `id` and `version` members are strings or numbers; any other type counts as absent. The frontmatter members are read with `extract_frontmatter` of
 [quire-rs FR-006](ix://agent-ix/quire-rs/FR-006).
 
-### Producer provenance
+### Producer identity
 
-The input may carry these additional frontmatter members, authored by its
-producer:
+The input may carry a direct producer identity when its declared input schema
+allows it:
 
 | Member | Meaning |
 | --- | --- |
-| `producer_identity` | The direct producer's `name`, `version`, `source_revision`, and `source_date`. |
-| `toolchain_provenance` | The producer's toolchain provenance, including the exact `quire provenance` object and, when present, Engineering Assurance `name`, `version`, `source_revision`, and `source_date`. |
-| `source_revision` | The revision of the subject described by the input. It is distinct from the source commit selected for this export. |
-| `generation_time` | `{timestamp, basis: source_commit}`, where `timestamp` is the subject source revision's UTC committed-at instant. It is a reproducible source timestamp, not the time this export runs. |
+| `producer_identity` | The direct producer's `name` and `version`. |
 
-Each source member is optional. The command SHALL read each value from the
-committed input blob and preserve it as data; it SHALL NOT infer a missing value
-from the export's source commit, the current Quire build, `as_of`, or the wall
-clock. `producer_identity` has `name`, `version`, `source_revision`, and
-`source_date` string members. `toolchain_provenance` may hold a `quire` member
-whose value is the exact `quire provenance` object from the input producer, and
-an `engineering_assurance` object with `name`, `version`, `source_revision`,
-and `source_date` string members. `generation_time` has an RFC 3339 UTC
-`timestamp` and the literal `basis: source_commit`. A present member SHALL have
-the object shape above; malformed values are refused with the member name. The
-exporter SHALL additionally obtain its own exact Quire CLI and engine
-provenance from the running binary, without starting a version-probe process.
-The current exporter's provenance is distinct from any `quire` member inside
-the source's `toolchain_provenance`.
+`producer_identity` is optional. When present, it has exactly the non-empty
+string members `name` and `version`; malformed values are refused with the
+member name. The command SHALL read it from the committed input blob and
+preserve it as data; it SHALL NOT infer a missing identity from `generated_by`,
+the export's source commit, `as_of`, or the wall clock. The source commit hash
+and date identify the committed input being exported. The exporter SHALL obtain
+its own exact Quire CLI and engine provenance from the running binary, without
+starting a version-probe process.
 
 ## Behavior
 
@@ -103,9 +94,7 @@ the source's `toolchain_provenance`.
   attribute (which covers Git LFS), because the committed bytes are then not the
   bytes a reader of the file sees; the diagnostic names the filter.
 - The command SHALL NOT read the wall clock, the time zone or a file's
-  modification time for any identity field or any text of the output. The
-  optional `generation_time` is copied from committed frontmatter and is never
-  replaced by a per-export timestamp.
+  modification time for any identity field or any text of the output.
 
 ### B. No process, no network
 
@@ -124,8 +113,7 @@ the source's `toolchain_provenance`.
   reserved key `quire-export`. Its six document identity fields are `title`,
   `document-id`, `version`, `release`, `commit` and `date`; it also contains the
   running exporter's exact `exporter-provenance` object and, when present in the
-  committed input, the `producer_identity`, `toolchain_provenance`,
-  `source_revision` and `generation_time` members. String identity values are
+  committed input, its `producer_identity` object. String identity values are
   JSON string values; provenance objects retain their nested types. The command
   SHALL pass this map with `--metadata-file` and SHALL NOT pass an identity or
   provenance value as an argument.
@@ -171,9 +159,9 @@ the source's `toolchain_provenance`.
 | FR-034-AC-15 | With an input in the repository root, and with a bundle of one root input and one input under `dossier`, a tag on a commit before S whose later commits touch only files under `dossier` is refused naming the cause; a tag on S is accepted. | Test |
 | FR-034-AC-16 | With `--release` naming a tag on another branch, a tag on a commit that history rewriting removed from the first-parent chain of S, or a tag on a commit later than S, the export exits 3 naming the tag, S and the cause "not on the first-parent chain"; a tag of a tree or of a blob exits 3 naming the cause "tag does not name a commit". | Test |
 | FR-034-AC-17 | In a shallow clone whose history lacks the commit between S and T, the export exits 3 naming the tag, S, the cause "history incomplete" and the missing commit hash, and does not accept the tag. | Test |
-| FR-034-AC-18 | A committed Markdown fixture with valid `producer_identity`, `toolchain_provenance`, `source_revision`, and `generation_time` frontmatter preserves their values in `quire-export` metadata and the generated title page. The producer identity, source toolchain provenance, subject source revision, and source-derived generation time are labelled separately from the export source commit/date and the running exporter's Quire provenance. Missing optional members produce no placeholder line; malformed members are refused naming the member. | Test |
-| FR-034-AC-19 | Two exports of the same committed source with the same template, Quire build, pandoc, typst, fonts, and inputs yield byte-identical output files, including when the source frontmatter contains producer provenance. Changing only the wall clock, time zone, host, working directory, capability-root path, or output path does not change output bytes. | Test |
-| FR-034-AC-20 | The `quire-export.exporter-provenance` object identifies the running Quire CLI and engine versions exactly, without probing or starting another process, and is stored separately from any source `toolchain_provenance.quire` object even when both objects have equal values. | Test |
+| FR-034-AC-18 | A committed Markdown fixture with valid `producer_identity` frontmatter preserves its `name` and `version` in `quire-export` metadata and on the generated title page, separately from the export source commit/date and the running exporter's Quire CLI/engine versions. Missing `producer_identity` emits no placeholder; a malformed object is refused naming `producer_identity`. | Test |
+| FR-034-AC-19 | Two exports of the same committed source with the same template, Quire build, pandoc, typst, fonts, and inputs yield byte-identical output files, including when the source frontmatter contains `producer_identity`. Changing only the wall clock, time zone, host, working directory, capability-root path, or output path does not change output bytes. | Test |
+| FR-034-AC-20 | The `quire-export.exporter-provenance` object identifies the running Quire CLI and engine versions exactly, without probing or starting another process. | Test |
 
 ## Dependencies
 
