@@ -20,3 +20,9 @@ Reviewed FR-048 and the matching SECURITY.md in PR #237. The policy names the en
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | low | FR-048 is not linked to a user story, so its policy obligation has no local user-value context. | spec/functional/FR-048-vulnerability-reporting-policy.md:2 |
+
+## Dispositions
+
+| FND | Outcome | Reason |
+| --- | --- | --- |
+| FND-001 | fixed | - |
