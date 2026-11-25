@@ -288,8 +288,13 @@ fn check_selftest_trace_markers(
     let mut findings = Vec::new();
     for member in &corpus.members {
         let selftest_root = member.root.join("selftest");
-        if !selftest_root.is_dir() {
-            continue;
+        match fs::symlink_metadata(&selftest_root) {
+            Ok(metadata) if metadata.file_type().is_dir() => {}
+            Ok(_) => continue,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(error).with_context(|| format!("reading {}", selftest_root.display()))
+            }
         }
         let mut scripts = Vec::new();
         collect_run_scripts(&selftest_root, &mut scripts)?;
