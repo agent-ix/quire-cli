@@ -94,3 +94,57 @@ fn explicit_output_is_the_only_run_record_stream_with_empty_home() {
         .as_array()
         .is_some_and(|cases| { cases.iter().all(|case| case["stderr"].is_string()) }));
 }
+
+#[trace("FR-047-AC-11")]
+#[test]
+fn retained_anomaly_set_joins_only_the_two_owning_repositories() {
+    let dir = tempfile::tempdir().expect("temporary directory");
+    let output_path = dir.path().join("run.json");
+    let output = quire()
+        .current_dir(&dir)
+        .args(["selftest", "--run", "--out"])
+        .arg(&output_path)
+        .output()
+        .expect("selftest process starts");
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let record: Value = serde_json::from_slice(&fs::read(output_path).expect("run record"))
+        .expect("valid run record");
+    let set = &record["anomalySet"];
+    assert_eq!(set["provided"], true);
+    assert_eq!(set["producerVersion"], record["toolVersion"]);
+    let documents = set["documents"].as_array().expect("document array");
+    assert!(!documents.is_empty());
+    assert!(documents.iter().all(|document| {
+        document["raw"].is_string()
+            && (document["path"]
+                .as_str()
+                .is_some_and(|path| path.starts_with("quire-cli/spec/anomalies/"))
+                || document["path"]
+                    .as_str()
+                    .is_some_and(|path| path.starts_with("quire-rs/spec/anomalies/")))
+    }));
+    assert!(documents.iter().all(|document| {
+        !document["path"]
+            .as_str()
+            .is_some_and(|path| path.contains("quoin"))
+    }));
+    assert!(documents.iter().any(|document| {
+        document["path"] == "quire-cli/spec/anomalies/AN-001-dispatch-only-verification.md"
+            && document["raw"]
+                == include_str!("../spec/anomalies/AN-001-dispatch-only-verification.md")
+    }));
+    for source in quire_rs::selftest::embedded_anomaly_documents() {
+        let path = format!("quire-rs/{}", source.path);
+        assert!(
+            documents
+                .iter()
+                .any(|document| { document["path"] == path && document["raw"] == source.content }),
+            "missing source record {path}"
+        );
+    }
+}

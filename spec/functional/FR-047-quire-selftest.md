@@ -93,6 +93,13 @@ owns combined validation reporting.
   [FR-217](ix://agent-ix/quoin/FR-217), [FR-218](ix://agent-ix/quoin/FR-218),
   [FR-219](ix://agent-ix/quoin/FR-219), and
   [FR-220](ix://agent-ix/quoin/FR-220).
+- Each run record SHALL carry the authored anomaly documents embedded by
+  quire-cli and exposed by its linked quire-rs crate. The documents SHALL retain
+  their exact raw text and use stable source-qualified paths rooted at
+  `quire-cli/` or `quire-rs/`. The anomaly set's `producerVersion` SHALL equal
+  the run record's `toolVersion`. Quire CLI SHALL NOT add Quoin-owned anomaly
+  documents to this set; Quoin FR-217 consumes the retained set when producing
+  the combined validation report.
 - The runner SHALL materialize cases from resources embedded in the installed
   binary. The runner SHALL NOT require a source checkout or network access,
   as specified by Quoin [NFR-042](ix://agent-ix/quoin/NFR-042).
@@ -111,6 +118,7 @@ owns combined validation reporting.
 | FR-047-AC-8 | Given run results from quire-cli and quire-rs, the `quire` self-test output contains only its own case/run evidence and does not generate or duplicate the combined tool validation report or its engineering-assurance and filament-analyze report behavior. | Inspection |
 | FR-047-AC-9 | On Linux, given a case script that attempts to create a file at a parent-relative path and at an absolute path outside `$CASE_TMP`, the OS-enforced sandbox denies both writes, leaves both target paths absent, and the retained run record marks the case `error` with each denied path even when the script handles both denials and exits 0. On macOS, Windows, or another unsupported operating system, the CLI fails closed before case execution and reports no case as passed. | Test |
 | FR-047-AC-10 | Given no `--case` option, `quire selftest --run` runs all available quire-cli and quire-rs cases; given repeated `--case <id>` options, it runs only the named available cases once each in declaration order, and an unknown id is rejected before any case starts and named in the error. The initial case set includes at least one quire-rs-owned case whose trace marker names a quire-rs acceptance criterion; its source and trace remain in quire-rs, and listing or running it does not imply an accepted risk rating. | Test |
+| FR-047-AC-11 | Given a selftest run, its anomaly set contains each authored anomaly document embedded by quire-cli and linked quire-rs with exact raw text and stable paths prefixed by the owning source repository; it contains no Quoin records, and its `producerVersion` exactly equals the run record's `toolVersion`. | Test |
 
 ## Dependencies
 

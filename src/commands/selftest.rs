@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context};
 use clap::{ArgGroup, Parser};
+use ix_trace_rs::implements;
 use serde::Serialize;
 use tempfile::TempDir;
 
@@ -89,8 +90,25 @@ struct RunRecord {
     suite: &'static str,
     timestamp: String,
     results: Vec<CaseResult>,
+    anomaly_set: AnomalySet,
     retained_location: String,
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AnomalySet {
+    provided: bool,
+    producer_version: String,
+    documents: Vec<AnomalyDocument>,
+}
+
+#[derive(Debug, Serialize)]
+struct AnomalyDocument {
+    path: String,
+    raw: String,
+}
+
+include!(concat!(env!("OUT_DIR"), "/anomaly_documents.rs"));
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -119,6 +137,7 @@ enum Destination {
     },
 }
 
+#[implements("FR-047-AC-4")]
 pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let cases = all_cases()?;
     if args.list {
@@ -137,6 +156,26 @@ pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let version_output = version_output()?;
     let results = selected.into_iter().map(run_case).collect::<Vec<_>>();
 
+    let anomaly_set = anomaly_set(
+        &version_output,
+        Some(
+            quire_rs::selftest::embedded_anomaly_documents()
+                .iter()
+                .map(|document| AnomalyDocument {
+                    path: format!("quire-rs/{}", document.path),
+                    raw: document.content.to_owned(),
+                })
+                .chain(
+                    CLI_ANOMALY_DOCUMENTS
+                        .iter()
+                        .map(|(path, raw)| AnomalyDocument {
+                            path: format!("quire-cli/{path}"),
+                            raw: (*raw).to_owned(),
+                        }),
+                )
+                .collect(),
+        ),
+    );
     let record = RunRecord {
         schema_version: 1,
         tool: "quire",
@@ -146,6 +185,7 @@ pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         suite: "SELFTEST",
         timestamp,
         results,
+        anomaly_set,
         retained_location: location,
     };
     let mut bytes = serde_json::to_vec_pretty(&record).context("encoding self-test run record")?;
@@ -167,6 +207,16 @@ pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         ));
     }
     Ok(())
+}
+
+/// Build the retained anomaly set while preserving absence separately from an empty set.
+#[implements("FR-047-AC-4")]
+fn anomaly_set(producer_version: &str, documents: Option<Vec<AnomalyDocument>>) -> AnomalySet {
+    AnomalySet {
+        provided: documents.is_some(),
+        producer_version: producer_version.to_owned(),
+        documents: documents.unwrap_or_default(),
+    }
 }
 
 fn ensure_supported_platform(os: &str) -> anyhow::Result<()> {
@@ -1253,5 +1303,18 @@ mod tests {
             fs::read(&retained_path).expect("canonical record exists"),
             fs::read(&output).expect("explicit output exists")
         );
+    }
+
+    #[trace("FR-047-AC-4")]
+    #[test]
+    fn anomaly_set_distinguishes_absent_from_provided_empty() {
+        let absent = anomaly_set("quire 0.53.0", None);
+        let empty = anomaly_set("quire 0.53.0", Some(Vec::new()));
+
+        assert!(!absent.provided);
+        assert!(absent.documents.is_empty());
+        assert!(empty.provided);
+        assert!(empty.documents.is_empty());
+        assert_eq!(absent.producer_version, empty.producer_version);
     }
 }
