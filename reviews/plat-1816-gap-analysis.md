@@ -40,3 +40,12 @@ Plan completion: not assessed. `quoin matrix --repo . --json` and `quire matrix 
 | FND-002 | high | FR-037-AC-6 is untagged: no trace tag binds the new producer identity and source-date byte-stability criterion. | spec/functional/FR-037-export-clock-free-output.md:66 |
 | FND-003 | high | NFR-011-AC-1 and AC-3 are bound only by ignored real-converter tests, so the computed matrix does not count them as live test evidence. | tests/cli_export.rs:3798 |
 | FND-004 | high | NFR-011-AC-3 is bound only by an ignored real-converter test, so the normal test lane does not exercise its byte-equality oracle. | tests/cli_export.rs:3798 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `after_excerpt`: `    "FR-034-AC-19",` at tests/cli_export.rs:3799; quire matrix now reports `tagged`. |
+| FND-002 | fixed | `after_excerpt`: `    "FR-037-AC-6",` at tests/cli_export.rs:3800; quire matrix now reports `tagged`. |
+| FND-003 | fixed | `after_excerpt`: `#[test]` followed by the focused function, without `#[ignore]`, at tests/cli_export.rs:3805-3806; the matrix reports NFR-011-AC-1 `tagged`. |
+| FND-004 | fixed | `after_excerpt`: the same non-ignored focused test carries `"NFR-011-AC-3"` at tests/cli_export.rs:3802; the matrix reports NFR-011-AC-3 `tagged`. |

@@ -37,3 +37,9 @@ Reviewed completeness, consistency, and atomicity for the changed FR/NFR materia
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | medium | FR-034 Description says input toolchain provenance is preserved, while the detailed Producer identity and converter metadata sections only specify producer_identity and current exporter provenance. | spec/functional/FR-034-document-identity.md:17 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `after_excerpt`: “It SHALL also carry the current exporter's Quire provenance and preserve an optional declared producer identity from the committed input frontmatter. The identity ties the exported file to one committed revision of its source.” in spec/functional/FR-034-document-identity.md. The generic toolchain provenance promise is gone; the narrowed contract matches the ticket ruling. |

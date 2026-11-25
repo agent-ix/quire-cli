@@ -32,6 +32,7 @@ VERSION_ARGS = {
     "pdfinfo": ["-v"],
     "pdftotext": ["-v"],
     "unzip": ["-v"],
+    "bwrap": ["--version"],
     "python3": ["--version"],
     "engineering-assurance": ["--version"],
     "git": ["--version"],

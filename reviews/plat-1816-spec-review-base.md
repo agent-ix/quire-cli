@@ -37,3 +37,9 @@ The Test Matrix was computed; the specific untagged and ignored-only changed cri
 | ID | Severity | Summary | Refs |
 | --- | --- | --- | --- |
 | FND-001 | medium | FR-034 Description requires preserving “producer and toolchain provenance” from input, but its field contract names only producer_identity and the approved boundary excludes generic toolchain_provenance. | spec/functional/FR-034-document-identity.md:17 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `after_excerpt`: “It SHALL also carry the current exporter's Quire provenance and preserve an optional declared producer identity from the committed input frontmatter. The identity ties the exported file to one committed revision of its source.” in spec/functional/FR-034-document-identity.md. The generic toolchain provenance promise is gone; the narrowed contract matches the ticket ruling. |

@@ -38,3 +38,18 @@ Rust lane: `cargo fmt --check`, focused unit/CLI checks, real PDF/DOCX metadata 
 | --- | --- | --- | --- |
 | FND-001 | medium | FR-034-AC-19 has no trace-tagged test; the byte-comparison real-converter test is tagged only to NFR-011 criteria. | tests/cli_export.rs:3798 |
 | FND-002 | medium | FR-037-AC-6 has no trace-tagged test despite the producer identity and byte-stability criterion. | tests/cli_export.rs:3798 |
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-003 | medium | FR-034-AC-19's byte-equality test compares outputs only on one host, so it cannot detect host-dependent output bytes. | tests/cli_export.rs:3838 |
+
+The new real-output test varies time zone, waits for the next wall-clock second, and changes working/output/capability paths, but both exports run on the same host. A host-specific value embedded in both outputs would therefore pass the byte-equality assertion. The code review did not opt into semantic gap analysis; this is a test-oracle finding from the requested focused oracle check.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `after_excerpt`: `    "FR-034-AC-19",` at tests/cli_export.rs:3799. The real-output test now binds the criterion directly. |
+| FND-002 | fixed | `after_excerpt`: `    "FR-037-AC-6",` at tests/cli_export.rs:3800. The real-output test now binds the criterion directly. |

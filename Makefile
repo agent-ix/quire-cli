@@ -13,7 +13,7 @@ help:
 	@echo "  make fmt-check        - Verify formatting (CI gate)"
 	@echo "  make lint             - Clippy with -D warnings"
 	@echo "  make test             - cargo test"
-	@echo "  make test-export-real - Export tests that need real pandoc, typst, mmdr, unzip, pdftotext, pdfimages"
+	@echo "  make test-export-real - Export tests that need real pandoc, typst, bwrap, mmdr, unzip, pdftotext, pdfimages"
 	@echo "  make docs             - strict workspace rustdoc"
 	@echo "  make spec             - Validate changed assurance specs and traceability"
 	@echo "  make build            - Release build"
@@ -45,6 +45,7 @@ test:
 	$(CARGO) test --workspace --locked --all-targets --all-features -- --skip real_exports_give_equal_text_and_structure_across_directories_and_zones
 
 # Real-converter export tests (FR-031-AC-1, FR-032-AC-7, FR-034, FR-035, FR-036).
+# The host-independence oracle uses bubblewrap UTS namespaces.
 # Runs the active reproducibility criterion test and ignored live-tool tests,
 # recording SUITE-004 outcomes including unavailable-tool errors.
 .PHONY: test-export-real

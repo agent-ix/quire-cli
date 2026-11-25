@@ -3760,6 +3760,61 @@ fn real_varied(rig: &Rig, variant: usize, zone: &str, mut command: Command, to: 
     path
 }
 
+/// Runs a real export in an isolated UTS namespace with a distinct hostname.
+/// The temporary rig stays writable while the rest of the host filesystem is
+/// read-only inside the namespace.
+fn real_varied_on_host(
+    rig: &Rig,
+    variant: usize,
+    zone: &str,
+    hostname: &str,
+    command: Command,
+    to: &str,
+) -> PathBuf {
+    let cwd = rig.root().join(format!("rcwd-{variant}"));
+    let out = rig.root().join(format!("rout-{variant}"));
+    fs::create_dir_all(&cwd).expect("cwd");
+    fs::create_dir_all(&out).expect("out");
+    let path = out.join(format!("result.{to}"));
+    let program = command.get_program().to_os_string();
+    let args: Vec<_> = command.get_args().map(|arg| arg.to_os_string()).collect();
+
+    let mut isolated = Command::new(require_tool("bwrap"));
+    isolated
+        .args(["--unshare-uts", "--ro-bind", "/", "/"])
+        .args(["--bind", "/tmp", "/tmp"])
+        .arg("--bind")
+        .arg(rig.root())
+        .arg(rig.root())
+        .args(["--proc", "/proc", "--dev", "/dev", "--hostname"])
+        .arg(hostname)
+        .args(["--setenv", "HOSTNAME"])
+        .arg(hostname)
+        .arg("--")
+        .arg(program)
+        .args(args)
+        .current_dir(cwd)
+        .env("TZ", zone)
+        .arg("--output")
+        .arg(&path);
+    let result = run(isolated);
+    assert!(result.status.success(), "{}", stderr(&result));
+    path
+}
+
+fn assert_isolated_hostname(hostname: &str) {
+    let result = Command::new(require_tool("bwrap"))
+        .args(["--unshare-uts", "--ro-bind", "/", "/"])
+        .args(["--proc", "/proc", "--dev", "/dev", "--hostname"])
+        .arg(hostname)
+        .arg("--")
+        .args(["/usr/bin/hostname"])
+        .output()
+        .expect("bubblewrap runs");
+    assert!(result.status.success(), "{}", stderr(&result));
+    assert_eq!(String::from_utf8_lossy(&result.stdout).trim(), hostname);
+}
+
 fn real_command(input: &[&Path], to: &str) -> Command {
     require_tool("pandoc");
     require_tool("typst");
@@ -3813,6 +3868,8 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
         .expect("fixture")
         .replace("first fixture item", "altered fixture item");
     let edited = rig.commit("edited.md", &changed, COMMIT_DATE);
+    assert_isolated_hostname("quire-host-a");
+    assert_isolated_hostname("quire-host-b");
     for to in ["docx", "pdf"] {
         let template = if to == "pdf" {
             &pdf_template
@@ -3835,9 +3892,11 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
             ),
         ];
         for (name, build) in &scenarios {
-            let first = real_varied(&rig, 0, "Pacific/Kiritimati", build(), to);
+            let first =
+                real_varied_on_host(&rig, 0, "Pacific/Kiritimati", "quire-host-a", build(), to);
             wait_for_next_second();
-            let second = real_varied(&rig, 1, "America/Los_Angeles", build(), to);
+            let second =
+                real_varied_on_host(&rig, 1, "America/Los_Angeles", "quire-host-b", build(), to);
             if *name == "default" {
                 let first_text = nfr_text(&first, to);
                 assert!(first_text.contains("Date: 2001-02-04"), "{first_text}");
