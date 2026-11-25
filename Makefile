@@ -89,6 +89,7 @@ audit-unsafe:
 # =============================================================================
 
 ASSURANCE_SPEC_DOCS := \
+	spec/validation/IU-001-intended-use.md \
 	spec/functional/FR-020-assurance-export-subcommand.md \
 	spec/stakeholder/StR-004-thin-boundary-over-quire-rs.md \
 	spec/usecase/US-006-export-assurance-facts.md \
