@@ -984,10 +984,13 @@ fn the_identity_comes_from_the_frontmatter_and_the_source_commit() {
         "Version: 1\\.0\n",
         &format!("Source commit: {}\n", rig.head()),
         "Date: 2001\\-02\\-04\n",
-        &format!("Quire CLI version: {}\n", quire_cli::engine::CLI_VERSION),
+        &format!(
+            "Quire CLI version: {}\n",
+            quire_cli::engine::CLI_VERSION.replace('.', "\\.")
+        ),
         &format!(
             "Quire engine version: {}\n",
-            quire_cli::engine::ENGINE_VERSION
+            quire_cli::engine::ENGINE_VERSION.replace('.', "\\.")
         ),
     ] {
         assert!(front.contains(line), "{line:?} missing from {front}");
@@ -1038,11 +1041,11 @@ fn committed_producer_identity_is_preserved_in_metadata_and_title_page() {
     assert!(front.contains("Producer version: 0\\.36\\.10\n"), "{front}");
     assert!(front.contains(&format!(
         "Quire CLI version: {}\n",
-        quire_cli::engine::CLI_VERSION
+        quire_cli::engine::CLI_VERSION.replace('.', "\\.")
     )));
     assert!(front.contains(&format!(
         "Quire engine version: {}\n",
-        quire_cli::engine::ENGINE_VERSION
+        quire_cli::engine::ENGINE_VERSION.replace('.', "\\.")
     )));
 }
 
