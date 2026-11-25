@@ -41,12 +41,13 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   and identify the dropped item. Coverage, matrix, relations, and JSON export
   also report dropped required relations as errors instead of silently omitting
   them.
-- **Adopt quire-rs v0.62.3.** Ignore files are scoped to the root, symbolic-link
-  sources are diagnosed without following them, and warning-level extraction
-  diagnostics are shown in coverage, assurance, symbols, and trace. Coverage
-  reports ignored source files; qualified `verifies` tags are resolved and
-  unresolved or overlapping qualifiers are reported. Assurance JSON with
-  duplicate keys is rejected.
+- **Adopt quire-rs v0.63.0 (PLAT-1873).** This includes the v0.62.3 changes:
+  root-scoped ignore files, symlink diagnostics without following sources,
+  warning-level extraction diagnostics in coverage/assurance/symbols/trace,
+  ignored-source coverage, qualified `verifies` resolution, and duplicate-key
+  rejection in assurance JSON. PLAT-1873 adds declaration source spans to
+  semantic imports so typed cross-module references can resolve at their
+  declaration locations.
 
 ### Known anomalies
 
