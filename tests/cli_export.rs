@@ -3838,7 +3838,7 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
             let first = real_varied(&rig, 0, "Pacific/Kiritimati", build(), to);
             wait_for_next_second();
             let second = real_varied(&rig, 1, "America/Los_Angeles", build(), to);
-            if name == "default" {
+            if *name == "default" {
                 let first_text = nfr_text(&first, to);
                 assert!(first_text.contains("Date: 2001-02-04"), "{first_text}");
                 assert!(
