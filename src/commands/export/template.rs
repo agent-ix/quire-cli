@@ -627,11 +627,11 @@ mod tests {
         let front = front_matter(&identity, Format::Pdf);
         assert!(front.contains(&format!(
             "Quire CLI version: {}",
-            quire_cli::engine::CLI_VERSION
+            escape_markdown(quire_cli::engine::CLI_VERSION)
         )));
         assert!(front.contains(&format!(
             "Quire engine version: {}",
-            quire_cli::engine::ENGINE_VERSION
+            escape_markdown(quire_cli::engine::ENGINE_VERSION)
         )));
         assert!(front.contains("Producer: quoin dossier\n"));
         assert!(front.contains("Producer version: 0\\.36\\.10\n"));
