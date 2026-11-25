@@ -3925,6 +3925,29 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
                 "{name} {to} output bytes"
             );
         }
+        let host_a = real_varied_on_host(
+            &rig,
+            2,
+            "UTC",
+            "quire-host-a",
+            real_command(&[&producer_input], to),
+            to,
+        );
+        let bytes_on_host_a = fs::read(&host_a).expect("host A export");
+        fs::remove_file(&host_a).expect("remove first host export");
+        let host_b = real_varied_on_host(
+            &rig,
+            2,
+            "UTC",
+            "quire-host-b",
+            real_command(&[&producer_input], to),
+            to,
+        );
+        assert_eq!(
+            bytes_on_host_a,
+            fs::read(&host_b).expect("host B export"),
+            "host-only variation {to} output bytes"
+        );
         // A one-word change must show in the extracted text.
         let first = real_varied(&rig, 0, "UTC", real_command(&[&rig.fixture()], to), to);
         let second = real_varied(&rig, 1, "UTC", real_command(&[&edited], to), to);
