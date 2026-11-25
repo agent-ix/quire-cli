@@ -20,8 +20,10 @@ inputs.
 
 | Record kind | Command that writes it |
 |---|---|
-| Parsed document data and extracted records, emitted as JSON or diagnostics | `quire parse`, `quire extract`, `quire lookup`, `quire schema` |
-| Validation, traceability, coverage, assurance, and developer-check observations, emitted to standard output and diagnostics | `quire validate`, `quire coverage`, `quire matrix`, `quire relations`, `quire symbols`, `quire trace`, `quire properties`, `quire assurance`, `quire clauses`, `quire check-lock`, `quire publish-check`, `quire selftest --run` |
+| Parsed document data and extracted records, emitted as JSON | `quire parse`, `quire extract` |
+| Section lookup results and archetype schema contracts, emitted as JSON | `quire lookup`, `quire schema` |
+| Validation, traceability, coverage, assurance, and developer-check observations, emitted to standard output and diagnostics | `quire validate`, `quire coverage`, `quire matrix`, `quire relations`, `quire symbols`, `quire trace`, `quire properties`, `quire assurance`, `quire clauses`, `quire check-lock`, `quire publish-check` |
+| Self-test run record, written to a requested path or emitted to standard output | `quire selftest --run --out <file>` or `quire selftest --run` |
 | Markdown documents updated in place | `quire edit`, `quire fix --write` |
 | PDF or DOCX export files | `quire export --output` |
 
