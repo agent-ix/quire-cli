@@ -10,6 +10,10 @@
 //! The rendering is a view, never an artifact: it goes to stdout and nowhere
 //! else. There is no output-path flag and no write anywhere under the scope.
 
+use std::collections::BTreeSet;
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use anyhow::Context;
 use clap::Parser;
 use quire_cli::safety;
@@ -180,6 +184,11 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         &corpus.members[0].root,
     )?;
     let matrix = compute_matrix(ctx, &corpus, &registry)?;
+    let selftest_trace_findings = if args.strict {
+        check_selftest_trace_markers(&corpus, &matrix.entries)?
+    } else {
+        Vec::new()
+    };
     let view = View {
         design: registry
             .traceability()
@@ -218,6 +227,15 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         ));
     }
     if args.strict {
+        for (path, reason) in &selftest_trace_findings {
+            ix_cli_kit::streams::Record::error("SelftestTraceMarker", reason)
+                .with_fields(ix_cli_kit::streams::DiagnosticFields {
+                    reason: Some("selftest-trace-marker"),
+                    path: Some(path),
+                    ..Default::default()
+                })
+                .emit(ctx.diagnostics);
+        }
         for gap in &gaps {
             ix_cli_kit::streams::Record::error("DesignGap", gap).emit(ctx.diagnostics);
         }
@@ -236,12 +254,95 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         if !gaps.is_empty() {
             reasons.push(format!("{} design gap(s)", gaps.len()));
         }
+        if !selftest_trace_findings.is_empty() {
+            reasons.push(format!(
+                "{} selftest case script(s) have missing or invalid trace markers",
+                selftest_trace_findings.len()
+            ));
+        }
     }
     if !reasons.is_empty() {
         if args.strict {
             partial_report!("{} (--strict)", reasons.join("; "));
         }
         partial_report!("{}", reasons.join("; "));
+    }
+    Ok(())
+}
+
+/// Strict matrix runs validate the case inventory directly because a script
+/// with its marker removed cannot appear as a trace binder in the engine
+/// report. Report its repository-relative path before the strict verdict.
+fn check_selftest_trace_markers(
+    corpus: &Corpus,
+    matrix: &[DesignMatrixEntry],
+) -> anyhow::Result<Vec<(String, String)>> {
+    let known_criteria: BTreeSet<&str> = matrix
+        .iter()
+        .flat_map(|requirement| &requirement.criteria)
+        .map(|criterion| criterion.criterion.id.as_str())
+        .collect();
+    let mut findings = Vec::new();
+    for member in &corpus.members {
+        let selftest_root = member.root.join("selftest");
+        if !selftest_root.is_dir() {
+            continue;
+        }
+        let mut scripts = Vec::new();
+        collect_run_scripts(&selftest_root, &mut scripts)?;
+        scripts.sort();
+        for script in scripts {
+            let relative = script
+                .strip_prefix(&member.root)
+                .unwrap_or(&script)
+                .to_string_lossy()
+                .into_owned();
+            let source = fs::read_to_string(&script)
+                .with_context(|| format!("reading selftest script {relative}"))?;
+            let mut has_valid_marker = false;
+            let mut script_findings = Vec::new();
+            for line in source.lines() {
+                let Some(marker) = line.trim().strip_prefix("# trace:") else {
+                    continue;
+                };
+                let ids: Vec<&str> = marker.split(',').map(str::trim).collect();
+                if ids.is_empty() || ids.iter().any(|id| id.is_empty()) {
+                    script_findings.push("contains an empty trace marker".to_string());
+                    continue;
+                }
+                for id in ids {
+                    if !known_criteria.contains(id) {
+                        script_findings.push(format!("names unknown criterion `{id}`"));
+                    } else {
+                        has_valid_marker = true;
+                    }
+                }
+            }
+            if !has_valid_marker && script_findings.is_empty() {
+                script_findings.push("has no `# trace:` marker".to_string());
+            }
+            for reason in script_findings {
+                findings.push((relative.clone(), format!("{relative}: {reason}")));
+            }
+        }
+    }
+    Ok(findings)
+}
+
+/// Collect only regular files named `run.sh`, without following symlinks.
+fn collect_run_scripts(directory: &Path, scripts: &mut Vec<PathBuf>) -> anyhow::Result<()> {
+    for entry in
+        fs::read_dir(directory).with_context(|| format!("reading {}", directory.display()))?
+    {
+        let entry = entry.with_context(|| format!("reading entry in {}", directory.display()))?;
+        let file_type = entry
+            .file_type()
+            .with_context(|| format!("reading type for {}", entry.path().display()))?;
+        if file_type.is_dir() {
+            collect_run_scripts(&entry.path(), scripts)?;
+        } else if file_type.is_file() && entry.file_name() == "run.sh" {
+            scripts.push(entry.path());
+        }
     }
     Ok(())
 }

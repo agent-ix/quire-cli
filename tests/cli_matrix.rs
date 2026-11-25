@@ -112,8 +112,12 @@ fn selftest_shell_marker_binds_and_removal_names_the_case_script() {
     let unbound = f.matrix(&["--strict", "--format", "tsv"]);
     assert_eq!(code(&unbound), 1);
     let output = String::from_utf8_lossy(&unbound.stdout);
-    assert!(output.contains("selftest/cases/example/run.sh"), "{output}");
     assert!(output.contains("untagged"), "{output}");
+    let diagnostics = String::from_utf8_lossy(&unbound.stderr);
+    assert!(
+        diagnostics.contains("selftest/cases/example/run.sh"),
+        "{diagnostics}"
+    );
 }
 
 struct Fixture {
