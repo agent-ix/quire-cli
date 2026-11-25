@@ -35,23 +35,6 @@ relationships:
 ---
 # Quire CLI proposed not-high process-risk supplier ratings
 
-## Feature assessments
-
-| Requirement |
-|---|
-| FR-001 |
-| FR-002 |
-| FR-006 |
-| FR-008 |
-| FR-009 |
-| FR-011 |
-| FR-013 |
-| FR-016 |
-| FR-018 |
-| FR-035 |
-| FR-036 |
-| FR-048 |
-
 ## Rationale
 
 This is a proposed supplier-side assessment for IU-001. The `rated_by` field names Peter Krenesky as the human assigned to review and accept the proposed rating. This record is unsigned and unaccepted pending his decision through the signed-commit workflow. No score or product safety classification is assigned.
