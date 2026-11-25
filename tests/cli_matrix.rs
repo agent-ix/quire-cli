@@ -118,6 +118,19 @@ fn selftest_shell_marker_binds_and_removal_names_the_case_script() {
         diagnostics.contains("selftest/cases/example/run.sh"),
         "{diagnostics}"
     );
+
+    f.write(
+        "selftest/cases/example/run.sh",
+        "#!/bin/sh\n# trace: FR-999-AC-1\nset -eu\nexit 0\n",
+    );
+    let invalid = f.matrix(&["--strict", "--format", "tsv"]);
+    assert_eq!(code(&invalid), 1);
+    let diagnostics = String::from_utf8_lossy(&invalid.stderr);
+    assert!(
+        diagnostics.contains("selftest/cases/example/run.sh")
+            && diagnostics.contains("FR-999-AC-1"),
+        "{diagnostics}"
+    );
 }
 
 struct Fixture {
