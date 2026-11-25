@@ -9,6 +9,7 @@ use std::process::{Command, Output};
 
 use jsonschema::{Draft, JSONSchema};
 use quire_rs::assurance::{AssuranceExport, ASSURANCE_V1_SCHEMA};
+use quire_rs::{read_assurance_export, AcceptedAssurancePremises};
 use serde_json::Value;
 use tempfile::TempDir;
 
@@ -20,6 +21,12 @@ const SCHEMAS: [&str; 3] = [
     "assurance-fixture/NFR",
     "assurance-fixture/StR",
 ];
+const HISTORICAL_SCHEMAS: [&str; 3] = [
+    "assurance-fixture/FR@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "assurance-fixture/NFR@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "assurance-fixture/StR@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+];
+const HISTORICAL_REVISION: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
 struct Fixture {
     _temp: TempDir,
@@ -76,7 +83,22 @@ fn fixture(unreadable_document: bool) -> Fixture {
 }
 
 fn command(fixture: &Fixture) -> Command {
-    let mut command = quire();
+    command_with_binary(fixture, None)
+}
+
+fn command_with_binary(fixture: &Fixture, binary: Option<&Path>) -> Command {
+    command_with_binary_and_generation(fixture, binary, false)
+}
+
+fn command_with_binary_and_generation(
+    fixture: &Fixture,
+    binary: Option<&Path>,
+    historical: bool,
+) -> Command {
+    let mut command = match binary {
+        Some(binary) => Command::new(binary),
+        None => quire(),
+    };
     command
         .arg("assurance")
         .arg("--scope")
@@ -85,10 +107,150 @@ fn command(fixture: &Fixture) -> Command {
         .arg(&fixture.module)
         .arg("--expect-module")
         .arg(MODULE);
-    for schema in SCHEMAS {
+    if historical {
+        command
+            .arg("--repository")
+            .arg("agent-ix/fixture")
+            .arg("--revision")
+            .arg(HISTORICAL_REVISION);
+    }
+    let schemas = if historical {
+        HISTORICAL_SCHEMAS
+    } else {
+        SCHEMAS
+    };
+    for schema in schemas {
         command.arg("--expect-schema").arg(schema);
     }
     command
+}
+
+/// FR-020-AC-9, FR-020-AC-10: run actual released producers against the same
+/// deterministic corpus and pass their bytes through the current Rust reader.
+///
+/// The release lane directory contains `<version>/quire` and the exact
+/// `<version>/Cargo.lock` from that CLI tag. Keeping this out of the default
+/// suite avoids requiring network-fetched release assets for ordinary tests;
+/// the named compatibility lane must provide all four release rows.
+#[trace("FR-020-AC-9")]
+#[trace("FR-020-AC-10")]
+#[test]
+#[ignore = "release compatibility lane: provide QUIRE_CLI_RELEASE_DIR with binaries and tag lockfiles"]
+fn released_cli_compatibility_matrix_matches_the_current_reader() {
+    let release_dir = std::env::var_os("QUIRE_CLI_RELEASE_DIR")
+        .map(PathBuf::from)
+        .expect("QUIRE_CLI_RELEASE_DIR must provide released binaries and exact tag lockfiles");
+    let fixture = fixture(true);
+    let (current_output, current_value) = success(&fixture);
+    let current_export: AssuranceExport =
+        serde_json::from_slice(&current_output.stdout).expect("current assurance export");
+    let accepted = AcceptedAssurancePremises::from_export(&current_export);
+    assert!(
+        read_assurance_export(&current_output.stdout, &accepted).is_ok(),
+        "current producer output must be accepted by the current reader"
+    );
+
+    for (cli_version, engine_version, supported) in [
+        ("0.32.0", "0.46.0", false),
+        ("0.33.0", "0.47.1", false),
+        ("0.52.0", "0.62.2", true),
+        ("0.52.1", "0.62.2", true),
+    ] {
+        let version_dir = release_dir.join(cli_version);
+        let binary = version_dir.join("quire");
+        assert!(
+            binary.is_file(),
+            "released quire-cli {cli_version} binary is missing: {}",
+            binary.display()
+        );
+        let version = Command::new(&binary)
+            .arg("--version")
+            .output()
+            .unwrap_or_else(|error| {
+                panic!("run released quire-cli {cli_version} --version: {error}")
+            });
+        assert!(
+            version.status.success(),
+            "--version failed for quire-cli {cli_version}"
+        );
+        let version_text = String::from_utf8_lossy(&version.stdout);
+        assert!(
+            version_text.contains(cli_version),
+            "released binary version mismatch for expected quire-cli {cli_version}: {version_text}"
+        );
+
+        let lockfile_path = version_dir.join("Cargo.lock");
+        let lockfile_text = fs::read_to_string(&lockfile_path).unwrap_or_else(|error| {
+            panic!(
+                "missing exact v{cli_version} release lockfile at {}: {error}",
+                lockfile_path.display()
+            )
+        });
+        let lockfile: toml::Value = toml::from_str(&lockfile_text)
+            .unwrap_or_else(|error| panic!("parse v{cli_version} Cargo.lock: {error}"));
+        let packages = lockfile["package"]
+            .as_array()
+            .unwrap_or_else(|| panic!("v{cli_version} Cargo.lock has no package list"));
+        let locked_engine = packages
+            .iter()
+            .find(|package| package["name"].as_str() == Some("quire-rs"))
+            .and_then(|package| package["version"].as_str())
+            .unwrap_or_else(|| panic!("v{cli_version} Cargo.lock has no quire-rs version"));
+        assert_eq!(
+            locked_engine, engine_version,
+            "embedded engine evidence from exact v{cli_version} release lockfile"
+        );
+        if supported {
+            assert!(
+                version_text.contains(engine_version),
+                "released quire-cli {cli_version} --version omitted linked engine {engine_version}: {version_text}"
+            );
+        }
+
+        let historical = cli_version == "0.32.0" || cli_version == "0.33.0";
+        let output = command_with_binary_and_generation(&fixture, Some(&binary), historical)
+            .output()
+            .unwrap_or_else(|error| {
+                panic!("run released quire-cli {cli_version} assurance: {error}")
+            });
+        assert!(
+            output.status.success(),
+            "released quire-cli {cli_version} failed to generate assurance bytes: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let producer_value: Value =
+            serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+                panic!("quire-cli {cli_version} emitted invalid JSON: {error}")
+            });
+        let reader_result = read_assurance_export(&output.stdout, &accepted);
+        if supported {
+            assert!(
+                reader_result.is_ok(),
+                "current reader refused released quire-cli {cli_version} / quire-rs {engine_version} payload: {reader_result:?}"
+            );
+            assert_eq!(
+                assurance_identity(&producer_value),
+                assurance_identity(&current_value),
+                "supported v{cli_version} payload changed assurance field identities"
+            );
+        } else {
+            assert!(
+                reader_result.is_err(),
+                "current reader accepted historical quire-cli {cli_version} / quire-rs {engine_version} payload"
+            );
+        }
+    }
+}
+
+fn assurance_identity(value: &Value) -> Value {
+    serde_json::json!({
+        "modules": value["modules"],
+        "artifacts": value["artifacts"],
+        "obligations": value["obligations"],
+        "symbols": value["symbols"],
+        "relations": value["relations"],
+        "relation_observations": value["relation_observations"],
+    })
 }
 
 fn output(fixture: &Fixture) -> Output {
