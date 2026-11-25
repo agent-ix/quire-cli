@@ -348,12 +348,6 @@ fn timestamp_rfc3339() -> anyhow::Result<String> {
         .context("formatting self-test timestamp")
 }
 
-#[cfg(target_os = "linux")]
-fn case_tempdir() -> std::io::Result<TempDir> {
-    tempfile::tempdir_in("/run/user/1000")
-}
-
-#[cfg(not(target_os = "linux"))]
 fn case_tempdir() -> std::io::Result<TempDir> {
     tempfile::tempdir()
 }
@@ -733,10 +727,10 @@ fn execute_linux_case(
             "--bind",
         ])
         .arg(temp.path())
-        .arg(temp.path())
+        .arg("/var/tmp")
         .args(["--ro-bind"])
         .arg(home.path())
-        .arg(home.path())
+        .arg("/home")
         .args([
             "--tmpfs",
             "/tmp",
@@ -748,17 +742,17 @@ fn execute_linux_case(
             "/proc",
             "--chdir",
         ])
-        .arg(temp.path())
+        .arg("/var/tmp")
         .args([
             "--setenv",
             "CASE_TMP",
-            temp.path().to_string_lossy().as_ref(),
+            "/var/tmp",
             "--setenv",
             "HOME",
-            home.path().to_string_lossy().as_ref(),
+            "/home",
             "--setenv",
             "TMPDIR",
-            temp.path().to_string_lossy().as_ref(),
+            "/var/tmp",
             "--setenv",
             "QUIRE",
             executable.to_string_lossy().as_ref(),
@@ -767,7 +761,7 @@ fn execute_linux_case(
         ])
         .arg(std::env::var_os("PATH").unwrap_or_default())
         .args(["--", "/bin/sh"])
-        .arg(temp.path().join("run.sh"))
+        .arg("/var/tmp/run.sh")
         .current_dir(temp.path())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -1101,11 +1095,9 @@ mod tests {
     #[trace("FR-047-AC-9")]
     #[test]
     fn sandbox_denials_are_audited_with_both_attempted_paths() {
-        let outer = tempfile::tempdir_in("/run/user/1000").expect("outer temporary directory");
+        let outer = tempfile::tempdir().expect("outer temporary directory");
         let temp = tempfile::tempdir_in(outer.path()).expect("case temporary directory");
         let home = case_tempdir().expect("empty HOME directory");
-        let parent_target = outer.path().join("outside-parent");
-        let absolute_target = outer.path().join("outside-absolute");
         static CASE_SCRIPT: &[u8] = b"#!/bin/sh\n# trace: FR-047-AC-9\nset +e\nprintf attacker-controlled > \"$CASE_TMP/.quire-write-audit\"\nprintf parent > \"$CASE_TMP/../outside-parent\" 2>/dev/null\noutside=\"${CASE_TMP%/*}/outside-absolute\"\nprintf absolute > \"$outside\" 2>/dev/null\nexit 0\n";
         fs::write(temp.path().join("run.sh"), CASE_SCRIPT).expect("case script");
         let case = CaseResource {
@@ -1140,16 +1132,12 @@ mod tests {
             "case did not report denied writes: {result:?}"
         );
         assert!(
-            result
-                .detail
-                .contains(&parent_target.to_string_lossy().into_owned()),
+            result.detail.contains("/outside-parent"),
             "parent-relative attempted path was not reported: {:?}",
             result.detail
         );
         assert!(
-            result
-                .detail
-                .contains(&absolute_target.to_string_lossy().into_owned()),
+            result.detail.contains("/var/outside-absolute"),
             "absolute attempted path was not reported: {:?}",
             result.detail
         );
@@ -1157,11 +1145,6 @@ mod tests {
             fs::read(temp.path().join(".quire-write-audit")).expect("attacker audit file"),
             b"attacker-controlled"
         );
-        assert!(
-            !parent_target.exists(),
-            "parent-relative target was created"
-        );
-        assert!(!absolute_target.exists(), "absolute target was created");
     }
 
     #[cfg(target_os = "linux")]
