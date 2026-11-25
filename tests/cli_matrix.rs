@@ -78,7 +78,7 @@ fn rust_test(name: &str, id: &str, ignored: bool) -> String {
 #[trace("FR-047-AC-3")]
 #[test]
 fn selftest_shell_marker_binds_and_removal_names_the_case_script() {
-    let mut module = manifest(false, "", "");
+    let mut module = manifest(true, "", "");
     module = module.replace(
         "    markers:\n",
         "    markers:\n    - name: shell-trace-comment\n      language: shell\n      syntax: comment\n      pattern: '#\\s*trace:\\s*(.+)$'\n      entry_paths: ['selftest/cases/**/*.sh']\n",
