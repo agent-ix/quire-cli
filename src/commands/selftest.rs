@@ -53,51 +53,56 @@ struct CaseResource {
     files: Vec<FileResource>,
 }
 
-static LOCAL_CASES: &[(&str, &[FileResource])] = &[(
-    "parse-empty-input",
-    &[
-        FileResource {
-            path: "run.sh",
-            bytes: include_bytes!("../../selftest/cases/parse-empty-input/run.sh"),
-        },
-        FileResource {
-            path: "required-tools",
-            bytes: include_bytes!("../../selftest/cases/parse-empty-input/required-tools"),
-        },
-        FileResource {
-            path: "input/empty.md",
-            bytes: include_bytes!("../../selftest/cases/parse-empty-input/input/empty.md"),
-        },
-        FileResource {
-            path: "expected/exit_code",
-            bytes: include_bytes!("../../selftest/cases/parse-empty-input/expected/exit_code"),
-        },
-        FileResource {
-            path: "expected/stdout",
-            bytes: include_bytes!("../../selftest/cases/parse-empty-input/expected/stdout"),
-        },
-    ],
-), (
-    "selftest-list-cases",
-    &[
-        FileResource {
-            path: "run.sh",
-            bytes: include_bytes!("../../selftest/cases/selftest-list-cases/run.sh"),
-        },
-        FileResource {
-            path: "required-tools",
-            bytes: include_bytes!("../../selftest/cases/selftest-list-cases/required-tools"),
-        },
-        FileResource {
-            path: "expected/exit_code",
-            bytes: include_bytes!("../../selftest/cases/selftest-list-cases/expected/exit_code"),
-        },
-        FileResource {
-            path: "expected/stdout",
-            bytes: include_bytes!("../../selftest/cases/selftest-list-cases/expected/stdout"),
-        },
-    ],
-)];
+static LOCAL_CASES: &[(&str, &[FileResource])] = &[
+    (
+        "parse-empty-input",
+        &[
+            FileResource {
+                path: "run.sh",
+                bytes: include_bytes!("../../selftest/cases/parse-empty-input/run.sh"),
+            },
+            FileResource {
+                path: "required-tools",
+                bytes: include_bytes!("../../selftest/cases/parse-empty-input/required-tools"),
+            },
+            FileResource {
+                path: "input/empty.md",
+                bytes: include_bytes!("../../selftest/cases/parse-empty-input/input/empty.md"),
+            },
+            FileResource {
+                path: "expected/exit_code",
+                bytes: include_bytes!("../../selftest/cases/parse-empty-input/expected/exit_code"),
+            },
+            FileResource {
+                path: "expected/stdout",
+                bytes: include_bytes!("../../selftest/cases/parse-empty-input/expected/stdout"),
+            },
+        ],
+    ),
+    (
+        "selftest-list-cases",
+        &[
+            FileResource {
+                path: "run.sh",
+                bytes: include_bytes!("../../selftest/cases/selftest-list-cases/run.sh"),
+            },
+            FileResource {
+                path: "required-tools",
+                bytes: include_bytes!("../../selftest/cases/selftest-list-cases/required-tools"),
+            },
+            FileResource {
+                path: "expected/exit_code",
+                bytes: include_bytes!(
+                    "../../selftest/cases/selftest-list-cases/expected/exit_code"
+                ),
+            },
+            FileResource {
+                path: "expected/stdout",
+                bytes: include_bytes!("../../selftest/cases/selftest-list-cases/expected/stdout"),
+            },
+        ],
+    ),
+];
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
