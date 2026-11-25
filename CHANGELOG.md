@@ -9,36 +9,52 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
-- **Approval block shows every verdict as an unverified claim (PLAT-1807).**
-  Every Verdict cell of `quire export` starts `unverified claim: `, a new
-  `Verdict file` column shows the SHA-256 of the file (and its tag object), and a
-  fixed statement under `Approval` says the verdicts are not re-verified. The
-  default PDF template sets table text to 9pt.
-- **`--release` accepts a tag before the dossier commit (PLAT-1811).** The tag may
-  be on the source commit or a first-parent ancestor whose later commits only add
-  or modify files under an input's directory; the title page names the tag commit
-  when it differs from the source commit.
-- **Show outputCatalog changes in clause diffs (PLAT-1831).** `quire clauses diff`
-  human, TSV and JSON views list added, removed and changed output-catalog
-  entries with their producers. TSV gains `output`, `before_producers` and
-  `after_producers` columns. A TSV producers cell is a JSON array and a
-  `changed_fields` column names what changed in an entry.
-- **Engine changes from the current quire-rs pin.** Ignore files now apply
-  only from the scope root (parent, global and `.git/info/exclude` files no
-  longer apply; a root `.gitignore` applies outside a git checkout).
-  Symbolic-link sources report `symlink-not-followed` diagnostics. Warning-severity
-  extraction diagnostics (including `symlink-not-followed`,
-  `symbol-id-collision` and `qsl-unbalanced-braces`) now print as warnings in
-  `coverage`, `assurance`, `symbols` and `trace`. Coverage JSON gains `ignored_source_files`, and the coverage and
-  symbols human views print it. `verifies` tags accept qualified trace ids
-  (`ix://` and prefixed) and report `unresolved-qualified-trace-id` when one
-  does not bind. Overlapping `trace_id_qualifiers` fail module load. Assurance
-  JSON with duplicate keys is rejected.
-- **Pin the assurance v1 contract in Rust (PLAT-1795).** The golden export
-  test validates against the upstream schema, pins its field and state-token
-  sets, and exercises Rust reader refusal for missing required fields and wrong
-  JSON types. Cross-language runtime probes are removed because no named
-  consumer is in scope.
+
+## [0.53.0] — 2026-11-24
+
+### Added
+
+- **Run self-tests from the installed binary.** `quire selftest --list` shows
+  embedded quire-cli and quire-rs cases; `quire selftest --run` executes selected
+  cases and records their outcomes. Linux execution uses a write sandbox and
+  fails closed on unsupported operating systems.
+- **Private vulnerability reporting.** `SECURITY.md` directs suspected
+  vulnerabilities to GitHub's private reporting form.
+
+### Changed
+
+- **Export approval records are identified as unverified claims.** The approval
+  table labels each verdict as an unverified claim, includes the SHA-256 of its
+  source file and tag object, and states that verdicts are not re-verified.
+  The default PDF table text is 9pt.
+- **Exports use committed source and reproducible provenance.** Markdown exports
+  read the input blob, commit, committer date, and attributes from the source Git
+  repository. They include the running CLI and engine versions and preserve a
+  declared producer identity. A release tag may name the source commit or a
+  first-parent ancestor when the intervening changes are limited to files under
+  the input directories. Output no longer depends on the wall clock, timezone,
+  host, or output path.
+- **Clause diffs include output-catalog changes.** Human, TSV, and JSON output
+  report added, removed, and changed outputs and their producers.
+- **Traceability commands name dropped declarations.** Commands that compute over
+  a traceability model refuse when quire-rs drops part or all of the declaration
+  and identify the dropped item. Coverage, matrix, relations, and JSON export
+  also report dropped required relations as errors instead of silently omitting
+  them.
+- **Adopt quire-rs v0.62.3.** Ignore files are scoped to the root, symbolic-link
+  sources are diagnosed without following them, and warning-level extraction
+  diagnostics are shown in coverage, assurance, symbols, and trace. Coverage
+  reports ignored source files; qualified `verifies` tags are resolved and
+  unresolved or overlapping qualifiers are reported. Assurance JSON with
+  duplicate keys is rejected.
+
+### Known anomalies
+
+- **Main CI and release verification are dispatch-only (AN-001).** CI does not
+  run automatically for pushes or pull requests. The release workflow is also
+  manually dispatched, and creates the GitHub Release and publishes npm only
+  when `publish=true`. Tag attestation runs on `v*` tag pushes and fails closed
+  because retained build evidence is unavailable.
 
 ## [0.52.1] — 2026-11-22
 
@@ -971,7 +987,8 @@ that does not know it, so the CLI has to ship first.
   output encoding (FR-005..008).
 - Static-binary, zero-unsafe, no-network, and CLI-stability gates (NFR-002..006).
 
-[Unreleased]: https://github.com/agent-ix/quire-cli/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/agent-ix/quire-cli/compare/v0.53.0...HEAD
+[0.53.0]: https://github.com/agent-ix/quire-cli/compare/v0.52.1...v0.53.0
 [0.2.4]: https://github.com/agent-ix/quire-cli/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/agent-ix/quire-cli/compare/v0.2.1...v0.2.3
 [0.2.1]: https://github.com/agent-ix/quire-cli/compare/v0.2.0...v0.2.1
