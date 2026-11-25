@@ -91,7 +91,7 @@ fn selftest_shell_marker_binds_and_removal_names_the_case_script() {
             &[("FR-047-AC-3", "Selftest cases bind their criteria.", "Test")],
         ),
     );
-    let script = "#!/bin/sh\n# trace: FR-047-AC-3\nset -eu\nexit 0\n";
+    let script = "#!/bin/sh\n#trace: FR-047-AC-3\nset -eu\nexit 0\n";
     f.write("selftest/cases/example/run.sh", script);
 
     let bound = f.matrix(&["--strict", "--format", "tsv"]);
@@ -104,6 +104,18 @@ fn selftest_shell_marker_binds_and_removal_names_the_case_script() {
     let output = String::from_utf8(bound.stdout).expect("matrix is UTF-8");
     assert!(output.contains("FR-047-AC-3"), "{output}");
     assert!(output.contains("selftest/cases/example/run.sh"), "{output}");
+
+    f.write(
+        "selftest/cases/example/run.sh",
+        "#!/bin/sh\n# \ttrace:\tFR-047-AC-3\nset -eu\nexit 0\n",
+    );
+    let whitespace_variant = f.matrix(&["--strict", "--format", "tsv"]);
+    assert_eq!(
+        code(&whitespace_variant),
+        0,
+        "{}",
+        String::from_utf8_lossy(&whitespace_variant.stderr)
+    );
 
     f.write(
         "selftest/cases/example/run.sh",

@@ -18,8 +18,10 @@ use anyhow::Context;
 use clap::Parser;
 use ix_trace_rs::implements;
 use quire_cli::safety;
+use regex::Regex;
 use quire_rs::corpus::{DesignMatrix, DroppedRelation};
 use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixStatus};
+use quire_rs::traceability::{SourceLanguage, TraceMarkerSyntax};
 use quire_rs::{design_matrix, CoverageReport, DesignMatrixEntry, RelationReportMember};
 use serde::Serialize;
 
@@ -187,7 +189,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     )?;
     let matrix = compute_matrix(ctx, &corpus, &registry)?;
     let selftest_trace_findings = if args.strict {
-        check_selftest_trace_markers(&corpus, &matrix.entries)?
+        check_selftest_trace_markers(&corpus, &matrix.entries, &registry)?
     } else {
         Vec::new()
     };
@@ -279,7 +281,21 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 fn check_selftest_trace_markers(
     corpus: &Corpus,
     matrix: &[DesignMatrixEntry],
+    registry: &quire_rs::Registry,
 ) -> anyhow::Result<Vec<(String, String)>> {
+    let shell_marker_patterns = registry
+        .traceability()
+        .into_iter()
+        .flat_map(|model| &model.trace_tags.markers)
+        .filter(|marker| {
+            marker.language == SourceLanguage::Shell
+                && marker.syntax == Some(TraceMarkerSyntax::Comment)
+        })
+        .map(|marker| {
+            Regex::new(&marker.pattern)
+                .with_context(|| format!("compiling shell trace marker `{}`", marker.name))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let known_criteria: BTreeSet<&str> = matrix
         .iter()
         .flat_map(|requirement| &requirement.criteria)
@@ -308,26 +324,45 @@ fn check_selftest_trace_markers(
             let source = fs::read_to_string(&script)
                 .with_context(|| format!("reading selftest script {relative}"))?;
             let mut has_valid_marker = false;
+            let mut has_matching_marker = false;
             let mut script_findings = Vec::new();
             for line in source.lines() {
-                let Some(marker) = line.trim().strip_prefix("# trace:") else {
-                    continue;
-                };
-                let ids: Vec<&str> = marker.split(',').map(str::trim).collect();
-                if ids.is_empty() || ids.iter().any(|id| id.is_empty()) {
-                    script_findings.push("contains an empty trace marker".to_string());
-                    continue;
-                }
-                for id in ids {
-                    if !known_criteria.contains(id) {
-                        script_findings.push(format!("names unknown criterion `{id}`"));
-                    } else {
-                        has_valid_marker = true;
+                for pattern in &shell_marker_patterns {
+                    let Some(captures) = pattern.captures(line.trim_start()) else {
+                        continue;
+                    };
+                    has_matching_marker = true;
+                    let Some(captured_ids) = captures.get(1) else {
+                        script_findings.push(
+                            "matches a shell marker without a captured criterion list".to_string(),
+                        );
+                        continue;
+                    };
+                    let ids: Vec<&str> = captured_ids
+                        .as_str()
+                        .split(',')
+                        .map(str::trim)
+                        .collect();
+                    if ids.is_empty() || ids.iter().any(|id| id.is_empty()) {
+                        script_findings.push("contains an empty trace marker".to_string());
+                        continue;
+                    }
+                    for id in ids {
+                        if !known_criteria.contains(id) {
+                            script_findings.push(format!("names unknown criterion `{id}`"));
+                        } else {
+                            has_valid_marker = true;
+                        }
                     }
                 }
             }
             if !has_valid_marker && script_findings.is_empty() {
-                script_findings.push("has no `# trace:` marker".to_string());
+                let reason = if has_matching_marker {
+                    "has no marker naming a known criterion"
+                } else {
+                    "has no marker matching the declared shell trace grammar"
+                };
+                script_findings.push(reason.to_string());
             }
             for reason in script_findings {
                 findings.push((relative.clone(), format!("{relative}: {reason}")));

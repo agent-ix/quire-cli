@@ -27,6 +27,7 @@ serde_json = "1"
 anyhow = "1"
 glob = "0.3"
 toml = "1"
+regex = "1"
 url = "2"
 tempfile = "3"
 time = { version = "0.3", features = ["formatting"] }
