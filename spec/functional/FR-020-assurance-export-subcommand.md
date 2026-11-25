@@ -72,13 +72,24 @@ it does not disable schema checking.
 The assurance payload's `format_version` alone does not establish semantic
 compatibility.
 
-Two earlier `assurance-v1` shapes exist as historical fixtures only and are not
-accepted by the current CLI. They carry a source premise, schema digests, locator
-digests, statement hashes, hashed symbol identities, and relation provenance. The
-current `assurance-v1` shape has no source premise or digest fields, uses
-structured symbol identities, has no relation provenance, and adds shell and
-entry-point symbol forms. The historical and current shapes share the v1 format
-marker but differ in their published schema.
+The published compatibility matrix for the current released reader
+(`quire-cli` 0.52.1 with `quire-rs` 0.62.2) is:
+
+| Producer `quire-cli` | Embedded `quire-rs` engine | Engine version evidence | Current reader result |
+| --- | --- | --- | --- |
+| 0.32.0 | 0.46.0 | `v0.32.0` release lockfile or retained release metadata | Refuse before returning typed records |
+| 0.33.0 | 0.47.1 | `v0.33.0` release lockfile or retained release metadata | Refuse before returning typed records |
+| 0.52.0 | 0.62.2 | `quire --version` and payload provenance | Accept |
+| 0.52.1 | 0.62.2 | `quire --version` and payload provenance | Accept |
+
+The two earlier `assurance-v1` shapes carry a source premise, schema digests,
+locator digests, statement hashes, hashed symbol identities, and relation
+provenance. The 0.52.0 and 0.52.1 shapes have no source premise or digest fields,
+use structured symbol identities, have no relation provenance, and add shell and
+entry-point symbol forms. These producer shapes share the v1 format marker but
+differ in their published schema. A compatibility row is supported only when
+the exact producer and engine versions, the payload schema, and the consumer
+result agree with the matrix; the v1 format marker alone is insufficient.
 
 The current CLI SHALL validate the entire payload against its linked
 engine's published schema and SHALL preserve the current schema's field
@@ -111,7 +122,8 @@ consumer-support decision before that producer/consumer pair is supported.
 | FR-020-AC-6 | The command delegates construction to `build_assurance_export`, validation to `read_assurance_export`, corpus loading to `Spec`, extraction to `extract_tree_scoped`, and binding to `trace::bind`; a static boundary audit rejects a second graph, schema, or direct parser in the CLI. | Inspection |
 | FR-020-AC-7 | The command opens no network socket and spawns no child process on success or refusal paths. | Test |
 | FR-020-AC-8 | The checked-in golden JSON fixture validates against the upstream schema in Rust. The test compares the schema's top-level and object property sets, including optional properties, and its state-token enums with independent fixed expected sets, and pins the golden's field and state values. | Test |
-| FR-020-AC-9 | Independent fixtures captured from the quire-cli 0.32.0 / quire-rs 0.46.0 pair, the quire-cli 0.33.0 / quire-rs 0.47.1 pair, and the current quire-cli 0.52.0 / quire-rs 0.62.2 pair validate under their respective published schemas and preserve the full field-identity oracle for modules, artifacts, obligations, symbols, relations, locators, and observations; the current pair's fixture is accepted by the current CLI, while each historical fixture is refused by the current CLI before typed records are returned. The current CLI refuses a fixture when a shared capability or format-version string is present but required fields or identity meanings differ. Verify with `tests/cli_assurance.rs` and `tests/assurance_rust_reader.rs`. | Test |
+| FR-020-AC-9 | Independent payload fixtures from the quire-cli 0.32.0 / quire-rs 0.46.0 pair, the quire-cli 0.33.0 / quire-rs 0.47.1 pair, the quire-cli 0.52.0 / quire-rs 0.62.2 pair, and the quire-cli 0.52.1 / quire-rs 0.62.2 pair validate under their respective published schemas and preserve the full field-identity oracle for modules, artifacts, obligations, symbols, relations, locators, and observations; the current reader accepts the two 0.52.x shapes and refuses both historical shapes before typed records are returned. The current reader refuses a payload when a shared capability or format-version string is present but required fields or identity meanings differ. | Test |
+| FR-020-AC-10 | The release-compatibility test executes the released `quire-cli` binary for every producer row in the published matrix and confirms its `--version` output identifies the row's CLI version. For 0.32.0 and 0.33.0, it derives the embedded `quire-rs` version from that exact release tag's lockfile or retained release metadata; for 0.52.x, it also checks the embedded engine version reported by `--version` and payload provenance. It generates assurance payloads from the same deterministic fixture corpus and passes those actual bytes to the current 0.52.1 / 0.62.2 reader; the two 0.52.x rows are accepted with every field identity in FR-020-AC-9 preserved, while the two historical rows are refused before typed records are returned. A checked-in captured payload alone, a missing producer binary, missing engine-version evidence, or a version mismatch cannot satisfy this criterion. | Test |
 
 ## Dependencies
 
