@@ -27,6 +27,14 @@ const HISTORICAL_SCHEMAS: [&str; 3] = [
     "assurance-fixture/StR@44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
 ];
 const HISTORICAL_REVISION: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const FR_020_SPEC: &str = include_str!("../spec/functional/FR-020-assurance-export-subcommand.md");
+
+struct CompatibilityRow {
+    cli_version: String,
+    engine_version: String,
+    evidence: String,
+    result: String,
+}
 
 struct Fixture {
     _temp: TempDir,
@@ -131,7 +139,7 @@ fn command_with_binary_and_generation(
 /// The release lane directory contains `<version>/quire` and the exact
 /// `<version>/Cargo.lock` from that CLI tag. Keeping this out of the default
 /// suite avoids requiring network-fetched release assets for ordinary tests;
-/// the named compatibility lane must provide all four release rows.
+/// the named compatibility lane must provide each row from FR-020's matrix.
 #[trace("FR-020-AC-9")]
 #[trace("FR-020-AC-10")]
 #[test]
@@ -150,12 +158,15 @@ fn released_cli_compatibility_matrix_matches_the_current_reader() {
         "current producer output must be accepted by the current reader"
     );
 
-    for (cli_version, engine_version, supported) in [
-        ("0.32.0", "0.46.0", false),
-        ("0.33.0", "0.47.1", false),
-        ("0.52.0", "0.62.2", true),
-        ("0.52.1", "0.62.2", true),
-    ] {
+    for row in compatibility_rows() {
+        let cli_version = row.cli_version.as_str();
+        let engine_version = row.engine_version.as_str();
+        let supported = row.result.starts_with("Accept");
+        assert!(
+            supported || row.result.starts_with("Refuse"),
+            "FR-020 matrix result must say Accept or Refuse: {}",
+            row.result
+        );
         let version_dir = release_dir.join(cli_version);
         let binary = version_dir.join("quire");
         assert!(
@@ -198,7 +209,8 @@ fn released_cli_compatibility_matrix_matches_the_current_reader() {
             .unwrap_or_else(|| panic!("v{cli_version} Cargo.lock has no quire-rs version"));
         assert_eq!(
             locked_engine, engine_version,
-            "embedded engine evidence from exact v{cli_version} release lockfile"
+            "embedded engine evidence from exact v{cli_version} release lockfile; matrix evidence: {}",
+            row.evidence
         );
         if supported {
             assert!(
@@ -207,7 +219,7 @@ fn released_cli_compatibility_matrix_matches_the_current_reader() {
             );
         }
 
-        let historical = cli_version == "0.32.0" || cli_version == "0.33.0";
+        let historical = !supported;
         let output = command_with_binary_and_generation(&fixture, Some(&binary), historical)
             .output()
             .unwrap_or_else(|error| {
@@ -248,9 +260,42 @@ fn assurance_identity(value: &Value) -> Value {
         "artifacts": value["artifacts"],
         "obligations": value["obligations"],
         "symbols": value["symbols"],
+        "relation_kinds": value["relation_kinds"],
         "relations": value["relations"],
         "relation_observations": value["relation_observations"],
     })
+}
+
+fn compatibility_rows() -> Vec<CompatibilityRow> {
+    let mut table = FR_020_SPEC
+        .lines()
+        .skip_while(|line| !line.contains("| Producer `quire-cli` |"));
+    assert!(table.next().is_some(), "FR-020 compatibility matrix header");
+
+    let mut rows = Vec::new();
+    for line in table {
+        let line = line.trim();
+        if !line.starts_with('|') {
+            break;
+        }
+        let cells: Vec<String> = line
+            .trim_matches('|')
+            .split('|')
+            .map(|cell| cell.trim().trim_matches('`').to_owned())
+            .collect();
+        if cells.first().is_some_and(|cell| cell.starts_with("---")) {
+            continue;
+        }
+        assert_eq!(cells.len(), 4, "FR-020 compatibility matrix row: {line}");
+        rows.push(CompatibilityRow {
+            cli_version: cells[0].clone(),
+            engine_version: cells[1].clone(),
+            evidence: cells[2].clone(),
+            result: cells[3].clone(),
+        });
+    }
+    assert!(!rows.is_empty(), "FR-020 compatibility matrix has rows");
+    rows
 }
 
 fn output(fixture: &Fixture) -> Output {
