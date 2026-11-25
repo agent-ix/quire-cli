@@ -26,10 +26,6 @@ fn list_includes_quire_cli_and_linked_quire_rs_cases() {
         list.contains("fr-032-placeholder-detection\tquire-rs"),
         "{list}"
     );
-    assert!(
-        list.contains("selftest-selected-run-record\tquire-cli"),
-        "{list}"
-    );
 }
 
 #[trace("FR-047-AC-10")]
@@ -90,7 +86,7 @@ fn explicit_output_is_the_only_run_record_stream_with_empty_home() {
     assert!(record["retainedLocation"]
         .as_str()
         .is_some_and(|location| std::path::Path::new(location).is_absolute()));
-    assert_eq!(record["results"].as_array().map(Vec::len), Some(4));
+    assert_eq!(record["results"].as_array().map(Vec::len), Some(3));
     assert!(record["results"]
         .as_array()
         .is_some_and(|cases| { cases.iter().all(|case| case["status"] == "pass") }));

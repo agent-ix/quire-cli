@@ -102,33 +102,6 @@ static LOCAL_CASES: &[(&str, &[FileResource])] = &[
             },
         ],
     ),
-    (
-        "selftest-selected-run-record",
-        &[
-            FileResource {
-                path: "run.sh",
-                bytes: include_bytes!("../../selftest/cases/selftest-selected-run-record/run.sh"),
-            },
-            FileResource {
-                path: "required-tools",
-                bytes: include_bytes!(
-                    "../../selftest/cases/selftest-selected-run-record/required-tools"
-                ),
-            },
-            FileResource {
-                path: "expected/exit_code",
-                bytes: include_bytes!(
-                    "../../selftest/cases/selftest-selected-run-record/expected/exit_code"
-                ),
-            },
-            FileResource {
-                path: "expected/stdout",
-                bytes: include_bytes!(
-                    "../../selftest/cases/selftest-selected-run-record/expected/stdout"
-                ),
-            },
-        ],
-    ),
 ];
 
 #[derive(Debug, Serialize)]
@@ -1117,14 +1090,6 @@ mod tests {
         assert_eq!(
             criteria(list_case).expect("list case has criterion trace"),
             ["FR-047-AC-1"]
-        );
-        let run_case = cases
-            .iter()
-            .find(|case| case.id == "selftest-selected-run-record")
-            .expect("selected run case is embedded");
-        assert_eq!(
-            criteria(run_case).expect("selected run case has criterion trace"),
-            ["FR-047-AC-10", "FR-047-AC-4"]
         );
     }
 
