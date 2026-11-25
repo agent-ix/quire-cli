@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "tests/cli_export.rs"
 SUITE = "SUITE-004"
 TEST_COMMAND = ["cargo", "test", "--locked", "--test", "cli_export", "--", "--ignored"]
+FOCUSED_TESTS = {"real_exports_give_equal_text_and_structure_across_directories_and_zones"}
 TRACE_ID = re.compile(r'"([A-Z]+-[0-9]+-AC-[0-9]+)"')
 TEST_RESULT = re.compile(r"^test\s+(\w+)\s+\.\.\.\s+(ok|FAILED)$")
 VERSION_ARGS = {
@@ -31,6 +32,7 @@ VERSION_ARGS = {
     "pdfinfo": ["-v"],
     "pdftotext": ["-v"],
     "unzip": ["-v"],
+    "bwrap": ["--version"],
     "python3": ["--version"],
     "engineering-assurance": ["--version"],
     "git": ["--version"],
@@ -53,12 +55,13 @@ def version(tool: str, executable: str) -> tuple[str | None, str | None]:
     return output.splitlines()[0], None
 
 
-def ignored_tests() -> list[dict[str, object]]:
-    """Read ignored test names and their trace IDs from the test source."""
+def test_groups() -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Read ignored and explicitly focused live-tool tests with their trace IDs."""
     if not SOURCE.is_file():
         raise ValueError(f"missing test source: {SOURCE}")
     lines = SOURCE.read_text(encoding="utf-8").splitlines()
-    tests: list[dict[str, object]] = []
+    ignored_tests: list[dict[str, object]] = []
+    focused_tests: list[dict[str, object]] = []
     trace_ids: list[str] | None = None
     ignored = False
     is_test = False
@@ -80,7 +83,15 @@ def ignored_tests() -> list[dict[str, object]]:
             if ignored and is_test:
                 if not trace_ids:
                     raise ValueError(f"ignored test {name} has no trace IDs")
-                tests.append({"name": name, "symbol": f"cli_export::{name}", "trace_ids": trace_ids})
+                ignored_tests.append(
+                    {"name": name, "symbol": f"cli_export::{name}", "trace_ids": trace_ids}
+                )
+            elif name in FOCUSED_TESTS and is_test:
+                if not trace_ids:
+                    raise ValueError(f"focused live-tool test {name} has no trace IDs")
+                focused_tests.append(
+                    {"name": name, "symbol": f"cli_export::{name}", "trace_ids": trace_ids}
+                )
             trace_ids = None
             ignored = False
             is_test = False
@@ -89,9 +100,12 @@ def ignored_tests() -> list[dict[str, object]]:
             ignored = False
             is_test = False
         index += 1
-    if not tests:
+    if not ignored_tests:
         raise ValueError(f"no ignored tests found in {SOURCE}")
-    return tests
+    missing = FOCUSED_TESTS - {str(test["name"]) for test in focused_tests}
+    if missing:
+        raise ValueError(f"focused live-tool tests missing or ignored: {sorted(missing)}")
+    return ignored_tests, focused_tests
 
 
 def resolve_locked_build() -> str | None:
@@ -134,10 +148,11 @@ def entry(test: dict[str, object], outcome: str, config: dict[str, object]) -> d
 
 def main() -> int:
     try:
-        tests = ignored_tests()
+        ignored, focused = test_groups()
     except (OSError, ValueError) as error:
         print(f"real-tool-test configuration error: {error}", file=sys.stderr)
         return 2
+    tests = ignored + focused
 
     tool_versions: dict[str, str] = {}
     missing: list[str] = []
@@ -170,53 +185,75 @@ def main() -> int:
         "source_commit": source_commit(),
         "test_source": "tests/cli_export.rs",
         "fixtures": "tests/fixtures/export",
-        "command": " ".join(TEST_COMMAND),
     }
     entries: list[dict[str, object]] = []
     failed = False
     if missing:
         reason = "; ".join(missing)
         for test in tests:
-            config = {**base_config, "execution_state": "not-executed", "error": reason}
+            config = {
+                **base_config,
+                "command": "not run: required live-tool prerequisites unavailable",
+                "execution_state": "not-executed",
+                "error": reason,
+            }
             entries.append(entry(test, "error", config))
         failed = True
     else:
-        command = [locked_build, str(ROOT / "target"), os.environ.get("CARGO", "cargo"), *TEST_COMMAND[1:]]
-        print("Focused command: " + " ".join(command), flush=True)
-        try:
-            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
-        except OSError as error:
-            result = None
-            output = str(error)
-        else:
-            output = result.stdout + result.stderr
-        print(output, end="" if output.endswith("\n") else "\n")
-        observed: dict[str, str] = {}
-        for line in output.splitlines():
-            match = TEST_RESULT.match(line.strip())
-            if match:
-                observed[match.group(1)] = match.group(2)
-        if result is None:
-            failed = True
-        for test in tests:
-            state = observed.get(str(test["name"]))
-            config = {**base_config, "execution_state": "executed" if state else "not-executed"}
-            if result is None:
-                outcome = "error"
-                config["error"] = output
-            elif state == "ok":
-                outcome = "pass"
-            elif state == "FAILED":
-                outcome = "error"
-                config["error"] = "ignored real-tool test failed; see focused command output"
-                failed = True
+        command_groups = [(TEST_COMMAND, ignored)]
+        command_groups.extend(
+            (
+                ["cargo", "test", "--locked", "--test", "cli_export", "--", "--exact", str(test["name"])],
+                [test],
+            )
+            for test in focused
+        )
+        for cargo_args, group in command_groups:
+            command = [
+                locked_build,
+                str(ROOT / "target"),
+                os.environ.get("CARGO", "cargo"),
+                *cargo_args[1:],
+            ]
+            print("Focused command: " + " ".join(command), flush=True)
+            try:
+                result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
+            except OSError as error:
+                result = None
+                output = str(error)
             else:
-                outcome = "error"
-                config["error"] = f"test produced no result line; cargo exit={result.returncode}"
+                output = result.stdout + result.stderr
+            print(output, end="" if output.endswith("\n") else "\n")
+            observed: dict[str, str] = {}
+            for line in output.splitlines():
+                match = TEST_RESULT.match(line.strip())
+                if match:
+                    observed[match.group(1)] = match.group(2)
+            if result is None:
                 failed = True
-            entries.append(entry(test, outcome, config))
-        if result is not None and result.returncode != 0:
-            failed = True
+            for test in group:
+                state = observed.get(str(test["name"]))
+                config = {
+                    **base_config,
+                    "command": " ".join(command),
+                    "execution_state": "executed" if state else "not-executed",
+                }
+                if result is None:
+                    outcome = "error"
+                    config["error"] = output
+                elif state == "ok":
+                    outcome = "pass"
+                elif state == "FAILED":
+                    outcome = "error"
+                    config["error"] = "real-tool test failed; see focused command output"
+                    failed = True
+                else:
+                    outcome = "error"
+                    config["error"] = f"test produced no result line; cargo exit={result.returncode}"
+                    failed = True
+                entries.append(entry(test, outcome, config))
+            if result is not None and result.returncode != 0:
+                failed = True
 
     results = tempfile.NamedTemporaryFile(prefix="quire-cli-real-tool-", suffix=".json", delete=False, mode="w", encoding="utf-8")
     with results:

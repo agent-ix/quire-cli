@@ -6,7 +6,7 @@
 use anyhow::Context;
 use serde_json::{Map, Value};
 
-use super::identity::{Identity, Release};
+use super::identity::{Identity, ProducerIdentity, Release};
 use super::Format;
 
 /// Backslash-escapes each ASCII punctuation character and replaces each line
@@ -62,6 +62,17 @@ pub(super) fn metadata_yaml(identity: &Identity) -> anyhow::Result<String> {
     }
     put("commit", &identity.commit);
     put("date", &identity.date);
+    export.insert(
+        "exporter-provenance".to_string(),
+        serde_json::to_value(&identity.exporter_provenance)
+            .context("encoding exporter provenance")?,
+    );
+    if let Some(producer) = &identity.producer_identity {
+        export.insert(
+            "producer_identity".to_string(),
+            serde_json::to_value(producer).context("encoding producer identity")?,
+        );
+    }
     let mut metadata = Map::new();
     metadata.insert("quire-export".to_string(), Value::Object(export));
     let mut yaml = serde_json::to_string(&metadata).context("encoding converter metadata")?;
@@ -127,6 +138,17 @@ fn compose_front(identity: &Identity, to: Format, id_label: &str, list: Option<&
     }
     line("Source commit", &identity.commit);
     line("Date", &identity.date);
+    line(
+        "Quire CLI version",
+        identity.exporter_provenance.cli.version,
+    );
+    line(
+        "Quire engine version",
+        identity.exporter_provenance.engine.version,
+    );
+    if let Some(producer) = &identity.producer_identity {
+        append_producer_identity(&mut front, producer);
+    }
     front.push_str(&raw_block(to, PAGE_BREAK_TYPST, PAGE_BREAK_OPENXML));
     front.extend(list);
     if to == Format::Docx {
@@ -138,6 +160,14 @@ fn compose_front(identity: &Identity, to: Format, id_label: &str, list: Option<&
         front.push_str(&raw_block(to, PAGE_BREAK_TYPST, PAGE_BREAK_OPENXML));
     }
     front
+}
+
+fn append_producer_identity(front: &mut String, producer: &ProducerIdentity) {
+    front.push_str(&format!(
+        "Producer: {}\n\nProducer version: {}\n\n",
+        escape_markdown(&producer.name),
+        escape_markdown(&producer.version),
+    ));
 }
 
 pub(super) const PAGE_BREAK_TYPST: &str = "#pagebreak()";
@@ -176,6 +206,8 @@ pub(super) fn typst_template(identity: &Identity) -> String {
     format!(
         r#"#let qid = [$quire-export.document-id$]
 #let qrev = [$if(quire-export.version)$$quire-export.version$$else$$quire-export.release$$endif$]
+#let qcli = [{qcli}]
+#let qengine = [{qengine}]
 #set page(
   paper: "a4",
   margin: (x: 2.5cm, y: 2.5cm),
@@ -186,7 +218,7 @@ pub(super) fn typst_template(identity: &Identity) -> String {
   }},
   footer: context {{
     if counter(page).get().first() > 1 [
-      {commit} #h(1fr) Page #counter(page).display() of #counter(page).final().first()
+      {commit} #h(0.4fr) Quire {qcli} / engine {qengine} #h(0.4fr) Page #counter(page).display() of #counter(page).final().first()
     ]
   }},
 )
@@ -201,7 +233,9 @@ pub(super) fn typst_template(identity: &Identity) -> String {
 #let blockquote(body) = block(inset: (left: 1em), body)
 $body$
 "#,
-        commit = commit_prefix(identity)
+        commit = commit_prefix(identity),
+        qcli = escape_markdown(identity.exporter_provenance.cli.version),
+        qengine = escape_markdown(identity.exporter_provenance.engine.version)
     )
 }
 
@@ -247,8 +281,12 @@ fn header_part(identity: &Identity) -> String {
 
 fn footer_part(identity: &Identity) -> String {
     format!(
-        r#"{XML_DECLARATION}<w:ftr {W_NAMESPACES}><w:p>{RIGHT_TAB}{commit}<w:r><w:tab/></w:r>{page_label}{page}{of}{pages}</w:p></w:ftr>"#,
+        r#"{XML_DECLARATION}<w:ftr {W_NAMESPACES}><w:p>{RIGHT_TAB}{commit}<w:r><w:tab/></w:r>{versions}<w:r><w:tab/></w:r>{page_label}{page}{of}{pages}</w:p></w:ftr>"#,
         commit = text_run(commit_prefix(identity)),
+        versions = text_run(&format!(
+            "Quire {} / engine {}",
+            identity.exporter_provenance.cli.version, identity.exporter_provenance.engine.version,
+        )),
         page_label = text_run("Page "),
         page = field_run("PAGE"),
         of = text_run(" of "),
@@ -467,6 +505,8 @@ mod tests {
             release: None,
             commit: "0123456789abcdef0123456789abcdef01234567".to_string(),
             date: "2001-02-04".to_string(),
+            producer_identity: None,
+            exporter_provenance: quire_cli::engine::ToolProvenance::current(),
             epoch: 0,
         }
     }
@@ -554,6 +594,55 @@ mod tests {
         );
         assert!(parsed["quire-export"].get("release").is_none());
         assert_eq!(parsed.as_object().map(Map::len), Some(1));
+    }
+
+    #[test]
+    #[trace(
+        "FR-034-AC-18",
+        "FR-034-AC-20",
+        "FR-035-AC-1",
+        "FR-035-AC-4",
+        "FR-035-AC-5",
+        "FR-036-AC-3"
+    )]
+    fn exporter_and_optional_producer_identity_reach_metadata_and_page_furniture() {
+        let mut identity = identity();
+        identity.producer_identity = Some(ProducerIdentity {
+            name: "quoin dossier".to_string(),
+            version: "0.36.10".to_string(),
+        });
+
+        let yaml = metadata_yaml(&identity).expect("metadata");
+        let metadata: Value = serde_json::from_str(&yaml).expect("JSON");
+        let export = &metadata["quire-export"];
+        assert_eq!(
+            export["exporter-provenance"],
+            serde_json::to_value(quire_cli::engine::ToolProvenance::current()).expect("provenance")
+        );
+        assert_eq!(
+            export["producer_identity"],
+            serde_json::json!({"name": "quoin dossier", "version": "0.36.10"})
+        );
+
+        let front = front_matter(&identity, Format::Pdf);
+        assert!(front.contains(&format!(
+            "Quire CLI version: {}",
+            escape_markdown(quire_cli::engine::CLI_VERSION)
+        )));
+        assert!(front.contains(&format!(
+            "Quire engine version: {}",
+            escape_markdown(quire_cli::engine::ENGINE_VERSION)
+        )));
+        assert!(front.contains("Producer: quoin dossier\n"));
+        assert!(front.contains("Producer version: 0\\.36\\.10\n"));
+
+        let typst = typst_template(&identity);
+        assert!(typst.contains(&escape_markdown(quire_cli::engine::CLI_VERSION)));
+        assert!(typst.contains(&escape_markdown(quire_cli::engine::ENGINE_VERSION)));
+        let docx =
+            String::from_utf8_lossy(&docx_reference(&identity).expect("reference")).into_owned();
+        assert!(docx.contains(quire_cli::engine::CLI_VERSION));
+        assert!(docx.contains(quire_cli::engine::ENGINE_VERSION));
     }
 
     #[test]

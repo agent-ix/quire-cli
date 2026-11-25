@@ -21,12 +21,14 @@ relationships:
 
 ## Description
 
-`quire export` of a Markdown input SHALL assemble a document identity of six
-fields, and SHALL hand it to the converter as data and as generated title-page
-text ([FR-035](./FR-035-default-export-template.md),
-[FR-036](./FR-036-organisation-export-template.md)). The identity ties the
-exported file to one committed revision of its source. No field is taken from the
-wall clock, the host or the user's environment.
+`quire export` of a Markdown input SHALL assemble the six document identity
+fields below and SHALL hand them to the converter as data and as generated
+title-page text ([FR-035](./FR-035-default-export-template.md),
+[FR-036](./FR-036-organisation-export-template.md)). It SHALL also carry the
+current exporter's Quire provenance and preserve an optional declared producer
+identity from the committed input frontmatter. The identity ties the exported
+file to one committed revision of its source. No field is taken from the wall
+clock, the host or the user's environment.
 
 ```text
 quire export <INPUT>... --to pdf|docx --output <PATH>
@@ -43,10 +45,29 @@ quire export <INPUT>... --to pdf|docx --output <PATH>
 | Release | `--release <TAG>`: a tag of the source repository whose commit is the source commit or a release ancestor of it (section A); optional. Shown as `<TAG>` when the tag commit is the source commit, otherwise as `<TAG> (tag commit <full hash of the tag commit>)`; the shown text is the only place the tag commit appears, and the `release` member of `in/metadata.yaml` is the tag name alone. |
 | Source commit hash | The full hash of the commit selected by `--source-rev` (default `HEAD`) in the source repository. `--source-rev` is a full 40-digit object hash or a reference name (branch, tag or `HEAD`); abbreviated hashes and revision expressions such as `HEAD~1` are refused, and the diagnostic says so. |
 | Date | The committer date of that commit, in UTC, as `YYYY-MM-DD`. |
+| Exporter provenance | The current binary's exact `quire provenance` object, including distinct CLI and engine versions. |
 
 At least one of Version and Release SHALL be present; both are shown when both
 are present. The `title`, `id` and `version` members are strings or numbers; any other type counts as absent. The frontmatter members are read with `extract_frontmatter` of
 [quire-rs FR-006](ix://agent-ix/quire-rs/FR-006).
+
+### Producer identity
+
+The input may carry a direct producer identity when its declared input schema
+allows it:
+
+| Member | Meaning |
+| --- | --- |
+| `producer_identity` | The direct producer's `name` and `version`. |
+
+`producer_identity` is optional. When present, it has exactly the non-empty
+string members `name` and `version`; malformed values are refused with the
+member name. The command SHALL read it from the committed input blob and
+preserve it as data; it SHALL NOT infer a missing identity from `generated_by`,
+the export's source commit, `as_of`, or the wall clock. The source commit hash
+and date identify the committed input being exported. The exporter SHALL obtain
+its own exact Quire CLI and engine provenance from the running binary, without
+starting a version-probe process.
 
 ## Behavior
 
@@ -89,9 +110,13 @@ are present. The `title`, `id` and `version` members are strings or numbers; any
 ### C. Hand-off to the converter
 
 - The command SHALL write the identity into `in/metadata.yaml` under the one
-  reserved key `quire-export` (members `title`, `document-id`, `version`,
-  `release`, `commit`, `date`), as JSON string values, and SHALL pass it with
-  `--metadata-file`. It SHALL NOT pass an identity value as an argument.
+  reserved key `quire-export`. Its six document identity fields are `title`,
+  `document-id`, `version`, `release`, `commit` and `date`; it also contains the
+  running exporter's exact `exporter-provenance` object and, when present in the
+  committed input, its `producer_identity` object. String identity values are
+  JSON string values; provenance objects retain their nested types. The command
+  SHALL pass this map with `--metadata-file` and SHALL NOT pass an identity or
+  provenance value as an argument.
 - The command SHALL escape each identity value (`title`, `document-id`,
   `version`, `release`, `commit`, `date`) before writing it to
   `in/metadata.yaml`, because pandoc parses a string metadata value as Markdown
@@ -117,7 +142,7 @@ are present. The `title`, `id` and `version` members are strings or numbers; any
 
 | ID | Criteria | Verification |
 | --- | --- | --- |
-| FR-034-AC-1 | Exporting a fixture committed with an `id`, a `title` and a `version` to `docx` yields extracted text holding all six fields as stated: the title, the id, the version, the full source commit hash and the committer date as `YYYY-MM-DD`, and no Release line. | Test |
+| FR-034-AC-1 | Exporting a fixture committed with an `id`, a `title` and a `version` to `docx` yields extracted text holding all six document identity fields as stated: the title, the id, the version, the full source commit hash and the committer date as `YYYY-MM-DD`, and no Release line. The generated title page also identifies the running Quire CLI and engine versions. | Test |
 | FR-034-AC-2 | With `--release v1.2` naming a tag on the source commit, the Release field reads `v1.2`; a fixture with no `version` member and no `--release` is refused ([FR-040](./FR-040-export-template-and-identity-errors.md)). | Test |
 | FR-034-AC-3 | A fixture committed with a committer date of `2001-02-03T23:30:00-05:00` yields the Date `2001-02-04` (UTC), and the date is the same when the test process runs under a different `TZ`. The command reads no clock, so no test varies one. | Test |
 | FR-034-AC-4 | With `--source-rev` naming an older commit at which the input equals the working file, the identity holds that commit's hash and date; naming a commit at which the input differs from the working file is refused. | Test |
@@ -134,8 +159,11 @@ are present. The `title`, `id` and `version` members are strings or numbers; any
 | FR-034-AC-15 | With an input in the repository root, and with a bundle of one root input and one input under `dossier`, a tag on a commit before S whose later commits touch only files under `dossier` is refused naming the cause; a tag on S is accepted. | Test |
 | FR-034-AC-16 | With `--release` naming a tag on another branch, a tag on a commit that history rewriting removed from the first-parent chain of S, or a tag on a commit later than S, the export exits 3 naming the tag, S and the cause "not on the first-parent chain"; a tag of a tree or of a blob exits 3 naming the cause "tag does not name a commit". | Test |
 | FR-034-AC-17 | In a shallow clone whose history lacks the commit between S and T, the export exits 3 naming the tag, S, the cause "history incomplete" and the missing commit hash, and does not accept the tag. | Test |
+| FR-034-AC-18 | A committed Markdown fixture with valid `producer_identity` frontmatter preserves its `name` and `version` in `quire-export` metadata and on the generated title page, separately from the export source commit/date and the running exporter's Quire CLI/engine versions. Missing `producer_identity` emits no placeholder; a malformed object is refused naming `producer_identity`. | Test |
+| FR-034-AC-19 | Two exports of the same committed source with the same template, Quire build, pandoc, typst, fonts, and inputs yield byte-identical output files, including when the source frontmatter contains `producer_identity`. Changing only the wall clock, time zone, host, working directory, capability-root path, or output path does not change output bytes. | Test |
+| FR-034-AC-20 | The `quire-export.exporter-provenance` object identifies the running Quire CLI and engine versions exactly, without probing or starting another process. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-031](./FR-031-export-subcommand.md), [FR-032](./FR-032-export-converter-execution.md), [NFR-004](../non-functional/NFR-004-no-network.md).
-- **Downstream**: [FR-035](./FR-035-default-export-template.md), [FR-036](./FR-036-organisation-export-template.md), [FR-040](./FR-040-export-template-and-identity-errors.md).
+- **Downstream**: [FR-035](./FR-035-default-export-template.md), [FR-036](./FR-036-organisation-export-template.md), [FR-037](./FR-037-export-clock-free-output.md), [FR-040](./FR-040-export-template-and-identity-errors.md), [NFR-011](../non-functional/NFR-011-export-reproducibility.md).

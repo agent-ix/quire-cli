@@ -1,5 +1,5 @@
-//! Document identity for an export (FR-034): the frontmatter fields of the
-//! input plus the commit hash and committer date of the source revision.
+//! Export identity (FR-034): source document identity, optional declared
+//! producer identity, exporter provenance, and the commit date/hash.
 //!
 //! The commit, tag, blob and attributes are read in process from the git
 //! object store with read-only access; no `git` process is started and the
@@ -12,9 +12,11 @@ use bstr::{BStr, ByteSlice};
 use gix_hash::ObjectId;
 use gix_object::{Find, ObjectRef};
 use gix_ref::file::ReferenceExt;
+use serde::Serialize;
 use serde_json::{Map, Value};
 
 use crate::commands::failure;
+use quire_cli::engine::ToolProvenance;
 
 /// The release tag of an export and, when it names another commit than the
 /// source commit, that commit (FR-034, Identity fields).
@@ -56,8 +58,19 @@ pub(super) struct Identity {
     pub(super) release: Option<Release>,
     pub(super) commit: String,
     pub(super) date: String,
+    /// Direct producer identity carried by the committed input, when declared.
+    pub(super) producer_identity: Option<ProducerIdentity>,
+    /// The provenance of the Quire CLI and engine performing this export.
+    pub(super) exporter_provenance: ToolProvenance,
     /// The committer time as seconds since the Unix epoch.
     pub(super) epoch: i64,
+}
+
+/// The optional identity of the producer that authored the input document.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub(super) struct ProducerIdentity {
+    pub(super) name: String,
+    pub(super) version: String,
 }
 
 /// The identity and the committed body of one input.
@@ -108,6 +121,7 @@ pub(super) fn resolve(
     let title = text_member(frontmatter, "title");
     let document_id = text_member(frontmatter, "id");
     let version = text_member(frontmatter, "version");
+    let producer_identity = producer_identity(frontmatter)?;
     let (Some(title), Some(document_id), true) = (
         title.clone(),
         document_id.clone(),
@@ -136,6 +150,8 @@ pub(super) fn resolve(
             release: None,
             commit: commit.id.to_string(),
             date: utc_date(commit.seconds),
+            producer_identity,
+            exporter_provenance: ToolProvenance::current(),
             epoch: commit.seconds,
         },
         body: parsed.body.to_string(),
@@ -182,6 +198,44 @@ fn text_member(frontmatter: Option<&Map<String, Value>>, key: &str) -> Option<St
         _ => return None,
     };
     (!text.trim().is_empty()).then_some(text)
+}
+
+/// Reads a declared producer identity without filling absent or malformed
+/// values from the exporter's own identity.
+fn producer_identity(
+    frontmatter: Option<&Map<String, Value>>,
+) -> anyhow::Result<Option<ProducerIdentity>> {
+    let Some(value) = frontmatter.and_then(|frontmatter| frontmatter.get("producer_identity"))
+    else {
+        return Ok(None);
+    };
+    let Some(object) = value.as_object() else {
+        return Err(failure::invalid(anyhow::anyhow!(
+            "'producer_identity' must be an object with non-empty 'name' and 'version' strings"
+        )));
+    };
+    if object.len() != 2 {
+        return Err(failure::invalid(anyhow::anyhow!(
+            "'producer_identity' must contain exactly 'name' and 'version'"
+        )));
+    }
+    let member = |name: &str| -> anyhow::Result<String> {
+        let Some(value) = object.get(name).and_then(Value::as_str) else {
+            return Err(failure::invalid(anyhow::anyhow!(
+                "'producer_identity' member '{name}' must be a non-empty string"
+            )));
+        };
+        if value.trim().is_empty() {
+            return Err(failure::invalid(anyhow::anyhow!(
+                "'producer_identity' member '{name}' must be a non-empty string"
+            )));
+        }
+        Ok(value.to_string())
+    };
+    Ok(Some(ProducerIdentity {
+        name: member("name")?,
+        version: member("version")?,
+    }))
 }
 
 /// The committer date as `YYYY-MM-DD` in UTC (civil-from-days).
