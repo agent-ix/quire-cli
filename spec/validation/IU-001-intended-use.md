@@ -55,8 +55,10 @@ The CLI links the quire-rs engine. Depending on the selected operation and
 available configuration, it may invoke `quoin` to install default modules,
 `git` to identify a repository for validation, or
 `engineering-assurance` for export production; that export process may use
-`pandoc`, `typst`, or `mmdr`. The self-test runner uses the operating system's
-process and filesystem controls and the external executables declared by its
-selected cases. Running cases is supported on Linux; other operating systems
-are rejected before a case starts. It does not require a source checkout or
-network access to run embedded cases.
+`pandoc`, `typst`, or `mmdr`. On Linux, the self-test runner invokes
+`/usr/bin/strace`, `bwrap`, and `/bin/sh` to execute embedded cases in its
+write sandbox; it uses `/bin/kill` if a case exceeds its time limit. The
+current embedded case declares no additional required executables. Running
+cases is supported on Linux; other operating systems are rejected before a
+case starts. It does not require a source checkout or network access to run
+embedded cases.

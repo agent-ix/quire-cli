@@ -88,8 +88,13 @@ audit-unsafe:
 # Specification and traceability
 # =============================================================================
 
+FUNCTIONAL_REQUIREMENTS := $(wildcard spec/functional/FR-*.md)
+
 ASSURANCE_SPEC_DOCS := \
+	$(FUNCTIONAL_REQUIREMENTS) \
 	spec/validation/IU-001-intended-use.md \
+	spec/validation/FRR-001-high-process-risk.md \
+	spec/validation/FRR-002-not-high-process-risk.md \
 	spec/functional/FR-020-assurance-export-subcommand.md \
 	spec/stakeholder/StR-004-thin-boundary-over-quire-rs.md \
 	spec/usecase/US-006-export-assurance-facts.md \
@@ -103,7 +108,7 @@ ASSURANCE_SPEC_DOCS := \
 
 .PHONY: spec
 spec:
-	$(CARGO) run --locked -- validate --scope . $(ASSURANCE_SPEC_DOCS) --summary
+	$(CARGO) run --locked -- validate --scope . $(ASSURANCE_SPEC_DOCS) --severity trace:feature-without-risk-rating=error --summary
 	$(CARGO) run --locked -- coverage --scope . --json > /tmp/quire-cli-assurance-coverage.json
 	$(CARGO) run --locked -p quire-qualify -- assurance-traceability /tmp/quire-cli-assurance-coverage.json
 
