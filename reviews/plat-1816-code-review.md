@@ -53,3 +53,14 @@ The new real-output test varies time zone, waits for the next wall-clock second,
 | --- | --- | --- |
 | FND-001 | fixed | `after_excerpt`: `    "FR-034-AC-19",` at tests/cli_export.rs:3799. The real-output test now binds the criterion directly. |
 | FND-002 | fixed | `after_excerpt`: `    "FR-037-AC-6",` at tests/cli_export.rs:3800. The real-output test now binds the criterion directly. |
+| FND-003 | fixed | The exact `after_excerpt` is shown below. The helper runs exports in bubblewrap UTS namespaces with distinct hostnames, and a separate assertion confirms the namespace hostname is set. Focused test passed with 0 ignored. |
+
+Verbatim after_excerpt from `tests/cli_export.rs:3946-3950`:
+
+```rust
+        assert_eq!(
+            bytes_on_host_a,
+            fs::read(&host_b).expect("host B export"),
+            "host-only variation {to} output bytes"
+        );
+```
