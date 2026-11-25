@@ -637,8 +637,8 @@ mod tests {
         assert!(front.contains("Producer version: 0\\.36\\.10\n"));
 
         let typst = typst_template(&identity);
-        assert!(typst.contains(quire_cli::engine::CLI_VERSION));
-        assert!(typst.contains(quire_cli::engine::ENGINE_VERSION));
+        assert!(typst.contains(&escape_markdown(quire_cli::engine::CLI_VERSION)));
+        assert!(typst.contains(&escape_markdown(quire_cli::engine::ENGINE_VERSION)));
         let docx =
             String::from_utf8_lossy(&docx_reference(&identity).expect("reference")).into_owned();
         assert!(docx.contains(quire_cli::engine::CLI_VERSION));
