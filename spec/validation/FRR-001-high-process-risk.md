@@ -81,7 +81,7 @@ relationships:
 
 ## Rationale
 
-This is a proposed supplier-side assessment for IU-001. The `rated_by` field names Peter Krenesky as the human assigned to review and accept the proposed rating. This record is unsigned and unaccepted pending his decision through the signed-commit workflow. No score or product safety classification is assigned.
+This is a proposed supplier-side assessment for IU-001. It is unsigned and unaccepted pending a human decision through the signed-commit workflow. No score or product safety classification is assigned.
 
 These features can affect the correctness or interpretation of validation, traceability, export, identity, rights, approval, or self-test records used for the intended use. A failure could make an engineering record appear complete, verified, correctly attributed, or approved when the evidence does not support that result. The proposed high process-risk rating calls for assurance against the explicit acceptance criteria listed below.
 
