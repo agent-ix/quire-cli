@@ -16,7 +16,7 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 
 use crate::commands::failure;
-use crate::engine::ToolProvenance;
+use quire_cli::engine::ToolProvenance;
 
 /// The release tag of an export and, when it names another commit than the
 /// source commit, that commit (FR-034, Identity fields).

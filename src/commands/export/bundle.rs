@@ -35,7 +35,7 @@ pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
         commit: first.identity.commit.clone(),
         date: first.identity.date.clone(),
         producer_identity: None,
-        exporter_provenance: crate::engine::ToolProvenance::current(),
+        exporter_provenance: quire_cli::engine::ToolProvenance::current(),
         epoch: first.identity.epoch,
     };
     let documents: Vec<&Identity> = sources.iter().map(|source| &source.identity).collect();

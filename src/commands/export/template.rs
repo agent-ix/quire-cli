@@ -206,8 +206,8 @@ pub(super) fn typst_template(identity: &Identity) -> String {
     format!(
         r#"#let qid = [$quire-export.document-id$]
 #let qrev = [$if(quire-export.version)$$quire-export.version$$else$$quire-export.release$$endif$]
-#let qcli = [{}]
-#let qengine = [{}]
+#let qcli = [{qcli}]
+#let qengine = [{qengine}]
 #set page(
   paper: "a4",
   margin: (x: 2.5cm, y: 2.5cm),
@@ -506,7 +506,7 @@ mod tests {
             commit: "0123456789abcdef0123456789abcdef01234567".to_string(),
             date: "2001-02-04".to_string(),
             producer_identity: None,
-            exporter_provenance: crate::engine::ToolProvenance::current(),
+            exporter_provenance: quire_cli::engine::ToolProvenance::current(),
             epoch: 0,
         }
     }
@@ -617,7 +617,7 @@ mod tests {
         let export = &metadata["quire-export"];
         assert_eq!(
             export["exporter-provenance"],
-            serde_json::to_value(crate::engine::ToolProvenance::current()).expect("provenance")
+            serde_json::to_value(quire_cli::engine::ToolProvenance::current()).expect("provenance")
         );
         assert_eq!(
             export["producer_identity"],
@@ -627,22 +627,22 @@ mod tests {
         let front = front_matter(&identity, Format::Pdf);
         assert!(front.contains(&format!(
             "Quire CLI version: {}",
-            crate::engine::CLI_VERSION
+            quire_cli::engine::CLI_VERSION
         )));
         assert!(front.contains(&format!(
             "Quire engine version: {}",
-            crate::engine::ENGINE_VERSION
+            quire_cli::engine::ENGINE_VERSION
         )));
         assert!(front.contains("Producer: quoin dossier\n"));
         assert!(front.contains("Producer version: 0\\.36\\.10\n"));
 
         let typst = typst_template(&identity);
-        assert!(typst.contains(crate::engine::CLI_VERSION));
-        assert!(typst.contains(crate::engine::ENGINE_VERSION));
+        assert!(typst.contains(quire_cli::engine::CLI_VERSION));
+        assert!(typst.contains(quire_cli::engine::ENGINE_VERSION));
         let docx =
             String::from_utf8_lossy(&docx_reference(&identity).expect("reference")).into_owned();
-        assert!(docx.contains(crate::engine::CLI_VERSION));
-        assert!(docx.contains(crate::engine::ENGINE_VERSION));
+        assert!(docx.contains(quire_cli::engine::CLI_VERSION));
+        assert!(docx.contains(quire_cli::engine::ENGINE_VERSION));
     }
 
     #[test]
