@@ -55,6 +55,7 @@ pub mod provenance;
 pub mod publish_check;
 pub mod relations;
 pub mod schema;
+pub mod selftest;
 pub mod symbols;
 pub mod trace;
 pub mod update;
