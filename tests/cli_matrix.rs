@@ -75,6 +75,36 @@ fn rust_test(name: &str, id: &str, ignored: bool) -> String {
     format!("#[trace(\"{id}\")]\n{ignore}#[test]\nfn {name}() {{}}\n\n")
 }
 
+#[trace("FR-047-AC-3")]
+#[test]
+fn selftest_shell_marker_binds_and_removal_names_the_case_script() {
+    let mut module = manifest(false, "", "");
+    module = module.replace(
+        "    markers:\n",
+        "    markers:\n    - name: shell-trace-comment\n      language: shell\n      syntax: comment\n      pattern: '#\\s*trace:\\s*(.+)$'\n      entry_paths: ['selftest/cases/**/*.sh']\n",
+    );
+    let f = Fixture::new(&module);
+    f.write(
+        "spec/functional/FR-047-selftest.md",
+        &fr_doc("FR-047", &[("FR-047-AC-3", "Selftest cases bind their criteria.", "Test")]),
+    );
+    let script = "#!/bin/sh\n# trace: FR-047-AC-3\nset -eu\nexit 0\n";
+    f.write("selftest/cases/example/run.sh", script);
+
+    let bound = f.matrix(&["--strict", "--format", "tsv"]);
+    assert_eq!(code(&bound), 0, "{}", String::from_utf8_lossy(&bound.stderr));
+    let output = String::from_utf8(bound.stdout).expect("matrix is UTF-8");
+    assert!(output.contains("FR-047-AC-3"), "{output}");
+    assert!(output.contains("selftest/cases/example/run.sh"), "{output}");
+
+    f.write("selftest/cases/example/run.sh", "#!/bin/sh\nset -eu\nexit 0\n");
+    let unbound = f.matrix(&["--strict", "--format", "tsv"]);
+    assert_eq!(code(&unbound), 1);
+    let output = String::from_utf8_lossy(&unbound.stdout);
+    assert!(output.contains("selftest/cases/example/run.sh"), "{output}");
+    assert!(output.contains("untagged"), "{output}");
+}
+
 struct Fixture {
     dir: TempDir,
 }

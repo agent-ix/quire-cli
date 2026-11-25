@@ -77,6 +77,26 @@ static LOCAL_CASES: &[(&str, &[FileResource])] = &[(
             bytes: include_bytes!("../../selftest/cases/parse-empty-input/expected/stdout"),
         },
     ],
+), (
+    "selftest-list-cases",
+    &[
+        FileResource {
+            path: "run.sh",
+            bytes: include_bytes!("../../selftest/cases/selftest-list-cases/run.sh"),
+        },
+        FileResource {
+            path: "required-tools",
+            bytes: include_bytes!("../../selftest/cases/selftest-list-cases/required-tools"),
+        },
+        FileResource {
+            path: "expected/exit_code",
+            bytes: include_bytes!("../../selftest/cases/selftest-list-cases/expected/exit_code"),
+        },
+        FileResource {
+            path: "expected/stdout",
+            bytes: include_bytes!("../../selftest/cases/selftest-list-cases/expected/stdout"),
+        },
+    ],
 )];
 
 #[derive(Debug, Serialize)]
@@ -1058,6 +1078,14 @@ mod tests {
         let cases = all_cases().expect("embedded case inventory is valid");
         let trace = criteria(&cases[0]).expect("case has criterion trace");
         assert_eq!(trace, ["FR-002-AC-4"]);
+        let list_case = cases
+            .iter()
+            .find(|case| case.id == "selftest-list-cases")
+            .expect("selftest list case is embedded");
+        assert_eq!(
+            criteria(list_case).expect("list case has criterion trace"),
+            ["FR-047-AC-1"]
+        );
     }
 
     #[trace("FR-047-AC-9")]
