@@ -18,11 +18,11 @@ use anyhow::Context;
 use clap::Parser;
 use ix_trace_rs::implements;
 use quire_cli::safety;
-use regex::Regex;
 use quire_rs::corpus::{DesignMatrix, DroppedRelation};
 use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixStatus};
 use quire_rs::traceability::{SourceLanguage, TraceMarkerSyntax};
 use quire_rs::{design_matrix, CoverageReport, DesignMatrixEntry, RelationReportMember};
+use regex::Regex;
 use serde::Serialize;
 
 use crate::commands::corpus_input::{parse_repo, Corpus, RepoArg};
@@ -338,11 +338,7 @@ fn check_selftest_trace_markers(
                         );
                         continue;
                     };
-                    let ids: Vec<&str> = captured_ids
-                        .as_str()
-                        .split(',')
-                        .map(str::trim)
-                        .collect();
+                    let ids: Vec<&str> = captured_ids.as_str().split(',').map(str::trim).collect();
                     if ids.is_empty() || ids.iter().any(|id| id.is_empty()) {
                         script_findings.push("contains an empty trace marker".to_string());
                         continue;
