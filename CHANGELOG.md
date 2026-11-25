@@ -53,7 +53,8 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 - **Main CI and release verification are dispatch-only (AN-001).** CI does not
   run automatically for pushes or pull requests. The release workflow is also
   manually dispatched, and creates the GitHub Release and publishes npm only
-  when `publish=true`. Tag attestation is disabled.
+  when `publish=true`. Tag attestation runs on `v*` tag pushes and fails closed
+  because retained build evidence is unavailable.
 
 ## [0.52.1] — 2026-11-22
 
