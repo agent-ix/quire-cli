@@ -348,6 +348,16 @@ fn timestamp_rfc3339() -> anyhow::Result<String> {
         .context("formatting self-test timestamp")
 }
 
+#[cfg(target_os = "linux")]
+fn case_tempdir() -> std::io::Result<TempDir> {
+    tempfile::tempdir_in("/run/user/1000")
+}
+
+#[cfg(not(target_os = "linux"))]
+fn case_tempdir() -> std::io::Result<TempDir> {
+    tempfile::tempdir()
+}
+
 fn version_output() -> anyhow::Result<String> {
     let executable = std::env::current_exe().context("resolving current executable")?;
     let output = std::process::Command::new(executable)
@@ -395,14 +405,14 @@ fn run_case(case: &CaseResource) -> CaseResult {
         };
     }
 
-    let temp = match tempfile::tempdir().context("creating case temporary directory") {
+    let temp = match case_tempdir().context("creating case temporary directory") {
         Ok(temp) => temp,
         Err(error) => return case_error(case, criteria, error.to_string()),
     };
     if let Err(error) = materialize(case, temp.path()) {
         return case_error(case, criteria, error.to_string());
     }
-    let home = match tempfile::tempdir().context("creating empty HOME directory") {
+    let home = match case_tempdir().context("creating empty HOME directory") {
         Ok(home) => home,
         Err(error) => return case_error(case, criteria, error.to_string()),
     };
@@ -703,12 +713,19 @@ fn execute_linux_case(
     home: &TempDir,
 ) -> anyhow::Result<ProcessOutput> {
     let executable = std::env::current_exe().context("resolving quire executable")?;
-    let trace_path = temp.path().join(".quire-write-audit");
-    let mut command = Command::new("bwrap");
+    let audit_dir =
+        tempfile::tempdir_in("/tmp").context("creating runner-owned Linux audit directory")?;
+    let trace_path = audit_dir.path().join("trace");
+    let mut command = Command::new("/usr/bin/strace");
     command
+        .args(["-qq", "-f", "-s", "4096", "-e", "trace=%file", "-o"])
+        .arg(&trace_path)
         .args([
+            "--",
+            "bwrap",
             "--die-with-parent",
             "--unshare-net",
+            "--unshare-pid",
             "--clearenv",
             "--ro-bind",
             "/",
@@ -720,7 +737,17 @@ fn execute_linux_case(
         .args(["--ro-bind"])
         .arg(home.path())
         .arg(home.path())
-        .args(["--dev", "/dev", "--proc", "/proc", "--chdir"])
+        .args([
+            "--tmpfs",
+            "/tmp",
+            "--remount-ro",
+            "/tmp",
+            "--dev",
+            "/dev",
+            "--proc",
+            "/proc",
+            "--chdir",
+        ])
         .arg(temp.path())
         .args([
             "--setenv",
@@ -739,18 +766,6 @@ fn execute_linux_case(
             "PATH",
         ])
         .arg(std::env::var_os("PATH").unwrap_or_default())
-        .args([
-            "--",
-            "/usr/bin/strace",
-            "-qq",
-            "-f",
-            "-s",
-            "4096",
-            "-e",
-            "trace=%file",
-            "-o",
-        ])
-        .arg(&trace_path)
         .args(["--", "/bin/sh"])
         .arg(temp.path().join("run.sh"))
         .current_dir(temp.path())
@@ -1086,45 +1101,117 @@ mod tests {
     #[trace("FR-047-AC-9")]
     #[test]
     fn sandbox_denials_are_audited_with_both_attempted_paths() {
-        let outer = tempfile::tempdir().expect("outer temporary directory");
+        let outer = tempfile::tempdir_in("/run/user/1000").expect("outer temporary directory");
         let temp = tempfile::tempdir_in(outer.path()).expect("case temporary directory");
-        let home = tempfile::tempdir().expect("empty HOME directory");
+        let home = case_tempdir().expect("empty HOME directory");
         let parent_target = outer.path().join("outside-parent");
         let absolute_target = outer.path().join("outside-absolute");
-        let case_script = b"#!/bin/sh\n# trace: FR-047-AC-9\nset +e\nprintf parent > \"$CASE_TMP/../outside-parent\" 2>/dev/null\noutside=\"${CASE_TMP%/*}/outside-absolute\"\nprintf absolute > \"$outside\" 2>/dev/null\nexit 0\n";
-        fs::write(temp.path().join("run.sh"), case_script).expect("case script");
+        static CASE_SCRIPT: &[u8] = b"#!/bin/sh\n# trace: FR-047-AC-9\nset +e\nprintf attacker-controlled > \"$CASE_TMP/.quire-write-audit\"\nprintf parent > \"$CASE_TMP/../outside-parent\" 2>/dev/null\noutside=\"${CASE_TMP%/*}/outside-absolute\"\nprintf absolute > \"$outside\" 2>/dev/null\nexit 0\n";
+        fs::write(temp.path().join("run.sh"), CASE_SCRIPT).expect("case script");
+        let case = CaseResource {
+            id: "sandbox-write-denials",
+            source: "test",
+            files: vec![
+                FileResource {
+                    path: "run.sh",
+                    bytes: CASE_SCRIPT,
+                },
+                FileResource {
+                    path: "expected/exit_code",
+                    bytes: b"0",
+                },
+                FileResource {
+                    path: "expected/stdout",
+                    bytes: b"",
+                },
+            ],
+        };
+        let process = execute_case_in_sandbox(&case, &temp, &home)
+            .expect("OS sandbox starts and audits the case");
+        let result = compare_case(
+            &case,
+            temp.path(),
+            criteria(&case).expect("case has trace marker"),
+            process,
+        );
 
-        let output = execute_case_in_sandbox(
-            &CaseResource {
-                id: "sandbox-write-denials",
-                source: "test",
-                files: Vec::new(),
-            },
-            &temp,
-            &home,
-        )
-        .expect("OS sandbox starts and audits the case");
-
-        assert_eq!(output.exit_code, Some(0));
         assert!(
-            output
-                .denied_paths
-                .contains(&parent_target.to_string_lossy().into_owned()),
-            "parent-relative attempted path was not reported: {:?}",
-            output.denied_paths
+            matches!(result.status, CaseStatus::Error),
+            "case did not report denied writes: {result:?}"
         );
         assert!(
-            output
-                .denied_paths
+            result
+                .detail
+                .contains(&parent_target.to_string_lossy().into_owned()),
+            "parent-relative attempted path was not reported: {:?}",
+            result.detail
+        );
+        assert!(
+            result
+                .detail
                 .contains(&absolute_target.to_string_lossy().into_owned()),
             "absolute attempted path was not reported: {:?}",
-            output.denied_paths
+            result.detail
+        );
+        assert_eq!(
+            fs::read(temp.path().join(".quire-write-audit")).expect("attacker audit file"),
+            b"attacker-controlled"
         );
         assert!(
             !parent_target.exists(),
             "parent-relative target was created"
         );
         assert!(!absolute_target.exists(), "absolute target was created");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[trace("FR-047-AC-6")]
+    #[test]
+    fn linux_case_runs_with_empty_home_and_no_network_routes() {
+        let host_routes = fs::read_to_string("/proc/net/route").expect("host route table");
+        assert!(
+            host_routes
+                .lines()
+                .skip(1)
+                .any(|line| !line.trim().is_empty()),
+            "test requires a host route to distinguish the isolated namespace"
+        );
+
+        let temp = case_tempdir().expect("case temporary directory");
+        let home = case_tempdir().expect("empty HOME directory");
+        static CASE_SCRIPT: &[u8] = b"#!/bin/sh\n# trace: FR-047-AC-6\nfor entry in \"$HOME\"/* \"$HOME\"/.[!.]* \"$HOME\"/..?*; do [ ! -e \"$entry\" ] || { printf 'HOME is not empty\\n'; exit 1; }; done\nexec 3</proc/net/route\nIFS= read -r header <&3\nif IFS= read -r route <&3; then printf 'network route is available\\n'; exit 1; fi\nprintf 'offline\\n'\n";
+        let case = CaseResource {
+            id: "empty-home-offline",
+            source: "test",
+            files: vec![
+                FileResource {
+                    path: "run.sh",
+                    bytes: CASE_SCRIPT,
+                },
+                FileResource {
+                    path: "expected/exit_code",
+                    bytes: b"0",
+                },
+                FileResource {
+                    path: "expected/stdout",
+                    bytes: b"offline\n",
+                },
+            ],
+        };
+        materialize(&case, temp.path()).expect("materialize offline case");
+        let process = execute_case_in_sandbox(&case, &temp, &home)
+            .expect("Linux sandbox starts with empty HOME and isolated network");
+        let result = compare_case(
+            &case,
+            temp.path(),
+            criteria(&case).expect("case has trace marker"),
+            process,
+        );
+
+        assert!(
+            matches!(result.status, CaseStatus::Pass),
+            "empty HOME/offline case did not pass: {result:?}"
+        );
     }
 
     #[cfg(target_os = "linux")]
