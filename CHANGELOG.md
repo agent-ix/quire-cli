@@ -41,13 +41,14 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
   and identify the dropped item. Coverage, matrix, relations, and JSON export
   also report dropped required relations as errors instead of silently omitting
   them.
-- **Adopt quire-rs v0.63.0 (PLAT-1873).** This includes the v0.62.3 changes:
-  root-scoped ignore files, symlink diagnostics without following sources,
-  warning-level extraction diagnostics in coverage/assurance/symbols/trace,
-  ignored-source coverage, qualified `verifies` resolution, and duplicate-key
-  rejection in assurance JSON. PLAT-1873 adds declaration source spans to
-  semantic imports so typed cross-module references can resolve at their
-  declaration locations.
+- **Adopt quire-rs v0.63.1 (PLAT-1873).** This includes the v0.62.3 changes: root-scoped
+  ignore files, symlink diagnostics without following sources, warning-level
+  extraction diagnostics in coverage/assurance/symbols/trace, ignored-source
+  coverage, qualified `verifies` resolution, and duplicate-key rejection in
+  assurance JSON. PLAT-1873 adds declaration source spans for typed cross-module
+  references. v0.63.1 resolves imported relationship targets, supports trace
+  targets minted from frontmatter `id` values, and preserves scalar `owner`
+  metadata during typed extraction.
 
 ### Known anomalies
 
