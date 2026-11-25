@@ -19,7 +19,8 @@ path = "src/main.rs"
 
 [dependencies]
 ix-cli-kit = { git = "https://github.com/agent-ix/ix-cli-kit", branch = "main", features = ["self-update"] }
-quire-rs = { git = "https://github.com/agent-ix/quire-rs", tag = "v0.63.1" }
+quire-rs = { git = "https://github.com/agent-ix/quire-rs", rev = "f9b71209b455414589d8c15cd4f15bf4ba1e4a36" }
+ix-trace-rs = { version = "=0.1.0", git = "https://github.com/agent-ix/ix-trace-rs", rev = "2ce4ebf47f726b9d76388220545cd0abda8a5cfb" }
 clap = { version = "4", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -48,7 +49,6 @@ bstr = { version = "1", default-features = false, features = ["std"] }
 crc32fast = "1"
 
 [dev-dependencies]
-ix-trace-rs = { version = "=0.1.0", git = "https://github.com/agent-ix/ix-trace-rs", rev = "2ce4ebf47f726b9d76388220545cd0abda8a5cfb" }
 quire-qualify = { version = "=0.1.0", path = "tools/quire-qualify" }
 assert_cmd = "2"
 predicates = "3"
