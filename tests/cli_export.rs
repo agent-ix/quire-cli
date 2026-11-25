@@ -1033,7 +1033,6 @@ fn committed_producer_identity_is_preserved_in_metadata_and_title_page() {
         quire_cli::engine::ENGINE_VERSION
     );
     assert!(exported.get("source_revision").is_none());
-    assert!(exported.get("toolchain_provenance").is_none());
     assert!(exported.get("generation_time").is_none());
 
     let front = rig.converter_input("front.md");
@@ -3793,11 +3792,17 @@ fn pandoc_reference_docx(rig: &Rig) -> PathBuf {
     org_template(rig, "org.docx", &output.stdout)
 }
 
-/// The approval-verdict scenario of NFR-011-AC-2 is not run here: the approval
-/// block belongs to its own change and is added to this test with it.
-#[trace("NFR-011-AC-1", "NFR-011-AC-2", "NFR-011-AC-3", "NFR-011-AC-4")]
+/// Real converter acceptance checks run through `make test-export-real`; this
+/// one is omitted from the portable test target because it requires pandoc,
+/// typst and their extractors on `PATH`.
+#[trace(
+    "FR-034-AC-19",
+    "FR-037-AC-6",
+    "NFR-011-AC-1",
+    "NFR-011-AC-3",
+    "NFR-011-AC-4"
+)]
 #[test]
-#[ignore = "needs real pandoc, typst, unzip and pdftotext on PATH"]
 fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
     let rig = Rig::new();
     let [one, two, three] = bundle_documents(&rig);
@@ -3831,7 +3836,20 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
         ];
         for (name, build) in &scenarios {
             let first = real_varied(&rig, 0, "Pacific/Kiritimati", build(), to);
+            wait_for_next_second();
             let second = real_varied(&rig, 1, "America/Los_Angeles", build(), to);
+            if name == "default" {
+                let first_text = nfr_text(&first, to);
+                assert!(first_text.contains("Date: 2001-02-04"), "{first_text}");
+                assert!(
+                    first_text.contains("Producer: quoin dossier"),
+                    "{first_text}"
+                );
+                assert!(
+                    first_text.contains("Producer version: 0.36.10"),
+                    "{first_text}"
+                );
+            }
             assert_eq!(
                 nfr_text(&first, to),
                 nfr_text(&second, to),

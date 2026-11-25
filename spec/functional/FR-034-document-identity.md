@@ -25,8 +25,8 @@ relationships:
 fields below and SHALL hand them to the converter as data and as generated
 title-page text ([FR-035](./FR-035-default-export-template.md),
 [FR-036](./FR-036-organisation-export-template.md)). It SHALL also carry the
-current exporter's Quire provenance and preserve any producer and toolchain
-provenance committed in the input frontmatter. The identity ties the exported
+current exporter's Quire provenance and preserve an optional declared producer
+identity from the committed input frontmatter. The identity ties the exported
 file to one committed revision of its source. No field is taken from the wall
 clock, the host or the user's environment.
 
