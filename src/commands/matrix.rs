@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use clap::Parser;
+use ix_trace_rs::implements;
 use quire_cli::safety;
 use quire_rs::corpus::{DesignMatrix, DroppedRelation};
 use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixStatus};
@@ -176,6 +177,7 @@ fn compute_matrix(
     design_matrix(&corpus.spec, registry, &inputs).map_err(|e| invalid_error!("{e}"))
 }
 
+#[implements("FR-047-AC-3")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let corpus = resolve_corpus(&args)?;
     let registry = super::coverage::load_registry_for_relations(
@@ -273,6 +275,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 /// Strict matrix runs validate the case inventory directly because a script
 /// with its marker removed cannot appear as a trace binder in the engine
 /// report. Report its repository-relative path before the strict verdict.
+#[implements("FR-047-AC-3")]
 fn check_selftest_trace_markers(
     corpus: &Corpus,
     matrix: &[DesignMatrixEntry],
@@ -330,6 +333,7 @@ fn check_selftest_trace_markers(
 }
 
 /// Collect only regular files named `run.sh`, without following symlinks.
+#[implements("FR-047-AC-3")]
 fn collect_run_scripts(directory: &Path, scripts: &mut Vec<PathBuf>) -> anyhow::Result<()> {
     for entry in
         fs::read_dir(directory).with_context(|| format!("reading {}", directory.display()))?
