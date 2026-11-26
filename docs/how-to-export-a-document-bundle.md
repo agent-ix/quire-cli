@@ -9,7 +9,7 @@ Use `quire export` to combine two or more Markdown specification documents into 
 
 ## Before you start
 
-Install Quire CLI and prepare at least two Markdown documents with headings. PDF export requires `pandoc`, `typst`, and `pdftotext` on `PATH`. DOCX export requires `pandoc` and `unzip` on `PATH`.
+Run the example from a Quire CLI repository checkout. Its input documents are in `spec/functional/`. Install Quire CLI and prepare at least two Markdown documents with headings. PDF export requires `pandoc`, `typst`, and `pdftotext` on `PATH`. DOCX export requires `pandoc` and `unzip` on `PATH`.
 
 ## Steps
 
