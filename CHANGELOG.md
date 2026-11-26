@@ -9,6 +9,23 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.53.1] — 2026-11-25
+
+### Changed
+
+- **Self-test records retain embedded anomaly documents (PLAT-1642, #246).** Run
+  records include the exact raw anomaly documents embedded by quire-cli and
+  quire-rs, with paths qualified by their source repository. The anomaly set
+  contains no Quoin records, and its producer version matches the run's tool
+  version.
+
+### Known anomalies
+
+- **CI and release publication are manually dispatched (AN-001).** CI and
+  release workflows do not run automatically for pushes or pull requests.
+  Release publication starts through manual dispatch. Tag attestation runs on
+  `v*` tag pushes and is separate from CI validation of changes on `main`.
+
 
 ## [0.53.0] — 2026-11-24
 
