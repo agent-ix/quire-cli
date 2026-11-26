@@ -1103,7 +1103,11 @@ mod tests {
 
         assert_eq!(
             infer_document_scope(&[document.display().to_string()]),
-            Some(document_dir),
+            Some(
+                document_dir
+                    .canonicalize()
+                    .expect("canonicalize document directory")
+            ),
             "a named file outside the caller's working tree should bound discovery to its parent"
         );
     }
