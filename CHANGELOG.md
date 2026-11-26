@@ -9,6 +9,14 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.53.3] — 2026-11-26
+
+### Added
+
+- **Analyze change impact from a source diff (PLAT-1890).** `quire impact`
+  selects potentially affected tests and reports related code, findings,
+  reason chains, and caller-search results in human or JSON form.
+
 ## [0.53.2] — 2026-11-26
 
 ### Added
