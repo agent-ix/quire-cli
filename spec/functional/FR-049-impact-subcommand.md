@@ -3,6 +3,8 @@ id: FR-049
 title: "quire impact subcommand"
 type: FR
 relationships:
+  - target: "ix://agent-ix/quire-cli/spec/usecase/US-012"
+    type: "implements"
   - target: "ix://agent-ix/quire-cli/spec/stakeholder/StR-004"
     type: "implements"
     cardinality: "1:1"
