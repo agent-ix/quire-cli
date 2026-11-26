@@ -79,6 +79,25 @@ Behavior:
 
 The CLI SHALL NOT mutate, normalize, or filter the upstream extraction or edge output beyond the dedup contract guaranteed by `quire-rs`.
 
+### Semantic extraction
+
+`extract --semantic` SHALL add a `semantic` member containing the engine's
+`SemanticExtraction`, unchanged, beside the existing extraction and edges.
+`--module` MAY repeat to supply the closed composed module set.
+
+Semantic mode SHALL require one or more `--repo <ORG/REPO=DIR>` corpus members,
+loaded through the shared corpus input route. The document SHALL be a file
+loaded from exactly one member's `spec` directory; stdin, an outside file, or
+ambiguous member ownership SHALL be refused. The engine context SHALL use that
+member's declared identity, its corpus-relative document path, the loaded module
+schemas/vocabulary, and the sibling corpus artifacts. Extraction and target-kind
+checking SHALL remain delegated to the engine. Any engine semantic error SHALL
+produce diagnostics on stderr, exit 3, and no stdout. Optional empty reference
+cells SHALL retain the engine's absence semantics.
+
+Without `--semantic`, the existing JSON envelope SHALL remain unchanged and
+SHALL contain no `semantic` member. `--repo` SHALL require `--semantic`.
+
 ## Acceptance Criteria
 
 | ID | Criteria | Verification |
@@ -89,6 +108,11 @@ The CLI SHALL NOT mutate, normalize, or filter the upstream extraction or edge o
 | FR-003-AC-4 | Re-running extract on the same input produces byte-identical stdout (determinism, matches upstream) | Test |
 | FR-003-AC-5 | For a document with **no `type`** (the discriminator absent from frontmatter) and no `--archetype`, `extract` exits 3 with a `[frontmatter]`-reason `ValidationError`-shaped diagnostic on stderr naming the missing `type` (the same vocabulary `validate` uses), not a generic anyhow error; stdout is empty | Test |
 | FR-003-AC-6 | Edges are deduplicated by (source, type, target): given a document whose frontmatter declares the same `relationships` entry (same target, same type) twice declares the same target under a second type (`traces_to`) once, and whose body links the same `ix://` target twice, `quire extract` exits 0 and `.edges` holds exactly one `implements` edge and exactly one `traces_to` edge for that shared target (one edge per type) and exactly one `references` edge for the twice-linked body target | Test |
+
+| FR-003-AC-7 | With composed modules and explicit corpus members, `extract --semantic` emits the engine semantic record with a nested receiver's canonical URI and an ordered `recordRelations` entry carrying its `receiver` verb, target URI, source span and `/record/steps/0/receiver` validation path. | Test |
+| FR-003-AC-8 | In semantic mode a wrong-kind receiver or missing receiver target is refused by the engine with its semantic diagnostic, exit 3 and empty stdout; an empty optional receiver is absent and produces no receiver relation. | Test |
+| FR-003-AC-9 | Semantic mode refuses stdin, a document outside its declared members, or a file loaded by multiple members; `--repo` without `--semantic` is a usage error. The member identity, not the module package, determines the source package. | Test |
+| FR-003-AC-10 | Default extraction retains the existing extraction/edges/provenance envelope and includes no semantic member; repeated module roots compose without changing the single-module spelling. | Test |
 
 ## Dependencies
 
