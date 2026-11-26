@@ -18,7 +18,7 @@ struct Repo {
     head: String,
 }
 
-fn repository(with_python_change: bool) -> Repo {
+fn repository(with_non_rust_change: bool) -> Repo {
     let dir = TempDir::new().expect("temporary repository");
     let root = dir.path();
     write(root, "manifest.yaml", module_manifest());
@@ -54,8 +54,12 @@ fn repository(with_python_change: bool) -> Repo {
         "#[implements(\"FR-900-AC-1\")]\npub fn target() { let _value = 2; }\n\
          #[implements(\"FR-900-AC-1\")]\npub fn sibling() {}\n",
     );
-    if with_python_change {
-        write(root, "src/changed.py", "def changed():\n    return 2\n");
+    if with_non_rust_change {
+        write(
+            root,
+            "src/Changed.java",
+            "final class Changed { int value() { return 2; } }\n",
+        );
     }
     git(root, &["add", "-A"]);
     git(root, &["commit", "-q", "-m", "head"]);
@@ -193,7 +197,7 @@ fn it_impact_reports_unsupported_source_and_incomplete_status() {
     assert_eq!(report["selection_complete"], false);
     let findings = report["findings"].to_string();
     assert!(findings.contains("unsupported_source"), "{findings}");
-    assert!(findings.contains("src/changed.py"), "{findings}");
+    assert!(findings.contains("src/Changed.java"), "{findings}");
     assert!(!report.to_string().contains("confidence"), "{report}");
 
     let human = run(&repo, "human", &[]);
