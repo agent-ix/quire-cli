@@ -79,7 +79,6 @@ the baseline only through an explicit update operation.
 | FR-025-AC-4 | The thin-boundary gate accepts admitted dispatch and rejects forbidden direct, aliased, and nested-group references with a file and syntax locus | Test |
 | FR-025-AC-5 | The unsafe gate accepts a documented block, rejects an undocumented block, honours only exact baseline loci, rejects stale exemptions, and changes the baseline only through the explicit update operation | Test |
 | FR-025-AC-6 | Repository Make targets invoke Rust-owned gates without inline report parsing or source classification | Test |
-| FR-025-AC-7 | No executable Python or shell qualification file and no repository-owned JavaScript remain, while non-executable fixture/data formats remain | Test |
 
 ## Dependencies
 

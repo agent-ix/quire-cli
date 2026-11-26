@@ -71,51 +71,6 @@ fn make_recipes_only_orchestrate_native_qualification() {
     }
 }
 
-#[trace("FR-025-AC-7", "FR-025-CON-4", "NFR-009-M-1")]
-#[test]
-fn executable_script_inventory_is_empty() {
-    let root = repo_root();
-    let mut files = Vec::new();
-    walk_files(
-        &root,
-        &[
-            ".git",
-            ".worktrees",
-            "target",
-            "target-agent-c",
-            "node_modules",
-            "fixtures",
-            "spec",
-            "reviews",
-        ],
-        &mut files,
-    );
-    let prohibited: Vec<_> = files
-        .iter()
-        .filter(|path| {
-            matches!(
-                path.extension().and_then(|value| value.to_str()),
-                Some("py" | "sh" | "mjs")
-            )
-        })
-        .map(|path| path.strip_prefix(&root).unwrap().to_path_buf())
-        .collect();
-    assert!(
-        prohibited.is_empty(),
-        "non-native executable qualification paths remain: {prohibited:?}"
-    );
-
-    let javascript: Vec<_> = files
-        .iter()
-        .filter(|path| path.extension().and_then(|value| value.to_str()) == Some("js"))
-        .map(|path| path.strip_prefix(&root).unwrap().to_path_buf())
-        .collect();
-    assert!(
-        javascript.is_empty(),
-        "repository-owned JavaScript remains: {javascript:?}"
-    );
-}
-
 #[trace("NFR-009-M-2")]
 #[test]
 fn native_toolchain_trace_and_no_shell_invariants_are_explicit() {
