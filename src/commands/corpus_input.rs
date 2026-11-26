@@ -9,6 +9,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
+use ix_trace_rs::implements;
 use quire_cli::safety;
 use quire_rs::corpus::walk::{load_repo, RepoLoad};
 use quire_rs::{CorpusMember, Spec};
@@ -77,6 +78,7 @@ impl Corpus {
         Self::load(roots)
     }
 
+    #[implements("FR-047-AC-3")]
     fn load(roots: Vec<(Option<String>, PathBuf)>) -> anyhow::Result<Self> {
         let mut members = Vec::with_capacity(roots.len());
         let mut loaded = Vec::with_capacity(roots.len());
