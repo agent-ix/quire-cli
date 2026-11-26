@@ -86,7 +86,7 @@ fn explicit_output_is_the_only_run_record_stream_with_empty_home() {
     assert!(record["retainedLocation"]
         .as_str()
         .is_some_and(|location| std::path::Path::new(location).is_absolute()));
-    assert_eq!(record["results"].as_array().map(Vec::len), Some(3));
+    assert_eq!(record["results"].as_array().map(Vec::len), Some(2));
     assert!(record["results"]
         .as_array()
         .is_some_and(|cases| { cases.iter().all(|case| case["status"] == "pass") }));

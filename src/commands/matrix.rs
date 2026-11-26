@@ -231,11 +231,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         ));
     }
     if args.strict {
-        for (path, reason) in &selftest_trace_findings {
-            ix_cli_kit::streams::Record::error("SelftestTraceMarker", reason)
+        for (identity, path, message) in &selftest_trace_findings {
+            ix_cli_kit::streams::Record::error("SelftestTraceMarker", message)
                 .with_fields(ix_cli_kit::streams::DiagnosticFields {
                     reason: Some("selftest-trace-marker"),
                     path: Some(path),
+                    subject: identity.as_deref(),
                     ..Default::default()
                 })
                 .emit(ctx.diagnostics);
@@ -282,7 +283,7 @@ fn check_selftest_trace_markers(
     corpus: &Corpus,
     matrix: &[DesignMatrixEntry],
     registry: &quire_rs::Registry,
-) -> anyhow::Result<Vec<(String, String)>> {
+) -> anyhow::Result<Vec<(Option<String>, String, String)>> {
     let shell_marker_patterns = registry
         .traceability()
         .into_iter()
@@ -361,7 +362,12 @@ fn check_selftest_trace_markers(
                 script_findings.push(reason.to_string());
             }
             for reason in script_findings {
-                findings.push((relative.clone(), format!("{relative}: {reason}")));
+                let identity = member.identity.clone();
+                let message = match identity.as_deref() {
+                    Some(identity) => format!("[{identity}] {relative}: {reason}"),
+                    None => format!("{relative}: {reason}"),
+                };
+                findings.push((identity, relative.clone(), message));
             }
         }
     }

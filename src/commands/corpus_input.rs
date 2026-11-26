@@ -41,6 +41,8 @@ pub fn parse_repo(raw: &str) -> Result<RepoArg, String> {
 
 /// A loaded member: where its documents and references resolve.
 pub struct Member {
+    /// The declared repository identity, when loaded through `--repo`.
+    pub identity: Option<String>,
     /// The repository root (reference root, and the root report paths are
     /// relative to).
     pub root: PathBuf,
@@ -91,6 +93,7 @@ impl Corpus {
                 load: load.clone(),
             });
             members.push(Member {
+                identity,
                 root,
                 document_root,
                 load,

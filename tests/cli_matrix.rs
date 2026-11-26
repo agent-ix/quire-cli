@@ -145,6 +145,62 @@ fn selftest_shell_marker_binds_and_removal_names_the_case_script() {
     );
 }
 
+#[trace("FR-047-AC-3")]
+#[test]
+fn selftest_marker_diagnostics_disambiguate_identical_paths_by_repository() {
+    let first = Fixture::with_obligations();
+    first.write(
+        "spec/functional/FR-047-selftest.md",
+        &fr_doc(
+            "FR-047",
+            &[("FR-047-AC-3", "First repo criterion.", "Test")],
+        ),
+    );
+    first.write("selftest/cases/shared/run.sh", "#!/bin/sh\nexit 0\n");
+
+    let second = Fixture::with_obligations();
+    second.write(
+        "spec/functional/FR-048-selftest.md",
+        &fr_doc(
+            "FR-048",
+            &[("FR-048-AC-1", "Second repo criterion.", "Test")],
+        ),
+    );
+    second.write("selftest/cases/shared/run.sh", "#!/bin/sh\nexit 0\n");
+
+    let out = common::quire()
+        .args(["--diagnostics-format", "json", "matrix", "--repo"])
+        .arg(format!("agent-ix/quire-cli={}", first.scope()))
+        .arg("--repo")
+        .arg(format!("agent-ix/quire-rs={}", second.scope()))
+        .args(["--module", &first.module(), "--strict", "--format", "tsv"])
+        .output()
+        .expect("run matrix across both repos");
+    assert_eq!(code(&out), 1, "{}", stdout(&out));
+
+    let records: Vec<Value> = stderr(&out)
+        .lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .filter(|record: &Value| record["kind"] == "SelftestTraceMarker")
+        .collect();
+    assert_eq!(records.len(), 2, "{}", stderr(&out));
+    let identities: Vec<&str> = records
+        .iter()
+        .map(|record| record["subject"].as_str().expect("repo identity subject"))
+        .collect();
+    assert!(identities.contains(&"agent-ix/quire-cli"), "{records:?}");
+    assert!(identities.contains(&"agent-ix/quire-rs"), "{records:?}");
+    assert!(
+        records.iter().all(|record| {
+            record["path"] == "selftest/cases/shared/run.sh"
+                && record["message"]
+                    .as_str()
+                    .is_some_and(|message| message.contains("selftest/cases/shared/run.sh"))
+        }),
+        "{records:?}"
+    );
+}
+
 struct Fixture {
     dir: TempDir,
 }
