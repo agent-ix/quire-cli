@@ -1378,6 +1378,7 @@ traceability:
     assert!(
         String::from_utf8_lossy(&validation.stderr).contains("health-across-untrusted-boundary")
     );
+    assert!(String::from_utf8_lossy(&validation.stderr).contains("warning"));
     let flow_after_lowering = run(&scope, &module, &["--flow", "--json"]);
     assert_eq!(
         json(&flow_after_lowering)["denials"]
