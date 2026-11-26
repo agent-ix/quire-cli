@@ -6530,7 +6530,7 @@ fn the_filter_fails_a_count_mismatch_with_a_message_distinct_from_a_block_failur
     assert!(source.contains("'mermaid block ' .. k .. ': "));
 }
 
-#[trace("FR-042-AC-4", "FR-007-AC-9")]
+#[trace("FR-042-AC-4", "FR-033-AC-11", "FR-007-AC-9")]
 #[test]
 fn a_block_that_fails_to_render_stops_the_export_and_names_the_block() {
     let rig = Rig::new();
@@ -6585,7 +6585,7 @@ fn a_missing_or_empty_png_fails_the_export_naming_the_block() {
     }
 }
 
-#[trace("FR-042-AC-6", "FR-007-AC-9")]
+#[trace("FR-042-AC-6", "FR-033-AC-11", "FR-007-AC-9")]
 #[test]
 fn a_missing_mmdr_exits_3_naming_it_and_its_flag_before_any_request() {
     let rig = Rig::new();
