@@ -42,9 +42,9 @@ carry no libc restriction and install on glibc and musl hosts alike.
   exact candidate revision and prepare a report containing test results,
   requirement coverage, uncovered requirements, known defects, and the exact
   Quire and Quoin versions used.
-- Before publishing a release, the release owner SHALL attach the report to the
-  release manually. The attachment is a human release step, not an automated
-  workflow result.
+- When the release owner prepares a release, the release owner SHALL attach the
+  report manually before publishing. The attachment is a human release step,
+  not an automated workflow result.
 - The tag-attestation workflow SHALL fail closed when retained release
   evidence is unavailable; it SHALL NOT write a release attestation or passing
   Test Result from absent evidence.
