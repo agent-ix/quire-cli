@@ -951,20 +951,17 @@ fn dropped_required_relation_errors_preserve_matrix_entries_in_every_format() {
         errors,
         &[serde_json::json!({
             "item": "dropped-relation",
-            "module": f.module(),
+            "module": "m",
             "reason": expected_reason,
         })]
     );
     let expected_human = format!(
         "error: dropped relation {} from module {}: {}",
-        "dropped-relation",
-        f.module(),
-        expected_reason
+        "dropped-relation", "m", expected_reason
     );
     let expected_tsv = format!(
         "error\tdropped relation\tdropped-relation\t{}\t{}",
-        f.module(),
-        expected_reason
+        "m", expected_reason
     );
 
     let human = f.matrix(&r, &["--format", "human"]);

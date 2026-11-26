@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use clap::Parser;
+use ix_trace_rs::implements;
 use quire_cli::safety;
 use quire_rs::grammar::{GrammarSeverityLevel, GrammarSeverityMap};
 use quire_rs::symbols::trace::SymbolGraph;
@@ -282,12 +283,13 @@ pub(super) fn compute_report_over(
     spec: &Spec,
 ) -> anyhow::Result<quire_rs::CoverageReport> {
     let model = super::require_traceability_model(registry)?;
-    compute_report_over_model(ctx, scope, registry, spec, model)
+    compute_report_over_model(ctx, scope, registry, spec, model, false)
 }
 
 /// Matrix is the one view that can report required-relation load errors while
 /// still rendering coverage for valid sibling declarations. Other incomplete
 /// declaration kinds have already been refused by its relation-aware loader.
+#[implements("FR-026-AC-17", "FR-043-AC-27")]
 pub(super) fn compute_report_over_for_matrix(
     ctx: &Ctx,
     scope: &Path,
@@ -304,15 +306,17 @@ pub(super) fn compute_report_over_for_matrix(
     } else {
         super::require_traceability_model(registry)?
     };
-    compute_report_over_model(ctx, scope, registry, spec, model)
+    compute_report_over_model(ctx, scope, registry, spec, model, true)
 }
 
+#[implements("FR-026-AC-17", "FR-043-AC-27")]
 fn compute_report_over_model(
     ctx: &Ctx,
     scope: &Path,
     registry: &Registry,
     spec: &Spec,
     model: &quire_rs::traceability::TraceabilityModel,
+    allow_dropped_required_relations: bool,
 ) -> anyhow::Result<quire_rs::CoverageReport> {
     // The exclusion is derived from the same constant the root is, rather
     // than a second literal `"spec"` that can drift from it
@@ -341,7 +345,12 @@ fn compute_report_over_model(
     super::emit_extraction_diagnostics(ctx, &extraction.diagnostics);
     let graph = quire_rs::symbols::trace::bind(&extraction, model);
 
-    compute_coverage(spec, registry, &graph, scope).map_err(|e| invalid_error!("{e}"))
+    let report = if allow_dropped_required_relations {
+        quire_rs::coverage::compute_coverage_for_design_matrix(spec, registry, &graph, scope)
+    } else {
+        compute_coverage(spec, registry, &graph, scope)
+    };
+    report.map_err(|e| invalid_error!("{e}"))
 }
 
 /// The four checks the `coverage` severity pack owns (FR-017-AC-13). The
