@@ -202,8 +202,25 @@ Show only harvested edges:
 quire extract EX-001.md --module ./extract-mod | jq '.edges'
 ```
 
-`extract` does not auto-validate. Run `validate` separately for context
-JSON schema checks.
+Default extraction preserves the raw DSL output. To read structured semantic
+records and typed reference locations, load the module providers and declare the
+repositories supplying the documents:
+
+```bash
+quire extract workflows/spec/PROCESS.md --semantic \
+  --module ./business-module --module ./process-module \
+  --repo example/workflows=./workflows --repo example/roles=./roles
+```
+
+The additional `semantic` member contains the engine record and diagnostics.
+For a process receiver, `semantic.record.steps` holds the structured rows and
+`semantic.recordRelations` identifies each typed receiver and its record path.
+Wrong-kind and missing targets exit 3 with diagnostics and empty stdout.
+The document must belong to exactly one declared repository; semantic mode
+requires a file rather than stdin.
+
+Default `extract` does not auto-validate. Run `validate` separately for document
+and bundle checks.
 
 ### Export Source-Grounded Assurance Facts
 

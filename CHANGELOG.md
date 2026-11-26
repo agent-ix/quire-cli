@@ -9,6 +9,18 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.53.4] — 2026-11-26
+
+### Added
+
+- Opt-in semantic extraction exposes structured records and typed reference
+  locations against explicit repository members and composed modules.
+
+### Changed
+
+- Update the engine to 0.63.3, including cross-repository source identity,
+  process handoff receivers, and typed enterprise stage extraction.
+
 ## [0.53.3] — 2026-11-26
 
 ### Added

@@ -346,16 +346,15 @@ fn dependency_moves(
     head: &SourceSnapshot,
     traceability: &quire_rs::traceability::TraceabilityModel,
 ) -> Result<Vec<Value>> {
-    if arguments.len() % 3 != 0 {
+    let (groups, remainder) = arguments.as_chunks::<3>();
+    if !remainder.is_empty() {
         return Err(anyhow!(
             "each --dependency-move needs a path and two revisions"
         ));
     }
     let mut output = Vec::new();
-    for group in arguments.chunks_exact(3) {
-        let repository_path = PathBuf::from(&group[0]);
-        let old_input_revision = &group[1];
-        let new_input_revision = &group[2];
+    for [repository, old_input_revision, new_input_revision] in groups {
+        let repository_path = PathBuf::from(repository);
         let old = upstream_snapshot(&repository_path, old_input_revision);
         let new = upstream_snapshot(&repository_path, new_input_revision);
         let dependency = old
