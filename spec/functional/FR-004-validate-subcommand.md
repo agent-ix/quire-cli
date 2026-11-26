@@ -199,6 +199,7 @@ silently ignored the flag.
 | FR-004-AC-24 | When `--scope` is omitted, named files in one Git repository use that repository as the module and project-glossary scope. For files outside Git, their common named parent is used only when narrower than the current directory. The walk respects ignore files, including ignored nested worktrees. Relative document paths remain current-directory-relative; explicit `--scope` controls both path resolution and discovery. Stdin and paths spanning repository boundaries retain the current-directory scope. | Test |
 | FR-004-AC-21 | Requirement-**grammar** findings are advisory, distinct from the `object:` warning of AC-10: a structurally valid document carrying grammar violations exits **0**, and each finding appears on stderr under its `[<grammar>:<check>]` label; stdout stays empty | Test |
 | FR-004-AC-22 | `--strict` escalates grammar findings the same way it escalates the AC-11 `object:` warning — the same document that exits 0 without it exits **3** with it. This is the per-repo promotion lever: a converted repo flips its grammar to blocking in CI without a module change | Test |
+| FR-004-AC-25 | If loading a module rejects an unknown key in its `semantic:` block, `validate` exits **3** before validating the document, with stderr identifying the semantic failure key and the module's `manifest.yaml` path; stdout is empty. This diagnostic takes precedence over an unknown document type. | Test |
 
 ## Dependencies
 
@@ -237,3 +238,10 @@ silently ignored the flag.
 > silent wrong answer does not make it a contract.
 
 > **CR note (2026-10-02, PLAT-111):** Scoped roots use ix-cli-kit::config::SearchPath: scope first unconditionally, scope/.ix/modules if a directory, both module-path environment variables unioned in order with directory filtering, then the default root even before it exists. First-seen path deduplication remains lexical; engine classification policy stays downstream.
+
+> **CR note (semantic module-load failures, 2026-11-26):** A tolerant registry
+> load may retain a module name while rejecting that module's `semantic:`
+> block and registering none of its archetypes. `validate` must surface that
+> semantic load failure, including its unknown key and manifest path, before
+> document validation; otherwise an unknown document type can hide the module
+> defect. This CLI diagnostic ordering is specified by AC-25.

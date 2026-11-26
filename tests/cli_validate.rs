@@ -154,7 +154,7 @@ fn it_050_unknown_archetype_reports_unknown() {
 
 // An invalid module semantic block must be surfaced before a document's
 // unknown type can hide the more useful module-load failure.
-#[trace("FR-069-AC-3")]
+#[trace("FR-004-AC-25")]
 #[test]
 fn semantic_module_failure_is_reported_before_unknown_document_type() {
     let temp = tempdir().expect("temp dir");

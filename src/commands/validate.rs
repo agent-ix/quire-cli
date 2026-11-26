@@ -602,6 +602,7 @@ fn parse_remote_package(url: &str) -> Option<String> {
     Some(format!("{org}/{repo}").to_lowercase())
 }
 
+#[implements("FR-004-AC-25")]
 pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
     let registry = if !args.module.is_empty() {
         super::load_module_set_registry(ctx, &args.module)?
