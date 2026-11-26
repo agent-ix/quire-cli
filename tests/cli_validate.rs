@@ -12,6 +12,8 @@ mod common;
 use assert_cmd::prelude::*;
 use ix_trace_rs::trace;
 use predicates::prelude::*;
+use std::fs;
+use tempfile::tempdir;
 
 use common::{ears_module, quire, validate_doc, validate_module};
 
@@ -148,6 +150,65 @@ fn it_050_unknown_archetype_reports_unknown() {
         .code(3)
         .stdout(predicate::str::is_empty())
         .stderr(predicate::str::contains("UnknownArchetype"));
+}
+
+// An invalid module semantic block must be surfaced before a document's
+// unknown type can hide the more useful module-load failure.
+#[trace("FR-069-AC-3")]
+#[test]
+fn semantic_module_failure_is_reported_before_unknown_document_type() {
+    let temp = tempdir().expect("temp dir");
+    let module = temp.path().join("module");
+    let schemas = module.join("schemas");
+    fs::create_dir_all(&schemas).expect("schema dir");
+
+    let manifest =
+        fs::read_to_string(validate_module().join("manifest.yaml")).expect("fixture manifest");
+    fs::write(
+        module.join("manifest.yaml"),
+        format!("{manifest}  foo: true\n"),
+    )
+    .expect("manifest with unknown semantic key");
+    fs::copy(
+        validate_module().join("schemas/fr-frontmatter.schema.json"),
+        schemas.join("fr-frontmatter.schema.json"),
+    )
+    .expect("frontmatter schema");
+
+    let document = temp.path().join("ADR-001.md");
+    fs::write(
+        &document,
+        "---\nid: ADR-001\ntype: ADR\n---\n# ADR-001\n\nDecision.\n",
+    )
+    .expect("unknown-type document");
+
+    let load_modes = [
+        ("--module", module.as_path()),
+        ("--scope", module.as_path()),
+        ("--scope", temp.path()),
+    ];
+    for (load_mode, load_path) in load_modes {
+        let output = quire()
+            .arg("validate")
+            .arg(&document)
+            .arg(load_mode)
+            .arg(load_path)
+            .output()
+            .expect("run quire validate");
+        assert_eq!(output.status.code(), Some(3));
+        assert!(output.stdout.is_empty());
+        let stderr = String::from_utf8(output.stderr).expect("utf-8 stderr");
+        assert!(
+            stderr.contains("semantic.unknown-key")
+                && stderr.contains("foo")
+                && stderr.contains("manifest.yaml"),
+            "{load_mode}: {stderr}"
+        );
+        assert!(
+            !stderr.contains("unknown type 'ADR'"),
+            "the module failure should be surfaced before document validation: {stderr}"
+        );
+    }
 }
 
 // FR-010-AC-1: placeholder-only Specification → reason

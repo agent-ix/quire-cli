@@ -603,15 +603,30 @@ fn parse_remote_package(url: &str) -> Option<String> {
 }
 
 pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Result<Registry> {
-    if !args.module.is_empty() {
-        return super::load_module_set_registry(ctx, &args.module);
-    }
+    let registry = if !args.module.is_empty() {
+        super::load_module_set_registry(ctx, &args.module)?
+    } else if scope.join("manifest.yaml").is_file() {
+        super::load_module_registry(ctx, scope)?
+    } else {
+        load_scoped_with_defaults(ctx, scope)?
+    };
 
-    if scope.join("manifest.yaml").is_file() {
-        return super::load_module_registry(ctx, scope);
+    // A semantic-block refusal invalidates every archetype in its module, but
+    // the tolerant Registry still retains the module name. Surface that failure
+    // before validating documents, whose unknown types would otherwise obscure
+    // the module defect.
+    if let Some(failure) = registry
+        .failures()
+        .iter()
+        .find(|failure| failure.reason.starts_with("semantic."))
+    {
+        invalid_request!(
+            "module load failed: {} ({})",
+            failure.reason,
+            failure.path.display()
+        );
     }
-
-    load_scoped_with_defaults(ctx, scope)
+    Ok(registry)
 }
 
 /// Scoped module discovery shared by every command whose `--module` is
