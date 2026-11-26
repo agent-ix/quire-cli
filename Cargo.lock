@@ -1210,6 +1210,11 @@ version = "0.1.0"
 source = "git+https://github.com/agent-ix/ix-trace-rs?rev=2ce4ebf47f726b9d76388220545cd0abda8a5cfb#2ce4ebf47f726b9d76388220545cd0abda8a5cfb"
 
 [[package]]
+name = "ix-trace-rs"
+version = "0.1.2"
+source = "git+https://github.com/agent-ix/ix-trace-rs?tag=v0.1.2#e29cc07f70394ff018884d12406c1e150bded5f4"
+
+[[package]]
 name = "jiff"
 version = "0.2.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1700,7 +1705,7 @@ dependencies = [
 
 [[package]]
 name = "quire-cli"
-version = "0.53.1"
+version = "0.53.2"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1717,7 +1722,7 @@ dependencies = [
  "gix-ref",
  "glob",
  "ix-cli-kit",
- "ix-trace-rs",
+ "ix-trace-rs 0.1.0",
  "jsonschema 0.18.3",
  "predicates",
  "quire-qualify",
@@ -1735,7 +1740,7 @@ dependencies = [
 [[package]]
 name = "quire-code-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=f9b71209b455414589d8c15cd4f15bf4ba1e4a36#f9b71209b455414589d8c15cd4f15bf4ba1e4a36"
+source = "git+https://github.com/agent-ix/quire-rs?rev=1d8381188b37a95f0fe4cd6b7c57389058ac45b1#1d8381188b37a95f0fe4cd6b7c57389058ac45b1"
 dependencies = [
  "quire-code-parse",
 ]
@@ -1759,7 +1764,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "ix-trace-rs",
+ "ix-trace-rs 0.1.0",
  "semver",
  "tempfile",
 ]
@@ -1769,7 +1774,7 @@ name = "quire-qualify"
 version = "0.1.0"
 dependencies = [
  "clap",
- "ix-trace-rs",
+ "ix-trace-rs 0.1.0",
  "proc-macro2",
  "serde",
  "serde_json",
@@ -1781,13 +1786,14 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.63.1"
-source = "git+https://github.com/agent-ix/quire-rs?rev=f9b71209b455414589d8c15cd4f15bf4ba1e4a36#f9b71209b455414589d8c15cd4f15bf4ba1e4a36"
+version = "0.63.2"
+source = "git+https://github.com/agent-ix/quire-rs?rev=1d8381188b37a95f0fe4cd6b7c57389058ac45b1#1d8381188b37a95f0fe4cd6b7c57389058ac45b1"
 dependencies = [
  "agent-ix-semantic-schema",
  "globset",
  "ignore",
  "indexmap",
+ "ix-trace-rs 0.1.2",
  "jsonschema 0.56.0",
  "loom",
  "quire-code-extraction",
