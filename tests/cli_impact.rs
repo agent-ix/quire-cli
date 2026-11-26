@@ -19,6 +19,14 @@ struct Repo {
 }
 
 fn repository(with_non_rust_change: bool) -> Repo {
+    repository_with_dependency_revisions(with_non_rust_change, "old-pin", "new-pin")
+}
+
+fn repository_with_dependency_revisions(
+    with_non_rust_change: bool,
+    old_revision: &str,
+    new_revision: &str,
+) -> Repo {
     let dir = TempDir::new().expect("temporary repository");
     let root = dir.path();
     write(root, "manifest.yaml", module_manifest());
@@ -38,6 +46,7 @@ fn repository(with_non_rust_change: bool) -> Repo {
         "tests/impact.rs",
         "#[trace(\"FR-900-AC-1\")]\n#[test]\nfn selected_impact_test() { target(); }\n",
     );
+    write(root, "Cargo.lock", &cargo_lock(old_revision));
     git(root, &["init", "-q", "-b", "main"]);
     git(root, &["config", "user.name", "Impact test"]);
     git(
@@ -61,10 +70,17 @@ fn repository(with_non_rust_change: bool) -> Repo {
             "final class Changed { int value() { return 2; } }\n",
         );
     }
+    write(root, "Cargo.lock", &cargo_lock(new_revision));
     git(root, &["add", "-A"]);
     git(root, &["commit", "-q", "-m", "head"]);
     let head = git(root, &["rev-parse", "HEAD"]);
     Repo { dir, base, head }
+}
+
+fn cargo_lock(revision: &str) -> String {
+    format!(
+        "[[package]]\nname = \"quire-rs\"\nversion = \"0.63.2\"\nsource = \"git+https://github.com/agent-ix/quire-rs?rev={revision}#{revision}\"\n"
+    )
 }
 
 fn module_manifest() -> &'static str {
@@ -242,4 +258,185 @@ fn it_impact_does_not_modify_the_analyzed_repository() {
     );
     assert_eq!(git(root, &["rev-parse", "HEAD"]), before_head);
     assert_eq!(git(root, &["status", "--porcelain"]), before_status);
+}
+
+#[test]
+#[trace("FR-049-AC-5")]
+fn it_impact_tag_findings_are_opt_in_and_fail_only_when_requested() {
+    let mut repo = repository(false);
+    let root = repo.dir.path();
+    write(
+        root,
+        "src/lib.rs",
+        "pub fn target() { let _value = 3; }\n\
+         pub fn missing_link() { let _value = 4; }\n\
+         #[implements(\"FR-999-AC-1\")]\n\
+         pub fn invalid_link() { let _value = 5; }\n\
+         #[implements(\"FR-901-AC-1\")]\n\
+         pub fn unavailable_link() { let _value = 6; }\n\
+         #[trace(\"FR-900-AC-1\")]\n\
+         pub fn nonbinding_link() { let _value = 7; }\n",
+    );
+    write(
+        root,
+        "spec/FR-901-AC-1.md",
+        "This document has no frontmatter.\n",
+    );
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-q", "-m", "tag findings"]);
+    repo.head = git(root, &["rev-parse", "HEAD"]);
+
+    let default = run(&repo, "json", &[]);
+    assert!(default.status.success());
+    let default_report: Value = serde_json::from_slice(&default.stdout).expect("impact JSON");
+    assert!(default_report["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|finding| {
+            !matches!(
+                finding["kind"].as_str(),
+                Some(
+                    "unlinked_symbol"
+                        | "unresolved_id"
+                        | "unavailable_specification"
+                        | "non_binding_marker"
+                )
+            )
+        }));
+
+    let checked = run(&repo, "json", &["--check-tags"]);
+    assert!(checked.status.success());
+    let checked_report: Value = serde_json::from_slice(&checked.stdout).expect("impact JSON");
+    let findings = checked_report["findings"].to_string();
+    assert!(findings.contains("unlinked_symbol"), "{findings}");
+    assert!(findings.contains("unresolved_id"), "{findings}");
+    assert!(findings.contains("unavailable_specification"), "{findings}");
+    assert!(findings.contains("non_binding_marker"), "{findings}");
+
+    let failed = run(&repo, "json", &["--check-tags", "--fail-on-tag-findings"]);
+    assert!(!failed.status.success());
+    let stderr = String::from_utf8_lossy(&failed.stderr);
+    assert!(stderr.contains("requirement link findings"), "{stderr}");
+
+    let invalid = run(&repo, "json", &["--fail-on-tag-findings"]);
+    assert!(!invalid.status.success());
+}
+
+#[test]
+#[trace("FR-049-AC-6")]
+fn it_impact_reports_dependency_move_chain_and_unavailable_upstream() {
+    let upstream = TempDir::new().expect("temporary upstream repository");
+    let upstream_root = upstream.path();
+    write(
+        upstream_root,
+        "Cargo.toml",
+        "[package]\nname = \"quire-rs\"\nversion = \"0.63.2\"\nedition = \"2024\"\n",
+    );
+    write(
+        upstream_root,
+        "src/lib.rs",
+        "pub fn changed_api() { let _value = 1; }\npub fn unrelated_api() { let _value = 1; }\n",
+    );
+    git(upstream_root, &["init", "-q", "-b", "main"]);
+    git(upstream_root, &["config", "user.name", "Impact test"]);
+    git(
+        upstream_root,
+        &["config", "user.email", "impact-test@example.invalid"],
+    );
+    git(upstream_root, &["add", "-A"]);
+    git(upstream_root, &["commit", "-q", "-m", "upstream base"]);
+    let old_revision = git(upstream_root, &["rev-parse", "HEAD"]);
+    write(
+        upstream_root,
+        "src/lib.rs",
+        "pub fn changed_api() { let _value = 2; }\npub fn unrelated_api() { let _value = 2; }\n",
+    );
+    git(upstream_root, &["add", "-A"]);
+    git(upstream_root, &["commit", "-q", "-m", "upstream head"]);
+    let new_revision = git(upstream_root, &["rev-parse", "HEAD"]);
+
+    let repo = repository_with_dependency_revisions(false, &old_revision, &new_revision);
+    let root = repo.dir.path();
+    write(
+        root,
+        "src/lib.rs",
+        "#[implements(\"FR-900-AC-1\")]\npub fn adapter() { quire_rs::changed_api(); }\n",
+    );
+    write(
+        root,
+        "tests/impact.rs",
+        "#[trace(\"FR-900-AC-1\")]\n#[test]\nfn selected_impact_test() { adapter(); }\n",
+    );
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-q", "-m", "adapter"]);
+    let updated_head = git(root, &["rev-parse", "HEAD"]);
+    let updated_repo = Repo {
+        dir: repo.dir,
+        base: repo.base,
+        head: updated_head,
+    };
+
+    let output = run(
+        &updated_repo,
+        "json",
+        &[
+            "--dependency-move",
+            upstream_root.to_str().unwrap(),
+            &old_revision,
+            &new_revision,
+        ],
+    );
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: Value = serde_json::from_slice(&output.stdout).expect("impact JSON");
+    let movement = &report["dependency_moves"][0];
+    assert_eq!(movement["old_revision"], old_revision);
+    assert_eq!(movement["new_revision"], new_revision);
+    assert!(movement["upstream_changes"]
+        .to_string()
+        .contains("changed_api"));
+    assert!(movement["local_references"].to_string().contains("adapter"));
+    assert!(movement["selected_tests"]
+        .to_string()
+        .contains("selected_impact_test"));
+    assert!(movement["uncovered"].to_string().contains("unrelated_api"));
+
+    let human = run(
+        &updated_repo,
+        "human",
+        &[
+            "--dependency-move",
+            upstream_root.to_str().unwrap(),
+            &old_revision,
+            &new_revision,
+        ],
+    );
+    assert!(human.status.success());
+    let human = String::from_utf8_lossy(&human.stdout);
+    assert!(human.contains("Dependency move"), "{human}");
+    assert!(human.contains("changed_api"), "{human}");
+    assert!(human.contains("Uncovered upstream change"), "{human}");
+
+    let unavailable = run(
+        &updated_repo,
+        "json",
+        &[
+            "--dependency-move",
+            upstream_root.to_str().unwrap(),
+            "not-a-revision",
+            &new_revision,
+        ],
+    );
+    assert!(unavailable.status.success());
+    let report: Value = serde_json::from_slice(&unavailable.stdout).expect("impact JSON");
+    let movement = &report["dependency_moves"][0];
+    assert_eq!(movement["unresolved"], true);
+    assert!(movement["unavailable_upstream"]
+        .to_string()
+        .contains("base"));
+    assert!(movement["upstream_changes"].as_array().unwrap().is_empty());
 }
