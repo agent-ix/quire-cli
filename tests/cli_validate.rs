@@ -694,6 +694,11 @@ fn named_document_uses_git_root_and_skips_ignored_nested_worktrees() {
     fs::create_dir_all(workspace.join("empty-home/.ix/filament/modules"))
         .expect("create empty default module root");
     fs::write(repo.join(".gitignore"), ".worktrees/\n").expect("ignore nested worktrees");
+    fs::write(
+        workspace.join("manifest.yaml"),
+        "name: unrelated-workspace-module\nversion: 0.1.0\ndescription: decoy\nartifact_types:\n  - name: Other\n",
+    )
+    .expect("write unrelated workspace module");
     let git_init = Command::new("git")
         .args(["init", "--quiet"])
         .current_dir(&repo)
