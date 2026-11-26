@@ -36,6 +36,8 @@ relationships:
     type: rates_feature
   - target: "ix://agent-ix/quire-cli/FR-020"
     type: rates_feature
+  - target: "ix://agent-ix/quire-cli/FR-021"
+    type: rates_feature
   - target: "ix://agent-ix/quire-cli/FR-022"
     type: rates_feature
   - target: "ix://agent-ix/quire-cli/FR-025"
@@ -105,6 +107,7 @@ Under IU-001, these features do not themselves report verification, trace, disch
 | Exercise supported install sources and unsupported cases; verify the resulting version/source or explicit refusal. | FR-016-AC-1 through FR-016-AC-7 |
 | Run representative criteria through each property-shape case and compare the classification with the declared rule. | FR-018-AC-1 through FR-018-AC-10 |
 | Run assurance fixtures with known source facts and compare every emitted fact, relation, and refusal with the source. | FR-020-AC-1 through FR-020-AC-10 |
+| Compare known clause sets, including restricted-content and mismatch fixtures; verify each reported difference and refusal. | FR-021-AC-1 through FR-021-AC-10 |
 | Inspect release workflow and package fixtures; verify supported targets, installed version, and publication gates. | FR-022-AC-1 through FR-022-AC-9 |
 | Run backed and deliberately incomplete qualification fixtures; assert the exact rejected target, status, and boundary behavior. | FR-025-AC-1 through FR-025-AC-7 |
 | Run aligned, split, malformed, duplicate, unreadable, and multi-lock fixtures; compare results and verify inputs remain unchanged. | FR-027-AC-1 through FR-027-AC-10 |
