@@ -847,9 +847,9 @@ fn scoped_path(scope: &Path, raw: &str) -> PathBuf {
 }
 
 /// Pick the narrowest safe module and glossary search root for named files.
-/// A single repository wins; outside Git, the common named parent is useful
-/// only when it narrows a broader caller directory. Globs, stdin, missing
-/// paths, and mixed repositories keep the current-directory default.
+/// A single repository wins; outside Git, use the common named parent unless
+/// it would broaden the search above the caller's directory. Globs, stdin,
+/// missing paths, and mixed repositories keep the current-directory default.
 #[implements("FR-004-AC-24")]
 fn infer_document_scope(documents: &[String]) -> Option<PathBuf> {
     if documents.is_empty() || documents.iter().any(|raw| raw == "-" || contains_glob(raw)) {
@@ -898,7 +898,7 @@ fn infer_document_scope(documents: &[String]) -> Option<PathBuf> {
             }
         }
     }
-    (common != cwd && common.starts_with(&cwd)).then_some(common)
+    (common != cwd && !cwd.starts_with(&common)).then_some(common)
 }
 
 #[implements("FR-004-AC-24")]
@@ -1074,6 +1074,7 @@ fn line_prefix(line: Option<usize>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     #[test]
     fn scoped_roots_include_scope_and_default_install_root() {
@@ -1089,6 +1090,26 @@ mod tests {
                 "default install root {default_root:?} missing from {roots:?}"
             );
         }
+    }
+
+    #[trace("FR-004-AC-24")]
+    #[test]
+    fn external_named_file_uses_its_parent_as_default_scope() {
+        let external = tempfile::tempdir().expect("temporary external document root");
+        let document_dir = external.path().join("spec");
+        std::fs::create_dir(&document_dir).expect("create document directory");
+        let document = document_dir.join("FR-004.md");
+        std::fs::write(&document, "---\ntype: FR\n---\n").expect("write document");
+
+        assert_eq!(
+            infer_document_scope(&[document.display().to_string()]),
+            Some(
+                document_dir
+                    .canonicalize()
+                    .expect("canonicalize document directory")
+            ),
+            "a named file outside the caller's working tree should bound discovery to its parent"
+        );
     }
 
     #[test]

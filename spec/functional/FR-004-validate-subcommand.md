@@ -118,12 +118,14 @@ When the positional argument is a document path, glob, or `-`:
 Scoped validation resolves relative document globs under `--scope`. When
 `--scope` is omitted and named document paths identify one Git repository,
 that repository is the default scope for module and project-glossary discovery.
-For documents outside Git, Quire uses their common named parent only when it is
-narrower than the caller's directory. The default scope walk respects ignore
-files; ignored nested worktrees stay out of discovery. If no bounded scope can
-be inferred (for example, stdin or paths spanning repository boundaries), the
-current directory remains the default. Relative document paths still resolve
-from the current directory unless `--scope` was explicit. An explicit
+For documents outside Git, Quire uses their common named parent unless it is
+an ancestor of the caller's current directory, which would broaden the search.
+This includes a named parent on a separate filesystem branch from the caller.
+The default scope walk respects ignore files; ignored nested worktrees stay
+out of discovery. If no bounded scope can be inferred (for example, stdin or
+paths spanning repository boundaries), the current directory remains the
+default. Relative document paths still resolve from the current directory
+unless `--scope` was explicit. An explicit
 `--scope` always takes precedence. If the scope itself contains
 `manifest.yaml`, it is loaded as one exact module; otherwise
 Quire loads module search roots from the scope, `--scope/.ix/modules`, the
@@ -196,7 +198,7 @@ silently ignored the flag.
 | FR-004-AC-19 | A **relative document path** given with `--scope <DIR>` resolves under that scope and validates against the module the scope itself carries — the `--scope`-contains-`manifest.yaml` exact-module branch, not the search-root discovery branch, which is AC-13's — with no `--module` argument: a conformant document exits **0** with empty stdout and empty stderr | Test |
 | FR-004-AC-20 | A **relative glob** given with `--scope <DIR>` expands under that scope, and a matching non-conformant document exits **3** with a line-numbered diagnostic on stderr naming the offending file; stdout stays empty | Test |
 | FR-004-AC-23 | `--scope` decides where a relative path or glob resolves **regardless of `--module`**. Passing `--module` pins the module set and never moves document resolution to the process directory; a run with and without it selects the same documents, and a decoy file of the same relative name in the current directory is not read. | Test |
-| FR-004-AC-24 | When `--scope` is omitted, named files in one Git repository use that repository as the module and project-glossary scope. For files outside Git, their common named parent is used only when narrower than the current directory. The walk respects ignore files, including ignored nested worktrees. Relative document paths remain current-directory-relative; explicit `--scope` controls both path resolution and discovery. Stdin and paths spanning repository boundaries retain the current-directory scope. | Test |
+| FR-004-AC-24 | When `--scope` is omitted, named files in one Git repository use that repository as the module and project-glossary scope. For files outside Git, their common named parent is used unless it is an ancestor of the current directory; a disjoint parent still bounds discovery. The walk respects ignore files, including ignored nested worktrees. Relative document paths remain current-directory-relative; explicit `--scope` controls both path resolution and discovery. Stdin and paths spanning repository boundaries retain the current-directory scope. | Test |
 | FR-004-AC-21 | Requirement-**grammar** findings are advisory, distinct from the `object:` warning of AC-10: a structurally valid document carrying grammar violations exits **0**, and each finding appears on stderr under its `[<grammar>:<check>]` label; stdout stays empty | Test |
 | FR-004-AC-22 | `--strict` escalates grammar findings the same way it escalates the AC-11 `object:` warning — the same document that exits 0 without it exits **3** with it. This is the per-repo promotion lever: a converted repo flips its grammar to blocking in CI without a module change | Test |
 | FR-004-AC-25 | If loading a module rejects an unknown key in its `semantic:` block, `validate` exits **3** before validating the document, with stderr identifying the semantic failure key and the module's `manifest.yaml` path; stdout is empty. This diagnostic takes precedence over an unknown document type. | Test |
@@ -236,6 +238,14 @@ silently ignored the flag.
 > The AC text and both `--scope` help strings previously *documented* the
 > footgun ("resolved under --scope when --module is omitted"). Documenting a
 > silent wrong answer does not make it a contract.
+
+> **CR note (2026-11-26, PLAT-1939):** A named document outside Git whose
+> common parent was on a separate filesystem branch from the caller fell back
+> to the current directory, causing glossary discovery to walk a much larger
+> workspace. For such documents, the common parent is now the scope unless it
+> contains the caller's current directory. This preserves the current-directory
+> fallback when no bounded scope can be inferred while avoiding a broad
+> recursive walk for an external named file.
 
 > **CR note (2026-10-02, PLAT-111):** Scoped roots use ix-cli-kit::config::SearchPath: scope first unconditionally, scope/.ix/modules if a directory, both module-path environment variables unioned in order with directory filtering, then the default root even before it exists. First-seen path deduplication remains lexical; engine classification policy stays downstream.
 
