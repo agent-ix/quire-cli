@@ -34,3 +34,9 @@ The rating inventory is mechanically complete and correctly remains proposed. On
 ## Notes
 
 The exact expected inventory is present: 11 retained highs, 23 moved former highs, and 12 existing not-highs, for 46 unique FRs. The 23 demotions and their 23 activities moved to FRR-002; all 12 existing not-high activities remain there. Both records remain proposed, with no `rated_by` or score field. The other ten high reasons each name a specific unsupported result. FR-021 returns clause applicability (`binding`, `not_binding`, or `unresolved`); its contract does not describe that result as a verification, trace, discharge, or approval verdict. The proposed reason “incorrect evaluation result” therefore does not satisfy the requested direct false-claim rule as written.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | FR-021 was moved to the not-high rating, and its activity moved with it; the high list now contains ten specifically reasoned features. |
