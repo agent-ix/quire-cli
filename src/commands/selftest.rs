@@ -141,7 +141,7 @@ enum Destination {
     },
 }
 
-#[implements("FR-047-AC-4")]
+#[implements("FR-047-AC-4", "FR-047-AC-10")]
 pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let cases = all_cases()?;
     if args.list {
@@ -150,9 +150,9 @@ pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     if !args.run {
         bail!("choose either --list or --run");
     }
+    let selected = select_cases(&cases, &args.case).map_err(failure::invalid)?;
     ensure_supported_platform(std::env::consts::OS)?;
 
-    let selected = select_cases(&cases, &args.case).map_err(failure::invalid)?;
     let timestamp = timestamp_rfc3339()?;
     let destination = destination(args.out.as_deref(), &timestamp).map_err(failure::invalid)?;
     let location = destination.retained_path().display().to_string();

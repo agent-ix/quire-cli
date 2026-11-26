@@ -31,8 +31,6 @@ fn list_includes_quire_cli_and_linked_quire_rs_cases() {
 }
 
 #[trace("FR-047-AC-10")]
-// Execution-dependent self-test cases need the Linux containment sandbox.
-#[cfg(target_os = "linux")]
 #[test]
 fn unknown_case_is_rejected_before_a_result_file_is_created() {
     let dir = tempfile::tempdir().expect("temporary directory");
