@@ -618,3 +618,134 @@ fn it_122_scoped_glob_ignores_the_process_directory() {
         .success()
         .stderr(predicate::str::is_empty());
 }
+
+// FR-004-AC-24: named files from a repository choose that repository as the
+// default scope even when the caller is in an unrelated workspace.
+#[trace("FR-004-AC-24")]
+#[test]
+fn named_document_uses_its_bounded_parent_as_default_scope() {
+    use std::fs;
+
+    let temp = tempfile::tempdir().expect("temporary test directory");
+    let workspace = temp.path().join("workspace");
+    let repo = workspace.join("project");
+    fs::create_dir_all(&repo).expect("create repo");
+    fs::create_dir_all(workspace.join("empty-home/.ix/filament/modules"))
+        .expect("create empty default module root");
+    fs::create_dir_all(&workspace.join("empty-bin")).expect("create empty bin");
+    fs::write(
+        workspace.join("manifest.yaml"),
+        "name: unrelated-workspace-module\nversion: 0.1.0\ndescription: decoy\nartifact_types:\n  - name: Other\n",
+    )
+    .expect("write unrelated workspace module");
+    let module = validate_module();
+    for entry in fs::read_dir(&module).expect("read module fixture") {
+        let entry = entry.expect("module fixture entry");
+        let target = repo.join(entry.file_name());
+        if entry.file_type().expect("fixture type").is_dir() {
+            fs::create_dir_all(&target).expect("create fixture subdirectory");
+            for child in fs::read_dir(entry.path()).expect("read fixture subdirectory") {
+                let child = child.expect("fixture child");
+                fs::copy(child.path(), target.join(child.file_name())).expect("copy fixture file");
+            }
+        } else {
+            fs::copy(entry.path(), target).expect("copy fixture file");
+        }
+    }
+    let document = repo.join("valid-fr.md");
+    fs::copy(validate_doc("valid-fr.md"), &document).expect("copy valid document");
+    let output = quire()
+        .current_dir(&workspace)
+        .env_clear()
+        .env("HOME", workspace.join("empty-home"))
+        .env("PATH", workspace.join("empty-bin"))
+        .arg("validate")
+        .arg(&document)
+        .output()
+        .expect("run named-document validation");
+
+    assert!(
+        output.status.success(),
+        "validation should use the named document's bounded parent as scope; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty(), "success emits no stdout");
+    assert!(
+        output.stderr.is_empty(),
+        "valid document emits no stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+// FR-004-AC-24: repository inference uses the actual Git root, and ignored
+// nested worktrees do not add duplicate modules to the discovery walk.
+#[trace("FR-004-AC-24")]
+#[test]
+fn named_document_uses_git_root_and_skips_ignored_nested_worktrees() {
+    use std::fs;
+    use std::process::Command;
+
+    let temp = tempfile::tempdir().expect("temporary test directory");
+    let workspace = temp.path().join("workspace");
+    let repo = workspace.join("project");
+    let module_root = repo.join(".ix/modules/primary");
+    fs::create_dir_all(&module_root).expect("create module root");
+    fs::create_dir_all(repo.join("spec")).expect("create document directory");
+    fs::create_dir_all(workspace.join("empty-home/.ix/filament/modules"))
+        .expect("create empty default module root");
+    fs::write(repo.join(".gitignore"), ".worktrees/\n").expect("ignore nested worktrees");
+    let git_init = Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(&repo)
+        .status()
+        .expect("initialize test repository");
+    assert!(git_init.success(), "git init succeeds");
+
+    let module = validate_module();
+    copy_module_tree(&module, &module_root);
+    let ignored_module = repo.join(".worktrees/decoy/primary");
+    copy_module_tree(&module, &ignored_module);
+    let document = repo.join("spec/valid-fr.md");
+    fs::copy(validate_doc("valid-fr.md"), &document).expect("copy valid document");
+
+    let output = quire()
+        .current_dir(&workspace)
+        .env_clear()
+        .env("HOME", workspace.join("empty-home"))
+        .env("PATH", std::env::var_os("PATH").expect("test PATH"))
+        .arg("validate")
+        .arg(&document)
+        .output()
+        .expect("run named-document validation");
+
+    assert!(
+        output.status.success(),
+        "validation should use the Git root and ignore its nested worktree; stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stdout.is_empty(), "success emits no stdout");
+    assert!(
+        output.stderr.is_empty(),
+        "ignored worktree discovery should not add diagnostics: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+fn copy_module_tree(source: &std::path::Path, destination: &std::path::Path) {
+    use std::fs;
+
+    fs::create_dir_all(destination).expect("create copied module");
+    for entry in fs::read_dir(source).expect("read module fixture") {
+        let entry = entry.expect("module fixture entry");
+        let target = destination.join(entry.file_name());
+        if entry.file_type().expect("fixture entry type").is_dir() {
+            fs::create_dir_all(&target).expect("create fixture subdirectory");
+            for child in fs::read_dir(entry.path()).expect("read fixture subdirectory") {
+                let child = child.expect("fixture child");
+                fs::copy(child.path(), target.join(child.file_name())).expect("copy fixture file");
+            }
+        } else {
+            fs::copy(entry.path(), target).expect("copy fixture file");
+        }
+    }
+}
