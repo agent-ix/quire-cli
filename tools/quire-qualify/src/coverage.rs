@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use ix_trace_rs::implements;
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -34,6 +35,7 @@ struct CoverageReport {
 }
 
 /// The closed issue-74 target population governed by this repository.
+#[implements("FR-025-AC-1")]
 pub fn required_targets() -> BTreeSet<String> {
     let mut required = BTreeSet::new();
     required.extend((1..=8).map(|index| format!("FR-020-AC-{index}")));
