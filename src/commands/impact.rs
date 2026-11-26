@@ -114,7 +114,7 @@ pub fn run(ctx: &Ctx, args: Args) -> Result<()> {
         .context("loading head revision traceability model")?;
     let model = super::require_traceability_model(&registry)?;
     let spec = Spec::from_path(&head_tree.path().join("spec"));
-    let available: BTreeSet<String> = spec.documents().iter().map(|d| d.id.clone()).collect();
+    let available = available_spec_ids(&spec);
     let unavailable = unavailable_spec_ids(&spec);
     let mut report = impact::analyze(ImpactInput {
         base: Some(&base),
@@ -230,13 +230,29 @@ pub fn run(ctx: &Ctx, args: Args) -> Result<()> {
                         change["items"]
                     );
                 }
+                for reference in movement["local_references"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                {
+                    primary_line!(
+                        "  Local reference {}#{} upstream_path={} upstream_item={}\n",
+                        reference["local_path"].as_str().unwrap_or("<unknown>"),
+                        reference["local_symbol"].as_str().unwrap_or("<unknown>"),
+                        reference["upstream_path"].as_str().unwrap_or("<unknown>"),
+                        reference["upstream_item"].as_str().unwrap_or("<unknown>")
+                    );
+                }
                 for selected in movement["selected_tests"].as_array().into_iter().flatten() {
                     primary_line!(
-                        "  Selected test {}#{} via {}#{}\n",
+                        "  Selected test {}#{} via {}#{} upstream_path={} upstream_item={} call_path={:?}\n",
                         selected["test_path"].as_str().unwrap_or("<unknown>"),
                         selected["test_symbol"].as_str().unwrap_or("<unknown>"),
                         selected["local_path"].as_str().unwrap_or("<unknown>"),
-                        selected["local_symbol"].as_str().unwrap_or("<unknown>")
+                        selected["local_symbol"].as_str().unwrap_or("<unknown>"),
+                        selected["upstream_path"].as_str().unwrap_or("<unknown>"),
+                        selected["upstream_item"].as_str().unwrap_or("<unknown>"),
+                        selected["call_path"]
                     );
                 }
                 for uncovered in movement["uncovered"].as_array().into_iter().flatten() {
@@ -278,6 +294,41 @@ fn unavailable_spec_ids(spec: &Spec) -> BTreeSet<String> {
             _ => None,
         })
         .collect()
+}
+
+#[implements("FR-049-AC-5")]
+fn available_spec_ids(spec: &Spec) -> BTreeSet<String> {
+    fn section_ids(
+        document_id: &str,
+        section: &quire_rs::ast::QuireSection,
+        ids: &mut BTreeSet<String>,
+    ) {
+        let prefix = format!("{document_id}-AC-");
+        for table in quire_rs::query::parse_tables(&section.content) {
+            for row in table.rows {
+                if let Some(id) = row.first().and_then(|id| id.strip_prefix(&prefix)) {
+                    if !id.is_empty() && id.chars().all(|digit| digit.is_ascii_digit()) {
+                        ids.insert(format!("{prefix}{id}"));
+                    }
+                }
+            }
+        }
+        for child in &section.children {
+            section_ids(document_id, child, ids);
+        }
+    }
+
+    let mut ids = BTreeSet::new();
+    for document in spec.documents() {
+        if document.id.is_empty() {
+            continue;
+        }
+        ids.insert(document.id.clone());
+        for section in &document.body().sections {
+            section_ids(&document.id, section, &mut ids);
+        }
+    }
+    ids
 }
 
 #[implements("FR-049-AC-6")]
@@ -373,7 +424,7 @@ fn upstream_snapshot(
                 .and_then(toml::Value::as_str)
                 .map(str::to_owned)
         });
-    let snapshot = snapshot_sources(root.path(), &revision).ok()?;
+    let snapshot = snapshot_sources(root.path(), &revision, true).ok()?;
     Some((snapshot, package))
 }
 
@@ -400,7 +451,7 @@ fn git(repo: &Path, args: &[&str]) -> Result<String> {
 #[implements("FR-049-AC-4")]
 #[implements("FR-049-CON-4")]
 fn snapshot(root: &Path, revision: &str) -> Result<SourceSnapshot> {
-    let mut snapshot = snapshot_sources(root, revision)?;
+    let mut snapshot = snapshot_sources(root, revision, false)?;
     for name in ["Cargo.lock", "Cargo.toml"] {
         let path = root.join(name);
         if let Ok(text) = std::fs::read_to_string(path) {
@@ -411,9 +462,13 @@ fn snapshot(root: &Path, revision: &str) -> Result<SourceSnapshot> {
 }
 
 #[implements("FR-049-AC-6")]
-fn snapshot_sources(root: &Path, revision: &str) -> Result<SourceSnapshot> {
+fn snapshot_sources(
+    root: &Path,
+    revision: &str,
+    include_documents: bool,
+) -> Result<SourceSnapshot> {
     let mut files = BTreeMap::new();
-    read_source_files(root, root, &mut files)?;
+    read_source_files(root, root, &mut files, include_documents)?;
     Ok(SourceSnapshot {
         revision: revision.into(),
         files,
@@ -422,23 +477,27 @@ fn snapshot_sources(root: &Path, revision: &str) -> Result<SourceSnapshot> {
 
 #[implements("FR-049-AC-8")]
 #[implements("FR-049-CON-4")]
+#[implements("FR-049-AC-6")]
 fn read_source_files(
     root: &Path,
     current: &Path,
     files: &mut BTreeMap<String, String>,
+    include_documents: bool,
 ) -> Result<()> {
     for entry in std::fs::read_dir(current)? {
         let entry = entry?;
         let path = entry.path();
         let file_type = entry.file_type()?;
         if file_type.is_dir() {
-            read_source_files(root, &path, files)?;
+            read_source_files(root, &path, files, include_documents)?;
         } else if file_type.is_file() {
             let relative = path
                 .strip_prefix(root)?
                 .to_string_lossy()
                 .replace('\\', "/");
-            if source_file(&relative) {
+            if source_file(&relative)
+                || (include_documents && (relative.ends_with(".json") || relative.ends_with(".md")))
+            {
                 if let Ok(text) = std::fs::read_to_string(path) {
                     files.insert(relative, text);
                 }

@@ -32,8 +32,8 @@ fn repository_with_dependency_revisions(
     write(root, "manifest.yaml", module_manifest());
     write(
         root,
-        "spec/FR-900-AC-1.md",
-        "---\nid: FR-900-AC-1\ntitle: Impact fixture\n---\n",
+        "spec/FR-900.md",
+        "---\nid: FR-900\ntitle: Impact fixture\n---\n\n## Acceptance Criteria\n\n| ID | Criterion |\n| --- | --- |\n| FR-900-AC-1 | The fixture criterion is available. |\n",
     );
     write(
         root,
@@ -264,6 +264,15 @@ fn it_impact_does_not_modify_the_analyzed_repository() {
 #[trace("FR-049-AC-5")]
 fn it_impact_tag_findings_are_opt_in_and_fail_only_when_requested() {
     let mut repo = repository(false);
+    let clean = run(&repo, "json", &["--check-tags", "--fail-on-tag-findings"]);
+    assert!(
+        clean.status.success(),
+        "ordinary requirement documents expose criterion IDs: {}",
+        String::from_utf8_lossy(&clean.stderr)
+    );
+    let clean_report: Value = serde_json::from_slice(&clean.stdout).expect("impact JSON");
+    assert!(clean_report["findings"].as_array().unwrap().is_empty());
+
     let root = repo.dir.path();
     write(
         root,
@@ -338,6 +347,12 @@ fn it_impact_reports_dependency_move_chain_and_unavailable_upstream() {
         "src/lib.rs",
         "pub fn changed_api() { let _value = 1; }\npub fn unrelated_api() { let _value = 1; }\n",
     );
+    write(
+        upstream_root,
+        "spec/FR-940.md",
+        "# Upstream API\n\nOld behavior.\n",
+    );
+    write(upstream_root, "schema/adapter.json", "{\"version\":1}\n");
     git(upstream_root, &["init", "-q", "-b", "main"]);
     git(upstream_root, &["config", "user.name", "Impact test"]);
     git(
@@ -352,6 +367,12 @@ fn it_impact_reports_dependency_move_chain_and_unavailable_upstream() {
         "src/lib.rs",
         "pub fn changed_api() { let _value = 2; }\npub fn unrelated_api() { let _value = 2; }\n",
     );
+    write(
+        upstream_root,
+        "spec/FR-940.md",
+        "# Upstream API\n\nNew behavior.\n",
+    );
+    write(upstream_root, "schema/adapter.json", "{\"version\":2}\n");
     git(upstream_root, &["add", "-A"]);
     git(upstream_root, &["commit", "-q", "-m", "upstream head"]);
     let new_revision = git(upstream_root, &["rev-parse", "HEAD"]);
@@ -361,7 +382,7 @@ fn it_impact_reports_dependency_move_chain_and_unavailable_upstream() {
     write(
         root,
         "src/lib.rs",
-        "#[implements(\"FR-900-AC-1\")]\npub fn adapter() { quire_rs::changed_api(); }\n",
+        "#[implements(\"FR-900-AC-1\")]\npub fn adapter() { quire_rs::changed_api(); }\n#[implements(\"FR-900-AC-1\")]\npub fn second_adapter() { quire_rs::changed_api(); }\n",
     );
     write(
         root,
@@ -399,7 +420,16 @@ fn it_impact_reports_dependency_move_chain_and_unavailable_upstream() {
     assert!(movement["upstream_changes"]
         .to_string()
         .contains("changed_api"));
+    assert!(movement["upstream_changes"]
+        .to_string()
+        .contains("spec/FR-940.md"));
+    assert!(movement["upstream_changes"]
+        .to_string()
+        .contains("schema/adapter.json"));
     assert!(movement["local_references"].to_string().contains("adapter"));
+    assert!(movement["local_references"]
+        .to_string()
+        .contains("second_adapter"));
     assert!(movement["selected_tests"]
         .to_string()
         .contains("selected_impact_test"));
@@ -419,6 +449,13 @@ fn it_impact_reports_dependency_move_chain_and_unavailable_upstream() {
     let human = String::from_utf8_lossy(&human.stdout);
     assert!(human.contains("Dependency move"), "{human}");
     assert!(human.contains("changed_api"), "{human}");
+    assert!(human.contains("spec/FR-940.md"), "{human}");
+    assert!(human.contains("schema/adapter.json"), "{human}");
+    assert!(human.contains("upstream_path="), "{human}");
+    assert!(human.contains("upstream_item="), "{human}");
+    assert!(human.contains("adapter"), "{human}");
+    assert!(human.contains("second_adapter"), "{human}");
+    assert!(human.contains("call_path="), "{human}");
     assert!(human.contains("Uncovered upstream change"), "{human}");
 
     let unavailable = run(
