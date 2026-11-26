@@ -20,6 +20,13 @@ edge_types:
   protects: {description: A control protects a connection, category: traceability}
   delivers_to: {description: Connection delivers to a sink, category: traceability}
 traceability:
+  required_relations:
+  - name: connection-has-classification
+    from: Connection
+    edges: [classified-as]
+    to: [Classification]
+    direction: outgoing
+    check: connection-has-classification
   flow_rules:
   - name: health-across-untrusted-boundary
     subject: [Connection]

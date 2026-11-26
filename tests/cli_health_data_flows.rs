@@ -1352,6 +1352,8 @@ traceability:
             .count(),
         1
     );
+    assert!(human.contains("(warning)"));
+    assert!(human.contains("Protect health data when it crosses an untrusted boundary."));
     assert!(human.contains("CLS-1") && human.contains("BOUNDARY-1"));
     assert!(human.contains("encrypt-in-transit"));
 
@@ -1408,6 +1410,7 @@ traceability:
 #[trace("FR-044-AC-8")]
 fn flow_mode_returns_no_denials_when_health_flow_inputs_are_absent() {
     let (temp, scope) = world("", "health", None, false);
+    fs::remove_file(scope.join("spec/CONN-1.md")).unwrap();
     let module = temp.path().join("module");
     write(
         &module,
