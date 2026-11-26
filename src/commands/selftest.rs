@@ -751,12 +751,20 @@ fn execute_case_in_sandbox(
 }
 
 #[cfg(target_os = "linux")]
+#[implements("FR-047-AC-6")]
 fn execute_linux_case(
     _case: &CaseResource,
     temp: &TempDir,
     home: &TempDir,
 ) -> anyhow::Result<ProcessOutput> {
     let executable = std::env::current_exe().context("resolving quire executable")?;
+    let sandbox_executable = temp.path().join("quire");
+    fs::copy(&executable, &sandbox_executable).with_context(|| {
+        format!(
+            "staging quire executable for Linux sandbox at {}",
+            sandbox_executable.display()
+        )
+    })?;
     let audit_dir =
         tempfile::tempdir_in("/tmp").context("creating runner-owned Linux audit directory")?;
     let trace_path = audit_dir.path().join("trace");
@@ -778,6 +786,9 @@ fn execute_linux_case(
         ])
         .arg(temp.path())
         .arg("/var/tmp")
+        .args(["--ro-bind"])
+        .arg(&sandbox_executable)
+        .arg("/var/tmp/quire")
         .args(["--ro-bind"])
         .arg(home.path())
         .arg("/home")
@@ -805,7 +816,7 @@ fn execute_linux_case(
             "/var/tmp",
             "--setenv",
             "QUIRE",
-            executable.to_string_lossy().as_ref(),
+            "/var/tmp/quire",
             "--setenv",
             "PATH",
         ])

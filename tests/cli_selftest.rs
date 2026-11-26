@@ -50,7 +50,7 @@ fn unknown_case_is_rejected_before_a_result_file_is_created() {
     );
 }
 
-#[trace("FR-047-AC-2", "FR-047-AC-4")]
+#[trace("FR-047-AC-2", "FR-047-AC-4", "FR-047-AC-6")]
 #[test]
 fn explicit_output_is_the_only_run_record_stream_with_empty_home() {
     let dir = tempfile::tempdir().expect("temporary directory");
