@@ -751,6 +751,7 @@ fn execute_case_in_sandbox(
 }
 
 #[cfg(target_os = "linux")]
+#[implements("FR-047-AC-2")]
 fn execute_linux_case(
     _case: &CaseResource,
     temp: &TempDir,
@@ -781,9 +782,10 @@ fn execute_linux_case(
         .args(["--ro-bind"])
         .arg(home.path())
         .arg("/home")
+        .args(["--tmpfs", "/tmp", "--dir", "/tmp/quire", "--ro-bind"])
+        .arg(&executable)
+        .arg("/tmp/quire/quire")
         .args([
-            "--tmpfs",
-            "/tmp",
             "--remount-ro",
             "/tmp",
             "--dev",
@@ -805,7 +807,7 @@ fn execute_linux_case(
             "/var/tmp",
             "--setenv",
             "QUIRE",
-            executable.to_string_lossy().as_ref(),
+            "/tmp/quire/quire",
             "--setenv",
             "PATH",
         ])
