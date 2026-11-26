@@ -99,7 +99,10 @@ fn assert_rejected(dir: &TempDir, reason: &str) {
             );
         }
         if projected {
-            assert!(strict_report["untracked_symbols"].as_array().unwrap().is_empty());
+            assert!(strict_report["untracked_symbols"]
+                .as_array()
+                .unwrap()
+                .is_empty());
         }
         assert!(String::from_utf8_lossy(&strict.stderr).contains(reason));
     }
@@ -361,7 +364,10 @@ fn matrix_retains_retired_status_without_hiding_a_live_gap() {
     assert_eq!(out.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&out.stderr).contains("1 untagged criterion(s)"));
     let payload: Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(payload, plain_payload, "--strict must retain the full matrix");
+    assert_eq!(
+        payload, plain_payload,
+        "--strict must retain the full matrix"
+    );
     let criteria = payload["coverage_matrix"]["entries"][0]["criteria"]
         .as_array()
         .unwrap();
