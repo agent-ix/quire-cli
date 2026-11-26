@@ -2,10 +2,12 @@
 
 mod common;
 
+#[cfg(target_os = "linux")]
 use std::fs;
 
 use common::quire;
 use ix_trace_rs::trace;
+#[cfg(target_os = "linux")]
 use serde_json::Value;
 
 #[trace("FR-047-AC-1", "FR-047-AC-10")]
@@ -51,6 +53,8 @@ fn unknown_case_is_rejected_before_a_result_file_is_created() {
 }
 
 #[trace("FR-047-AC-2", "FR-047-AC-4", "FR-047-AC-6")]
+// Execution-dependent self-test cases need the Linux containment sandbox.
+#[cfg(target_os = "linux")]
 #[test]
 fn explicit_output_is_the_only_run_record_stream_with_empty_home() {
     let dir = tempfile::tempdir().expect("temporary directory");
@@ -96,6 +100,8 @@ fn explicit_output_is_the_only_run_record_stream_with_empty_home() {
 }
 
 #[trace("FR-047-AC-11")]
+// Execution-dependent self-test cases need the Linux containment sandbox.
+#[cfg(target_os = "linux")]
 #[test]
 fn retained_anomaly_set_joins_only_the_two_owning_repositories() {
     let dir = tempfile::tempdir().expect("temporary directory");

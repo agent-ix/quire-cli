@@ -528,9 +528,9 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "form_urlencoded"
-version = "1.2.2"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
+checksum = "afa489199eaffb1211795df1c6236ce1ad0d41a6fa45250add73e3b02420f06e"
 dependencies = [
  "percent-encoding",
 ]
@@ -779,6 +779,16 @@ dependencies = [
  "gix-hash",
  "hashbrown 0.17.1",
  "parking_lot",
+]
+
+[[package]]
+name = "gix-imara-diff"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23347fa4a29a440eebf045d0bc21da465c0dc70434c2a4bcdfcc658f16c9e27e"
+dependencies = [
+ "bstr",
+ "hashbrown 0.17.1",
 ]
 
 [[package]]
@@ -1717,6 +1727,7 @@ dependencies = [
  "gix-discover",
  "gix-glob",
  "gix-hash",
+ "gix-imara-diff",
  "gix-object",
  "gix-odb",
  "gix-ref",
@@ -1740,7 +1751,7 @@ dependencies = [
 [[package]]
 name = "quire-code-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=d7d418fa2727f7de87a16dfec5b38ada7d9ee776#d7d418fa2727f7de87a16dfec5b38ada7d9ee776"
+source = "git+https://github.com/agent-ix/quire-rs?rev=c5a5224b155507554a5c27d7e82009a08014711d#c5a5224b155507554a5c27d7e82009a08014711d"
 dependencies = [
  "quire-code-parse",
 ]
@@ -1787,7 +1798,7 @@ dependencies = [
 [[package]]
 name = "quire-rs"
 version = "0.63.2"
-source = "git+https://github.com/agent-ix/quire-rs?rev=d7d418fa2727f7de87a16dfec5b38ada7d9ee776#d7d418fa2727f7de87a16dfec5b38ada7d9ee776"
+source = "git+https://github.com/agent-ix/quire-rs?rev=c5a5224b155507554a5c27d7e82009a08014711d#c5a5224b155507554a5c27d7e82009a08014711d"
 dependencies = [
  "agent-ix-semantic-schema",
  "globset",
@@ -2438,9 +2449,9 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "url"
-version = "2.5.8"
+version = "2.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+checksum = "f00cd2407bb42c0ef17be88d4cf020f5cceffd121665bac9b8b9493a369b3b1a"
 dependencies = [
  "form_urlencoded",
  "idna",
