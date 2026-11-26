@@ -59,7 +59,7 @@ This document is the **top-level requirements artifact** for the repository.
 ### 2.1 In Scope
 
 This specification governs:
-- The `quire` binary's subcommand surface (`parse`, `extract`, `validate`, `schema`, `lookup`, `edit`, `lint`) — **`render` is removed** (see §2bis)
+- The `quire` binary's subcommand surface (`parse`, `extract`, `validate`, `schema`, `lookup`, `edit`, `lint`, `impact`) — **`render` is removed** (see §2bis)
 - Argument parsing, exit codes, and stdout/stderr conventions
 - Path-safety checks on user-supplied `--module` and positional document arguments (and `edit` write targets)
 - JSON encoding of `QuireDocument`, `ExtractionResult`, `HarvestedEdge[]` on stdout
@@ -165,6 +165,7 @@ removed — see §2bis):
 - `quire parse <doc.md|->` — emit a `QuireDocument` (heading tree, frontmatter, byte slices) as JSON on stdout. Wraps `quire_rs::parse_document` (consumer of `quire-rs` [FR-005](./functional/FR-005-path-safety.md) / [FR-006](./functional/FR-006-io-contract.md) / [FR-007](./functional/FR-007-exit-codes.md) / [FR-008](./functional/FR-008-json-output-encoding.md)).
 - `quire extract <doc.md> --module <path>` — run the body-extraction DSL declared in the module against the document and emit `{extraction, edges}` as JSON. Wraps `quire_rs::extract` + `quire_rs::harvest_edges` (consumer of `quire-rs` [FR-011](./functional/FR-011-lookup-subcommand.md) + [FR-015](./functional/FR-015-fix-subcommand.md)).
 - `quire validate <doc.md|glob|->... [--scope <dir>] [--module <path>] [--archetype <name>]` — **markdown-only** structural validation; exit 0 on valid, 1 with structured errors on stderr otherwise. In scoped mode, relative globs are resolved under `--scope` and frontmatter `type` selects the archetype. Wraps `quire_rs::validate_document` (consumer of `quire-rs` FR-032). A `--okf` flag ([FR-014](./functional/FR-014-validate-okf-bundle.md)) validates a directory as an OKF bundle under the permissive posture (unknown types / broken `ix://` links / index-completeness gaps warn; untyped docs are hard errors) via `quire_rs::validate_bundle_at`.
+- `quire impact --base <revision> --head <revision> [--repo <path>] [--format human|json]` — present quire-rs FR-099 source-change analysis, including selected test filters, related symbols, uncovered areas, and reason chains. Optional caller following, tag-check exit behavior, and dependency-move inputs are specified by [FR-049](./functional/FR-049-impact-subcommand.md); the CLI reads local snapshots and runs no build or test.
 - `quire schema <archetype> --module <path>` — emit the asserts-based input contract (FR-029) as JSON.
 - `quire export <input> --to pdf|docx --output <path> [--kind matrix|rmm|soup|table] [--mmdr <path>]` — render a Markdown artifact or a JSON report as PDF or DOCX ([FR-031](./functional/FR-031-export-subcommand.md)); pandoc, typst and the Mermaid renderer `mmdr` ([FR-042](./functional/FR-042-export-mermaid-diagrams.md)) run only through `engineering-assurance producer-execute` ([FR-032](./functional/FR-032-export-converter-execution.md), [NFR-010](./non-functional/NFR-010-export-single-converter-single-path.md)); failures per [FR-033](./functional/FR-033-export-errors.md). Document identity, the default and organisation templates, clock-free output, the approval block, bundles and their errors are [FR-034](./functional/FR-034-document-identity.md) through [FR-040](./functional/FR-040-export-template-and-identity-errors.md) and [NFR-011](./non-functional/NFR-011-export-reproducibility.md).
 - `quire lookup` / `quire edit` — read / byte-splice a section or stable block (consumer of `quire-rs` query + `update_section`/`update_block`).
@@ -356,9 +357,11 @@ FRs are verified by:
 
 ## 14. Lifecycle Status
 
-BASELINED — released. The surface is seven subcommands: the six in §3.1
+BASELINED — released. The existing surface has seven subcommands: the six in §3.1
 (`parse`, `extract`, `lookup`, `edit`, `validate`, `schema`) plus `lint`
-([FR-013](./functional/FR-013-lint-subcommand.md)); `render` is removed (§2bis). Under SemVer the
+([FR-013](./functional/FR-013-lint-subcommand.md)); `render` is removed (§2bis).
+The source-change impact command is specified by [FR-049](./functional/FR-049-impact-subcommand.md)
+and extends the surface when implemented. Under SemVer the
 subcommand surface, exit codes, and JSON output schemas are the stable contract
 ([NFR-006](./non-functional/NFR-006-cli-stability.md)). Further changes follow §13 change management.
 
