@@ -28,6 +28,8 @@ relationships:
     type: rates_feature
   - target: "ix://agent-ix/quire-cli/FR-047"
     type: rates_feature
+  - target: "ix://agent-ix/quire-cli/FR-049"
+    type: rates_feature
 ---
 # Quire CLI proposed high process-risk supplier ratings
 
@@ -51,6 +53,7 @@ These features can affect the correctness or interpretation of validation, trace
 | FR-038 | The approval block can present an unverified signed-approval verdict as approval. |
 | FR-045 | Trace output can claim a formalizes relation that is not present. |
 | FR-047 | Self-test execution can report a selected installed-binary check passed when it failed. |
+| FR-049 | The impact report can mark selection complete while omitting an affected test or source-to-test reason chain, falsely claiming impact-trace completeness. |
 
 ## Assurance activities
 
@@ -66,3 +69,4 @@ These features can affect the correctness or interpretation of validation, trace
 | Verify approval blocks from controlled valid, invalid, unsigned, and untrusted verdict fixtures against signer and verdict source data. | FR-038-AC-1 through FR-038-AC-21 |
 | Run trace and symbol fixtures with known formalizes edges and compare forward and inverse reports with the source. | FR-045-AC-1 through FR-045-AC-10 |
 | Run known passing and failing embedded cases; seed denied writes and verify the run record reports the correct case status and path. | FR-047-AC-1 through FR-047-AC-10 |
+| Run controlled source-change fixtures with known symbol-to-test paths and one deliberately unmapped change; compare selected tests and reason chains with the source and verify the unmapped area remains explicit. | FR-049-AC-1, FR-049-AC-3 |
