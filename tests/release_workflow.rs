@@ -131,4 +131,9 @@ fn tag_attestation_fails_closed_without_retained_release_evidence() {
         &Value::String("build".to_owned()),
         "attestation must depend on the fail-closed build job"
     );
+    let condition = attest.get("if").and_then(Value::as_str);
+    assert!(
+        condition.is_none() || condition == Some("success()"),
+        "attestation must retain the default success gate or use exactly success(), got {condition:?}"
+    );
 }
