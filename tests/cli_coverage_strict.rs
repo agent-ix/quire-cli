@@ -82,24 +82,33 @@ fn has_reason(report: &Value, reason: &str) -> bool {
 }
 
 fn assert_rejected(dir: &TempDir, reason: &str) {
-    let (plain, report) = run(dir, false, false);
+    let (plain, plain_report) = run(dir, false, false);
     assert!(plain.status.success());
-    assert_eq!(report["totals"]["total"], 1);
-    assert!(report["unbacked_rows"].as_array().unwrap().is_empty());
-    assert!(report["status_lies"].as_array().unwrap().is_empty());
-    assert!(has_reason(&report, reason), "{report}");
+    assert_eq!(plain_report["totals"]["total"], 1);
+    assert!(plain_report["unbacked_rows"].as_array().unwrap().is_empty());
+    assert!(plain_report["status_lies"].as_array().unwrap().is_empty());
+    assert!(has_reason(&plain_report, reason), "{plain_report}");
     for projected in [false, true] {
-        let (strict, report) = run(dir, true, projected);
+        let (strict, strict_report) = run(dir, true, projected);
         assert_eq!(strict.status.code(), Some(1), "strict certified {reason}");
-        assert!(has_reason(&report, reason));
+        assert!(has_reason(&strict_report, reason));
+        if !projected {
+            assert_eq!(
+                strict_report, plain_report,
+                "--strict must retain the complete requested report"
+            );
+        }
         if projected {
-            assert!(report["untracked_symbols"].as_array().unwrap().is_empty());
+            assert!(strict_report["untracked_symbols"]
+                .as_array()
+                .unwrap()
+                .is_empty());
         }
         assert!(String::from_utf8_lossy(&strict.stderr).contains(reason));
     }
 }
 
-#[trace("FR-017-AC-22")]
+#[trace("FR-017-AC-22", "FR-007-AC-7")]
 #[test]
 fn it150_strict_rejects_unread_status_and_preserves_the_report() {
     let dir = fixture(true);
@@ -291,7 +300,7 @@ fn strict_undeclared_and_misspelled_retirement_values_stay_live() {
     }
 }
 
-#[trace("FR-026-AC-7", "FR-026-AC-10")]
+#[trace("FR-026-AC-7", "FR-026-AC-10", "FR-007-AC-7")]
 #[test]
 fn matrix_retains_retired_status_without_hiding_a_live_gap() {
     let dir = retired_fixture(true, &tombstone_row("Withdrawn"));
@@ -332,6 +341,17 @@ fn matrix_retains_retired_status_without_hiding_a_live_gap() {
             tombstone_row("Withdrawn")
         ),
     );
+    let plain = common::quire()
+        .arg("matrix")
+        .arg("--scope")
+        .arg(dir.path())
+        .arg("--module")
+        .arg(dir.path().join("m"))
+        .args(["--format", "json"])
+        .output()
+        .unwrap();
+    assert!(plain.status.success());
+    let plain_payload: Value = serde_json::from_slice(&plain.stdout).unwrap();
     let out = common::quire()
         .arg("matrix")
         .arg("--scope")
@@ -344,6 +364,10 @@ fn matrix_retains_retired_status_without_hiding_a_live_gap() {
     assert_eq!(out.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&out.stderr).contains("1 untagged criterion(s)"));
     let payload: Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(
+        payload, plain_payload,
+        "--strict must retain the full matrix"
+    );
     let criteria = payload["coverage_matrix"]["entries"][0]["criteria"]
         .as_array()
         .unwrap();

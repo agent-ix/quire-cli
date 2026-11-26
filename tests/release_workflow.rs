@@ -103,3 +103,37 @@ fn manual_publish_workflow_stays_independent_of_tag_attestation() {
         "tag-attestation must invoke the Engineering Assurance reusable workflow"
     );
 }
+
+#[trace("FR-022-AC-8")]
+#[test]
+fn tag_attestation_fails_closed_without_retained_release_evidence() {
+    let workflow = parse_workflow(TAG_ATTESTATION_WORKFLOW);
+    let jobs = required(&workflow, "jobs");
+    let build_steps = required(required(jobs, "build"), "steps")
+        .as_sequence()
+        .expect("build steps must be a sequence");
+    let fail_closed = build_steps
+        .iter()
+        .find(|step| {
+            step.get("name").and_then(Value::as_str)
+                == Some("Fail closed without retained evidence")
+        })
+        .expect("tag-attestation must fail closed when retained evidence is absent");
+    let command = required_str(fail_closed, "run");
+    assert!(
+        command.contains("no retained release evidence store") && command.contains("exit 1"),
+        "the no-evidence path must fail the build job: {command}"
+    );
+
+    let attest = required(jobs, "attest");
+    assert_eq!(
+        required(attest, "needs"),
+        &Value::String("build".to_owned()),
+        "attestation must depend on the fail-closed build job"
+    );
+    let condition = attest.get("if").and_then(Value::as_str);
+    assert!(
+        condition.is_none() || condition == Some("success()"),
+        "attestation must retain the default success gate or use exactly success(), got {condition:?}"
+    );
+}

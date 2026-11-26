@@ -25,11 +25,12 @@ shared `agent-ix/nodejs-actions/publish-native-npm` action (ADR-0003), which
 owns package layout, the launcher, and the `npm publish` calls. This repository
 contains no npm packaging or launcher implementation.
 
-The additive tag-attestation workflow also supplies this repository's retained
-release-test evidence to the shared Engineering Assurance workflow. Quoin owns
-the evidence-store format, run-record validation, and Test Result export; this
-requirement owns the release-suite declaration for `quire-cli` and the workflow
-handoff of that store.
+Release-test evidence is prepared locally for each release candidate. The
+release owner runs the documented full test suite at the candidate revision,
+records the suite results, requirement coverage, uncovered requirements, known
+defects, and Quire/Quoin versions in a report, then attaches that report to the
+release manually. This repository does not automate report attachment or
+release attestation.
 
 Supported platforms are `linux-x64`, `linux-arm64`, `darwin-arm64`, and
 `win32-x64`. The Linux binaries are fully static musl builds, so their packages
@@ -37,30 +38,16 @@ carry no libc restriction and install on glibc and musl hosts alike.
 
 ## Behavior
 
-- The repository SHALL maintain `spec/evidence/suites.md` with one declared
-  release-verification suite, `SUITE-001`, whose command is `make evidence`
-  and whose test run is `cargo nextest run --workspace --locked --all-features
-  --profile evidence`.
-- The repository SHALL keep its `spec/evidence/suites.md` declaration and
-  `spec/evidence/bindings.json` in source control as the registry for this
-  suite.
-- The release-verification binding registry SHALL be non-empty.
-- The release-verification binding registry SHALL bind every test-based
-  criterion in FR-022-AC-4 through FR-022-AC-8 to at least one `SUITE-001` test
-  whose trace includes that criterion id.
-- The `SUITE-001` run SHALL record the test outcomes and trace bindings in a
-  Quoin evidence root under `spec/evidence`; the run record is generated for
-  the checked-out tag and is not committed as historical state.
-- When a tag push matches `v*`, the tag-attestation build job SHALL create that evidence
-  root for the checked-out tag and upload the complete root as the
-  `release-evidence` workflow artifact.
-- The tag-attestation job with `id-token: write` SHALL execute no repository
-  code.
-- When the tag-attestation workflow calls the Engineering Assurance reusable
-  workflow, it SHALL pass the `release-evidence` artifact as the
-  `evidence_artifact` input.
-- If the evidence root is absent or invalid, or the run is failed or stale, the
-  workflow SHALL write no release attestation.
+- For each release candidate, the release owner SHALL run `make test` at the
+  exact candidate revision and prepare a report containing test results,
+  requirement coverage, uncovered requirements, known defects, and the exact
+  Quire and Quoin versions used.
+- When the release owner prepares a release, the release owner SHALL attach the
+  report manually before publishing. The attachment is a human release step,
+  not an automated workflow result.
+- The tag-attestation workflow SHALL fail closed when retained release
+  evidence is unavailable; it SHALL NOT write a release attestation or passing
+  Test Result from absent evidence.
 
 ## Acceptance Criteria
 
@@ -71,22 +58,14 @@ carry no libc restriction and install on glibc and musl hosts alike.
 | FR-022-AC-3 | The release workflow publishes only when dispatched with `publish` true, authenticates to public npm by OIDC Trusted Publishing, and passes the four built targets as `artifacts/<rust-target>/quire[.exe]`. | Inspection |
 | FR-022-AC-4 | `quire-dist verify-binary` fails unless the built executable's `--version` equals the release version, and the release workflow runs it for each target before packaging. | Test |
 | FR-022-AC-5 | A workflow-parsing integration test confirms `.github/workflows/release.yml` remains `workflow_dispatch`-only and both GitHub Release creation and npm publication remain gated by `inputs.publish`; the additive `.github/workflows/tag-attestation.yml` runs on `v*` tag pushes and invokes the Engineering Assurance reusable attestation workflow independently of the manual release workflow. | Test |
-| FR-022-AC-6 | `spec/evidence/suites.md` declares `SUITE-001` as `make evidence`, running `cargo nextest run --workspace --locked --all-features --profile evidence`; the committed `bindings.json` is non-empty and maps every test-based criterion in FR-022-AC-4 through FR-022-AC-8 to at least one `SUITE-001` test whose trace includes that criterion id. Quoin records the run outcomes in `spec/evidence/runs/` for the checked-out tag. | Test |
-| FR-022-AC-7 | When a tag push matches `v*`, the tag-attestation build job creates the `SUITE-001` evidence root for the checked-out tag and uploads it as `release-evidence`; the id-token-bearing attestation job passes that artifact as `evidence_artifact` to the Engineering Assurance reusable workflow and contains no checkout or repository-code execution. | Test |
-| FR-022-AC-8 | An absent or invalid evidence root, or a failed or stale `SUITE-001` run, results in a failed tag-attestation workflow with no release attestation written; the run is never exported as a passing Test Result. | Test |
-| FR-022-AC-9 | For Linux assets, before publishing the npm packages `release.yml` runs `quire selftest --run` against the just-built binary; a non-zero result fails the release job. For macOS and Windows assets, the workflow explicitly skips self-test execution and records it as not run; neither skip is reported as a pass. | Test |
+| FR-022-AC-6 | At the exact release candidate revision, the release owner runs `make test` and prepares a report containing test results, requirement coverage, uncovered requirements, known defects, and the Quire and Quoin versions used. | Demonstration |
+| FR-022-AC-7 | The release owner attaches the completed report to the release manually before publishing; no workflow attachment or attestation is claimed. | Inspection |
+| FR-022-AC-8 | If retained release evidence is unavailable, the tag-attestation workflow fails closed without writing a release attestation or passing Test Result. | Test |
+| FR-022-AC-9 | (WITHDRAWN by owner decision on 2026-11-26; retained for history and never reused.) | Withdrawn |
 
-> **EA-122 scope note:** The repository-specific release-suite declaration and
-> artifact handoff are part of this distribution requirement. Quoin continues
-> to own the store schema, recording semantics, and export behavior. The
-> workflow does not accept a caller-built Test Result. The suite declaration
-> and binding registry are committed; each tag run record is retained only in
-> its `release-evidence` artifact and is not committed as historical state.
+> The full-suite report and release attachment are handled by the release owner;
+> neither step is provided by GitHub Actions in this repository.
 
 ## Dependencies
 
-- **Upstream**: ADR-0003; the shared `publish-native-npm` action; Quoin
-  [FR-030](ix://agent-ix/quoin/FR-030) (evidence-store recording) and
-  [FR-185](ix://agent-ix/quoin/FR-185) (Test Result export); Engineering
-  Assurance [FR-070](ix://agent-ix/engineering-assurance/FR-070) (reusable
-  release workflow and evidence-artifact input).
+- **Upstream**: ADR-0003; the shared `publish-native-npm` action.

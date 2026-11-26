@@ -545,7 +545,7 @@ fn a_converter_behind_a_symbolic_link_is_passed_as_its_target() {
     assert!(stderr(&result).contains("pandoc"));
 }
 
-#[trace("FR-032-AC-4", "FR-033-AC-4")]
+#[trace("FR-032-AC-4", "FR-033-AC-4", "FR-007-AC-9")]
 #[test]
 fn pandoc_failure_exits_4_with_its_stderr_and_no_typst_request() {
     let rig = Rig::new();
@@ -582,7 +582,7 @@ fn exit_zero_without_the_output_exits_4_and_removes_the_root() {
     assert!(!Path::new(&root).exists());
 }
 
-#[trace("FR-033-AC-1", "FR-033-AC-2", "FR-033-AC-3")]
+#[trace("FR-033-AC-1", "FR-033-AC-2", "FR-033-AC-3", "FR-007-AC-9")]
 #[test]
 fn a_missing_tool_exits_3_naming_it_and_its_flag_before_any_conversion() {
     let rig = Rig::new();
@@ -6530,7 +6530,7 @@ fn the_filter_fails_a_count_mismatch_with_a_message_distinct_from_a_block_failur
     assert!(source.contains("'mermaid block ' .. k .. ': "));
 }
 
-#[trace("FR-042-AC-4")]
+#[trace("FR-042-AC-4", "FR-007-AC-9")]
 #[test]
 fn a_block_that_fails_to_render_stops_the_export_and_names_the_block() {
     let rig = Rig::new();
@@ -6585,7 +6585,7 @@ fn a_missing_or_empty_png_fails_the_export_naming_the_block() {
     }
 }
 
-#[trace("FR-042-AC-6")]
+#[trace("FR-042-AC-6", "FR-007-AC-9")]
 #[test]
 fn a_missing_mmdr_exits_3_naming_it_and_its_flag_before_any_request() {
     let rig = Rig::new();

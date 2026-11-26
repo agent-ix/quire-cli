@@ -17,7 +17,7 @@ const SIMPLE_DOC: &str = "---\nid: FR-001\ntype: FR\n---\n# [FR-001] Hi\n";
 // byte-identical to `parse <file>` on the same document — the criterion is an
 // equivalence, so asserting only "the id appears" would pass on a stdin path
 // that dropped every section.
-#[trace("FR-002-AC-2")]
+#[trace("FR-002-AC-2", "FR-006-AC-4")]
 #[test]
 fn it_011_parse_dash_reads_stdin() {
     let mut child = quire()

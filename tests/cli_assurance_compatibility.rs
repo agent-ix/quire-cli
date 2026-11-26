@@ -194,7 +194,7 @@ fn assert_record_population(value: &Value) {
     );
 }
 
-#[trace("FR-020-AC-9")]
+#[trace("FR-020-AC-9", "FR-020-CON-5")]
 #[test]
 fn it_145_released_payloads_preserve_their_producer_identity_but_current_reader_fails_closed() {
     let legacy_032 = parse(LEGACY_032_046);
