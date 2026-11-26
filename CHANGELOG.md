@@ -9,6 +9,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.53.2] — 2026-11-26
+
+### Added
+
+- Updated the quire-rs dependency to 0.63.2.
+
 ## [0.53.1] — 2026-11-25
 
 ### Changed
