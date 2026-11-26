@@ -24,11 +24,14 @@ Install Quire CLI and prepare at least two Markdown documents with headings. PDF
      --to pdf \
      --bundle-title "Release Dossier" \
      --bundle-id BND-7 \
+     --source-rev v0.53.1 \
      --release v0.53.1 \
      --output build/release-dossier.pdf
    ```
 
-   This example uses the tag for the source documents. For your own documents, use a tag from their source repository when the files do not carry a version field. Use this command to create a Word document:
+   `--source-rev` selects the source commit. `--release` labels the exported bundle with a tag from that source repository. This example uses the same release tag for both. For your own documents, choose a tag that contains the input files. When the tag is an ancestor of the current checkout, later commits must change files under an input directory.
+
+   Use this command to create a Word document:
 
    ```sh
    quire export \
@@ -38,6 +41,7 @@ Install Quire CLI and prepare at least two Markdown documents with headings. PDF
      --to docx \
      --bundle-title "Release Dossier" \
      --bundle-id BND-7 \
+     --source-rev v0.53.1 \
      --release v0.53.1 \
      --output build/release-dossier.docx
    ```
