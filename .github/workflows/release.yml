@@ -60,6 +60,8 @@ jobs:
             src
             benches
             tools
+            selftest
+            spec/anomalies
 
       - name: Authenticate cargo git fetch (private quire-rs)
         shell: bash
