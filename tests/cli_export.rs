@@ -5,6 +5,10 @@
 //! typst, written into a temporary directory, so the repository holds no
 //! converter. The ignored tests need the real tools and fail naming the missing
 //! one.
+//! The producer-execute containment path is Linux-only, so this suite is
+//! skipped on other hosts.
+
+#![cfg(target_os = "linux")]
 
 mod common;
 
