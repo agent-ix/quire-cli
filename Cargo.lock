@@ -1222,7 +1222,7 @@ source = "git+https://github.com/agent-ix/ix-trace-rs?rev=2ce4ebf47f726b9d763882
 [[package]]
 name = "ix-trace-rs"
 version = "0.1.2"
-source = "git+https://github.com/agent-ix/ix-trace-rs?tag=v0.1.2#e29cc07f70394ff018884d12406c1e150bded5f4"
+source = "git+https://github.com/agent-ix/ix-trace-rs?branch=main#3cd3285055e32e4c08fb124d76e489b9dd412b6b"
 
 [[package]]
 name = "jiff"
@@ -1751,7 +1751,7 @@ dependencies = [
 [[package]]
 name = "quire-code-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=c5a5224b155507554a5c27d7e82009a08014711d#c5a5224b155507554a5c27d7e82009a08014711d"
+source = "git+https://github.com/agent-ix/quire-rs?rev=8fea9b4ee476ba2c1bc65e2e1b0c28d2664c9467#8fea9b4ee476ba2c1bc65e2e1b0c28d2664c9467"
 dependencies = [
  "quire-code-parse",
 ]
@@ -1798,7 +1798,7 @@ dependencies = [
 [[package]]
 name = "quire-rs"
 version = "0.63.2"
-source = "git+https://github.com/agent-ix/quire-rs?rev=c5a5224b155507554a5c27d7e82009a08014711d#c5a5224b155507554a5c27d7e82009a08014711d"
+source = "git+https://github.com/agent-ix/quire-rs?rev=8fea9b4ee476ba2c1bc65e2e1b0c28d2664c9467#8fea9b4ee476ba2c1bc65e2e1b0c28d2664c9467"
 dependencies = [
  "agent-ix-semantic-schema",
  "globset",
