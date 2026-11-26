@@ -1074,6 +1074,7 @@ fn line_prefix(line: Option<usize>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
 
     #[test]
     fn scoped_roots_include_scope_and_default_install_root() {
@@ -1091,6 +1092,7 @@ mod tests {
         }
     }
 
+    #[trace("FR-004-AC-24")]
     #[test]
     fn external_named_file_uses_its_parent_as_default_scope() {
         let external = tempfile::tempdir().expect("temporary external document root");
