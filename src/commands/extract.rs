@@ -8,19 +8,22 @@
 //! `--archetype`. The DSL is read from
 //! `CompiledArchetype::body_extraction()` — no manifest re-read.
 //!
-//! Per F-5 (plan.md), this command does NOT auto-validate the document.
+//! Default mode does not auto-validate the document. Semantic mode surfaces
+//! the engine semantic extractor's typed records and refusals.
 
 use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Parser;
+use ix_trace_rs::implements;
 use serde::Serialize;
 
 use quire_cli::io::{self, emit_quire_diagnostics};
-use quire_cli::safety;
 use quire_rs::{harvest_edges, LoadedDocument};
 
 use super::Ctx;
+
+mod semantic;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -28,8 +31,16 @@ pub struct Args {
     pub doc: String,
 
     /// Module directory (containing `manifest.yaml`).
-    #[arg(long, value_name = "PATH")]
-    pub module: String,
+    #[arg(long, value_name = "PATH", required = true)]
+    pub module: Vec<String>,
+
+    /// Include the engine semantic record, resolved against explicit corpus members.
+    #[arg(long, requires = "repo")]
+    pub semantic: bool,
+
+    /// Corpus member `<ORG/REPO>=<DIR>` supplying semantic reference targets.
+    #[arg(long, value_name = "ORG/REPO=DIR", value_parser = super::corpus_input::parse_repo, requires = "semantic")]
+    pub repo: Vec<super::corpus_input::RepoArg>,
 
     /// Override the archetype lookup; default reads frontmatter `type`.
     #[arg(long, value_name = "NAME")]
@@ -40,6 +51,8 @@ pub struct Args {
 struct ExtractEnvelope<'a> {
     extraction: ExtractionShape<'a>,
     edges: Vec<EdgeShape>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    semantic: Option<quire_rs::SemanticExtraction>,
 }
 
 #[derive(Serialize)]
@@ -53,10 +66,21 @@ struct EdgeShape {
     r#type: String,
 }
 
+#[implements(
+    "FR-003-AC-1",
+    "FR-003-AC-2",
+    "FR-003-AC-4",
+    "FR-003-AC-5",
+    "FR-003-AC-6",
+    "FR-003-AC-7",
+    "FR-003-AC-8",
+    "FR-003-AC-9",
+    "FR-003-AC-10"
+)]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
-    let module = safety::validate_module_path(&args.module)
-        .with_context(|| format!("validating --module '{}'", args.module))?;
-
+    if args.semantic && args.doc == "-" {
+        invalid_request!("--semantic requires a file loaded from a declared --repo member");
+    }
     let text = io::read_text(&args.doc)
         .map_err(super::failure::input)
         .with_context(|| format!("reading '{}'", args.doc))?;
@@ -83,13 +107,13 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         },
     };
 
-    let registry = super::load_module_registry(ctx, &module)?;
+    let registry = super::load_module_set_registry(ctx, &args.module)?;
 
     let compiled = registry.archetype(&archetype_name).ok_or_else(|| {
         invalid_error!(
             "archetype '{}' not registered in module '{}'",
             archetype_name,
-            module.display()
+            args.module.join(", ")
         )
     })?;
     let dsl = compiled.body_extraction().ok_or_else(|| {
@@ -98,6 +122,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             archetype_name
         )
     })?;
+
+    let semantic = if args.semantic {
+        Some(semantic::extract(ctx, &args, &registry, compiled, &text)?)
+    } else {
+        None
+    };
 
     let extraction = quire_rs::extract(&parsed, dsl)
         .map_err(super::failure::invalid)
@@ -125,6 +155,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             records: &extraction.records,
         },
         edges,
+        semantic,
     };
 
     // #68: provenance is appended to the envelope, not folded into the inner
