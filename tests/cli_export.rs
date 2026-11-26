@@ -1073,8 +1073,8 @@ fn the_default_template_is_generated_into_the_capability_root() {
     assert!(template.contains("paper: \"a4\""));
     assert!(template.contains("Page #counter(page).display() of #counter(page).final()"));
     assert!(template.contains(&rig.head()[..12]));
-    assert!(template.contains(quire_cli::engine::CLI_VERSION));
-    assert!(template.contains(quire_cli::engine::ENGINE_VERSION));
+    assert!(template.contains(&quire_cli::engine::CLI_VERSION.replace('.', "\\.")));
+    assert!(template.contains(&quire_cli::engine::ENGINE_VERSION.replace('.', "\\.")));
     assert!(!template.contains(&rig.head()[..13]));
     assert!(template.contains("$quire-export.document-id$"));
 

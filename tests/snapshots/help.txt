@@ -7,6 +7,7 @@ Commands:
   check-lock     Check agent-ix Git dependency coherence in Cargo.lock files
   clauses        Evaluate or compare rights-aware module clause sets
   publish-check  Refuse a module that carries restricted clause text
+  selftest       List and run the self-test cases embedded in this binary
   parse          Parse a markdown document to JSON
   export         Export a Markdown artifact as PDF or DOCX through producer-execute
   extract        Extract structured records + edges from a document

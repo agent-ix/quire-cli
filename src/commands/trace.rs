@@ -962,10 +962,12 @@ fn render_tsv(report: &TraceReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ix_trace_rs::trace;
     use quire_rs::traceability::SourceLanguage;
 
     /// FR-077-AC-7 (quire-rs): a build that cannot read a language in the tree
     /// refuses every query shape instead of answering "nothing backs this id".
+    #[trace("FR-077-AC-7")]
     #[test]
     fn run_query_refuses_when_a_language_in_the_tree_is_unreadable() {
         let extraction = SymbolExtraction {
@@ -981,8 +983,15 @@ mod tests {
             let args = Args::try_parse_from(argv).expect("args parse");
             let err = run_query(&args, &graph, &extraction).expect_err("must refuse");
             assert!(
-                err.downcast_ref::<quire_rs::symbols::ExtractionUnavailable>()
-                    .is_some_and(|e| e.languages == [SourceLanguage::Rust]),
+                err.downcast_ref::<quire_rs::symbols::trace_search::SearchError>()
+                    .is_some_and(|error| {
+                        matches!(
+                            error,
+                            quire_rs::symbols::trace_search::SearchError::ExtractionUnavailable(
+                                unavailable
+                            ) if unavailable.languages == [SourceLanguage::Rust]
+                        )
+                    }),
                 "{argv:?}: {err}"
             );
         }
