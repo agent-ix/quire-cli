@@ -1301,7 +1301,7 @@ traceability:
     description: Add encryption in transit.
     adds: {edge: protects, direction: incoming, from: Control, field: safeguards, value: encrypt-in-transit}
 ";
-    write(&module, "manifest.yaml", &manifest);
+    write(&module, "manifest.yaml", manifest);
     write(
         &module,
         "schemas/Control.json",

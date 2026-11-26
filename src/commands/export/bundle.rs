@@ -159,7 +159,7 @@ fn resolve_sources(ctx: &Ctx, args: &Args) -> anyhow::Result<Vec<Source>> {
             validate::Args {
                 documents: vec![input.display().to_string()],
                 module: args.module.clone(),
-                scope: ".".to_string(),
+                scope: Some(".".to_string()),
                 archetype: None,
                 okf: false,
                 strict: false,
