@@ -45,6 +45,7 @@ pub mod edit;
 pub mod export;
 pub mod extract;
 pub mod fix;
+pub mod impact;
 pub mod lint;
 pub mod lookup;
 pub mod matrix;

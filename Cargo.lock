@@ -782,6 +782,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gix-imara-diff"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23347fa4a29a440eebf045d0bc21da465c0dc70434c2a4bcdfcc658f16c9e27e"
+dependencies = [
+ "bstr",
+ "hashbrown 0.17.1",
+]
+
+[[package]]
 name = "gix-lock"
 version = "26.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1717,6 +1727,7 @@ dependencies = [
  "gix-discover",
  "gix-glob",
  "gix-hash",
+ "gix-imara-diff",
  "gix-object",
  "gix-odb",
  "gix-ref",
@@ -1740,7 +1751,7 @@ dependencies = [
 [[package]]
 name = "quire-code-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=d7d418fa2727f7de87a16dfec5b38ada7d9ee776#d7d418fa2727f7de87a16dfec5b38ada7d9ee776"
+source = "git+https://github.com/agent-ix/quire-rs?rev=c5a5224b155507554a5c27d7e82009a08014711d#c5a5224b155507554a5c27d7e82009a08014711d"
 dependencies = [
  "quire-code-parse",
 ]
@@ -1787,7 +1798,7 @@ dependencies = [
 [[package]]
 name = "quire-rs"
 version = "0.63.2"
-source = "git+https://github.com/agent-ix/quire-rs?rev=d7d418fa2727f7de87a16dfec5b38ada7d9ee776#d7d418fa2727f7de87a16dfec5b38ada7d9ee776"
+source = "git+https://github.com/agent-ix/quire-rs?rev=c5a5224b155507554a5c27d7e82009a08014711d#c5a5224b155507554a5c27d7e82009a08014711d"
 dependencies = [
  "agent-ix-semantic-schema",
  "globset",

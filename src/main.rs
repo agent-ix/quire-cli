@@ -50,6 +50,8 @@ enum Command {
     Clauses(commands::clauses::Args),
     /// Refuse a module that carries restricted clause text.
     PublishCheck(commands::publish_check::Args),
+    /// Analyze source changes and select potentially affected tests.
+    Impact(commands::impact::Args),
     /// List and run the self-test cases embedded in this binary.
     Selftest(commands::selftest::Args),
     /// Parse a markdown document to JSON.
@@ -112,6 +114,7 @@ fn main() {
         Command::CheckLock(a) => commands::check_lock::run(&ctx, a),
         Command::Clauses(a) => commands::clauses::run(&ctx, a),
         Command::PublishCheck(a) => commands::publish_check::run(&ctx, a),
+        Command::Impact(a) => commands::impact::run(&ctx, a),
         Command::Selftest(a) => commands::selftest::run(&ctx, a),
         Command::Parse(a) => commands::parse::run(&ctx, a),
         Command::Export(a) => commands::export::run(&ctx, a),
