@@ -36,3 +36,12 @@ Repository-driven, planless matrix and reverse-gap checks were run for quire-cli
 - Reverse-gap inspection: the new `impact` command, `--caller-depth` flag, and snapshot processing are owned by FR-049; no unowned user-visible behavior or stub was found in the changed code. Matrix coverage was whole-repository; review findings above are limited to the changed requirement scope.
 - Untraced behaviors / stubs: 0 in changed source; 0 in the four new unit tests.
 - Semantic review: skipped.
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | `it_impact_json_and_human_reports_required_fields_filters_and_reasons` now traces AC-2 and asserts required JSON fields, filter/reason, and human output. |
+| FND-002 | fixed | `it_impact_reports_unsupported_source_and_incomplete_status` now traces AC-4 and asserts the unsupported source and incomplete status in both formats. |
+| FND-003 | fixed | `it_impact_json_is_byte_identical_for_identical_inputs` now traces AC-7 and compares two CLI JSON byte streams. |
+| FND-004 | fixed | `it_impact_does_not_modify_the_analyzed_repository` now traces CON-4, restricts Git to local file protocol, and verifies HEAD and worktree status remain unchanged. |

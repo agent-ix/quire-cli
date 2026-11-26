@@ -45,3 +45,16 @@ FND-001: `impact::tests` tests only `source_file`, `line_range`, and missing-mod
 - `cargo check --locked -p quire-cli --bin quire`: passed; same unchanged warnings.
 - `cargo clippy --locked -p quire-cli --all-targets --all-features -- -D warnings`: failed on unchanged `src/commands/selftest.rs` unused/dead-code warnings and `tests/cli_health_data_flows.rs:1304` needless borrow.
 - No FSL builds or tests were run.
+
+## New findings (disposition pass 1)
+
+| ID | Severity | Summary | Refs |
+| --- | --- | --- | --- |
+| FND-002 | medium | The unsupported-language test writes Python source into a Rust project, contrary to the repository's mandatory no-Python rule. Use non-Python fixture content with an unsupported source extension. | tests/cli_impact.rs:58 |
+
+## Dispositions
+
+| FND | outcome | reason |
+| --- | --- | --- |
+| FND-001 | fixed | Added process-boundary tests invoke the CLI and assert JSON fields, filter and reason, human output, and incomplete-status presentation. |
+| FND-002 | fixed | Replaced the Python source fixture with Java content at `src/Changed.java`; the unsupported-language assertion remains and the four process-boundary tests pass. |
