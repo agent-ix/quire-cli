@@ -632,7 +632,7 @@ fn named_document_uses_its_bounded_parent_as_default_scope() {
     fs::create_dir_all(&repo).expect("create repo");
     fs::create_dir_all(workspace.join("empty-home/.ix/filament/modules"))
         .expect("create empty default module root");
-    fs::create_dir_all(&workspace.join("empty-bin")).expect("create empty bin");
+    fs::create_dir_all(workspace.join("empty-bin")).expect("create empty bin");
     fs::write(
         workspace.join("manifest.yaml"),
         "name: unrelated-workspace-module\nversion: 0.1.0\ndescription: decoy\nartifact_types:\n  - name: Other\n",

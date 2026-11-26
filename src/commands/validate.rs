@@ -187,7 +187,7 @@ pub(crate) fn run_with(ctx: &Ctx, args: Args, source: Source<'_>) -> anyhow::Res
             "--scope",
             args.scope
                 .as_deref()
-                .or_else(|| inferred_scope.as_deref())
+                .or(inferred_scope.as_deref())
                 .unwrap_or("."),
         ),
     };
