@@ -22,6 +22,7 @@ use anyhow::Context;
 use clap::Parser;
 use glob::glob;
 
+use ix_trace_rs::implements;
 use quire_cli::io;
 use quire_cli::safety;
 use quire_rs::{BundlePosture, BundleReport, Registry, ValidationReason, ValidationResult};
@@ -30,9 +31,9 @@ use super::Ctx;
 
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// Markdown document path, glob, or `-` for stdin. Relative globs are
-    /// resolved under --scope, which defaults to the current directory. With
-    /// --okf, an optional bundle directory; omitted, the bundle root is
+    /// Markdown document path, glob, or `-` for stdin. Relative paths and
+    /// globs are resolved from the current directory unless --scope is given.
+    /// With --okf, an optional bundle directory; omitted, the bundle root is
     /// `<scope>/spec` (not --scope itself).
     #[arg(value_name = "DOC_OR_GLOB", required_unless_present = "okf")]
     pub documents: Vec<String>,
@@ -50,8 +51,8 @@ pub struct Args {
     /// (~/.ix/filament/modules) and the IX_FILAMENT_MODULES_PATH /
     /// IX_SCHEMA_PATH env vars; when nothing is found it lazy-installs the
     /// default module set via `quoin plugin ensure-defaults`.
-    #[arg(long, value_name = "DIR", default_value = ".", conflicts_with = "repo")]
-    pub scope: String,
+    #[arg(long, value_name = "DIR", conflicts_with = "repo")]
+    pub scope: Option<String>,
 
     /// Override the archetype resolved from the document frontmatter
     /// `type`.
@@ -166,12 +167,29 @@ pub(crate) enum Source<'a> {
     Committed(&'a str),
 }
 
+#[implements("FR-004-AC-24")]
 pub(crate) fn run_with(ctx: &Ctx, args: Args, source: Source<'_>) -> anyhow::Result<()> {
     // With `--repo` the first member's root bounds module discovery, as
     // `--scope` does for a single repository.
+    let inferred_scope = if args.scope.is_none() && args.repo.is_empty() && !args.okf {
+        match &source {
+            Source::Files => {
+                infer_document_scope(&args.documents).map(|path| path.display().to_string())
+            }
+            Source::Committed(_) => None,
+        }
+    } else {
+        None
+    };
     let (scope_flag, scope_raw) = match args.repo.first() {
         Some(first) => ("--repo", first.dir.as_str()),
-        None => ("--scope", args.scope.as_str()),
+        None => (
+            "--scope",
+            args.scope
+                .as_deref()
+                .or_else(|| inferred_scope.as_deref())
+                .unwrap_or("."),
+        ),
     };
     let scope = safety::validate_dir_path(scope_flag, scope_raw)
         .with_context(|| format!("validating {scope_flag} '{scope_raw}'"))?;
@@ -186,7 +204,12 @@ pub(crate) fn run_with(ctx: &Ctx, args: Args, source: Source<'_>) -> anyhow::Res
     }
 
     // clap guarantees a non-empty `documents` here (required_unless_present).
-    let mut inputs = expand_documents(&args.documents, &scope)?;
+    let document_root = if args.scope.is_some() {
+        scope.as_path()
+    } else {
+        Path::new(".")
+    };
+    let mut inputs = expand_documents(&args.documents, document_root)?;
     let committed = match source {
         Source::Committed(text) => Some(text),
         Source::Files => None,
@@ -787,7 +810,9 @@ pub(crate) fn expand_documents(
     Ok(inputs)
 }
 
-/// A relative document path resolves under `--scope`. Always (CR-011).
+/// A relative document path resolves under the supplied document root.
+/// Explicit `--scope` supplies that root; without it, paths remain relative to
+/// the current directory even when module discovery uses an inferred scope.
 ///
 /// This used to be gated on `--module` being absent, which meant passing
 /// `--module` silently moved glob resolution to the process cwd: a run
@@ -795,8 +820,7 @@ pub(crate) fn expand_documents(
 /// belonging to a different repository**, exit 1, with nothing saying which
 /// tree it had read (`agent-ix/quire-cli#63`). `--module` pins the MODULE
 /// SET; it has no business choosing DOCUMENTS, and `coverage` never worked
-/// this way. `--scope` defaults to `.`, so the documented
-/// `--module`-without-`--scope` form is unaffected.
+/// this way.
 fn scoped_path(scope: &Path, raw: &str) -> PathBuf {
     let path = PathBuf::from(raw);
     if path.is_relative() {
@@ -804,6 +828,76 @@ fn scoped_path(scope: &Path, raw: &str) -> PathBuf {
     } else {
         path
     }
+}
+
+/// Pick the narrowest safe module and glossary search root for named files.
+/// A single repository wins; outside Git, the common named parent is useful
+/// only when it narrows a broader caller directory. Globs, stdin, missing
+/// paths, and mixed repositories keep the current-directory default.
+#[implements("FR-004-AC-24")]
+fn infer_document_scope(documents: &[String]) -> Option<PathBuf> {
+    if documents.is_empty() || documents.iter().any(|raw| raw == "-" || contains_glob(raw)) {
+        return None;
+    }
+
+    let cwd = std::env::current_dir().ok()?.canonicalize().ok()?;
+    let paths: Vec<PathBuf> = documents
+        .iter()
+        .map(|raw| {
+            let path = PathBuf::from(raw);
+            let path = if path.is_absolute() {
+                path
+            } else {
+                cwd.join(path)
+            };
+            path.canonicalize().ok()
+        })
+        .collect::<Option<_>>()?;
+    let parents: Vec<&Path> = paths
+        .iter()
+        .map(|path| path.parent())
+        .collect::<Option<_>>()?;
+
+    let repositories: Vec<Option<PathBuf>> = parents
+        .iter()
+        .map(|parent| git_repository_root(parent))
+        .collect();
+    if let Some(first) = repositories.first().and_then(Option::as_ref) {
+        if repositories
+            .iter()
+            .all(|repository| repository.as_ref() == Some(first))
+        {
+            return Some(first.clone());
+        }
+    }
+    if repositories.iter().any(Option::is_some) {
+        return None;
+    }
+
+    let mut common = parents.first()?.to_path_buf();
+    for parent in parents.iter().skip(1) {
+        while !parent.starts_with(&common) {
+            if !common.pop() {
+                return None;
+            }
+        }
+    }
+    (common != cwd && common.starts_with(&cwd)).then_some(common)
+}
+
+#[implements("FR-004-AC-24")]
+fn git_repository_root(path: &Path) -> Option<PathBuf> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(path)
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let root = String::from_utf8(output.stdout).ok()?;
+    PathBuf::from(root.trim()).canonicalize().ok()
 }
 
 fn contains_glob(raw: &str) -> bool {

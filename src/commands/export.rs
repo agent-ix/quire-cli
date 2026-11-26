@@ -301,7 +301,7 @@ fn export_markdown(ctx: &Ctx, args: &Args, text: &str) -> anyhow::Result<()> {
         validate::Args {
             documents: vec![args.input[0].display().to_string()],
             module: args.module.clone(),
-            scope: ".".to_string(),
+            scope: Some(".".to_string()),
             archetype: None,
             okf: false,
             strict: false,

@@ -639,19 +639,7 @@ fn named_document_uses_its_bounded_parent_as_default_scope() {
     )
     .expect("write unrelated workspace module");
     let module = validate_module();
-    for entry in fs::read_dir(&module).expect("read module fixture") {
-        let entry = entry.expect("module fixture entry");
-        let target = repo.join(entry.file_name());
-        if entry.file_type().expect("fixture type").is_dir() {
-            fs::create_dir_all(&target).expect("create fixture subdirectory");
-            for child in fs::read_dir(entry.path()).expect("read fixture subdirectory") {
-                let child = child.expect("fixture child");
-                fs::copy(child.path(), target.join(child.file_name())).expect("copy fixture file");
-            }
-        } else {
-            fs::copy(entry.path(), target).expect("copy fixture file");
-        }
-    }
+    copy_module_tree(&module, &repo);
     let document = repo.join("valid-fr.md");
     fs::copy(validate_doc("valid-fr.md"), &document).expect("copy valid document");
     let output = quire()
