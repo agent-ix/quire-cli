@@ -1,0 +1,53 @@
+name: health-flow-example
+version: 0.1.0
+description: Example module for quire relations flow mode
+archetypes:
+- name: Connection
+  frontmatter_schema_ref: schemas/Connection.json
+  allowed_links: {classified-as: [Classification], crosses: [TrustBoundary], delivers_to: [Sink]}
+- name: Classification
+  frontmatter_schema_ref: schemas/Classification.json
+- name: TrustBoundary
+  frontmatter_schema_ref: schemas/TrustBoundary.json
+- name: Control
+  frontmatter_schema_ref: schemas/Control.json
+  allowed_links: {protects: [Connection]}
+- name: Sink
+  frontmatter_schema_ref: schemas/Sink.json
+edge_types:
+  classified-as: {description: Connection carries a classification, category: traceability}
+  crosses: {description: Connection crosses a trust boundary, category: traceability}
+  protects: {description: A control protects a connection, category: traceability}
+  delivers_to: {description: Connection delivers to a sink, category: traceability}
+traceability:
+  flow_rules:
+  - name: health-across-untrusted-boundary
+    subject: [Connection]
+    match:
+    - path: [{edge: classified-as, direction: outgoing, to: [Classification]}]
+      field: regulatedCategories
+      any_of: [health]
+    - path: [{edge: crosses, direction: outgoing, to: [TrustBoundary]}]
+      field: trust_level
+      any_of: [untrusted]
+    unless_any:
+    - path: [{edge: protects, direction: incoming, to: [Control]}]
+      field: safeguards
+      any_of: [encrypt-in-transit]
+    check: health-across-untrusted-boundary
+    remediations: [encrypt-in-transit]
+    rationale: Protect health data when it crosses an untrusted boundary.
+  - name: health-data-to-uncovered-llm
+    subject: [Sink]
+    match:
+    - path: [{edge: delivers_to, direction: incoming, to: [Connection]}, {edge: classified-as, direction: outgoing, to: [Classification]}]
+      field: regulatedCategories
+      any_of: [health]
+    - {path: [], field: kind, any_of: [llm_prompt]}
+    - {path: [], field: processor_agreement, any_of: [not_covered, unknown]}
+    check: health-data-to-uncovered-llm
+    rationale: Review health data sent to an uncovered LLM processor.
+  remediations:
+  - name: encrypt-in-transit
+    description: Add a control that protects this connection with encryption in transit.
+    adds: {edge: protects, direction: incoming, from: Control, field: safeguards, value: encrypt-in-transit}

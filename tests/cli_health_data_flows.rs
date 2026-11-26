@@ -1248,3 +1248,553 @@ fn flow_mode_does_not_require_required_relations() {
     assert!(relations.stdout.is_empty());
     assert!(String::from_utf8_lossy(&relations.stderr).contains("required_relations"));
 }
+
+#[test]
+#[trace("FR-044-AC-1", "FR-044-AC-2", "FR-044-AC-3", "FR-044-AC-13")]
+fn flow_mode_renders_health_boundary_denial_and_control_suppression() {
+    let (temp, scope) = world(
+        "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
+        "health",
+        Some("trust_level: untrusted\n"),
+        true,
+    );
+    let module = temp.path().join("module");
+    let manifest = "\
+name: health-flow-fixture
+version: 0.1.0
+description: Health flow CLI fixture
+archetypes:
+- name: Connection
+  frontmatter_schema_ref: schemas/Connection.json
+  allowed_links: {classified-as: [Classification], crosses: [TrustBoundary]}
+- name: Classification
+  frontmatter_schema_ref: schemas/Classification.json
+- name: TrustBoundary
+  frontmatter_schema_ref: schemas/TrustBoundary.json
+- name: Control
+  frontmatter_schema_ref: schemas/Control.json
+  allowed_links: {protects: [Connection]}
+edge_types:
+  classified-as: {description: connection classification, category: traceability}
+  crosses: {description: connection crosses a boundary, category: traceability}
+  protects: {description: control protects connection, category: traceability}
+traceability:
+  flow_rules:
+  - name: health-across-untrusted-boundary
+    subject: [Connection]
+    match:
+    - path: [{edge: classified-as, direction: outgoing, to: [Classification]}]
+      field: regulatedCategories
+      any_of: [health]
+    - path: [{edge: crosses, direction: outgoing, to: [TrustBoundary]}]
+      field: trust_level
+      any_of: [untrusted]
+    unless_any:
+    - path: [{edge: protects, direction: incoming, to: [Control]}]
+      field: safeguards
+      any_of: [encrypt-in-transit]
+    check: health-across-untrusted-boundary
+    remediations: [encrypt-in-transit]
+    rationale: Protect health data when it crosses an untrusted boundary.
+  remediations:
+  - name: encrypt-in-transit
+    description: Add encryption in transit.
+    adds: {edge: protects, direction: incoming, from: Control, field: safeguards, value: encrypt-in-transit}
+";
+    write(&module, "manifest.yaml", &manifest);
+    write(
+        &module,
+        "schemas/Control.json",
+        r#"{"type":"object","properties":{"safeguards":{"type":"array","items":{"type":"string"}}},"additionalProperties":true}"#,
+    );
+    write(
+        &module,
+        "schemas/Connection.json",
+        r#"{"type":"object","properties":{"sourceEnd":{"type":"object"},"targetEnd":{"type":"object"}},"additionalProperties":true}"#,
+    );
+    write(
+        &module,
+        "schemas/Classification.json",
+        r#"{"type":"object","properties":{"regulatedCategories":{"type":"array","items":{"type":"string"}}},"additionalProperties":true}"#,
+    );
+    write(
+        &module,
+        "schemas/TrustBoundary.json",
+        r#"{"type":"object","properties":{"trust_level":{"type":"string"}},"additionalProperties":true}"#,
+    );
+
+    let output = run(&scope, &module, &["--flow", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = json(&output);
+    assert_eq!(report["denials"].as_array().unwrap().len(), 1);
+    let denial = &report["denials"][0];
+    assert_eq!(denial["check"], "health-across-untrusted-boundary");
+    assert_eq!(denial["subject"]["id"], "CONN-1");
+    assert_eq!(denial["matched"]["Classification"][0]["id"], "CLS-1");
+    assert_eq!(denial["matched"]["TrustBoundary"][0]["id"], "BOUNDARY-1");
+    assert_eq!(denial["remediations"][0]["name"], "encrypt-in-transit");
+    assert_eq!(
+        denial["rationale"],
+        "Protect health data when it crosses an untrusted boundary."
+    );
+    assert_eq!(denial["severity"], "warning");
+
+    let human = run(&scope, &module, &["--flow"]);
+    assert!(human.status.success());
+    let human = String::from_utf8_lossy(&human.stdout);
+    assert_eq!(
+        human
+            .matches("health-across-untrusted-boundary: CONN-1")
+            .count(),
+        1
+    );
+    assert!(human.contains("CLS-1") && human.contains("BOUNDARY-1"));
+    assert!(human.contains("encrypt-in-transit"));
+
+    let mut validate = common::quire();
+    let validation = validate
+        .args(["validate", "--okf", "--scope"])
+        .arg(&scope)
+        .arg("--module")
+        .arg(&module)
+        .args([
+            "--severity",
+            "trace:health-across-untrusted-boundary=warning",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(
+        validation.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&validation.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&validation.stderr).contains("health-across-untrusted-boundary")
+    );
+    let flow_after_lowering = run(&scope, &module, &["--flow", "--json"]);
+    assert_eq!(
+        json(&flow_after_lowering)["denials"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+
+    write(
+        &scope,
+        "spec/CTRL-1.md",
+        &document(
+            "CTRL-1",
+            "Control",
+            "safeguards: [encrypt-in-transit]\n",
+            &[("protects", "CONN-1")],
+        ),
+    );
+    let protected = run(&scope, &module, &["--flow", "--json"]);
+    assert!(protected.status.success());
+    assert!(json(&protected)["denials"].as_array().unwrap().is_empty());
+    let protected_human = run(&scope, &module, &["--flow"]);
+    assert!(protected_human.status.success());
+    assert!(!String::from_utf8_lossy(&protected_human.stdout)
+        .contains("health-across-untrusted-boundary: CONN-1"));
+}
+
+#[test]
+#[trace("FR-044-AC-8")]
+fn flow_mode_returns_no_denials_when_health_flow_inputs_are_absent() {
+    let (temp, scope) = world("", "health", None, false);
+    let module = temp.path().join("module");
+    write(
+        &module,
+        "manifest.yaml",
+        "\
+name: health-flow-fixture
+version: 0.1.0
+archetypes:
+- name: Connection
+  frontmatter_schema_ref: schemas/Connection.json
+  allowed_links: {classified-as: [Classification], crosses: [TrustBoundary], delivers_to: [Sink]}
+- name: Classification
+  frontmatter_schema_ref: schemas/Classification.json
+- name: TrustBoundary
+  frontmatter_schema_ref: schemas/TrustBoundary.json
+- name: Sink
+  frontmatter_schema_ref: schemas/Sink.json
+edge_types:
+  classified-as: {description: classification, category: traceability}
+  crosses: {description: crossing, category: traceability}
+  delivers_to: {description: delivery, category: traceability}
+traceability:
+  flow_rules:
+  - name: connection-across-boundary
+    subject: [Connection]
+    match:
+    - path: [{edge: classified-as, direction: outgoing, to: [Classification]}]
+      field: regulatedCategories
+      any_of: [health]
+    - path: [{edge: crosses, direction: outgoing, to: [TrustBoundary]}]
+      field: trust_level
+      any_of: [untrusted]
+    check: connection-across-boundary
+    rationale: Inspect health data crossing an untrusted boundary.
+  - name: llm-sink
+    subject: [Sink]
+    match:
+    - path: [{edge: delivers_to, direction: incoming, to: [Connection]}, {edge: classified-as, direction: outgoing, to: [Classification]}]
+      field: regulatedCategories
+      any_of: [health]
+    - {path: [], field: kind, any_of: [llm_prompt]}
+    - {path: [], field: processor_agreement, any_of: [not_covered, unknown]}
+    check: llm-sink
+    rationale: Inspect health data delivered to an LLM.
+",
+    );
+    write(
+        &module,
+        "schemas/Sink.json",
+        r#"{"type":"object","properties":{"kind":{"type":"string"},"processor_agreement":{"type":"string"}},"additionalProperties":true}"#,
+    );
+    let empty_json = run(&scope, &module, &["--flow", "--strict", "--json"]);
+    assert!(
+        empty_json.status.success(),
+        "{}",
+        String::from_utf8_lossy(&empty_json.stderr)
+    );
+    assert!(json(&empty_json)["denials"].as_array().unwrap().is_empty());
+    let empty_human = run(&scope, &module, &["--flow"]);
+    assert!(empty_human.status.success());
+    assert!(!String::from_utf8_lossy(&empty_human.stdout).contains("connection-across-boundary"));
+    let non_strict = run(&scope, &module, &["--flow", "--json"]);
+    assert!(non_strict.status.success());
+    assert!(json(&non_strict)["denials"].as_array().unwrap().is_empty());
+}
+
+#[test]
+#[trace("FR-044-AC-14")]
+fn flow_mode_renders_engine_report_for_unrelated_module_vocabulary() {
+    let temp = TempDir::new().unwrap();
+    let module = temp.path().join("module");
+    write(
+        &module,
+        "manifest.yaml",
+        "\
+name: widget-module
+version: 0.1.0
+archetypes:
+- name: Widget
+  frontmatter_schema_ref: schemas/Widget.json
+  allowed_links: {hops-to: [Zone]}
+- name: Zone
+  frontmatter_schema_ref: schemas/Zone.json
+edge_types:
+  hops-to: {description: widget hops to a zone, category: traceability}
+traceability:
+  flow_rules:
+  - name: inspect-violet-widget
+    subject: [Widget]
+    match:
+    - path: []
+      field: color
+      any_of: [violet]
+    unless_any:
+    - path: []
+      field: color
+      any_of: [blue]
+    check: inspect-violet-widget
+    remediations: [color-blue]
+    rationale: Close the widget's access clearance.
+  remediations:
+  - name: color-blue
+    description: Set the widget color to blue.
+    sets: {field: color, value: blue}
+",
+    );
+    write(
+        &module,
+        "schemas/Widget.json",
+        r#"{"type":"object","properties":{"color":{"type":"string"}},"additionalProperties":true}"#,
+    );
+    write(
+        &module,
+        "schemas/Zone.json",
+        r#"{"type":"object","properties":{"access_clearance":{"type":"string"}},"additionalProperties":true}"#,
+    );
+    write(
+        temp.path(),
+        "project/spec/W-1.md",
+        &document("W-1", "Widget", "color: violet\n", &[("hops-to", "Z-1")]),
+    );
+    write(
+        temp.path(),
+        "project/spec/Z-1.md",
+        &document("Z-1", "Zone", "access_clearance: open\n", &[]),
+    );
+    let scope = temp.path().join("project");
+    let output = run(&scope, &module, &["--flow", "--json"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report = json(&output);
+    assert_eq!(report["denials"].as_array().unwrap().len(), 1);
+    assert_eq!(report["denials"][0]["check"], "inspect-violet-widget");
+    assert_eq!(
+        report["denials"][0]["remediations"][0]["name"],
+        "color-blue"
+    );
+    assert!(report["facts"]["Widget"].is_array());
+    let human = run(&scope, &module, &["--flow"]);
+    assert!(human.status.success());
+    assert!(String::from_utf8_lossy(&human.stdout).contains("inspect-violet-widget: W-1"));
+}
+
+#[test]
+#[trace("FR-044-AC-4")]
+fn flow_mode_applies_module_rule_to_llm_sinks_and_processor_agreements() {
+    let (temp, scope) = world(
+        "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
+        "health",
+        None,
+        false,
+    );
+    let module = temp.path().join("module");
+    write(
+        &module,
+        "manifest.yaml",
+        "\
+name: sink-module
+version: 0.1.0
+archetypes:
+- name: Connection
+  frontmatter_schema_ref: schemas/Connection.json
+  allowed_links: {classified-as: [Classification], delivers_to: [Sink]}
+- name: Classification
+  frontmatter_schema_ref: schemas/Classification.json
+- name: Sink
+  frontmatter_schema_ref: schemas/Sink.json
+edge_types:
+  classified-as: {description: classification, category: traceability}
+  delivers_to: {description: delivery, category: traceability}
+traceability:
+  flow_rules:
+  - name: health-data-to-uncovered-llm
+    subject: [Sink]
+    match:
+    - path: [{edge: delivers_to, direction: incoming, to: [Connection]}, {edge: classified-as, direction: outgoing, to: [Classification]}]
+      field: regulatedCategories
+      any_of: [health]
+    - {path: [], field: kind, any_of: [llm_prompt]}
+    - {path: [], field: processor_agreement, any_of: [not_covered, unknown]}
+    check: health-data-to-uncovered-llm
+    rationale: Review health data sent to an uncovered LLM processor.
+",
+    );
+    write(&module, "schemas/Connection.json", CONNECTION_SCHEMA);
+    write(
+        &module,
+        "schemas/Classification.json",
+        CLASSIFICATION_SCHEMA,
+    );
+    write(
+        &module,
+        "schemas/Sink.json",
+        r#"{"type":"object","properties":{"kind":{"type":"string"},"processor_agreement":{"type":"string"}},"additionalProperties":true}"#,
+    );
+
+    write(
+        &scope,
+        "spec/CONN-1.md",
+        &document(
+            "CONN-1",
+            "Connection",
+            "sourceEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-SOURCE\ntargetEnd:\n  type: ix://agent-ix/health-flow-fixture/PORT-TARGET\n",
+            &[("classified-as", "CLS-1"), ("delivers_to", "SINK-1")],
+        ),
+    );
+    for (agreement, expected_denials) in [("not_covered", 1), ("covered", 0), ("unknown", 1)] {
+        write(
+            &scope,
+            "spec/SINK-1.md",
+            &document(
+                "SINK-1",
+                "Sink",
+                &format!("kind: llm_prompt\nprocessor_agreement: {agreement}\n"),
+                &[],
+            ),
+        );
+        let output = run(&scope, &module, &["--flow", "--json"]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            json(&output)["denials"].as_array().unwrap().len(),
+            expected_denials,
+            "processor agreement {agreement}"
+        );
+        if expected_denials == 1 {
+            assert_eq!(json(&output)["denials"][0]["subject"]["id"], "SINK-1");
+        }
+    }
+}
+
+#[test]
+#[trace("FR-044-AC-6")]
+fn flow_mode_is_byte_stable_and_uses_engine_repo_subject_rule_order() {
+    let temp = TempDir::new().unwrap();
+    let module = temp.path().join("module");
+    write(&module, "manifest.yaml", MANIFEST);
+    write(&module, "schemas/Connection.json", CONNECTION_SCHEMA);
+    write(
+        &module,
+        "schemas/Classification.json",
+        CLASSIFICATION_SCHEMA,
+    );
+    write(&module, "schemas/TrustBoundary.json", BOUNDARY_SCHEMA);
+    add_flow_only_rule(&module);
+    let manifest = fs::read_to_string(module.join("manifest.yaml")).unwrap();
+    write(
+        &module,
+        "manifest.yaml",
+        &manifest.replace(
+            "    rationale: Report the authored connection.\n",
+            "    rationale: Report the authored connection.\n  - name: connection-present-again\n    subject: [Connection]\n    match: [{path: [], field: id, present: true}]\n    check: connection-present\n    rationale: Report the authored connection a second time.\n",
+        ),
+    );
+    let repo_a = temp.path().join("repo-a");
+    let repo_b = temp.path().join("repo-b");
+    write(&repo_a, "spec/Z.md", &document("Z", "Connection", "", &[]));
+    write(&repo_b, "spec/A.md", &document("A", "Connection", "", &[]));
+    let repos = [("o/a", repo_a.as_path()), ("o/b", repo_b.as_path())];
+    let first = run_repos(&repos, &module, &["--flow", "--json"]);
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let repeated = run_repos(&repos, &module, &["--flow", "--json"]);
+    assert_eq!(first.stdout, repeated.stdout);
+    let report = json(&first);
+    let denials = report["denials"].as_array().unwrap();
+    assert_eq!(denials.len(), 4);
+    let subjects = denials
+        .iter()
+        .map(|denial| {
+            (
+                denial["subject"]["repo"].as_str().unwrap(),
+                denial["subject"]["id"].as_str().unwrap(),
+                denial["rule"].as_str().unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        subjects,
+        vec![
+            ("o/a", "Z", "connection-present"),
+            ("o/a", "Z", "connection-present-again"),
+            ("o/b", "A", "connection-present"),
+            ("o/b", "A", "connection-present-again"),
+        ]
+    );
+}
+
+#[test]
+#[trace("FR-044-AC-12")]
+fn flow_mode_resolves_cross_repository_rule_facts_only_when_member_is_loaded() {
+    let temp = TempDir::new().unwrap();
+    let module = temp.path().join("module");
+    write(
+        &module,
+        "manifest.yaml",
+        "\
+name: cross-repo-flow
+version: 0.1.0
+archetypes:
+- name: Connection
+  frontmatter_schema_ref: schemas/Connection.json
+  allowed_links: {classified-as: [Classification], crosses: [TrustBoundary]}
+- name: Classification
+  frontmatter_schema_ref: schemas/Classification.json
+- name: TrustBoundary
+  frontmatter_schema_ref: schemas/TrustBoundary.json
+edge_types:
+  classified-as: {description: classification, category: traceability}
+  crosses: {description: crossing, category: traceability}
+traceability:
+  flow_rules:
+  - name: health-across-untrusted-boundary
+    subject: [Connection]
+    match:
+    - path: [{edge: classified-as, direction: outgoing, to: [Classification]}]
+      field: regulatedCategories
+      any_of: [health]
+    - path: [{edge: crosses, direction: outgoing, to: [TrustBoundary]}]
+      field: trust_level
+      any_of: [untrusted]
+    check: health-across-untrusted-boundary
+    rationale: Protect health data across a boundary.
+",
+    );
+    write(&module, "schemas/Connection.json", CONNECTION_SCHEMA);
+    write(
+        &module,
+        "schemas/Classification.json",
+        CLASSIFICATION_SCHEMA,
+    );
+    write(&module, "schemas/TrustBoundary.json", BOUNDARY_SCHEMA);
+    let repo_a = temp.path().join("repo-a");
+    let repo_b = temp.path().join("repo-b");
+    write(
+        &repo_a,
+        "spec/CONN-1.md",
+        &document(
+            "CONN-1",
+            "Connection",
+            "",
+            &[
+                ("classified-as", "CLS-1"),
+                ("crosses", "ix://o/b/spec/BOUNDARY-1"),
+            ],
+        ),
+    );
+    write(
+        &repo_a,
+        "spec/CLS-1.md",
+        &document(
+            "CLS-1",
+            "Classification",
+            "regulatedCategories: [health]\n",
+            &[],
+        ),
+    );
+    write(
+        &repo_b,
+        "spec/BOUNDARY-1.md",
+        &document(
+            "BOUNDARY-1",
+            "TrustBoundary",
+            "trust_level: untrusted\n",
+            &[],
+        ),
+    );
+    let repos = [("o/a", repo_a.as_path()), ("o/b", repo_b.as_path())];
+    let both = run_repos(&repos, &module, &["--flow", "--json"]);
+    assert!(
+        both.status.success(),
+        "{}",
+        String::from_utf8_lossy(&both.stderr)
+    );
+    let denial = &json(&both)["denials"][0];
+    assert_eq!(denial["subject"]["repo"], "o/a");
+    assert_eq!(denial["matched"]["TrustBoundary"][0]["repo"], "o/b");
+    let only_a = run_repos(&[repos[0]], &module, &["--flow", "--strict", "--json"]);
+    assert!(only_a.status.success());
+    assert!(json(&only_a)["denials"].as_array().unwrap().is_empty());
+}
