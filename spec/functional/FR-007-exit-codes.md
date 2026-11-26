@@ -42,7 +42,7 @@ SHALL remain unchanged. No compatibility mapping SHALL be provided.
 | FR-007-AC-4 | Structural validation failures without a primary report exit 3. | Test |
 | FR-007-AC-5 | Invalid argv exits 3 with clap diagnostics. | Test |
 | FR-007-AC-6 | Covered invalid inputs return a classified failure without panicking. | Test |
-| FR-007-AC-7 | Strict coverage/matrix and unresolved property reports exit 1 with the complete requested payload. | Test |
+| FR-007-AC-7 | Strict coverage and matrix reports exit 1 for incomplete or failing records while emitting the complete requested payload. | Test |
 | FR-007-AC-8 | A failed output write exits 4; typed classification is independent of human diagnostic wording. | Test |
 | FR-007-AC-9 | A converter failure of `quire export` (including a failed Mermaid diagram render) exits 4 and a missing converter (including `mmdr`) exits 3, as FR-033 defines. | Test |
 
