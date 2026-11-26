@@ -2,10 +2,14 @@
 
 use std::collections::BTreeSet;
 use std::fs;
+#[cfg(target_os = "linux")]
 use std::io::Read;
 use std::path::{Component, Path, PathBuf};
+#[cfg(target_os = "linux")]
 use std::process::{Command, Stdio};
+#[cfg(target_os = "linux")]
 use std::thread;
+#[cfg(target_os = "linux")]
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context};
@@ -475,6 +479,7 @@ struct ProcessOutput {
     denied_paths: Vec<String>,
 }
 
+#[cfg(target_os = "linux")]
 struct BoundedOutput {
     exit_code: Option<i32>,
     stdout: Vec<u8>,
