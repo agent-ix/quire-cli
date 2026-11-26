@@ -33,7 +33,7 @@ fn repository_with_dependency_revisions(
     write(
         root,
         "spec/FR-900.md",
-        "---\nid: FR-900\ntitle: Impact fixture\n---\n\n## Acceptance Criteria\n\n| ID | Criterion |\n| --- | --- |\n| FR-900-AC-1 | The fixture criterion is available. |\n",
+        "---\nid: FR-900\ntitle: Impact fixture\n---\n\n## Acceptance Criteria\n\n| ID | Criterion |\n| --- | --- |\n| FR-900-AC-1 | The fixture criterion is available. |\n\n## Rejected suggestions\n\n| ID | Suggestion |\n| --- | --- |\n| FR-900-AC-9 | This is not an acceptance criterion. |\n",
     );
     write(
         root,
@@ -277,6 +277,21 @@ fn it_impact_tag_findings_are_opt_in_and_fail_only_when_requested() {
     write(
         root,
         "src/lib.rs",
+        "#[implements(\"FR-900-AC-9\")]\npub fn rejected_suggestion_link() {}\n",
+    );
+    git(root, &["add", "-A"]);
+    git(root, &["commit", "-q", "-m", "rejected suggestion link"]);
+    repo.head = git(root, &["rev-parse", "HEAD"]);
+    let rejected = run(&repo, "json", &["--check-tags", "--fail-on-tag-findings"]);
+    assert!(!rejected.status.success());
+    let rejected_report: Value = serde_json::from_slice(&rejected.stdout).expect("impact JSON");
+    assert!(rejected_report["findings"]
+        .to_string()
+        .contains("unresolved_id"));
+
+    write(
+        root,
+        "src/lib.rs",
         "pub fn target() { let _value = 3; }\n\
          pub fn missing_link() { let _value = 4; }\n\
          #[implements(\"FR-999-AC-1\")]\n\
@@ -453,8 +468,14 @@ fn it_impact_reports_dependency_move_chain_and_unavailable_upstream() {
     assert!(human.contains("schema/adapter.json"), "{human}");
     assert!(human.contains("upstream_path="), "{human}");
     assert!(human.contains("upstream_item="), "{human}");
-    assert!(human.contains("adapter"), "{human}");
-    assert!(human.contains("second_adapter"), "{human}");
+    assert!(
+        human.contains("Local reference src/lib.rs#adapter upstream_path=src/lib.rs upstream_reference=changed_api"),
+        "{human}"
+    );
+    assert!(
+        human.contains("Local reference src/lib.rs#second_adapter upstream_path=src/lib.rs upstream_reference=changed_api"),
+        "{human}"
+    );
     assert!(human.contains("call_path="), "{human}");
     assert!(human.contains("Uncovered upstream change"), "{human}");
 

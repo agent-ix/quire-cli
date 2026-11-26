@@ -236,11 +236,13 @@ pub fn run(ctx: &Ctx, args: Args) -> Result<()> {
                     .flatten()
                 {
                     primary_line!(
-                        "  Local reference {}#{} upstream_path={} upstream_item={}\n",
-                        reference["local_path"].as_str().unwrap_or("<unknown>"),
-                        reference["local_symbol"].as_str().unwrap_or("<unknown>"),
+                        "  Local reference {}#{} upstream_path={} upstream_reference={}\n",
+                        reference["path"].as_str().unwrap_or("<unknown>"),
+                        reference["symbol"].as_str().unwrap_or("<unknown>"),
                         reference["upstream_path"].as_str().unwrap_or("<unknown>"),
-                        reference["upstream_item"].as_str().unwrap_or("<unknown>")
+                        reference["upstream_reference"]
+                            .as_str()
+                            .unwrap_or("<unknown>")
                     );
                 }
                 for selected in movement["selected_tests"].as_array().into_iter().flatten() {
@@ -304,11 +306,17 @@ fn available_spec_ids(spec: &Spec) -> BTreeSet<String> {
         ids: &mut BTreeSet<String>,
     ) {
         let prefix = format!("{document_id}-AC-");
-        for table in quire_rs::query::parse_tables(&section.content) {
-            for row in table.rows {
-                if let Some(id) = row.first().and_then(|id| id.strip_prefix(&prefix)) {
-                    if !id.is_empty() && id.chars().all(|digit| digit.is_ascii_digit()) {
-                        ids.insert(format!("{prefix}{id}"));
+        if section
+            .heading
+            .trim()
+            .eq_ignore_ascii_case("acceptance criteria")
+        {
+            for table in quire_rs::query::parse_tables(&section.content) {
+                for row in table.rows {
+                    if let Some(id) = row.first().and_then(|id| id.strip_prefix(&prefix)) {
+                        if !id.is_empty() && id.chars().all(|digit| digit.is_ascii_digit()) {
+                            ids.insert(format!("{prefix}{id}"));
+                        }
                     }
                 }
             }
