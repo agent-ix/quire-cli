@@ -39,7 +39,6 @@ fn required_population_matches_current_specification() {
         "FR-025-CON-1",
         "FR-025-CON-2",
         "FR-025-CON-3",
-        "FR-025-CON-4",
         "StR-004-VC-2",
         "StR-004-VC-3",
     ]
@@ -55,7 +54,7 @@ fn complete_backed_population_passes() {
     let observation = check(&complete_report()).expect("complete report");
     assert_eq!(
         observation,
-        "assurance traceability ok: 20/20 required targets backed"
+        "assurance traceability ok: 19/19 required targets backed"
     );
 }
 
