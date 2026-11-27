@@ -20,6 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TEST_SOURCES = {
     "cli_export": ROOT / "tests/cli_export.rs",
+    "nfr010_mmdr_network": ROOT / "tests/nfr010_mmdr_network.rs",
     "tc_fr035_pdf_diagram_width": ROOT / "tests/tc_fr035_pdf_diagram_width.rs",
 }
 SUITE = "SUITE-004"
@@ -27,6 +28,9 @@ FOCUSED_TESTS = {
     "cli_export": {"real_exports_give_equal_text_and_structure_across_directories_and_zones"},
     "tc_fr035_pdf_diagram_width": {
         "real_pdf_scales_a_wide_diagram_to_the_text_area_and_keeps_a_narrow_one"
+    },
+    "nfr010_mmdr_network": {
+        "real_mmdr_completes_without_opening_network_sockets_for_each_guaranteed_type"
     },
 }
 TRACE_ID = re.compile(r'"([A-Z]+-[0-9]+-AC-[0-9]+)"')
@@ -40,6 +44,7 @@ VERSION_ARGS = {
     "pdftotext": ["-v"],
     "unzip": ["-v"],
     "bwrap": ["--version"],
+    "strace": ["--version"],
     "python3": ["--version"],
     "engineering-assurance": ["--version"],
     "git": ["--version"],

@@ -13,7 +13,7 @@ help:
 	@echo "  make fmt-check        - Verify formatting (CI gate)"
 	@echo "  make lint             - Clippy with -D warnings"
 	@echo "  make test             - cargo test"
-	@echo "  make test-export-real - Export tests that need real pandoc, typst, bwrap, mmdr, unzip, pdftotext, pdfimages"
+	@echo "  make test-export-real - Export tests that need real pandoc, typst, bwrap, mmdr, strace, unzip, pdftotext, pdfimages"
 	@echo "  make docs             - strict workspace rustdoc"
 	@echo "  make spec             - Validate changed assurance specs and traceability"
 	@echo "  make build            - Release build"
@@ -44,7 +44,8 @@ lint:
 test:
 	$(CARGO) test --workspace --locked --all-targets --all-features \
 		-- --skip real_exports_give_equal_text_and_structure_across_directories_and_zones \
-		--skip real_pdf_scales_a_wide_diagram_to_the_text_area_and_keeps_a_narrow_one
+		--skip real_pdf_scales_a_wide_diagram_to_the_text_area_and_keeps_a_narrow_one \
+		--skip real_mmdr_completes_without_opening_network_sockets_for_each_guaranteed_type
 
 # Real-converter export tests (FR-031-AC-1, FR-032-AC-7, FR-034, FR-035, FR-036).
 # The host-independence oracle uses bubblewrap UTS namespaces.
