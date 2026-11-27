@@ -14,9 +14,11 @@ use ix_trace_rs::trace;
 use serde_json::Value;
 use tempfile::TempDir;
 
-const DIAGRAMS: [(&str, &str); 2] = [
+const DIAGRAMS: [(&str, &str); 4] = [
     ("flowchart", "flowchart TD\n  Start --> Stop"),
     ("sequence", "sequenceDiagram\n  Alice->>Bob: hello"),
+    ("class", "classDiagram\n  class Quill"),
+    ("state", "stateDiagram-v2\n  [*] --> Ready"),
 ];
 
 struct Rig {
