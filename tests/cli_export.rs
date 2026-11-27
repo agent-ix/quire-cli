@@ -3858,6 +3858,7 @@ fn pandoc_reference_docx(rig: &Rig) -> PathBuf {
     "FR-034-AC-19",
     "FR-037-AC-6",
     "NFR-011-AC-1",
+    "NFR-011-AC-2",
     "NFR-011-AC-3",
     "NFR-011-AC-4"
 )]
@@ -3868,6 +3869,24 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
     let producer_input = commit_with_producer_identity(&rig);
     let pdf_template = org_template(&rig, "org.typ", TYPST_ORG_TEMPLATE.as_bytes());
     let docx_template = pandoc_reference_docx(&rig);
+    let approval_one = verdict_file(
+        &rig,
+        "reproducibility-approval-one.json",
+        &approved(
+            "Ada Example",
+            "2026-01-02T03:04:05Z",
+            &["reviewed the first fixture"],
+        ),
+    );
+    let approval_two = verdict_file(
+        &rig,
+        "reproducibility-approval-two.json",
+        &approved(
+            "Bo Example",
+            "2026-02-03T04:05:06Z",
+            &["reviewed the second fixture"],
+        ),
+    );
     let changed = fs::read_to_string(export_fixture())
         .expect("fixture")
         .replace("first fixture item", "altered fixture item");
@@ -3893,6 +3912,15 @@ fn real_exports_give_equal_text_and_structure_across_directories_and_zones() {
             (
                 "template",
                 Box::new(|| with_template(real_command(&[&producer_input], to), template)),
+            ),
+            (
+                "two approvals",
+                Box::new(|| {
+                    with_approvals(
+                        real_command(&[&producer_input], to),
+                        &[&approval_one, &approval_two],
+                    )
+                }),
             ),
         ];
         for (name, build) in &scenarios {
