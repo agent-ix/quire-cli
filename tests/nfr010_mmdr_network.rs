@@ -172,7 +172,6 @@ fn real_mmdr_completes_without_opening_network_sockets_for_each_guaranteed_type(
             .iter()
             .zip(&results)
             .filter(|(request, _)| request["producer"]["name"] == "mmdr")
-            .map(|(request, result)| (request, result))
             .collect();
         assert_eq!(mmdr_results.len(), 1, "{kind} has one mmdr request");
         let (request, result) = mmdr_results[0];
