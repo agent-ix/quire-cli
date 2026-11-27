@@ -158,7 +158,7 @@ fn emit_report_diagnostics(ctx: &Ctx, report: &CoverageReport) {
 /// then the one join.
 /// Each member's documents are loaded once, by the corpus, and reused for its
 /// coverage computation.
-#[implements("FR-043-AC-28")]
+#[implements("FR-043-AC-28", "FR-043-AC-29")]
 fn compute_matrix(
     ctx: &Ctx,
     corpus: &Corpus,
@@ -205,7 +205,7 @@ fn compute_matrix(
     Ok((matrix, parented_target_groups))
 }
 
-#[implements("FR-043-AC-28")]
+#[implements("FR-043-AC-28", "FR-043-AC-29")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let corpus = resolve_corpus(&args)?;
     let registry = super::coverage::load_registry_for_relations(
