@@ -81,7 +81,11 @@ whether or not any module declares `design_relations`; the criteria rows then ar
 - **JSON.** The serialized `DesignMatrix` object in FR-026's envelope passes through unchanged:
   `entries` retains each engine entry and its `design` key, and `errors` is the engine's array of
   `{module, item, reason}` objects, empty when there are no dropped relations. Element kind is
-  `kind`. The `design` key is absent for an entry out of scope.
+  `kind`. The `design` key is absent for an entry out of scope. The public JSON projection also carries
+  nonempty engine `parented_target_groups` as a separate top-level field; it never adds these groups to
+  `coverage_matrix` or changes the `DesignMatrix` object. When multiple `--repo` members contribute,
+  every group also carries `repo` with that member's canonical `<ORG/REPO>` identity. The `repo` property
+  is omitted for `--scope` and a single `--repo`, preserving those payload shapes.
 - **TSV.** `design` and `design_state` are inserted after `criterion`:
   `document criterion design design_state status binders statement requirement_criticality`. `design` is
   the comma-separated `[kind:]<id>` of the criterion's elements, `[kind:]<repo>/<id>` for an element with
@@ -149,8 +153,11 @@ and TSV writes the five-field record above to stderr while preserving its stdout
 | FR-043-AC-25 | In `--format human`, the `design:` line of an `uncovered` entry with no elements shows `no design element (<check>)`, of an entry with no `design` key shows `n/a`, and of a `covered` entry with no elements shows `(none)`. | Test |
 | FR-043-AC-26 | A requirement with two `uncovered` design relations fails `--strict` with two stderr lines, one per `<check>`, in block order. | Test |
 | FR-043-AC-27 | When `design_matrix` returns dropped-relation errors beside valid entries, JSON preserves the engine's `DesignMatrix` object and errors array; human prints `error: dropped relation <item> from module <module>: <reason>` before entries; Markdown preserves stdout shape and writes that exact human-readable line to stderr; TSV preserves its stdout schema and writes `error\tdropped relation\t<item>\t<module>\t<reason>` to stderr, replacing tabs, CRs and LFs within fields with spaces; all formats retain valid entries and exit 1, with and without `--strict` (FR-026-AC-17). | Test |
+| FR-043-AC-28 | `--format json` exposes nonempty engine `parented_target_groups` as a top-level field, including a populated group and a parent with an empty `child_ids`; the `coverage_matrix` `DesignMatrix` remains unchanged and parents without groups produce no new JSON field. Under multi-repo input, each group carries the contributing member's canonical `<ORG/REPO>` identity; `--scope` and single-repo payloads omit `repo`. | Test |
+| FR-043-AC-29 | Two valid repos containing the same parent rule produce distinct groups with their respective canonical repo identities, while the engine `coverage_matrix` remains unchanged. A single `--repo` retains the existing group shape without `repo`. | Test |
 
 ## Dependencies
 
 - **Upstream**: [FR-026](./FR-026-matrix-subcommand.md); [FR-028](./FR-028-matrix-criticality-column.md); [FR-041](./FR-041-relations-design-mode.md); [FR-007](./FR-007-exit-codes.md); [FR-030](./FR-030-relations-subcommand.md); [StR-004](../stakeholder/StR-004-thin-boundary-over-quire-rs.md); quire-rs [FR-092](ix://agent-ix/quire-rs/FR-092), [FR-086](ix://agent-ix/quire-rs/FR-086), [FR-085](ix://agent-ix/quire-rs/FR-085), [FR-058](ix://agent-ix/quire-rs/FR-058)
+- **Engine enum compatibility**: quire-rs `ClauseForce`, `BindingOutcome`, and `LintSeverity` are non-exhaustive. The CLI renders future clause force/outcome values as `unknown` and treats an unrecognized lint severity as an error until it has an explicit projection. Existing serialized clause output is exercised by `cli_clauses::it139_tsv_is_stable_and_machine_columned`; known lint severity behavior is exercised by `cli_lint::lint_warning_finding_exits_0_with_stderr` and `cli_lint::lint_error_finding_exits_1`.
 - **Downstream**: `quoin matrix` (quoin FR-165)
