@@ -295,6 +295,10 @@ fn json_carries_the_engines_design_key_and_omits_it_out_of_scope() {
     let second = f.matrix(&r, &["--format", "json"]);
     assert_eq!(first.stdout, second.stdout, "two runs are byte-identical");
     let value = json(&first);
+    assert!(
+        value.get("parented_target_groups").is_none(),
+        "parents without groups add no JSON field"
+    );
     let entries = value["coverage_matrix"]["entries"]
         .as_array()
         .expect("entries");
@@ -329,6 +333,75 @@ fn json_carries_the_engines_design_key_and_omits_it_out_of_scope() {
     assert!(value["coverage_matrix"]["entries"][0]
         .get("design")
         .is_none());
+}
+
+#[trace("FR-043-AC-28")]
+#[test]
+fn json_projects_parented_groups_without_changing_the_design_matrix() {
+    let module = r#"
+name: role-spec
+manifest_version: 1.0.0
+version: 0.0.1
+artifact_types:
+- name: RoleSpec
+traceability:
+  trace_targets:
+  - name: role-rule
+    archetype: RoleSpec
+    section: Rules
+    id_column: ID
+    evidence: reference-only
+  - name: role-evaluation
+    archetype: RoleSpec
+    section: Evaluations
+    id_column: ID
+    evidence: reference-only
+    parent_target: role-rule
+    parent_id_column: Rule
+"#;
+    let f = Fixture::new(module);
+    let doc = r#"---
+id: RS-001
+type: RoleSpec
+title: RoleSpec example
+---
+
+# RS-001
+
+## Rules
+
+| ID | Rule |
+|---|---|
+| RS-R01 | Evaluated |
+| RS-R02 | No evaluation |
+
+## Evaluations
+
+| ID | Rule | Method | Query or rubric | Trigger |
+|---|---|---|---|---|
+| RS-E01 | RS-R01 | deterministic | query.one | trigger.one |
+"#;
+    let repo = f.repo("role-spec", &[doc.to_string()], &[]);
+    let out = f.matrix(&repo, &["--format", "json"]);
+    assert_eq!(code(&out), 0, "{}", stderr(&out));
+    let value = json(&out);
+    assert_eq!(
+        value["coverage_matrix"],
+        serde_json::json!({"entries": [], "errors": []}),
+        "parent groups stay outside the public DesignMatrix"
+    );
+    let groups = value["parented_target_groups"]
+        .as_array()
+        .expect("nonempty engine groups project as a top-level field");
+    assert_eq!(groups.len(), 2, "one group per parent rule");
+    let group = |id: &str| {
+        groups
+            .iter()
+            .find(|group| group["parent_id"] == id)
+            .expect("parent group is present")
+    };
+    assert_eq!(group("RS-R01")["child_ids"], serde_json::json!(["RS-E01"]));
+    assert_eq!(group("RS-R02")["child_ids"], serde_json::json!([]));
 }
 
 #[trace("FR-043-AC-4", "FR-043-AC-20")]

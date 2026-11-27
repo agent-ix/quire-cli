@@ -81,7 +81,9 @@ whether or not any module declares `design_relations`; the criteria rows then ar
 - **JSON.** The serialized `DesignMatrix` object in FR-026's envelope passes through unchanged:
   `entries` retains each engine entry and its `design` key, and `errors` is the engine's array of
   `{module, item, reason}` objects, empty when there are no dropped relations. Element kind is
-  `kind`. The `design` key is absent for an entry out of scope.
+  `kind`. The `design` key is absent for an entry out of scope. The public JSON projection also carries
+  nonempty engine `parented_target_groups` as a separate top-level field; it never adds these groups to
+  `coverage_matrix` or changes the `DesignMatrix` object.
 - **TSV.** `design` and `design_state` are inserted after `criterion`:
   `document criterion design design_state status binders statement requirement_criticality`. `design` is
   the comma-separated `[kind:]<id>` of the criterion's elements, `[kind:]<repo>/<id>` for an element with
@@ -149,6 +151,7 @@ and TSV writes the five-field record above to stderr while preserving its stdout
 | FR-043-AC-25 | In `--format human`, the `design:` line of an `uncovered` entry with no elements shows `no design element (<check>)`, of an entry with no `design` key shows `n/a`, and of a `covered` entry with no elements shows `(none)`. | Test |
 | FR-043-AC-26 | A requirement with two `uncovered` design relations fails `--strict` with two stderr lines, one per `<check>`, in block order. | Test |
 | FR-043-AC-27 | When `design_matrix` returns dropped-relation errors beside valid entries, JSON preserves the engine's `DesignMatrix` object and errors array; human prints `error: dropped relation <item> from module <module>: <reason>` before entries; Markdown preserves stdout shape and writes that exact human-readable line to stderr; TSV preserves its stdout schema and writes `error\tdropped relation\t<item>\t<module>\t<reason>` to stderr, replacing tabs, CRs and LFs within fields with spaces; all formats retain valid entries and exit 1, with and without `--strict` (FR-026-AC-17). | Test |
+| FR-043-AC-28 | `--format json` exposes nonempty engine `parented_target_groups` as a top-level field, including a populated group and a parent with an empty `child_ids`; the `coverage_matrix` `DesignMatrix` remains unchanged and parents without groups produce no new JSON field. | Test |
 
 ## Dependencies
 

@@ -14,7 +14,7 @@ use anyhow::Context;
 use clap::Parser;
 use quire_cli::safety;
 use quire_rs::corpus::{DesignMatrix, DroppedRelation};
-use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixStatus};
+use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixStatus, ParentedTargetGroup};
 use quire_rs::{design_matrix, CoverageReport, DesignMatrixEntry, RelationReportMember};
 use serde::Serialize;
 
@@ -36,8 +36,8 @@ pub struct Args {
     pub repo: Vec<RepoArg>,
 
     /// Output form: a `markdown` table per requirement (default), plain-text
-    /// `human` blocks, the engine's matrix value as `json`, or one `tsv`
-    /// record per criterion. Every form goes to stdout.
+    /// `human` blocks, the engine's design matrix and parent groups as `json`,
+    /// or one `tsv` record per criterion. Every form goes to stdout.
     #[arg(long, value_enum, value_name = "FORMAT", default_value = "markdown")]
     pub format: Format,
 
@@ -55,7 +55,7 @@ pub enum Format {
     Markdown,
     /// One plain-text block per requirement.
     Human,
-    /// `{"coverage_matrix": …, "engine": {…}}`, the engine's value verbatim.
+    /// The design matrix plus any parent groups and engine provenance.
     Json,
     /// One tab-separated record per criterion.
     Tsv,
@@ -83,10 +83,13 @@ struct View {
 }
 
 /// The JSON payload before provenance is attached. `coverage_matrix` carries
-/// the engine's `DesignMatrix` object, including empty `entries` and `errors`.
+/// the engine's `DesignMatrix` object, including empty `entries` and `errors`;
+/// parent groups remain a separate top-level projection of member reports.
 #[derive(Serialize)]
 struct Payload {
     coverage_matrix: DesignMatrix,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    parented_target_groups: Vec<ParentedTargetGroup>,
 }
 
 /// The corpus the flags name: the `--repo` members in flag order, or the one
@@ -139,15 +142,16 @@ fn emit_report_diagnostics(ctx: &Ctx, report: &CoverageReport) {
     }
 }
 
-/// Compute the design matrix over every member (FR-092): each member's
-/// `coverage_matrix` through the shared computation, then the one join.
+/// Compute the design matrix and collect parent groups over every member
+/// (FR-092): each member's `coverage_matrix` through the shared computation,
+/// then the one join.
 /// Each member's documents are loaded once, by the corpus, and reused for its
 /// coverage computation.
 fn compute_matrix(
     ctx: &Ctx,
     corpus: &Corpus,
     registry: &quire_rs::Registry,
-) -> anyhow::Result<DesignMatrix> {
+) -> anyhow::Result<(DesignMatrix, Vec<ParentedTargetGroup>)> {
     let mut reports = Vec::with_capacity(corpus.members.len());
     for member in &corpus.members {
         let report = super::coverage::compute_report_over_for_matrix(
@@ -169,7 +173,13 @@ fn compute_matrix(
             matrix: &report.coverage_matrix,
         })
         .collect();
-    design_matrix(&corpus.spec, registry, &inputs).map_err(|e| invalid_error!("{e}"))
+    let parented_target_groups = reports
+        .iter()
+        .flat_map(|report| report.parented_target_groups.iter().cloned())
+        .collect();
+    let matrix =
+        design_matrix(&corpus.spec, registry, &inputs).map_err(|e| invalid_error!("{e}"))?;
+    Ok((matrix, parented_target_groups))
 }
 
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
@@ -179,7 +189,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         &args.target.module,
         &corpus.members[0].root,
     )?;
-    let matrix = compute_matrix(ctx, &corpus, &registry)?;
+    let (matrix, parented_target_groups) = compute_matrix(ctx, &corpus, &registry)?;
     let view = View {
         design: registry
             .traceability()
@@ -203,7 +213,8 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
             "{}",
             ix_cli_kit::json::encode(
                 &quire_cli::engine::attach(Payload {
-                    coverage_matrix: matrix.clone()
+                    coverage_matrix: matrix.clone(),
+                    parented_target_groups,
                 }),
                 ctx.pretty
             )?
@@ -624,6 +635,7 @@ mod tests {
                 entries: matrix,
                 errors: Vec::new(),
             },
+            parented_target_groups: Vec::new(),
         })
         .expect("matrix payload serializes");
         let row = &payload["coverage_matrix"]["entries"][0]["criteria"][0];
