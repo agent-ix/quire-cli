@@ -287,7 +287,7 @@ fn human_prints_the_design_line_the_gap_lines_and_one_line_per_criterion() {
     );
 }
 
-#[trace("FR-043-AC-3")]
+#[trace("FR-043-AC-3", "FR-043-AC-28")]
 #[test]
 fn json_carries_the_engines_design_key_and_omits_it_out_of_scope() {
     let (f, r) = lit_and_dark();
@@ -335,7 +335,7 @@ fn json_carries_the_engines_design_key_and_omits_it_out_of_scope() {
         .is_none());
 }
 
-#[trace("FR-043-AC-28")]
+#[trace("FR-043-AC-28", "FR-043-AC-29")]
 #[test]
 fn json_projects_parented_groups_without_changing_the_design_matrix() {
     let module = r#"
@@ -402,6 +402,81 @@ title: RoleSpec example
     };
     assert_eq!(group("RS-R01")["child_ids"], serde_json::json!(["RS-E01"]));
     assert_eq!(group("RS-R02")["child_ids"], serde_json::json!([]));
+    assert!(group("RS-R02").get("repo").is_none());
+
+    let single_repo = json(&f.matrix_repos(&[("example/role-spec", &repo)], &["--format", "json"]));
+    assert_eq!(
+        single_repo["parented_target_groups"],
+        value["parented_target_groups"]
+    );
+}
+
+#[trace("FR-043-AC-28", "FR-043-AC-29")]
+#[test]
+fn json_parent_groups_include_repo_identity_for_multi_repo_corpora() {
+    let module = r#"
+name: role-spec
+manifest_version: 1.0.0
+version: 0.0.1
+artifact_types:
+- name: RoleSpec
+traceability:
+  trace_targets:
+  - name: role-rule
+    archetype: RoleSpec
+    section: Rules
+    id_column: ID
+    evidence: reference-only
+  - name: role-evaluation
+    archetype: RoleSpec
+    section: Evaluations
+    id_column: ID
+    evidence: reference-only
+    parent_target: role-rule
+    parent_id_column: Rule
+"#;
+    let f = Fixture::new(module);
+    let doc = r#"---
+id: RS-001
+type: RoleSpec
+title: RoleSpec example
+---
+
+# RS-001
+
+## Rules
+
+| ID | Rule |
+|---|---|
+| RS-R01 | Evaluated |
+| RS-R02 | No evaluation |
+
+## Evaluations
+
+| ID | Rule | Method | Query or rubric | Trigger |
+|---|---|---|---|---|
+| RS-E01 | RS-R01 | deterministic | query.one | trigger.one |
+"#;
+    let a = f.repo("a", &[doc.to_string()], &[]);
+    let b = f.repo("b", &[doc.to_string()], &[]);
+    let value = json(&f.matrix_repos(&[("o/a", &a), ("o/b", &b)], &["--format", "json"]));
+    assert_eq!(
+        value["coverage_matrix"],
+        serde_json::json!({"entries": [], "errors": []}),
+        "parent groups remain outside the public DesignMatrix"
+    );
+    let groups = value["parented_target_groups"]
+        .as_array()
+        .expect("parent groups are projected");
+    let rs_r02: Vec<_> = groups
+        .iter()
+        .filter(|group| group["parent_id"] == "RS-R02")
+        .collect();
+    assert_eq!(rs_r02.len(), 2);
+    assert_eq!(rs_r02[0]["parent_document"], rs_r02[1]["parent_document"]);
+    assert_eq!(rs_r02[0]["parent_id"], rs_r02[1]["parent_id"]);
+    assert_eq!(rs_r02[0]["repo"], "o/a");
+    assert_eq!(rs_r02[1]["repo"], "o/b");
 }
 
 #[trace("FR-043-AC-4", "FR-043-AC-20")]

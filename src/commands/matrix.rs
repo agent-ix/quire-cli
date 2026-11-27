@@ -12,6 +12,7 @@
 
 use anyhow::Context;
 use clap::Parser;
+use ix_trace_rs::implements;
 use quire_cli::safety;
 use quire_rs::corpus::{DesignMatrix, DroppedRelation};
 use quire_rs::coverage::{CoverageMatrixBinder, CoverageMatrixStatus, ParentedTargetGroup};
@@ -89,7 +90,17 @@ struct View {
 struct Payload {
     coverage_matrix: DesignMatrix,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    parented_target_groups: Vec<ParentedTargetGroup>,
+    parented_target_groups: Vec<ParentedTargetGroupProjection>,
+}
+
+/// One engine parent group, optionally identified by its canonical repository
+/// identity when multiple members contribute to the same matrix.
+#[derive(Serialize)]
+struct ParentedTargetGroupProjection {
+    #[serde(flatten)]
+    group: ParentedTargetGroup,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    repo: Option<String>,
 }
 
 /// The corpus the flags name: the `--repo` members in flag order, or the one
@@ -147,11 +158,13 @@ fn emit_report_diagnostics(ctx: &Ctx, report: &CoverageReport) {
 /// then the one join.
 /// Each member's documents are loaded once, by the corpus, and reused for its
 /// coverage computation.
+#[implements("FR-043-AC-28")]
 fn compute_matrix(
     ctx: &Ctx,
     corpus: &Corpus,
     registry: &quire_rs::Registry,
-) -> anyhow::Result<(DesignMatrix, Vec<ParentedTargetGroup>)> {
+    repo_identities: &[RepoArg],
+) -> anyhow::Result<(DesignMatrix, Vec<ParentedTargetGroupProjection>)> {
     let mut reports = Vec::with_capacity(corpus.members.len());
     for member in &corpus.members {
         let report = super::coverage::compute_report_over_for_matrix(
@@ -173,15 +186,26 @@ fn compute_matrix(
             matrix: &report.coverage_matrix,
         })
         .collect();
-    let parented_target_groups = reports
-        .iter()
-        .flat_map(|report| report.parented_target_groups.iter().cloned())
-        .collect();
+    let mut parented_target_groups = Vec::new();
+    for (index, report) in reports.iter().enumerate() {
+        let repo = if repo_identities.len() > 1 {
+            repo_identities.get(index).map(|repo| repo.identity.clone())
+        } else {
+            None
+        };
+        parented_target_groups.extend(report.parented_target_groups.iter().cloned().map(|group| {
+            ParentedTargetGroupProjection {
+                group,
+                repo: repo.clone(),
+            }
+        }));
+    }
     let matrix =
         design_matrix(&corpus.spec, registry, &inputs).map_err(|e| invalid_error!("{e}"))?;
     Ok((matrix, parented_target_groups))
 }
 
+#[implements("FR-043-AC-28")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let corpus = resolve_corpus(&args)?;
     let registry = super::coverage::load_registry_for_relations(
@@ -189,7 +213,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
         &args.target.module,
         &corpus.members[0].root,
     )?;
-    let (matrix, parented_target_groups) = compute_matrix(ctx, &corpus, &registry)?;
+    let (matrix, parented_target_groups) = compute_matrix(ctx, &corpus, &registry, &args.repo)?;
     let view = View {
         design: registry
             .traceability()
