@@ -18,10 +18,17 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "tests/cli_export.rs"
+TEST_SOURCES = {
+    "cli_export": ROOT / "tests/cli_export.rs",
+    "tc_fr035_pdf_diagram_width": ROOT / "tests/tc_fr035_pdf_diagram_width.rs",
+}
 SUITE = "SUITE-004"
-TEST_COMMAND = ["cargo", "test", "--locked", "--test", "cli_export", "--", "--ignored"]
-FOCUSED_TESTS = {"real_exports_give_equal_text_and_structure_across_directories_and_zones"}
+FOCUSED_TESTS = {
+    "cli_export": {"real_exports_give_equal_text_and_structure_across_directories_and_zones"},
+    "tc_fr035_pdf_diagram_width": {
+        "real_pdf_scales_a_wide_diagram_to_the_text_area_and_keeps_a_narrow_one"
+    },
+}
 TRACE_ID = re.compile(r'"([A-Z]+-[0-9]+-AC-[0-9]+)"')
 TEST_RESULT = re.compile(r"^test\s+(\w+)\s+\.\.\.\s+(ok|FAILED)$")
 VERSION_ARGS = {
@@ -57,52 +64,66 @@ def version(tool: str, executable: str) -> tuple[str | None, str | None]:
 
 def test_groups() -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     """Read ignored and explicitly focused live-tool tests with their trace IDs."""
-    if not SOURCE.is_file():
-        raise ValueError(f"missing test source: {SOURCE}")
-    lines = SOURCE.read_text(encoding="utf-8").splitlines()
     ignored_tests: list[dict[str, object]] = []
     focused_tests: list[dict[str, object]] = []
-    trace_ids: list[str] | None = None
-    ignored = False
-    is_test = False
-    index = 0
-    while index < len(lines):
-        line = lines[index].strip()
-        if line.startswith("#[trace("):
-            attribute = line
-            while not attribute.endswith(")]") and index + 1 < len(lines):
-                index += 1
-                attribute += "\n" + lines[index].strip()
-            trace_ids = sorted(set(TRACE_ID.findall(attribute)))
-        elif line.startswith("#[ignore"):
-            ignored = True
-        elif line == "#[test]":
-            is_test = True
-        elif line.startswith("fn ") and "(" in line:
-            name = line[3 : line.index("(")].strip()
-            if ignored and is_test:
-                if not trace_ids:
-                    raise ValueError(f"ignored test {name} has no trace IDs")
-                ignored_tests.append(
-                    {"name": name, "symbol": f"cli_export::{name}", "trace_ids": trace_ids}
-                )
-            elif name in FOCUSED_TESTS and is_test:
-                if not trace_ids:
-                    raise ValueError(f"focused live-tool test {name} has no trace IDs")
-                focused_tests.append(
-                    {"name": name, "symbol": f"cli_export::{name}", "trace_ids": trace_ids}
-                )
-            trace_ids = None
-            ignored = False
-            is_test = False
-        elif line and not line.startswith(("#[", "//", "/*", "*")):
-            trace_ids = None
-            ignored = False
-            is_test = False
-        index += 1
+    ignored_by_target: dict[str, list[dict[str, object]]] = {}
+    focused_by_target: dict[str, list[dict[str, object]]] = {}
+    for target, source in TEST_SOURCES.items():
+        if not source.is_file():
+            raise ValueError(f"missing test source: {source}")
+        lines = source.read_text(encoding="utf-8").splitlines()
+        ignored_by_target[target] = []
+        focused_by_target[target] = []
+        trace_ids: list[str] | None = None
+        ignored = False
+        is_test = False
+        index = 0
+        while index < len(lines):
+            line = lines[index].strip()
+            if line.startswith("#[trace("):
+                attribute = line
+                while not attribute.endswith(")]") and index + 1 < len(lines):
+                    index += 1
+                    attribute += "\n" + lines[index].strip()
+                trace_ids = sorted(set(TRACE_ID.findall(attribute)))
+            elif line.startswith("#[ignore"):
+                ignored = True
+            elif line == "#[test]":
+                is_test = True
+            elif line.startswith("fn ") and "(" in line:
+                name = line[3 : line.index("(")].strip()
+                record = {
+                    "name": name,
+                    "target": target,
+                    "source": str(source.relative_to(ROOT)),
+                    "symbol": f"{target}::{name}",
+                    "trace_ids": trace_ids or [],
+                }
+                if ignored and is_test:
+                    if not trace_ids:
+                        raise ValueError(f"ignored test {name} has no trace IDs in {source}")
+                    ignored_by_target[target].append(record)
+                elif name in FOCUSED_TESTS.get(target, set()) and is_test:
+                    if not trace_ids:
+                        raise ValueError(f"focused test {name} has no trace IDs in {source}")
+                    focused_by_target[target].append(record)
+                trace_ids = None
+                ignored = False
+                is_test = False
+            elif line and not line.startswith(("#[", "//", "/*", "*")):
+                trace_ids = None
+                ignored = False
+                is_test = False
+            index += 1
+    ignored_tests = [test for tests in ignored_by_target.values() for test in tests]
+    focused_tests = [test for tests in focused_by_target.values() for test in tests]
     if not ignored_tests:
-        raise ValueError(f"no ignored tests found in {SOURCE}")
-    missing = FOCUSED_TESTS - {str(test["name"]) for test in focused_tests}
+        raise ValueError("no ignored real-tool tests found")
+    missing = {
+        f"{target}::{name}"
+        for target, names in FOCUSED_TESTS.items()
+        for name in names - {str(test["name"]) for test in focused_by_target[target]}
+    }
     if missing:
         raise ValueError(f"focused live-tool tests missing or ignored: {sorted(missing)}")
     return ignored_tests, focused_tests
@@ -183,7 +204,6 @@ def main() -> int:
     base_config: dict[str, str] = {
         "tool_versions": json.dumps(tool_versions, sort_keys=True),
         "source_commit": source_commit(),
-        "test_source": "tests/cli_export.rs",
         "fixtures": "tests/fixtures/export",
     }
     entries: list[dict[str, object]] = []
@@ -193,6 +213,7 @@ def main() -> int:
         for test in tests:
             config = {
                 **base_config,
+                "test_source": test["source"],
                 "command": "not run: required live-tool prerequisites unavailable",
                 "execution_state": "not-executed",
                 "error": reason,
@@ -200,10 +221,25 @@ def main() -> int:
             entries.append(entry(test, "error", config))
         failed = True
     else:
-        command_groups = [(TEST_COMMAND, ignored)]
+        ignored_by_target: dict[str, list[dict[str, object]]] = {}
+        for test in ignored:
+            ignored_by_target.setdefault(str(test["target"]), []).append(test)
+        command_groups = [
+            (["cargo", "test", "--locked", "--test", target, "--", "--ignored"], group)
+            for target, group in ignored_by_target.items()
+        ]
         command_groups.extend(
             (
-                ["cargo", "test", "--locked", "--test", "cli_export", "--", "--exact", str(test["name"])],
+                [
+                    "cargo",
+                    "test",
+                    "--locked",
+                    "--test",
+                    str(test["target"]),
+                    "--",
+                    "--exact",
+                    str(test["name"]),
+                ],
                 [test],
             )
             for test in focused
@@ -235,6 +271,7 @@ def main() -> int:
                 state = observed.get(str(test["name"]))
                 config = {
                     **base_config,
+                    "test_source": test["source"],
                     "command": " ".join(command),
                     "execution_state": "executed" if state else "not-executed",
                 }
