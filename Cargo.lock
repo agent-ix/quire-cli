@@ -1751,7 +1751,7 @@ dependencies = [
 [[package]]
 name = "quire-code-extraction"
 version = "0.1.0"
-source = "git+https://github.com/agent-ix/quire-rs?rev=069efd70378d5bd1ee1f7dea00732c974c60164a#069efd70378d5bd1ee1f7dea00732c974c60164a"
+source = "git+https://github.com/agent-ix/quire-rs?rev=a4c4a7503a3f79b2a080d1ff31e5469f5c66f2aa#a4c4a7503a3f79b2a080d1ff31e5469f5c66f2aa"
 dependencies = [
  "quire-code-parse",
 ]
@@ -1797,8 +1797,8 @@ dependencies = [
 
 [[package]]
 name = "quire-rs"
-version = "0.63.3"
-source = "git+https://github.com/agent-ix/quire-rs?rev=069efd70378d5bd1ee1f7dea00732c974c60164a#069efd70378d5bd1ee1f7dea00732c974c60164a"
+version = "0.63.5"
+source = "git+https://github.com/agent-ix/quire-rs?rev=a4c4a7503a3f79b2a080d1ff31e5469f5c66f2aa#a4c4a7503a3f79b2a080d1ff31e5469f5c66f2aa"
 dependencies = [
  "agent-ix-semantic-schema",
  "globset",
@@ -1807,6 +1807,7 @@ dependencies = [
  "ix-trace-rs 0.1.2",
  "jsonschema 0.56.0",
  "loom",
+ "num-bigint",
  "quire-code-extraction",
  "rayon",
  "regex",
