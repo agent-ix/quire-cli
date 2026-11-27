@@ -67,6 +67,12 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
                 errors += 1;
                 "LintError"
             }
+            // Treat an upstream severity added in a future engine release as
+            // an error until the CLI defines an explicit projection for it.
+            _ => {
+                errors += 1;
+                "LintError"
+            }
         };
         // Severity rides in the message so the human format (which
         // drops `kind`) still shows it; JSON carries both.

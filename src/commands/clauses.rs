@@ -454,6 +454,7 @@ fn force_name(force: &ClauseForce) -> &'static str {
         ClauseForce::Mandatory => "mandatory",
         ClauseForce::Recommended => "recommended",
         ClauseForce::Permitted => "permitted",
+        _ => "unknown",
     }
 }
 
@@ -462,6 +463,7 @@ fn outcome_name(outcome: &BindingOutcome) -> &'static str {
         BindingOutcome::Binding => "binding",
         BindingOutcome::NotBinding => "not_binding",
         BindingOutcome::Unresolved => "unresolved",
+        _ => "unknown",
     }
 }
 
