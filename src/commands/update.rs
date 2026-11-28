@@ -39,6 +39,8 @@ pub struct Args {
 #[implements("FR-016-AC-3")]
 #[implements("FR-016-AC-4")]
 #[implements("FR-016-AC-7")]
+#[implements("FR-016-AC-5")]
+#[implements("FR-016-AC-6")]
 pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let report = self_update::run_self_update(
         &CONFIG,

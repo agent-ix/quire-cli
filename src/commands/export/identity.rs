@@ -5,6 +5,7 @@
 //! object store with read-only access; no `git` process is started and the
 //! wall clock is never consulted.
 
+use ix_trace_rs::implements;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -89,6 +90,8 @@ pub(super) struct Source {
 
 /// Reads the committed revision of `input` and assembles its identity.
 /// `working` is the text of the working file, compared with the committed blob.
+#[implements("FR-037-AC-2")]
+#[implements("NFR-011-AC-5")]
 pub(super) fn resolve(
     input: &Path,
     working: &str,

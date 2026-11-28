@@ -1,6 +1,7 @@
 //! The organisation's own template (FR-036): a file the user holds locally,
 //! read once into memory and written only into the capability root.
 
+use ix_trace_rs::implements;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::Path;
@@ -22,6 +23,7 @@ fn extension(to: Format) -> &'static str {
 /// Reads the template at `path` for the output format `to`. A path that is
 /// missing, is not a regular file, exceeds 16 MiB or has an extension other
 /// than the format's is exit 3; a permission refusal is exit 2 (FR-040).
+#[implements("FR-036-AC-1")]
 pub(super) fn load(path: &Path, to: Format) -> anyhow::Result<Vec<u8>> {
     let wanted = extension(to);
     if path.extension().and_then(|ext| ext.to_str()) != Some(wanted) {

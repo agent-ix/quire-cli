@@ -181,6 +181,7 @@ pub(crate) fn apply_severity_overrides(
 #[implements("FR-010-AC-4")]
 #[implements("FR-010-AC-5")]
 #[implements("FR-018-AC-5")]
+#[implements("FR-004-AC-9")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     run_with(ctx, args, Source::Files)
 }
@@ -473,6 +474,7 @@ fn emit_property_summary(
 #[implements("FR-014-AC-5")]
 #[implements("FR-014-AC-6")]
 #[implements("FR-014-AC-8")]
+#[implements("FR-014-AC-9")]
 fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow::Result<()> {
     if !args.repo.is_empty() {
         return run_okf_corpus(ctx, args, registry);

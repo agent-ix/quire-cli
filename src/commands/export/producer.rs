@@ -2,6 +2,7 @@
 //! (FR-032). `quire` launches only `engineering-assurance`; the request it
 //! sends is the field table of FR-032 section A.
 
+use ix_trace_rs::implements;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -75,6 +76,8 @@ impl Step {
         }
     }
 
+#[implements("FR-032-AC-3")]
+#[implements("FR-035-AC-3")]
     fn arguments(self, plan: Plan) -> Vec<String> {
         let Plan {
             with_identity,
@@ -177,6 +180,7 @@ pub(super) struct Generated<'a> {
 /// Runs the export's requests over one capability root and returns the path of
 /// the converted file inside it. The root is removed when the returned guard
 /// drops, on every exit path.
+#[implements("FR-042-AC-1")]
 pub(super) fn convert(
     converters: &Converters,
     to: Format,
@@ -412,6 +416,7 @@ fn request(root: &str, tool: &Tool, plan: Plan) -> Value {
 }
 
 /// The FR-032 request field set for `tool`. Fields not in the table are not set.
+#[implements("FR-037-AC-2")]
 fn envelope(
     root: &str,
     tool: &Tool,

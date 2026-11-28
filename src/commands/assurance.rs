@@ -97,6 +97,7 @@ pub struct Args {
 #[implements("FR-020-CON-2")]
 #[implements("FR-020-CON-4")]
 #[implements("FR-020-CON-5")]
+#[implements("FR-020-AC-6")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;

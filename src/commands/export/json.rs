@@ -6,6 +6,7 @@
 //! escaped so the converter shows it as literal text and a report cannot
 //! inject raw Typst, OpenXML, HTML or Markdown structure.
 
+use ix_trace_rs::implements;
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
@@ -59,6 +60,7 @@ const MAX_COLUMN_WIDTH: usize = 48;
 
 /// Renders the report to Markdown and converts it. Shape errors are exit 3 and
 /// are raised before any converter is resolved or started.
+#[implements("FR-037-AC-5")]
 pub(super) fn export(args: &Args, kind: Kind, text: &str) -> anyhow::Result<()> {
     let name = args.input[0].display().to_string();
     let markdown = to_markdown(kind, &name, text)?;
