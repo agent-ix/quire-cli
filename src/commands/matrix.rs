@@ -259,6 +259,8 @@ fn compute_matrix(
 #[implements("FR-043-AC-7")]
 #[implements("FR-043-AC-8")]
 #[implements("FR-043-AC-9")]
+#[implements("FR-026-AC-15")]
+#[implements("FR-047-AC-3")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let corpus = resolve_corpus(&args)?;
     let registry = super::coverage::load_registry_for_relations(
@@ -377,6 +379,7 @@ enum Verdict {
     },
 }
 
+#[implements("FR-026-AC-15")]
 fn strict_verdict(matrix: &[DesignMatrixEntry]) -> Verdict {
     let mut total = 0usize;
     let (mut untagged, mut ignored_only) = (0usize, 0usize);
@@ -480,6 +483,7 @@ fn binders_or_none(binders: &[CoverageMatrixBinder]) -> String {
     }
 }
 
+#[implements("FR-026-AC-15")]
 fn render_markdown(matrix: &[DesignMatrixEntry], view: View) -> String {
     let entries = shown(matrix);
     if entries.is_empty() {
@@ -577,6 +581,7 @@ fn render_human(matrix: &[DesignMatrixEntry], view: View, errors: &[DroppedRelat
     output
 }
 
+#[implements("FR-026-AC-15")]
 fn render_tsv(matrix: &[DesignMatrixEntry], view: View) -> String {
     let mut header: Vec<&str> = Vec::new();
     if view.repo {

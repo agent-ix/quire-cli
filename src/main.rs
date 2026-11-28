@@ -8,6 +8,7 @@
 //! owns the separate read-only developer Git coherence policy (FR-027).
 
 use clap::{Parser, Subcommand};
+use ix_trace_rs::implements;
 
 use ix_cli_kit::exit::Outcome;
 use ix_cli_kit::streams::{ColorChoice, Diagnostics, DiagnosticsFormat};
@@ -15,6 +16,7 @@ use ix_cli_kit::streams::{ColorChoice, Diagnostics, DiagnosticsFormat};
 mod commands;
 
 #[derive(Parser, Debug)]
+#[implements("NFR-006-AC-2")]
 #[command(
     name = "quire",
     // #68: both versions, from the ONE place the string is assembled. It was
@@ -90,6 +92,11 @@ enum Command {
     Update(commands::update::Args),
 }
 
+#[implements("FR-006-AC-3")]
+#[implements("FR-007-AC-1")]
+#[implements("FR-007-AC-4")]
+#[implements("FR-007-AC-5")]
+#[implements("NFR-005-AC-2")]
 fn main() {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,

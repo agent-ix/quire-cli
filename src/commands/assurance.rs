@@ -92,7 +92,9 @@ pub struct Args {
 #[implements("FR-020-AC-3")]
 #[implements("FR-020-AC-4")]
 #[implements("FR-020-AC-5")]
+#[implements("FR-020-AC-7")]
 #[implements("FR-020-AC-9")]
+#[implements("FR-020-CON-2")]
 #[implements("FR-020-CON-4")]
 #[implements("FR-020-CON-5")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {

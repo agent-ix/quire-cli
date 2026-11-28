@@ -1,6 +1,7 @@
 //! Typed domain outcome classification for the CLI process boundary.
 
 use ix_cli_kit::exit::Outcome;
+use ix_trace_rs::implements;
 use quire_cli::safety::PathError;
 
 #[derive(Debug)]
@@ -50,6 +51,8 @@ pub(crate) fn input(error: anyhow::Error) -> anyhow::Error {
     classified(outcome, error)
 }
 
+#[implements("FR-007-AC-2")]
+#[implements("FR-007-AC-8")]
 pub(crate) fn outcome(error: &anyhow::Error) -> Outcome {
     for cause in error.chain() {
         if let Some(failure) = cause.downcast_ref::<Failure>() {

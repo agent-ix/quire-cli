@@ -4,6 +4,7 @@
 //! is generated at export time into the capability root.
 
 use anyhow::Context;
+use ix_trace_rs::implements;
 use serde_json::{Map, Value};
 
 use super::identity::{Identity, ProducerIdentity, Release};
@@ -47,6 +48,7 @@ pub(super) fn escape_markdown(value: &str) -> String {
 /// The pandoc metadata file: the identity under the reserved `quire-export`
 /// key as double-quoted strings (JSON is a YAML subset). The frontmatter of the
 /// input is never converter input.
+#[implements("FR-034-AC-20")]
 pub(super) fn metadata_yaml(identity: &Identity) -> anyhow::Result<String> {
     let mut export = Map::new();
     let mut put = |key: &str, value: &str| {

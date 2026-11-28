@@ -31,6 +31,7 @@ use super::Ctx;
 
 #[derive(Parser, Debug)]
 #[implements("FR-030-AC-23")]
+#[implements("FR-014-AC-7")]
 pub struct Args {
     /// Markdown document path, glob, or `-` for stdin. Relative paths and
     /// globs are resolved from the current directory unless --scope is given.
@@ -400,6 +401,7 @@ pub(crate) fn run_with(ctx: &Ctx, args: Args, source: Source<'_>) -> anyhow::Res
 /// Emit the EARS requirement-grammar summary (FR-042) on **stdout** (CR-012):
 /// it is a census, not a diagnostic. Advisory either way — a one-line histogram
 /// + doc-level conformance, never affecting the exit code.
+#[implements("FR-006-AC-5")]
 fn emit_grammar_summary(
     _ctx: &Ctx,
     docs_scanned: usize,
@@ -435,6 +437,7 @@ fn emit_grammar_summary(
 /// specific scenarios, which is a legitimate way to write them. This never
 /// affects the exit code, and it is deliberately *not* a grammar check —
 /// classification has no severity key and no promotion path (FR-052-CON-1).
+#[implements("FR-006-AC-5")]
 fn emit_property_summary(
     _ctx: &Ctx,
     seen: usize,
@@ -678,6 +681,7 @@ pub(crate) fn load_registry(ctx: &Ctx, args: &Args, scope: &Path) -> anyhow::Res
 /// omitted (`validate`, `coverage`, `symbols`): `<scope>`, `<scope>/.ix/modules`,
 /// the module env vars and the default install root, with a one-shot lazy
 /// install of the default set when nothing is found.
+#[implements("FR-004-AC-13")]
 pub(crate) fn load_scoped_with_defaults(ctx: &Ctx, scope: &Path) -> anyhow::Result<Registry> {
     // Scoped discovery. Load once; if nothing is found, lazy-install the
     // default module set via quoin and reload exactly once before failing —
@@ -821,6 +825,7 @@ impl DocumentInput {
     }
 }
 
+#[implements("FR-005-AC-5")]
 pub(crate) fn expand_documents(
     raw_documents: &[String],
     scope: &Path,

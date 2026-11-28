@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use ix_trace_rs::implements;
 use serde::Deserialize;
 
 use crate::{read, Error, Result};
@@ -41,6 +42,8 @@ impl Observation {
 }
 
 /// Parse hyperfine JSON and compute its first result's nearest-rank p95.
+#[implements("FR-025-AC-2")]
+#[implements("FR-025-AC-3")]
 pub fn evaluate_bytes(bytes: &[u8], threshold_ms: f64) -> Result<Observation> {
     if !threshold_ms.is_finite() || threshold_ms < 0.0 {
         return Err(Error::InvalidThreshold {

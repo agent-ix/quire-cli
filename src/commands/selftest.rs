@@ -226,6 +226,7 @@ fn anomaly_set(producer_version: &str, documents: Option<Vec<AnomalyDocument>>) 
     }
 }
 
+#[implements("FR-047-AC-9")]
 fn ensure_supported_platform(os: &str) -> anyhow::Result<()> {
     if os != "linux" {
         return Err(failure::refused(anyhow::anyhow!(
@@ -651,6 +652,7 @@ fn criteria(case: &CaseResource) -> anyhow::Result<Vec<String>> {
     Ok(criteria)
 }
 
+#[implements("FR-047-AC-5")]
 fn missing_required_tool(case: &CaseResource) -> anyhow::Result<Option<String>> {
     let file = case
         .files

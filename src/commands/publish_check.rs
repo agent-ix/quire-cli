@@ -80,6 +80,7 @@ fn load_verdict(ctx: &Ctx, raw: &str) -> anyhow::Result<Vec<RestrictedClauseSet>
 }
 
 /// Exit 0 for an empty verdict; otherwise a refusal naming every set.
+#[implements("FR-029-AC-7")]
 fn verdict_to_result(restricted: &[RestrictedClauseSet]) -> anyhow::Result<()> {
     if restricted.is_empty() {
         return Ok(());

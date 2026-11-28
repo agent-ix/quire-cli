@@ -123,6 +123,7 @@ pub enum OutputFormat {
 #[implements("FR-017-AC-21")]
 #[implements("FR-017-AC-22")]
 #[implements("FR-017-AC-23")]
+#[implements("FR-017-AC-24")]
 #[implements("FR-017-AC-3")]
 #[implements("FR-017-AC-4")]
 #[implements("FR-017-AC-5")]
@@ -732,6 +733,7 @@ fn metric_lines(report: &quire_rs::CoverageReport) -> Vec<String> {
         .collect()
 }
 
+#[implements("FR-006-AC-5")]
 fn emit_human(ctx: &Ctx, report: &quire_rs::CoverageReport) -> anyhow::Result<()> {
     // CR-012: the census goes to **stdout**. It is what a caller redirecting
     // with `>` came for, and it is not a diagnostic — `N/M rows backed
