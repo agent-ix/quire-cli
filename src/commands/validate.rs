@@ -153,6 +153,32 @@ pub(crate) fn apply_severity_overrides(
     Ok(registry.with_grammar_severity(merged))
 }
 
+#[implements("FR-004-AC-1")]
+#[implements("FR-004-AC-10")]
+#[implements("FR-004-AC-11")]
+#[implements("FR-004-AC-12")]
+#[implements("FR-004-AC-14")]
+#[implements("FR-004-AC-15")]
+#[implements("FR-004-AC-19")]
+#[implements("FR-004-AC-2")]
+#[implements("FR-004-AC-20")]
+#[implements("FR-004-AC-21")]
+#[implements("FR-004-AC-22")]
+#[implements("FR-004-AC-23")]
+#[implements("FR-004-AC-3")]
+#[implements("FR-004-AC-4")]
+#[implements("FR-004-AC-5")]
+#[implements("FR-004-AC-6")]
+#[implements("FR-004-AC-7")]
+#[implements("FR-004-AC-8")]
+#[implements("FR-005-AC-2")]
+#[implements("FR-007-AC-3")]
+#[implements("FR-010-AC-1")]
+#[implements("FR-010-AC-2")]
+#[implements("FR-010-AC-3")]
+#[implements("FR-010-AC-4")]
+#[implements("FR-010-AC-5")]
+#[implements("FR-018-AC-5")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     run_with(ctx, args, Source::Files)
 }
