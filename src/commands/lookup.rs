@@ -4,6 +4,7 @@
 //! surface for heading lookup. ID and block-id lookup are direct walks
 //! over the parsed `QuireSection` tree.
 
+use ix_trace_rs::implements;
 use anyhow::Context;
 use clap::Parser;
 
@@ -38,6 +39,13 @@ pub struct Args {
     pub content: bool,
 }
 
+#[implements("FR-011-AC-1")]
+#[implements("FR-011-AC-2")]
+#[implements("FR-011-AC-3")]
+#[implements("FR-011-AC-4")]
+#[implements("FR-011-AC-5")]
+#[implements("FR-011-AC-6")]
+#[implements("FR-011-AC-7")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let text = io::read_text(&args.doc)
         .map_err(super::failure::input)

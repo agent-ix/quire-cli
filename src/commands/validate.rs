@@ -30,6 +30,7 @@ use quire_rs::{BundlePosture, BundleReport, Registry, ValidationReason, Validati
 use super::Ctx;
 
 #[derive(Parser, Debug)]
+#[implements("FR-030-AC-23")]
 pub struct Args {
     /// Markdown document path, glob, or `-` for stdin. Relative paths and
     /// globs are resolved from the current directory unless --scope is given.
@@ -153,6 +154,32 @@ pub(crate) fn apply_severity_overrides(
     Ok(registry.with_grammar_severity(merged))
 }
 
+#[implements("FR-004-AC-1")]
+#[implements("FR-004-AC-10")]
+#[implements("FR-004-AC-11")]
+#[implements("FR-004-AC-12")]
+#[implements("FR-004-AC-14")]
+#[implements("FR-004-AC-15")]
+#[implements("FR-004-AC-19")]
+#[implements("FR-004-AC-2")]
+#[implements("FR-004-AC-20")]
+#[implements("FR-004-AC-21")]
+#[implements("FR-004-AC-22")]
+#[implements("FR-004-AC-23")]
+#[implements("FR-004-AC-3")]
+#[implements("FR-004-AC-4")]
+#[implements("FR-004-AC-5")]
+#[implements("FR-004-AC-6")]
+#[implements("FR-004-AC-7")]
+#[implements("FR-004-AC-8")]
+#[implements("FR-005-AC-2")]
+#[implements("FR-007-AC-3")]
+#[implements("FR-010-AC-1")]
+#[implements("FR-010-AC-2")]
+#[implements("FR-010-AC-3")]
+#[implements("FR-010-AC-4")]
+#[implements("FR-010-AC-5")]
+#[implements("FR-018-AC-5")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     run_with(ctx, args, Source::Files)
 }
@@ -432,6 +459,17 @@ fn emit_property_summary(
 /// warnings and errors are surfaced on stderr. Exit 1 only when there are
 /// hard errors (untyped documents) — unknown types / broken links / index
 /// gaps warn.
+#[implements("FR-003-AC-5")]
+#[implements("FR-014-AC-1")]
+#[implements("FR-014-AC-10")]
+#[implements("FR-014-AC-11")]
+#[implements("FR-014-AC-17")]
+#[implements("FR-014-AC-2")]
+#[implements("FR-014-AC-3")]
+#[implements("FR-014-AC-4")]
+#[implements("FR-014-AC-5")]
+#[implements("FR-014-AC-6")]
+#[implements("FR-014-AC-8")]
 fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow::Result<()> {
     if !args.repo.is_empty() {
         return run_okf_corpus(ctx, args, registry);
@@ -523,6 +561,8 @@ fn okf_verdict(args: &Args, errors: usize, warnings: usize) -> anyhow::Result<()
 /// consumer reading `--diagnostics json` had the two contradict each
 /// other. The warning counterpart existed and sat unused on this path
 /// (upstream agent-ix/quire-rs#110).
+#[implements("FR-014-AC-16")]
+#[implements("FR-014-AC-14")]
 fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
     for w in &report.warnings {
         let message = bundle_message(w);
@@ -543,6 +583,8 @@ fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
 /// `<path>: [line <N>: ]<message> [<reason>]` — the located form that
 /// document diagnostics use ([`line_prefix`]); an unlocated finding keeps the
 /// bare `<path>: <message> [<reason>]` form.
+#[implements("FR-014-AC-12")]
+#[implements("FR-014-AC-15")]
 fn bundle_message(f: &quire_rs::BundleFinding) -> String {
     let member = f
         .repo
@@ -561,6 +603,8 @@ fn bundle_message(f: &quire_rs::BundleFinding) -> String {
 /// JSON fields of a located finding: `line` paired with `path` and `reason`,
 /// as document diagnostics do. An unlocated finding sets none of them, so its
 /// record keeps the bare `kind`/`message`/`severity` shape.
+#[implements("FR-014-AC-13")]
+#[implements("FR-014-AC-15")]
 fn bundle_fields<'a>(
     f: &'a quire_rs::BundleFinding,
     path: &'a str,

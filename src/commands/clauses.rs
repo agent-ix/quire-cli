@@ -4,6 +4,7 @@
 //! This command resolves safe paths and exact versions, then renders the
 //! resulting contract as human text, JSON, or TSV.
 
+use ix_trace_rs::implements;
 use std::collections::BTreeMap;
 
 use anyhow::Context;
@@ -87,6 +88,15 @@ enum OutputFormat {
     Tsv,
 }
 
+#[implements("FR-021-AC-1")]
+#[implements("FR-021-AC-10")]
+#[implements("FR-021-AC-2")]
+#[implements("FR-021-AC-3")]
+#[implements("FR-021-AC-4")]
+#[implements("FR-021-AC-5")]
+#[implements("FR-021-AC-6")]
+#[implements("FR-021-AC-8")]
+#[implements("FR-021-AC-9")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     match args.command {
         ClauseCommand::Evaluate(args) => evaluate(ctx, args),

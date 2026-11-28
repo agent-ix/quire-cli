@@ -4,6 +4,7 @@
 //! section/block writeback (FR-012 / upstream FR-022). Frontmatter and every
 //! untouched section stay byte-identical; only the addressed region changes.
 
+use ix_trace_rs::implements;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -40,6 +41,12 @@ pub struct Args {
     pub out: Option<String>,
 }
 
+#[implements("FR-012-AC-1")]
+#[implements("FR-012-AC-2")]
+#[implements("FR-012-AC-3")]
+#[implements("FR-012-AC-4")]
+#[implements("FR-012-AC-5")]
+#[implements("FR-012-AC-6")]
 pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     if args.doc == "-" && args.content == "-" {
         invalid_request!("edit cannot read both <doc> and --content from stdin");

@@ -77,6 +77,8 @@ struct EdgeShape {
     "FR-003-AC-9",
     "FR-003-AC-10"
 )]
+#[implements("FR-008-AC-2")]
+#[implements("FR-008-AC-5")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     if args.semantic && args.doc == "-" {
         invalid_request!("--semantic requires a file loaded from a declared --repo member");

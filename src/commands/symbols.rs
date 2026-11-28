@@ -27,6 +27,7 @@
 //! this whole programme exists to end. So `bound: false` is stated in the
 //! payload rather than left to be inferred from zeroes.
 
+use ix_trace_rs::implements;
 use std::path::Path;
 
 use anyhow::Context;
@@ -74,6 +75,12 @@ pub enum OutputFormat {
     Tsv,
 }
 
+#[implements("FR-019-AC-1")]
+#[implements("FR-019-AC-2")]
+#[implements("FR-019-AC-3")]
+#[implements("FR-019-AC-4")]
+#[implements("FR-019-AC-5")]
+#[implements("FR-019-AC-6")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;

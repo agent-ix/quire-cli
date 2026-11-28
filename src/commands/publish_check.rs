@@ -4,6 +4,7 @@
 //! module, asks the engine, and maps the verdict to an exit code: no
 //! restricted set exits 0, any restricted set exits 2 naming each one.
 
+use ix_trace_rs::implements;
 use anyhow::Context;
 use clap::{Parser, ValueEnum};
 use quire_rs::{check_publishable, RestrictedClauseSet};
@@ -28,6 +29,12 @@ enum OutputFormat {
     Json,
 }
 
+#[implements("FR-029-AC-1")]
+#[implements("FR-029-AC-2")]
+#[implements("FR-029-AC-3")]
+#[implements("FR-029-AC-4")]
+#[implements("FR-029-AC-5")]
+#[implements("FR-029-AC-6")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let restricted = load_verdict(ctx, &args.module)?;
     match args.format {

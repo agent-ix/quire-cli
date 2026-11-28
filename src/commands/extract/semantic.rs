@@ -13,6 +13,7 @@ use super::super::corpus_input::Corpus;
 use super::{Args, Ctx};
 
 #[implements("FR-003-AC-7", "FR-003-AC-8", "FR-003-AC-9")]
+#[implements("FR-003-AC-10")]
 pub(super) fn extract(
     ctx: &Ctx,
     args: &Args,

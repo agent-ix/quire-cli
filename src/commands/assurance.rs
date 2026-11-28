@@ -4,6 +4,7 @@
 //! diagnostic channels, and stdout. Quire-rs owns the corpus, symbol graph,
 //! projection, schema, and fail-closed reader.
 
+use ix_trace_rs::implements;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -86,6 +87,14 @@ pub struct Args {
     pub expect_schema: Vec<ExpectedSchema>,
 }
 
+#[implements("FR-020-AC-1")]
+#[implements("FR-020-AC-2")]
+#[implements("FR-020-AC-3")]
+#[implements("FR-020-AC-4")]
+#[implements("FR-020-AC-5")]
+#[implements("FR-020-AC-9")]
+#[implements("FR-020-CON-4")]
+#[implements("FR-020-CON-5")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;

@@ -15,6 +15,7 @@
 //! an error. It reports; whether a low extractable ratio matters is the
 //! consuming workflow's policy, not this command's.
 
+use ix_trace_rs::implements;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
@@ -77,6 +78,12 @@ pub struct Args {
     pub all: bool,
 }
 
+#[implements("FR-018-AC-1")]
+#[implements("FR-018-AC-2")]
+#[implements("FR-018-AC-3")]
+#[implements("FR-018-AC-4")]
+#[implements("FR-018-AC-5")]
+#[implements("FR-018-AC-7")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;
