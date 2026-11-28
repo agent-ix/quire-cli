@@ -1,10 +1,10 @@
 ---
-title: Export a JSON report
+title: Export a coverage matrix
 type: how-to
-description: Turn a coverage matrix JSON report into a PDF or DOCX file.
+description: Export a JSON coverage matrix to Word or PDF.
 ---
 
-Export a coverage matrix as a Word document or PDF with `quire export`.
+Export a JSON coverage matrix to Word or PDF with `quire export`.
 
 ## Before you start
 

@@ -20,7 +20,7 @@ Install Quire CLI 0.53.5 and make `quire` available on `PATH`. Run the example f
      --format json
    ```
 
-2. **Read the result.** An empty `restricted` array permits publication. A module with restricted clause text exits 2 and names each restricted set.
+2. **Read the result.** An empty `restricted` array means the check found no restricted clause sets. A module with restricted clause text exits 2 and names each restricted set.
 
    ```json
    {"restricted": []}
