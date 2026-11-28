@@ -375,3 +375,85 @@ fn matrix_retains_retired_status_without_hiding_a_live_gap() {
     assert_eq!(criteria[0]["status"], "retired");
     assert_eq!(criteria[1]["status"], "untagged");
 }
+
+/// Trace: FR-017-AC-7, FR-017-AC-13
+/// Provenance: PLAT-1149, agent-ix/quire-rs#514
+#[test]
+fn strict_rejects_an_unclaimed_criterion_in_a_shared_test_case() {
+    let dir = fixture(true);
+    fs::write(
+        dir.path().join("m/manifest.yaml"),
+        r#"name: m
+artifact_types:
+- name: FR
+- name: TestMatrix
+traceability:
+  trace_targets:
+  - name: case
+    archetype: TestMatrix
+    section: Cases
+    id_column: ID
+  - name: criterion
+    archetype: FR
+    section: Acceptance Criteria
+    id_column: ID
+  document_references:
+  - name: verification
+    archetype: FR
+    section: Acceptance Criteria
+    column: Verification
+    row_id_column: ID
+    pattern: '(TC-\d+)'
+    targets: [case]
+  - name: traces-to
+    archetype: TestMatrix
+    section: Cases
+    column: Traces To
+    row_id_column: ID
+    pattern: '(FR-\d+-AC-\d+)'
+    targets: [criterion]
+  obligations:
+  - name: criterion
+    target: criterion
+    statement_column: Criteria
+    method_column: Verification
+  status:
+    column: Status
+    complete: [done]
+    pending: [planned]
+  trace_tags:
+    markers:
+    - name: comment
+      language: rust
+      pattern: '#\[trace\("([^"]+)"\)\]'
+      template: '#[trace("{ids}")]'
+"#,
+    )
+    .unwrap();
+    fs::write(dir.path().join("spec/FR-001.md"), "---\nid: FR-001\ntype: FR\n---\n## Acceptance Criteria\n\n| ID | Criteria | Verification |\n|----|----------|--------------|\n| FR-001-AC-1 | Accept valid input. | Test (TC-001) |\n| FR-001-AC-2 | Reject invalid input. | Test (TC-001) |\n").unwrap();
+    fs::write(dir.path().join("spec/tests.md"), "---\nid: TM-001\ntype: TestMatrix\n---\n## Cases\n\n| ID | Traces To | Status |\n|----|-----------|--------|\n| TC-001 | FR-001-AC-1, FR-001-AC-2 | open |\n").unwrap();
+    let partial = "#[trace(\"TC-001\")]\n#[trace(\"FR-001-AC-1\")]\n#[test]\nfn evidence() {}\n";
+    fs::write(dir.path().join("src/lib.rs"), partial).unwrap();
+    let (plain, report) = run(&dir, false, false);
+    assert!(plain.status.success());
+    let rows = report["unbacked_rows"].as_array().unwrap();
+    let unbacked_criteria: Vec<_> = rows
+        .iter()
+        .filter(|row| row["row_id"].as_str().is_some_and(|id| id.starts_with("FR-001-AC-")))
+        .collect();
+    assert_eq!(unbacked_criteria.len(), 1, "{report}");
+    assert_eq!(unbacked_criteria[0]["row_id"], "FR-001-AC-2");
+    assert!(report["status_lies"].as_array().unwrap().is_empty());
+    for projected in [false, true] {
+        let (strict, _) = run(&dir, true, projected);
+        assert!(!strict.status.success());
+    }
+    fs::write(
+        dir.path().join("src/lib.rs"),
+        format!("#[trace(\"FR-001-AC-2\")]\n{partial}"),
+    )
+    .unwrap();
+    let (healthy, report) = run(&dir, true, false);
+    assert!(healthy.status.success(), "{report}");
+    assert!(report["unbacked_rows"].as_array().unwrap().is_empty());
+}
