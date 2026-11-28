@@ -132,6 +132,8 @@ pub enum OutputFormat {
 #[implements("FR-017-AC-8")]
 #[implements("FR-026-AC-10")]
 #[implements("FR-026-AC-7")]
+#[implements("FR-017-AC-9")]
+#[implements("FR-017-AC-19")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let (scope, registry) = args.target.load(ctx)?;
     // FR-017-AC-13 (#53): layer `--severity` over the module-declared

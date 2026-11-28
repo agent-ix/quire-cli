@@ -97,6 +97,7 @@ enum OutputFormat {
 #[implements("FR-021-AC-6")]
 #[implements("FR-021-AC-8")]
 #[implements("FR-021-AC-9")]
+#[implements("FR-021-AC-7")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     match args.command {
         ClauseCommand::Evaluate(args) => evaluate(ctx, args),

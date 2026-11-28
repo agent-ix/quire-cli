@@ -88,6 +88,8 @@ fn baseline_exists_and_is_regular(path: &Path) -> Result<bool> {
 
 /// Enforce exact unsafe-comment and baseline-lifecycle behavior.
 #[implements("FR-025-AC-5")]
+#[implements("FR-025-CON-1")]
+#[implements("NFR-003-AC-2")]
 pub fn check(root: &Path) -> Result<()> {
     let missing = undocumented_loci(root)?;
     let missing_encoded: BTreeSet<_> = missing.iter().map(Locus::encode).collect();

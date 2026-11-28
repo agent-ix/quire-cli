@@ -497,6 +497,7 @@ pub fn thin_boundary_findings(root: &Path) -> Result<Vec<Finding>> {
 }
 
 /// Enforce the complete Rust-source thin boundary.
+#[implements("FR-025-CON-1")]
 pub fn check_thin_boundary(root: &Path) -> Result<()> {
     let findings = thin_boundary_findings(root)?;
     if findings.is_empty() {

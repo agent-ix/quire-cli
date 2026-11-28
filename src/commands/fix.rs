@@ -44,6 +44,7 @@ pub struct Args {
 #[implements("FR-015-AC-3")]
 #[implements("FR-015-AC-4")]
 #[implements("FR-015-AC-5")]
+#[implements("FR-015-AC-6")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // An explicit positional DIR is honored as given; the default derives
     // the document root from --scope (CR-045) — never the scope itself.

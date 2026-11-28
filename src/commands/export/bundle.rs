@@ -3,6 +3,7 @@
 //! order given. The bundle title page, document list and per-document
 //! separators are generated; the documents themselves are passed unchanged.
 
+use ix_trace_rs::implements;
 use std::path::PathBuf;
 
 use super::identity::{self, Identity, Source, SourceOptions};
@@ -16,6 +17,7 @@ use super::{
 /// The most inputs one bundle holds.
 const MAX_INPUTS: usize = 256;
 
+#[implements("FR-039-AC-1")]
 pub(super) fn run(ctx: &Ctx, args: &Args) -> anyhow::Result<()> {
     let (title, id) = check_request(args)?;
     check_output_target(&args.output)?;

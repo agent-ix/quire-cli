@@ -253,6 +253,8 @@ enum InputClass {
 #[implements("NFR-011-AC-2")]
 #[implements("NFR-011-AC-3")]
 #[implements("NFR-011-AC-4")]
+#[implements("FR-031-AC-1")]
+#[implements("FR-036-AC-1")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let input = &args.input[0];
     let class = input_class(input)?;
