@@ -17,9 +17,15 @@ pub struct Args {
 }
 
 #[implements("FR-002-AC-1")]
+#[implements("FR-002-AC-2")]
+#[implements("FR-002-AC-3")]
 #[implements("FR-002-AC-4")]
 #[implements("FR-002-AC-5")]
+#[implements("FR-006-AC-4")]
+#[implements("FR-007-AC-6")]
 #[implements("FR-008-AC-1")]
+#[implements("FR-008-AC-3")]
+#[implements("FR-008-AC-4")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let text = io::read_text(&args.doc)
         .map_err(super::failure::input)

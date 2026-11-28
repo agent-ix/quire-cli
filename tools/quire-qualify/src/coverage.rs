@@ -47,6 +47,7 @@ pub fn required_targets() -> BTreeSet<String> {
 }
 
 /// Qualify a coverage report and return the stable success observation.
+#[implements("FR-025-AC-2")]
 pub fn check_bytes(bytes: &[u8]) -> Result<String> {
     let mut deserializer = serde_json::Deserializer::from_slice(bytes);
     let report: CoverageReport = serde_path_to_error::deserialize(&mut deserializer)

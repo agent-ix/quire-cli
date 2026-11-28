@@ -9,6 +9,7 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::{bail, Context, Result};
+use ix_trace_rs::implements;
 use semver::Version;
 
 fn checked_version(raw: &str) -> Result<Version> {
@@ -16,6 +17,7 @@ fn checked_version(raw: &str) -> Result<Version> {
 }
 
 /// Execute one native artifact's version surface and compare it exactly.
+#[implements("FR-022-AC-4")]
 pub fn verify_binary_version(version: &str, binary: &Path) -> Result<()> {
     let expected = checked_version(version)?.to_string();
     let output = Command::new(binary)

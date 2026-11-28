@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::implements;
 use proc_macro2::{LineColumn, Span, TokenStream, TokenTree};
 use syn::parse::Parser;
 use syn::spanned::Spanned;
@@ -458,6 +459,7 @@ fn audit_self_update(root: &Path, findings: &mut Vec<Finding>) {
 }
 
 /// Return every thin-boundary violation in deterministic path/line order.
+#[implements("FR-025-AC-4")]
 pub fn thin_boundary_findings(root: &Path) -> Result<Vec<Finding>> {
     let mut findings = Vec::new();
     for path in walk::rust_files(root, &["src"], &[])? {

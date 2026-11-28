@@ -84,6 +84,7 @@ pub struct Args {
 #[implements("FR-018-AC-4")]
 #[implements("FR-018-AC-5")]
 #[implements("FR-018-AC-7")]
+#[implements("FR-018-AC-8")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let scope = safety::validate_dir_path("--scope", &args.scope)
         .with_context(|| format!("validating --scope '{}'", args.scope))?;
@@ -181,6 +182,7 @@ pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
 /// generator needs. A span that was not extracted prints nothing rather than
 /// an empty label — `domain: ` with no value reads as an empty domain, which
 /// is a different claim from "not decomposed".
+#[implements("FR-018-AC-10")]
 fn emit_criteria(documents: &[(String, Vec<AcClassification>)], all: bool) -> anyhow::Result<()> {
     for (label, records) in documents {
         for r in records {
@@ -248,6 +250,7 @@ fn record_json(r: &AcClassification) -> Value {
     })
 }
 
+#[implements("FR-018-AC-9")]
 fn obligation_json(obligation: Option<&quire_rs::obligation::CriterionObligation>) -> Value {
     match obligation {
         None => Value::Null,
@@ -316,6 +319,7 @@ impl Census {
     /// 515 extractable criteria were the `universal` catch-all and the honest
     /// figure for "the classifier said what property to write" was 78/951, 8%.
     /// One clause stops the overread, and it is the clause a reader repeats.
+    #[implements("FR-006-AC-5")]
     fn emit(&self, _ctx: &Ctx) -> anyhow::Result<()> {
         let pct = |n: usize| (n * 100).checked_div(self.criteria).unwrap_or(0);
         primary_line!(

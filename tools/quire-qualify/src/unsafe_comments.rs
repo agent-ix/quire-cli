@@ -5,6 +5,7 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
+use ix_trace_rs::implements;
 use crate::{source, walk, Error, Result};
 
 const BASELINE: &str = "scripts/unsafe_comment_baseline.txt";
@@ -86,6 +87,7 @@ fn baseline_exists_and_is_regular(path: &Path) -> Result<bool> {
 }
 
 /// Enforce exact unsafe-comment and baseline-lifecycle behavior.
+#[implements("FR-025-AC-5")]
 pub fn check(root: &Path) -> Result<()> {
     let missing = undocumented_loci(root)?;
     let missing_encoded: BTreeSet<_> = missing.iter().map(Locus::encode).collect();
