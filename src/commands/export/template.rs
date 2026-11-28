@@ -118,6 +118,7 @@ pub(super) fn bundle_front_matter(
 
 /// The front matter of a document or bundle; `list` is the bundle's document
 /// list, placed between the title page and the table of contents.
+#[implements("FR-035-AC-3")]
 fn compose_front(identity: &Identity, to: Format, id_label: &str, list: Option<&str>) -> String {
     let mut front = String::new();
     match to {
@@ -205,7 +206,7 @@ fn commit_prefix(identity: &Identity) -> &str {
 /// The default PDF template: a pandoc Typst template that reads the
 /// `quire-export` metadata. The commit prefix is hexadecimal and is written
 /// as literal text.
-#[implements("FR-035-AC-3")]
+#[implements("FR-039-AC-2")]
 pub(super) fn typst_template(identity: &Identity) -> String {
     format!(
         r#"#let qid = [$quire-export.document-id$]
@@ -476,7 +477,7 @@ fn stored_zip(entries: &[(&str, &[u8])]) -> anyhow::Result<Vec<u8>> {
 /// The default DOCX reference document: page setup, styles, and a header and
 /// footer carrying the identity as literal text with `PAGE` and `NUMPAGES`
 /// fields, a different first page without either.
-#[implements("FR-035-AC-3")]
+#[implements("FR-039-AC-2")]
 pub(super) fn docx_reference(identity: &Identity) -> anyhow::Result<Vec<u8>> {
     let parts: [(&str, String); 10] = [
         ("[Content_Types].xml", CONTENT_TYPES.to_string()),
