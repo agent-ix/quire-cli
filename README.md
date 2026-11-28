@@ -112,6 +112,9 @@ During development, `target/debug/quire` is fine for local testing.
 
 ## Usage Instructions
 
+See the [Quire CLI guides](docs/index.md) for how-tos on matrix, relation,
+trace, publish-check, and matrix export commands.
+
 ### Parse And Outline Markdown
 
 Parse a document into a `QuireDocument` JSON envelope:
