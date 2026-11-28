@@ -802,6 +802,36 @@ traceability:
     m.to_string_lossy().into_owned()
 }
 
+/// A trace module with the assertion shape declared by current
+/// spec-artifacts-process main. `quire trace` does not evaluate table
+/// assertions; loading this module exercises the engine's manifest schema.
+fn module_with_table_assertions(dir: &TempDir) -> String {
+    let m = dir.path().join("table-assertions");
+    fs::create_dir_all(&m).expect("mkdir");
+    fs::write(
+        m.join("manifest.yaml"),
+        r#"name: process-table-assertions-fixture
+manifest_version: 1.0.0
+version: 0.0.1
+artifact_types:
+- name: FR
+traceability:
+  trace_targets:
+  - name: role-metric
+    archetype: RoleSpec
+    section: Metrics
+    id_column: ID
+    evidence: reference-only
+  table_assertions:
+  - kind: unique_ids
+    name: unique-role-metric-ids
+    target: role-metric
+"#,
+    )
+    .expect("write manifest");
+    m.to_string_lossy().into_owned()
+}
+
 /// A spec defining FR-001, plus `rules.native` whose `P1` formalizes it and
 /// whose `P2` names `FR-999`, which no document defines.
 fn formalizes_tree(dir: &TempDir) -> String {
@@ -870,7 +900,7 @@ fn forward_query_lists_the_declaration_under_formalizes_only() {
 #[test]
 fn an_undeclared_formalizes_form_preserves_existing_trace_json_bytes() {
     let dir = TempDir::new().expect("tmp");
-    let module = module(&dir);
+    let module = module_with_table_assertions(&dir);
     let scope = formalizes_tree(&dir);
     fs::write(dir.path().join("rules/rules.native"), "language qsl\n").expect("write rules");
 
