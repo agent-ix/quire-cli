@@ -12,6 +12,7 @@
 //! writes stdout. All rule evaluation lives in quire-rs (StR-004 thin
 //! boundary).
 
+use ix_trace_rs::implements;
 use anyhow::Context;
 use clap::Parser;
 
@@ -36,6 +37,11 @@ pub struct Args {
     pub archetype: Option<String>,
 }
 
+#[implements("FR-013-AC-1")]
+#[implements("FR-013-AC-2")]
+#[implements("FR-013-AC-3")]
+#[implements("FR-013-AC-4")]
+#[implements("FR-013-AC-5")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let module = safety::validate_module_path(&args.module)
         .with_context(|| format!("validating --module '{}'", args.module))?;

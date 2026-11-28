@@ -9,6 +9,7 @@
 //! engine-provided suggestions over their byte spans (StR-004 thin
 //! boundary: no markdown parsing or detection logic here).
 
+use ix_trace_rs::implements;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -38,6 +39,11 @@ pub struct Args {
     pub write: bool,
 }
 
+#[implements("FR-015-AC-1")]
+#[implements("FR-015-AC-2")]
+#[implements("FR-015-AC-3")]
+#[implements("FR-015-AC-4")]
+#[implements("FR-015-AC-5")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     // An explicit positional DIR is honored as given; the default derives
     // the document root from --scope (CR-045) — never the scope itself.

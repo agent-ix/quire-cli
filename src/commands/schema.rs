@@ -10,6 +10,7 @@
 //! Unknown archetypes exit 1 with `UnknownArchetype` on stderr; stdout is
 //! empty. All contract derivation lives in quire-rs (StR-004 thin boundary).
 
+use ix_trace_rs::implements;
 use anyhow::Context;
 use clap::Parser;
 
@@ -27,6 +28,11 @@ pub struct Args {
     pub module: String,
 }
 
+#[implements("FR-009-AC-1")]
+#[implements("FR-009-AC-2")]
+#[implements("FR-009-AC-3")]
+#[implements("FR-009-AC-4")]
+#[implements("FR-009-AC-5")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let module = safety::validate_module_path(&args.module)
         .with_context(|| format!("validating --module '{}'", args.module))?;

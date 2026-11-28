@@ -5,6 +5,7 @@
 //! install coordinates live; the shared engine returns a report for this
 //! command to render.
 
+use ix_trace_rs::implements;
 use clap::Parser;
 
 use ix_cli_kit::self_update::{self, SelfUpdateConfig, SelfUpdateOpts};
@@ -33,6 +34,11 @@ pub struct Args {
     pub registry: Option<String>,
 }
 
+#[implements("FR-016-AC-1")]
+#[implements("FR-016-AC-2")]
+#[implements("FR-016-AC-3")]
+#[implements("FR-016-AC-4")]
+#[implements("FR-016-AC-7")]
 pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let report = self_update::run_self_update(
         &CONFIG,

@@ -8,6 +8,7 @@
 //! `traceability.required_relations`, and with `--design` from the relations
 //! they name in `traceability.design_relations`.
 
+use ix_trace_rs::implements;
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -76,6 +77,68 @@ pub struct Args {
     pub strict: bool,
 }
 
+#[implements("FR-014-AC-17")]
+#[implements("FR-030-AC-1")]
+#[implements("FR-030-AC-10")]
+#[implements("FR-030-AC-11")]
+#[implements("FR-030-AC-12")]
+#[implements("FR-030-AC-13")]
+#[implements("FR-030-AC-14")]
+#[implements("FR-030-AC-15")]
+#[implements("FR-030-AC-16")]
+#[implements("FR-030-AC-17")]
+#[implements("FR-030-AC-18")]
+#[implements("FR-030-AC-19")]
+#[implements("FR-030-AC-2")]
+#[implements("FR-030-AC-20")]
+#[implements("FR-030-AC-21")]
+#[implements("FR-030-AC-23")]
+#[implements("FR-030-AC-24")]
+#[implements("FR-030-AC-25")]
+#[implements("FR-030-AC-26")]
+#[implements("FR-030-AC-27")]
+#[implements("FR-030-AC-28")]
+#[implements("FR-030-AC-3")]
+#[implements("FR-030-AC-4")]
+#[implements("FR-030-AC-5")]
+#[implements("FR-030-AC-6")]
+#[implements("FR-030-AC-7")]
+#[implements("FR-030-AC-8")]
+#[implements("FR-030-AC-9")]
+#[implements("FR-041-AC-1")]
+#[implements("FR-041-AC-10")]
+#[implements("FR-041-AC-2")]
+#[implements("FR-041-AC-3")]
+#[implements("FR-041-AC-4")]
+#[implements("FR-041-AC-5")]
+#[implements("FR-041-AC-6")]
+#[implements("FR-041-AC-7")]
+#[implements("FR-041-AC-8")]
+#[implements("FR-041-AC-9")]
+#[implements("FR-044-AC-1")]
+#[implements("FR-044-AC-10")]
+#[implements("FR-044-AC-11")]
+#[implements("FR-044-AC-12")]
+#[implements("FR-044-AC-13")]
+#[implements("FR-044-AC-14")]
+#[implements("FR-044-AC-16")]
+#[implements("FR-044-AC-2")]
+#[implements("FR-044-AC-3")]
+#[implements("FR-044-AC-4")]
+#[implements("FR-044-AC-5")]
+#[implements("FR-044-AC-6")]
+#[implements("FR-044-AC-7")]
+#[implements("FR-044-AC-8")]
+#[implements("FR-044-AC-9")]
+#[implements("FR-046-AC-1")]
+#[implements("FR-046-AC-2")]
+#[implements("FR-046-AC-3")]
+#[implements("FR-046-AC-4")]
+#[implements("FR-046-AC-5")]
+#[implements("FR-046-AC-6")]
+#[implements("FR-046-AC-7")]
+#[implements("FR-046-AC-8")]
+#[implements("FR-046-AC-9")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     if args.health_data_flows {
         let mut conflicting = Vec::new();

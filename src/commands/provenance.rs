@@ -1,5 +1,6 @@
 //! `quire provenance --json` — evidence-grade identity of the executable.
 
+use ix_trace_rs::implements;
 use clap::Parser;
 
 use crate::commands::Ctx;
@@ -12,6 +13,8 @@ pub struct Args {
     pub json: bool,
 }
 
+#[implements("FR-008-AC-5")]
+#[implements("FR-008-AC-6")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     if !args.json {
         invalid_request!("provenance is a machine contract; use --json")

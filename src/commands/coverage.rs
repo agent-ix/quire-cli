@@ -103,6 +103,34 @@ pub enum OutputFormat {
     Tsv,
 }
 
+#[implements("FR-004-AC-15")]
+#[implements("FR-004-AC-16")]
+#[implements("FR-004-AC-17")]
+#[implements("FR-004-AC-18")]
+#[implements("FR-007-AC-7")]
+#[implements("FR-017-AC-1")]
+#[implements("FR-017-AC-10")]
+#[implements("FR-017-AC-11")]
+#[implements("FR-017-AC-12")]
+#[implements("FR-017-AC-13")]
+#[implements("FR-017-AC-14")]
+#[implements("FR-017-AC-15")]
+#[implements("FR-017-AC-16")]
+#[implements("FR-017-AC-17")]
+#[implements("FR-017-AC-18")]
+#[implements("FR-017-AC-2")]
+#[implements("FR-017-AC-20")]
+#[implements("FR-017-AC-21")]
+#[implements("FR-017-AC-22")]
+#[implements("FR-017-AC-23")]
+#[implements("FR-017-AC-3")]
+#[implements("FR-017-AC-4")]
+#[implements("FR-017-AC-5")]
+#[implements("FR-017-AC-6")]
+#[implements("FR-017-AC-7")]
+#[implements("FR-017-AC-8")]
+#[implements("FR-026-AC-10")]
+#[implements("FR-026-AC-7")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let (scope, registry) = args.target.load(ctx)?;
     // FR-017-AC-13 (#53): layer `--severity` over the module-declared

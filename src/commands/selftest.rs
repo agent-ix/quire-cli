@@ -142,6 +142,9 @@ enum Destination {
 }
 
 #[implements("FR-047-AC-4", "FR-047-AC-10")]
+#[implements("FR-047-AC-1")]
+#[implements("FR-047-AC-11")]
+#[implements("FR-047-AC-2")]
 pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let cases = all_cases()?;
     if args.list {

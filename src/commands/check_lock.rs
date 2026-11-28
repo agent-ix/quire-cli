@@ -1,5 +1,6 @@
 //! Read-only Cargo Git source coherence policy (FR-027).
 
+use ix_trace_rs::implements;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
@@ -168,6 +169,14 @@ fn check(packages: Vec<Package>) -> anyhow::Result<BTreeSet<Entry>> {
     Ok(failures)
 }
 
+#[implements("FR-027-AC-1")]
+#[implements("FR-027-AC-2")]
+#[implements("FR-027-AC-3")]
+#[implements("FR-027-AC-4")]
+#[implements("FR-027-AC-5")]
+#[implements("FR-027-AC-6")]
+#[implements("FR-027-AC-7")]
+#[implements("FR-027-AC-9")]
 pub fn run(_ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let mut failures = Vec::new();
     for raw in &args.locks {

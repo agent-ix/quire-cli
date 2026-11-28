@@ -47,6 +47,7 @@
 //! measured false-positive class (see `apply_path_exclusion` below for why it
 //! is scoped to citations only, never claims).
 
+use ix_trace_rs::implements;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -262,6 +263,16 @@ struct TraceReport {
     citations_excluded_by_path_filter: usize,
 }
 
+#[implements("FR-045-AC-1")]
+#[implements("FR-045-AC-10")]
+#[implements("FR-045-AC-2")]
+#[implements("FR-045-AC-3")]
+#[implements("FR-045-AC-4")]
+#[implements("FR-045-AC-5")]
+#[implements("FR-045-AC-6")]
+#[implements("FR-045-AC-7")]
+#[implements("FR-045-AC-8")]
+#[implements("FR-045-AC-9")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let selector_count = [
         args.id.is_some(),

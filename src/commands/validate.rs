@@ -432,6 +432,16 @@ fn emit_property_summary(
 /// warnings and errors are surfaced on stderr. Exit 1 only when there are
 /// hard errors (untyped documents) — unknown types / broken links / index
 /// gaps warn.
+#[implements("FR-003-AC-5")]
+#[implements("FR-014-AC-1")]
+#[implements("FR-014-AC-10")]
+#[implements("FR-014-AC-11")]
+#[implements("FR-014-AC-2")]
+#[implements("FR-014-AC-3")]
+#[implements("FR-014-AC-4")]
+#[implements("FR-014-AC-5")]
+#[implements("FR-014-AC-6")]
+#[implements("FR-014-AC-8")]
 fn run_okf(ctx: &Ctx, args: &Args, scope: &Path, registry: &Registry) -> anyhow::Result<()> {
     if !args.repo.is_empty() {
         return run_okf_corpus(ctx, args, registry);

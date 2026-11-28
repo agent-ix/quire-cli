@@ -2,6 +2,7 @@
 //!
 //! Surfaces `quire_rs::parse_document` (upstream FR-005/006/008).
 
+use ix_trace_rs::implements;
 use anyhow::Context;
 use clap::Parser;
 
@@ -15,6 +16,10 @@ pub struct Args {
     pub doc: String,
 }
 
+#[implements("FR-002-AC-1")]
+#[implements("FR-002-AC-4")]
+#[implements("FR-002-AC-5")]
+#[implements("FR-008-AC-1")]
 pub fn run(ctx: &Ctx, args: Args) -> anyhow::Result<()> {
     let text = io::read_text(&args.doc)
         .map_err(super::failure::input)
