@@ -142,11 +142,6 @@ enum InputClass {
 }
 
 #[implements("FR-007-AC-9")]
-#[implements("FR-014-AC-12")]
-#[implements("FR-014-AC-13")]
-#[implements("FR-014-AC-14")]
-#[implements("FR-014-AC-15")]
-#[implements("FR-014-AC-16")]
 #[implements("FR-031-AC-10")]
 #[implements("FR-031-AC-11")]
 #[implements("FR-031-AC-12")]

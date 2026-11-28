@@ -30,6 +30,7 @@ use quire_rs::{BundlePosture, BundleReport, Registry, ValidationReason, Validati
 use super::Ctx;
 
 #[derive(Parser, Debug)]
+#[implements("FR-030-AC-23")]
 pub struct Args {
     /// Markdown document path, glob, or `-` for stdin. Relative paths and
     /// globs are resolved from the current directory unless --scope is given.
@@ -462,6 +463,7 @@ fn emit_property_summary(
 #[implements("FR-014-AC-1")]
 #[implements("FR-014-AC-10")]
 #[implements("FR-014-AC-11")]
+#[implements("FR-014-AC-17")]
 #[implements("FR-014-AC-2")]
 #[implements("FR-014-AC-3")]
 #[implements("FR-014-AC-4")]
@@ -559,6 +561,8 @@ fn okf_verdict(args: &Args, errors: usize, warnings: usize) -> anyhow::Result<()
 /// consumer reading `--diagnostics json` had the two contradict each
 /// other. The warning counterpart existed and sat unused on this path
 /// (upstream agent-ix/quire-rs#110).
+#[implements("FR-014-AC-16")]
+#[implements("FR-014-AC-14")]
 fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
     for w in &report.warnings {
         let message = bundle_message(w);
@@ -579,6 +583,8 @@ fn surface_bundle(ctx: &Ctx, report: &BundleReport) {
 /// `<path>: [line <N>: ]<message> [<reason>]` — the located form that
 /// document diagnostics use ([`line_prefix`]); an unlocated finding keeps the
 /// bare `<path>: <message> [<reason>]` form.
+#[implements("FR-014-AC-12")]
+#[implements("FR-014-AC-15")]
 fn bundle_message(f: &quire_rs::BundleFinding) -> String {
     let member = f
         .repo
@@ -597,6 +603,8 @@ fn bundle_message(f: &quire_rs::BundleFinding) -> String {
 /// JSON fields of a located finding: `line` paired with `path` and `reason`,
 /// as document diagnostics do. An unlocated finding sets none of them, so its
 /// record keeps the bare `kind`/`message`/`severity` shape.
+#[implements("FR-014-AC-13")]
+#[implements("FR-014-AC-15")]
 fn bundle_fields<'a>(
     f: &'a quire_rs::BundleFinding,
     path: &'a str,

@@ -77,7 +77,6 @@ pub struct Args {
     pub strict: bool,
 }
 
-#[implements("FR-014-AC-17")]
 #[implements("FR-030-AC-1")]
 #[implements("FR-030-AC-10")]
 #[implements("FR-030-AC-11")]
@@ -92,7 +91,6 @@ pub struct Args {
 #[implements("FR-030-AC-2")]
 #[implements("FR-030-AC-20")]
 #[implements("FR-030-AC-21")]
-#[implements("FR-030-AC-23")]
 #[implements("FR-030-AC-24")]
 #[implements("FR-030-AC-25")]
 #[implements("FR-030-AC-26")]
