@@ -9,6 +9,12 @@ output schemas (see `spec/non-functional/NFR-006-cli-stability.md`).
 
 ## [Unreleased]
 
+## [0.53.5] — 2026-11-28
+
+### Changed
+
+- Adopt quire-rs 0.63.5 at revision `3c458cbb5e74bec9f491dd9c2f8cc79dc8926852` so `quire trace` can load current Process modules that declare `traceability.table_assertions`.
+
 ## [0.53.4] — 2026-11-26
 
 ### Added
