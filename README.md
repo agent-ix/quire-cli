@@ -331,9 +331,24 @@ This repository ships Codex-style agent skills under `skills/`. They are
 intended to be packaged with or installed from `quire-cli` so agents can use
 the CLI consistently without relearning command patterns.
 
-For Claude Code and Codex, register the [Agent IX marketplace](https://github.com/agent-ix/agent-plugins)
-from `agent-ix/agent-plugins`, then install `quire-cli@agent-ix`. Install the
-`quire` executable separately using the instructions above.
+Install the `quire-cli` plugin from the shared `agent-ix` marketplace to add
+its five agent skills and supporting files. This plugin does not install the
+`quire` executable or any Quire modules; install those separately using the
+instructions above.
+
+For Claude Code, add the marketplace and install the plugin:
+
+```bash
+claude plugin marketplace add agent-ix/agent-plugins
+claude plugin install quire-cli@agent-ix
+```
+
+For Codex, add the same marketplace and install the plugin:
+
+```bash
+codex plugin marketplace add agent-ix/agent-plugins
+codex plugin add quire-cli@agent-ix
+```
 
 Available skills:
 
